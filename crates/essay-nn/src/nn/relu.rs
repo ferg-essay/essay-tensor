@@ -1,3 +1,5 @@
+use ndarray::Array2;
+
 use super::Model;
 
 #[derive(Clone, Debug)]
@@ -22,8 +24,14 @@ impl Model for ReLU {
         self.len
     }
 
-    fn forward(&mut self, data: super::Tensor<1>) -> super::Tensor<1> {
-        todo!()
+    fn forward(&mut self, data: &Array2<f32>) -> Array2<f32> {
+        let mut data = data.clone();
+        
+        for item in &mut data.iter_mut() {
+            *item = if *item > 0. { *item } else { 0. };
+        }
+
+        data
     }
 
     fn box_clone(&self) -> Box<dyn Model> {

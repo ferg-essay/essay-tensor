@@ -23,9 +23,9 @@ mod test {
     #[test]
     fn test() {
         let _model = Sequential::new(&[
-            Linear::new(20, 8),
+            Linear::new(20, 8).done(),
             ReLU::new(8),
-            Linear::new(8, 20),
+            Linear::new(8, 20).done(),
         ]);
     }
 }

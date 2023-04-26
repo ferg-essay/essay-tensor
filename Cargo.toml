@@ -10,7 +10,7 @@ path = "src/lib.rs"
 [dependencies]
 env_logger = { version = "0.10.0" }
 log = { version = "0.4.17" }
-essay-num = { path = "crates/essay-num" }
+essay-tensor = { path = "crates/essay-tensor" }
 essay-nn = { path = "crates/essay-nn" }
 
 [workspace]
