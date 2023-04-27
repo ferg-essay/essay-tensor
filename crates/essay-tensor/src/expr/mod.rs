@@ -1,10 +1,3 @@
-mod expr;
-use std::marker::PhantomData;
+mod var;
 
-use crate::tensor::{Dtype, Uop, Binop};
-
-pub use expr::{Expr};
-
-pub struct Vec {
-
-}
+pub use var::{Var};

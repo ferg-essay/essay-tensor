@@ -1,15 +1,57 @@
 use crate::{Tensor};
+use core::fmt;
 use std::rc::Rc;
 
 use crate::tensor::{TensorData, Dtype};
 
+use super::{BoxOp, Op};
 
-pub trait Uop<D:Dtype> {
+
+pub trait Uop<D:Dtype> : fmt::Debug + Sync + Send + 'static {
     fn eval(&self, value: D) -> D;
+
+    fn box_clone(&self) -> Box<dyn Uop<D>>;
 }
 
 pub trait Binop<D:Dtype> {
     fn eval(&self, a: D, b: D) -> D;
+}
+
+#[derive(Debug)]
+pub struct UopRecord<D:Dtype> {
+    prev: Option<BoxOp>,
+    uop: Box<dyn Uop<D>>,
+}
+
+impl<D:Dtype> UopRecord<D> {
+    fn new(prev: &Option<BoxOp>, uop: Box<dyn Uop<D>>) -> UopRecord<D> {
+        Self {
+            prev: if let Some(op) = prev {
+                Some(op.box_clone())
+            } else {
+                None
+            },
+            uop,
+        }
+    }
+}
+impl<D:Dtype> Op for UopRecord<D> {
+    fn box_clone(&self) -> BoxOp {
+        Box::new(self.clone())
+    }
+}
+
+impl<D:Dtype> Clone for UopRecord<D> {
+    fn clone(&self) -> Self {
+        Self { 
+            prev: if let Some(prev) = &self.prev {
+                Some(prev.box_clone())
+            } else {
+                None
+            },
+            uop: self.uop.box_clone(),
+        }
+    }
 }
 
 impl<const N:usize, D:Dtype> Tensor<N, D> {
@@ -24,7 +66,11 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
                 data.uset(i, uop.eval(buffer.uget(i)));
             }
     
-            Self::new(Rc::new(data), self.shape().clone())
+            Self::new_op(
+                Rc::new(data), 
+                self.shape().clone(),
+                Box::new(UopRecord::new(self.op(), Box::new(uop))),
+            )
         }
     }
 
@@ -52,9 +98,13 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
 }
 
 impl<F, D:Dtype> Uop<D> for F
-where F: Fn(D) -> D {
+where F: Fn(D) -> D + Clone + fmt::Debug + Sync + Send + 'static {
     fn eval(&self, value: D) -> D {
         (self)(value)
+    }
+
+    fn box_clone(&self) -> Box<dyn Uop<D>> {
+        Box::new(self.clone())
     }
 }
 

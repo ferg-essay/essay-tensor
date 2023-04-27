@@ -1,6 +1,6 @@
 use crate::{tensor::{Tensor, Uop}};
 
-
+#[derive(Debug, Clone)]
 enum Unary {
     ReLU,
     Softplus,
@@ -12,6 +12,10 @@ impl Uop<f32> for Unary {
             Unary::ReLU => value.max(0.),
             Unary::Softplus => (value.exp() + 1.).ln(),
         }
+    }
+
+    fn box_clone(&self) -> Box<dyn Uop<f32>> {
+        Box::new(self.clone())
     }
 }
 

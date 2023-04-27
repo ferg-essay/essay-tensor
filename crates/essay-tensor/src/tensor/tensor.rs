@@ -3,13 +3,7 @@ use std::{cmp::max, any::type_name, fmt::Display, rc::Rc};
 
 use super::buffer::TensorData;
 
-pub trait Dtype : Copy + PartialEq + Display {}
-
-pub trait Op : fmt::Debug {
-    fn box_clone(&self) -> BoxOp;
-}
-
-pub type BoxOp = Box<dyn Op>;
+pub trait Dtype : Copy + PartialEq + fmt::Debug + Display + 'static {}
 
 pub struct Tensor<const N:usize,D:Dtype=f32> {
     op: Option<BoxOp>,
@@ -17,18 +11,14 @@ pub struct Tensor<const N:usize,D:Dtype=f32> {
     data: Rc<TensorData<D>>,
 }
 
-impl<const N:usize,D:Dtype> Clone for Tensor<N, D> {
-    fn clone(&self) -> Self {
-        Self { 
-            op: if let Some(op) = &self.op {
-                Some(op.box_clone())
-            } else {
-                None
-            },
-            shape: self.shape.clone(), 
-            data: self.data.clone(),
-        }
-    }
+pub trait Op : fmt::Debug + Send + Sync + 'static {
+    fn box_clone(&self) -> BoxOp;
+}
+
+pub type BoxOp = Box<dyn Op>;
+
+pub trait IntoTensor<const N:usize, D:Dtype> {
+    fn into_tensor(&self) -> Tensor<N, D>;
 }
 
 impl<const N:usize, D:Dtype> Tensor<N, D> {
@@ -42,6 +32,34 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
             shape,
             data,
         }
+    }
+
+    pub fn new_op(
+        data: Rc<TensorData<D>>, 
+        shape: [usize; N],
+        op: BoxOp,
+    ) -> Self {
+        let len: usize = max(1, shape.iter().product());
+        assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
+            data.len(), len);
+        
+        Self {
+            op: Some(op),
+            shape,
+            data,
+        }
+    }
+
+    pub fn set_op(self, op: impl Op) -> Self {
+        Self {
+            op: Some(Box::new(op)),
+            shape: self.shape,
+            data: self.data,
+        }
+    }
+
+    pub fn op(&self) -> &Option<Box<dyn Op>> {
+        &self.op
     }
 
     pub fn shape(&self) -> &[usize; N] {
@@ -58,6 +76,20 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
 
     pub fn get(&self, offset: usize) -> Option<D> {
         self.data.get(offset)
+    }
+}
+
+impl<const N:usize,D:Dtype> Clone for Tensor<N, D> {
+    fn clone(&self) -> Self {
+        Self { 
+            op: if let Some(op) = &self.op {
+                Some(op.box_clone())
+            } else {
+                None
+            },
+            shape: self.shape.clone(), 
+            data: self.data.clone(),
+        }
     }
 }
 

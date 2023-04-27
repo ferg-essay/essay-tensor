@@ -2,6 +2,7 @@ use std::{ops};
 
 use crate::{tensor::{Tensor, Uop, Binop}};
 
+#[derive(Debug, Clone)]
 enum Unary {
     Abs,
     Cos,
@@ -20,8 +21,13 @@ impl Uop<f32> for Unary {
             Unary::Sin => value.sin(),
         }
     }
+
+    fn box_clone(&self) -> Box<dyn Uop<f32>> {
+        Box::new(self.clone())
+    }
 }
 
+#[derive(Debug)]
 enum Binary {
     Add,
     Max,

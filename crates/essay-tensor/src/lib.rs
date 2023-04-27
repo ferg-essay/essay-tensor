@@ -1,7 +1,6 @@
 pub mod expr;
 pub mod linalg;
 pub mod nn;
-pub mod ops;
 pub mod math;
 pub mod tensor;
 
@@ -9,3 +8,12 @@ pub mod tensor;
 pub mod macros;
 
 pub use tensor::Tensor;
+
+pub mod prelude {
+    pub use crate::tensor;
+    pub use crate::Tensor;
+
+    pub use crate::tensor::{
+        IntoTensor,
+    };
+}

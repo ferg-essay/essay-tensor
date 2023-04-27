@@ -7,7 +7,7 @@ pub use buffer::{
 };
 
 pub use tensor::{
-    Dtype, Tensor,
+    Dtype, Tensor, Op, BoxOp, IntoTensor,
 };
 
 pub use ops::{
