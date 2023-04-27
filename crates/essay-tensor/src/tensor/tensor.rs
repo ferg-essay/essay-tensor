@@ -5,17 +5,40 @@ use super::buffer::TensorData;
 
 pub trait Dtype : Copy + PartialEq + Display {}
 
+pub trait Op : fmt::Debug {
+    fn box_clone(&self) -> BoxOp;
+}
+
+pub type BoxOp = Box<dyn Op>;
+
 pub struct Tensor<const N:usize,D:Dtype=f32> {
+    op: Option<BoxOp>,
     shape: [usize; N],
     data: Rc<TensorData<D>>,
+}
+
+impl<const N:usize,D:Dtype> Clone for Tensor<N, D> {
+    fn clone(&self) -> Self {
+        Self { 
+            op: if let Some(op) = &self.op {
+                Some(op.box_clone())
+            } else {
+                None
+            },
+            shape: self.shape.clone(), 
+            data: self.data.clone(),
+        }
+    }
 }
 
 impl<const N:usize, D:Dtype> Tensor<N, D> {
     pub fn new(data: Rc<TensorData<D>>, shape: [usize; N]) -> Self {
         let len: usize = max(1, shape.iter().product());
-        assert_eq!(data.len(), len);
+        assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
+            data.len(), len);
         
         Self {
+            op: None,
             shape,
             data,
         }
@@ -57,6 +80,12 @@ impl<const N:usize, D:Dtype> fmt::Debug for Tensor<N, D> {
         write!(f, ", shape: {:?}", &self.shape)?;
         write!(f, ", dtype: {}", type_name::<D>())?;
 
+        if f.alternate() {
+            if let Some(op) = &self.op {
+                write!(f, ", op: {:#?}", op)?;
+            }
+        }
+
         write!(f, "}}")?;
         Ok(())
     }
@@ -75,7 +104,7 @@ fn fmt_tensor_rec<const N:usize, D:Dtype>(
 
             let shape = tensor.shape();
 
-            for j in 0..shape[1] {
+            for j in 0..shape[0] {
                 if j > 0 {
                     write!(f, " ")?;
                 }
@@ -127,6 +156,7 @@ impl<D:Dtype> From<D> for Tensor<0, D> {
             data.set(0, value);
 
             Self {
+                op: None,
                 shape: [],
                 data: Rc::new(data),
             }
@@ -144,6 +174,7 @@ impl<D:Dtype, const N:usize> From<[D; N]> for Tensor<1, D> {
             }
 
             Self {
+                op: None,
                 shape: [N],
                 data: Rc::new(data),
             }
@@ -163,6 +194,7 @@ impl<D:Dtype, const N: usize, const M: usize> From<[[D; N]; M]> for Tensor<2, D>
             }
 
             Self {
+                op: None,
                 shape: [N, M],
                 data: Rc::new(data),
             }
@@ -185,6 +217,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize>
             }
 
             Self {
+                op: None,
                 shape: [N, M, L],
                 data: Rc::new(data),
             }
@@ -209,6 +242,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
             }
 
             Self {
+                op: None,
                 shape: [N, M, L, K],
                 data: Rc::new(data),
             }

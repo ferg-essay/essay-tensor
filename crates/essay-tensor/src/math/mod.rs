@@ -1,6 +1,6 @@
-use std::{rc::Rc, cmp};
+use std::{ops};
 
-use crate::{tensor::{Tensor, TensorData}, ops::{Uop, Binop, uop, binop}};
+use crate::{tensor::{Tensor, Uop, Binop}};
 
 enum Unary {
     Abs,
@@ -10,7 +10,7 @@ enum Unary {
     Sin,
 }
 
-impl Uop for Unary {
+impl Uop<f32> for Unary {
     fn eval(&self, value: f32) -> f32 {
         match &self {
             Unary::Abs => value.abs(),
@@ -29,7 +29,7 @@ enum Binary {
     Sub,
 }
 
-impl Binop for Binary {
+impl Binop<f32> for Binary {
     fn eval(&self, a: f32, b: f32) -> f32 {
         match &self {
             Binary::Add => a + b,
@@ -40,38 +40,54 @@ impl Binop for Binary {
     }
 }
 
-pub fn abs<const N:usize>(tensor: &Tensor<N>) -> Tensor<N> {
-    uop(Unary::Abs, tensor)
+impl<const N:usize> Tensor<N> {
+    pub fn abs(self) -> Self {
+        self.uop(Unary::Abs)
+    }
+
+    pub fn cos(self) -> Self {
+        self.uop(Unary::Cos)
+    }
+    
+    pub fn exp(self) -> Self {
+        self.uop(Unary::Exp)
+    }
+    
+    pub fn ln(self) -> Self {
+        self.uop(Unary::Ln)
+    }
+    
+    pub fn sin(self) -> Self {
+        self.uop(Unary::Sin)
+    }
 }
 
-pub fn cos<const N:usize>(tensor: &Tensor<N>) -> Tensor<N> {
-    uop(Unary::Cos, tensor)
+//
+// binops
+//
+
+impl<const N:usize> Tensor<N> {
+    pub fn max(self, rhs: Self) -> Self {
+        self.binop(Binary::Max, rhs)
+    }
+    
+    pub fn min(self, rhs: Self) -> Self {
+        self.binop(Binary::Min, rhs)
+    }
 }
 
-pub fn exp<const N:usize>(tensor: &Tensor<N>) -> Tensor<N> {
-    uop(Unary::Exp, tensor)
+impl<const N:usize> ops::Add for Tensor<N> {
+    type Output = Tensor<N>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        self.binop(Binary::Add, rhs)
+    }
 }
 
-pub fn ln<const N:usize>(tensor: &Tensor<N>) -> Tensor<N> {
-    uop(Unary::Ln, tensor)
-}
+impl<const N:usize> ops::Sub for Tensor<N> {
+    type Output = Tensor<N>;
 
-pub fn sin<const N:usize>(tensor: &Tensor<N>) -> Tensor<N> {
-    uop(Unary::Sin, tensor)
-}
-
-pub fn add<const N:usize>(a: &Tensor<N>, b: &Tensor<N>) -> Tensor<N> {
-    binop(Binary::Add, a, b)
-}
-
-pub fn max<const N:usize>(a: &Tensor<N>, b: &Tensor<N>) -> Tensor<N> {
-    binop(Binary::Max, a, b)
-}
-
-pub fn min<const N:usize>(a: &Tensor<N>, b: &Tensor<N>) -> Tensor<N> {
-    binop(Binary::Min, a, b)
-}
-
-pub fn subtract<const N:usize>(a: &Tensor<N>, b: &Tensor<N>) -> Tensor<N> {
-    binop(Binary::Sub, a, b)
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.binop(Binary::Sub, rhs)
+    }
 }

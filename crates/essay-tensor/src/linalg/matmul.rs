@@ -8,7 +8,8 @@ enum Transpose {
     TransposeB,
 }
 
-pub fn matmul<const N:usize>(a: &Tensor<N>, b: &Tensor<N>) -> Tensor<N> {
+pub fn matmul<const M:usize, const N:usize>(a: &Tensor<N>, b: &Tensor<M>) -> Tensor<M> {
+    assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
     assert!(N > 1, "matrix multiplication requires dim >= 2");
     assert_eq!(&a.shape()[2..], &b.shape()[2..], "matmul batch shape must match");
     assert_eq!(a.shape()[0], b.shape()[1], "matmul a.shape[0] must equal b.shape[1]");
@@ -45,7 +46,7 @@ pub fn matmul<const N:usize>(a: &Tensor<N>, b: &Tensor<N>) -> Tensor<N> {
             o_start += o_size;
         }
 
-        let mut o_shape = a.shape().clone();
+        let mut o_shape = b.shape().clone();
         o_shape[0] = b.shape()[0];
         o_shape[1] = a.shape()[1];
     
@@ -53,12 +54,12 @@ pub fn matmul<const N:usize>(a: &Tensor<N>, b: &Tensor<N>) -> Tensor<N> {
     }
 }
 
-unsafe fn naive_matmul_f32<const N:usize>(
+unsafe fn naive_matmul_f32<const M:usize, const N:usize>(
     out: &mut TensorData<f32>, 
     out_start: usize,
     a: &Tensor<N, f32>, 
     a_start: usize,
-    b: &Tensor<N, f32>,
+    b: &Tensor<M, f32>,
     b_start: usize,
     cols: usize,
     rows: usize,

@@ -1,4 +1,4 @@
-use crate::{ops::{Uop, uop}, tensor::Tensor};
+use crate::{tensor::{Tensor, Uop}};
 
 
 enum Unary {
@@ -6,7 +6,7 @@ enum Unary {
     Softplus,
 }
 
-impl Uop for Unary {
+impl Uop<f32> for Unary {
     fn eval(&self, value: f32) -> f32 {
         match &self {
             Unary::ReLU => value.max(0.),
@@ -15,10 +15,12 @@ impl Uop for Unary {
     }
 }
 
-pub fn relu<const N:usize>(tensor: &Tensor<N>) -> Tensor<N> {
-    uop(Unary::ReLU, tensor)
-}
+impl<const N:usize> Tensor<N> {
+    pub fn relu(self) -> Self {
+        self.uop(Unary::ReLU)
+    }
 
-pub fn softplus<const N:usize>(tensor: &Tensor<N>) -> Tensor<N> {
-    uop(Unary::Softplus, tensor)
+    pub fn softplus(self) -> Self {
+        self.uop(Unary::Softplus)
+    }
 }

@@ -1,3 +1,4 @@
+pub mod expr;
 pub mod linalg;
 pub mod nn;
 pub mod ops;
