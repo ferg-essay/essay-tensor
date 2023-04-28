@@ -1,9 +1,10 @@
+mod graph;
 mod ops;
 mod buffer;
 mod tensor;
 
 pub use buffer::{
-    TensorData,
+    TensorData, TensorUninit,
 };
 
 pub use tensor::{
@@ -11,5 +12,9 @@ pub use tensor::{
 };
 
 pub use ops::{
-    Uop, Binop, OpGraph,
+    Uop, Binop,
+};
+
+pub use graph::{
+    OpGraph,
 };

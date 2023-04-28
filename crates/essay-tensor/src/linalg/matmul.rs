@@ -1,6 +1,4 @@
-use std::rc::Rc;
-
-use crate::tensor::{Tensor, TensorData, Dtype, Op, BoxOp};
+use crate::tensor::{Tensor, Op, BoxOp, TensorUninit};
 
 enum Transpose {
     None,
@@ -18,7 +16,7 @@ impl Op for Matmul {
 }
 
 impl<const N:usize> Tensor<N> {
-    pub fn matmul<const M:usize>(self, b: Tensor<M>) -> Tensor<M> {
+    pub fn matmul<const M:usize>(&self, b: Tensor<M>) -> Tensor<M> {
         assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
         assert!(N > 1, "matrix multiplication requires dim >= 2");
         assert_eq!(&self.shape()[2..], &b.shape()[2..], "matmul batch shape must match");
@@ -30,7 +28,7 @@ impl<const N:usize> Tensor<N> {
         let o_size = self.shape()[1] * b.shape()[0];
 
         unsafe {
-            let mut out = TensorData::<f32>::new_uninit(o_size * n);
+            let mut out = TensorUninit::new(o_size * n);
 
             let mut a_start = 0;
             let mut b_start = 0;
@@ -40,7 +38,7 @@ impl<const N:usize> Tensor<N> {
             let rows = self.shape()[1];
     
             for _ in 0..n {
-                naive_matmul_f32(
+                naive_matmul(
                     &mut out, 
                     o_start,
                     &self,
@@ -60,17 +58,17 @@ impl<const N:usize> Tensor<N> {
             o_shape[0] = b.shape()[0];
             o_shape[1] = self.shape()[1];
             // Tensor::new(Rc::new(out), o_shape)
-            self.next_binop(&b, out, o_shape, Matmul.box_clone())
+            self.next_binop(&b, out.init(), o_shape, Matmul.box_clone())
         }
     }
 }
 
-unsafe fn naive_matmul_f32<const M:usize, const N:usize>(
-    out: &mut TensorData<f32>, 
+unsafe fn naive_matmul<const M:usize, const N:usize>(
+    out: &mut TensorUninit, 
     out_start: usize,
-    a: &Tensor<N, f32>, 
+    a: &Tensor<N>, 
     a_start: usize,
-    b: &Tensor<M, f32>,
+    b: &Tensor<M>,
     b_start: usize,
     cols: usize,
     rows: usize,
@@ -79,9 +77,9 @@ unsafe fn naive_matmul_f32<const M:usize, const N:usize>(
     let a_stride = a.shape()[0];
     let b_stride = b.shape()[0];
 
-    let a_ptr = a.buffer().ptr();
-    let b_ptr = b.buffer().ptr();
-    let out_ptr = out.ptr();
+    let a_ptr = a.buffer().as_ptr();
+    let b_ptr = b.buffer().as_ptr();
+    let out_ptr = out.as_ptr();
 
     let mut out_row = out_start;
     let mut a_row = a_start;

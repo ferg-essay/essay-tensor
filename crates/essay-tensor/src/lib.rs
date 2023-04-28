@@ -1,3 +1,5 @@
+mod model;
+pub mod random;
 pub mod expr;
 pub mod linalg;
 pub mod nn;

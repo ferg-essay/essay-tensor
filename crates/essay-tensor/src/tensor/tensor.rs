@@ -1,7 +1,9 @@
 use core::fmt;
-use std::{cmp::max, any::type_name, fmt::Display, rc::Rc};
+use std::{cmp::max, any::type_name, fmt::Display, rc::Rc, ops::Index};
 
-use super::{buffer::TensorData, ops::OpGraph};
+use num_traits::Float;
+
+use super::{buffer::TensorData, graph::OpGraph, TensorUninit};
 
 pub trait Dtype : Copy + PartialEq + fmt::Debug + Display + 'static {}
 
@@ -79,7 +81,7 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
     }
 
     pub fn next_uop<const M: usize>(
-        self, 
+        &self, 
         data: TensorData<D>, 
         shape: [usize; M], 
         op: Box<dyn Op>
@@ -100,7 +102,7 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
     }
 
     pub fn next_binop<const M: usize, const L: usize>(
-        self, 
+        &self, 
         b: &Tensor<L, D>,
         data: TensorData<D>, 
         shape: [usize; M], 
@@ -119,6 +121,10 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
                 op: Some(OpGraph::new(&[self.op(), b.op()], op)),
             }
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.shape.iter().product()
     }
 }
 
@@ -223,31 +229,37 @@ fn fmt_tensor_rec<const N:usize, D:Dtype>(
 impl<D:Dtype> From<D> for Tensor<0, D> {
     fn from(value: D) -> Self {
         unsafe {
-            let mut data = TensorData::<D>::new_uninit(1);
-            data.set(0, value);
+            let mut data = TensorUninit::<D>::new(1);
+            data[0] = value;
 
             Self {
                 op: None,
                 shape: [],
-                data: Rc::new(data),
+                data: Rc::new(data.init()),
             }
         }
+    }
+}
+
+impl From<Tensor<0, f32>> for f32 {
+    fn from(value: Tensor<0>) -> Self {
+        value.buffer()[0]
     }
 }
 
 impl<D:Dtype, const N:usize> From<[D; N]> for Tensor<1, D> {
     fn from(value: [D; N]) -> Self {
         unsafe {
-            let mut data = TensorData::<D>::new_uninit(N);
+            let mut data = TensorUninit::<D>::new(N);
 
             for (i, value) in value.iter().enumerate() {
-                data.set(i, *value);
+                data[i] = *value;
             }
 
             Self {
                 op: None,
                 shape: [N],
-                data: Rc::new(data),
+                data: Rc::new(data.init()),
             }
         }
     }
@@ -256,18 +268,18 @@ impl<D:Dtype, const N:usize> From<[D; N]> for Tensor<1, D> {
 impl<D:Dtype, const N: usize, const M: usize> From<[[D; N]; M]> for Tensor<2, D> {
     fn from(value: [[D; N]; M]) -> Self {
         unsafe {
-            let mut data = TensorData::<D>::new_uninit(N * M);
+            let mut data = TensorUninit::<D>::new(N * M);
 
             for (j, value) in value.iter().enumerate() {
                 for (i, value) in value.iter().enumerate() {
-                    data.set(j * N + i, *value);
+                    data[j * N + i] = *value;
                 }
             }
 
             Self {
                 op: None,
                 shape: [N, M],
-                data: Rc::new(data),
+                data: Rc::new(data.init()),
             }
         }
     }
@@ -277,12 +289,12 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize>
     From<[[[D; N]; M]; L]> for Tensor<3, D> {
     fn from(value: [[[D; N]; M]; L]) -> Self {
         unsafe {
-            let mut data = TensorData::<D>::new_uninit(L * M * N);
+            let mut data = TensorUninit::<D>::new(L * M * N);
 
             for (l, value) in value.iter().enumerate() {
                 for (m, value) in value.iter().enumerate() {
                     for (n, value) in value.iter().enumerate() {
-                      data.set(l * M * N + m * N + n, *value);
+                      data[l * M * N + m * N + n] = *value;
                     }
                 }
             }
@@ -290,7 +302,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize>
             Self {
                 op: None,
                 shape: [N, M, L],
-                data: Rc::new(data),
+                data: Rc::new(data.init()),
             }
         }
     }
@@ -300,13 +312,13 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
     From<[[[[D; N]; M]; L]; K]> for Tensor<4, D> {
     fn from(value: [[[[D; N]; M]; L]; K]) -> Self {
         unsafe {
-            let mut data = TensorData::<D>::new_uninit(K * L * M * N);
+            let mut data = TensorUninit::<D>::new(K * L * M * N);
 
             for (k, value) in value.iter().enumerate() {
                 for (l, value) in value.iter().enumerate() {
                     for (m, value) in value.iter().enumerate() {
                         for (n, value) in value.iter().enumerate() {
-                            data.set(k * L * M * N + l * N * M + m * N + n, *value);
+                            data[k * L * M * N + l * N * M + m * N + n] = *value;
                         }
                     }
                 }
@@ -315,13 +327,19 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
             Self {
                 op: None,
                 shape: [N, M, L, K],
-                data: Rc::new(data),
+                data: Rc::new(data.init()),
             }
         }
     }
 }
 
-impl Dtype for f32 {}
+// impl Dtype for f32 {}
+impl<T> Dtype for T 
+where
+    T:Float + fmt::Display + fmt::Debug + 'static
+{
+
+}
 
 #[cfg(test)]
 mod test {
@@ -407,5 +425,11 @@ mod test {
             [[11., 12.], [13., 14.]]
         ]);
         assert_eq!(format!("{:?}", t), "Tensor{\n[[[1 2],\n [3 4]],\n\n  [[11 12],\n [13 14]]], shape: [2, 2, 2], dtype: f32}");
+    }
+
+    #[test]
+    fn tensor_0_from_scalar() {
+        let t0 : Tensor<0> = 0.3.into();
+        let v0 : f32 = t0.into();
     }
 }

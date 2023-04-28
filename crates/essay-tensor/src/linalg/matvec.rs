@@ -1,8 +1,4 @@
-use std::{rc::Rc, ops};
-
-use crate::tensor::{Tensor, TensorData, Dtype, Op, BoxOp};
-
-use super::matmul;
+use crate::tensor::{Tensor, Op, BoxOp, TensorUninit};
 
 enum Transpose {
     None,
@@ -19,11 +15,11 @@ impl Op for Matvec {
     }
 }
 
-impl<const N:usize> Tensor<N> {
+impl<const N:usize> Tensor<N, f32> {
     pub fn matvec<const M:usize>(
         self,
-        b: Tensor<M>
-    ) -> Tensor<M> {
+        b: Tensor<M, f32>
+    ) -> Tensor<M, f32> {
         assert!(N > 1, "matrix multiplication requires dim >= 2");
         assert_eq!(N, M + 1);
         assert_eq!(self.shape()[2..], b.shape()[1..], "matmul batch shape must match");
@@ -39,7 +35,7 @@ impl<const N:usize> Tensor<N> {
         let o_size = self.shape()[1];
 
         unsafe {
-            let mut out = TensorData::<f32>::new_uninit(o_size * n);
+            let mut out = TensorUninit::<f32>::new(o_size * n);
 
             let mut a_start = 0;
             let mut b_start = 0;
@@ -65,13 +61,13 @@ impl<const N:usize> Tensor<N> {
             let mut o_shape = b.shape().clone();
             o_shape[0] = self.shape()[1];
             // Tensor::new(Rc::new(out), o_shape)
-            self.next_binop(&b, out, o_shape, Matvec.box_clone())
+            self.next_binop(&b, out.init(), o_shape, Matvec.box_clone())
         }
     }
 }
 
 unsafe fn naive_matvec_f32<const N:usize, const M:usize>(
-    out: &mut TensorData<f32>, 
+    out: &mut TensorUninit<f32>, 
     out_start: usize,
     a: &Tensor<N, f32>, 
     a_start: usize,
@@ -82,14 +78,14 @@ unsafe fn naive_matvec_f32<const N:usize, const M:usize>(
 ) {
     let a_stride = a.shape()[0];
 
-    let a_ptr = a.buffer().ptr();
-    let b_ptr = b.buffer().ptr();
-    let out_ptr = out.ptr();
+    let a_ptr = a.buffer().as_ptr();
+    let b_ptr = b.buffer().as_ptr();
+    let out_ptr = out.as_ptr();
 
     let mut a_row = a_start;
 
     for row in 0..rows {
-        let mut v: f32 = 0.;
+        let mut v = 0.0;
         for k in 0..a_stride {
             v += a_ptr.add(a_row + k).read() * b_ptr.add(b_start + k).read();
         }
@@ -108,7 +104,7 @@ mod test {
         let a = tensor!([[2.]]);
         let b = tensor!([3.]);
 
-        assert_eq!(a.clone().matvec(b.clone()), tensor!([6.]));
+        assert_eq!(a.matvec(b), tensor!([6.]));
     }
 
     #[test]
@@ -116,7 +112,7 @@ mod test {
         let a = tensor!([[1., 2.]]);
         let b = tensor!([3., 4.]);
 
-        assert_eq!(a.clone().matvec(b), tensor!([11.]));
+        assert_eq!(a.matvec(b), tensor!([11.]));
     }
 
     #[test]
