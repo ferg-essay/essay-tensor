@@ -1,7 +1,7 @@
 use crate::{tensor::{Dtype, Op, BoxOp, OpGraph}, Tensor, prelude::IntoTensor};
 
 pub struct Var<const N:usize, D:Dtype=f32> {
-    name: String,
+    _name: String,
     tensor: Tensor<N, D>,
 }
 
@@ -12,7 +12,7 @@ impl<const N:usize, D:Dtype> Var<N, D> {
     pub fn new(name: &str, tensor: Tensor<N, D>) -> Self {
         Self {
             tensor: tensor.set_op(OpGraph::new(&[], VarOp(name.to_string()).box_clone())),
-            name: name.to_string(),
+            _name: name.to_string(),
         }
     }
 
@@ -58,5 +58,9 @@ mod test {
         println!("t2: {:#?}", t2);
 
         println!("t2: {:#?}", v1.tensor());
+
+        let t3 = tensor!([1., 2., 3.]);
+        let t3 = t3.exp();
+        println!("t3: {:#?}", t3);
     }
 }

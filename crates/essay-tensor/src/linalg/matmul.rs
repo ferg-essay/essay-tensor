@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::tensor::{Tensor, TensorData, Dtype};
+use crate::tensor::{Tensor, TensorData, Dtype, Op, BoxOp};
 
 enum Transpose {
     None,
@@ -8,49 +8,60 @@ enum Transpose {
     TransposeB,
 }
 
-pub fn matmul<const M:usize, const N:usize>(a: &Tensor<N>, b: &Tensor<M>) -> Tensor<M> {
-    assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
-    assert!(N > 1, "matrix multiplication requires dim >= 2");
-    assert_eq!(&a.shape()[2..], &b.shape()[2..], "matmul batch shape must match");
-    assert_eq!(a.shape()[0], b.shape()[1], "matmul a.shape[0] must equal b.shape[1]");
+#[derive(Debug, Clone)]
+struct Matmul;
 
-    let n : usize = a.shape()[2..].iter().product();
-    let a_size = a.shape()[0] * a.shape()[1];
-    let b_size = b.shape()[0] * b.shape()[1];
-    let o_size = a.shape()[1] * b.shape()[0];
+impl Op for Matmul {
+    fn box_clone(&self) -> BoxOp {
+        Box::new(Matmul)
+    }
+}
 
-    unsafe {
-        let mut out = TensorData::<f32>::new_uninit(o_size * n);
+impl<const N:usize> Tensor<N> {
+    pub fn matmul<const M:usize>(self, b: Tensor<M>) -> Tensor<M> {
+        assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
+        assert!(N > 1, "matrix multiplication requires dim >= 2");
+        assert_eq!(&self.shape()[2..], &b.shape()[2..], "matmul batch shape must match");
+        assert_eq!(self.shape()[0], b.shape()[1], "matmul a.shape[0] must equal b.shape[1]");
 
-        let mut a_start = 0;
-        let mut b_start = 0;
-        let mut o_start = 0;
+        let n : usize = self.shape()[2..].iter().product();
+        let a_size = self.shape()[0] * self.shape()[1];
+        let b_size = b.shape()[0] * b.shape()[1];
+        let o_size = self.shape()[1] * b.shape()[0];
 
-        let cols = b.shape()[0];
-        let rows = a.shape()[1];
+        unsafe {
+            let mut out = TensorData::<f32>::new_uninit(o_size * n);
+
+            let mut a_start = 0;
+            let mut b_start = 0;
+            let mut o_start = 0;
+
+            let cols = b.shape()[0];
+            let rows = self.shape()[1];
     
-        for _ in 0..n {
-            naive_matmul_f32(
-                &mut out, 
-                o_start,
-                a,
-                a_start,
-                b,
-                b_start,
-                cols,
-                rows,
-            );
+            for _ in 0..n {
+                naive_matmul_f32(
+                    &mut out, 
+                    o_start,
+                    &self,
+                    a_start,
+                    &b,
+                    b_start,
+                    cols,
+                    rows,
+                );
 
-            a_start += a_size;
-            b_start += b_size;
-            o_start += o_size;
+                a_start += a_size;
+                b_start += b_size;
+                o_start += o_size;
+            }
+
+            let mut o_shape = b.shape().clone();
+            o_shape[0] = b.shape()[0];
+            o_shape[1] = self.shape()[1];
+            // Tensor::new(Rc::new(out), o_shape)
+            self.next_binop(&b, out, o_shape, Matmul.box_clone())
         }
-
-        let mut o_shape = b.shape().clone();
-        o_shape[0] = b.shape()[0];
-        o_shape[1] = a.shape()[1];
-    
-        Tensor::new(Rc::new(out), o_shape)
     }
 }
 
@@ -98,52 +109,52 @@ unsafe fn naive_matmul_f32<const M:usize, const N:usize>(
 mod test {
     use crate::{tensor, Tensor};
 
-    use super::matmul;
+    //use super::matmul;
 
     #[test]
     fn test_matmul_1() {
         let a = tensor!([[2.]]);
         let b = tensor!([[3.]]);
 
-        assert_eq!(matmul(&a, &b), tensor!([[6.]]));
+        assert_eq!(a.matmul(b), tensor!([[6.]]));
     }
 
     #[test]
     fn test_matmul_vectors() {
         let a = tensor!([[1., 2.]]);
         let b = tensor!([[1.], [3.]]);
-        assert_eq!(matmul(&a, &b), tensor!([[7.]]));
+        assert_eq!(a.matmul(b), tensor!([[7.]]));
 
         let a = tensor!([[1., 2.]]);
         let b = tensor!([[1.], [3.]]);
-        assert_eq!(matmul(&b, &a), tensor!([[1., 2.], [3., 6.]]));
+        assert_eq!(b.matmul(a), tensor!([[1., 2.], [3., 6.]]));
     }
 
     #[test]
     fn test_matmul_square() {
 
         let id = tensor!([[1., 0.], [0., 1.]]);
-        assert_eq!(&matmul(&id, &id), &id);
+        assert_eq!(&id.clone().matmul(id.clone()), &id);
 
         let a = tensor!([[1., 0.], [0., 2.]]);
-        assert_eq!(&matmul(&id, &a), &a);
-        assert_eq!(&matmul(&a, &id), &a);
-        assert_eq!(matmul(&a, &a), tensor!([[1., 0.], [0., 4.]]));
+        assert_eq!(&id.clone().matmul(a.clone()), &a);
+        assert_eq!(&a.clone().matmul(id.clone()), &a);
+        assert_eq!(&a.clone().matmul(a.clone()),
+            &tensor!([[1., 0.], [0., 4.]]));
 
         let top = tensor!([[1., 1.], [0., 1.]]);
-        assert_eq!(matmul(&top, &top), tensor!([[1., 2.], [0., 1.]]));
+        assert_eq!(top.clone().matmul(top.clone()), tensor!([[1., 2.], [0., 1.]]));
 
         let bot = tensor!([[1., 0.], [1., 1.]]);
-        assert_eq!(matmul(&bot, &bot), tensor!([[1., 0.], [2., 1.]]));
+        assert_eq!(bot.clone().matmul(bot.clone()), tensor!([[1., 0.], [2., 1.]]));
     }
 
     #[test]
     fn test_matmul_2x3() {
-
         let a = tensor!([[1., 0., 2.], [0., 1., 10.]]);
         let b = tensor!([[1., 0.], [0., 1.], [3., 4.]]);
-        assert_eq!(matmul(&a, &b), tensor!([[7., 8.], [30., 41.]]));
-        assert_eq!(matmul(&b, &a), tensor!([
+        assert_eq!(a.clone().matmul(b.clone()), tensor!([[7., 8.], [30., 41.]]));
+        assert_eq!(b.clone().matmul(a.clone()), tensor!([
             [1., 0., 2.],
             [0., 1., 10.],
             [3., 4., 46.]]));

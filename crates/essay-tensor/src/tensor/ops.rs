@@ -1,6 +1,5 @@
 use crate::{Tensor};
 use core::fmt;
-use std::rc::Rc;
 
 use crate::tensor::{TensorData, Dtype};
 
@@ -17,12 +16,8 @@ pub trait Uop<D:Dtype> : fmt::Debug + Sync + Send + 'static {
 
 pub trait Binop<D:Dtype> {
     fn eval(&self, a: D, b: D) -> D;
-}
 
-#[derive(Debug)]
-pub struct UopRecord<D:Dtype> {
-    prev: Option<BoxOp>,
-    uop: Box<dyn Uop<D>>,
+    fn to_op(&self) -> Box<dyn Op>;
 }
 
 #[derive(Debug)]
@@ -55,38 +50,7 @@ impl Clone for OpGraph {
          }
     }
 }
-/*
-impl<D:Dtype> UopRecord<D> {
-    fn new(prev: &Option<BoxOp>, uop: Box<dyn Uop<D>>) -> UopRecord<D> {
-        Self {
-            prev: if let Some(op) = prev {
-                Some(op.box_clone())
-            } else {
-                None
-            },
-            uop,
-        }
-    }
-}
-impl<D:Dtype> Op for UopRecord<D> {
-    fn box_clone(&self) -> BoxOp {
-        Box::new(self.clone())
-    }
-}
 
-impl<D:Dtype> Clone for UopRecord<D> {
-    fn clone(&self) -> Self {
-        Self { 
-            prev: if let Some(prev) = &self.prev {
-                Some(prev.box_clone())
-            } else {
-                None
-            },
-            uop: self.uop.box_clone(),
-        }
-    }
-}
-*/
 impl<const N:usize, D:Dtype> Tensor<N, D> {
     pub fn uop(self, uop: impl Uop<D>) -> Self {
         let buffer = self.buffer();
@@ -99,11 +63,8 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
                 data.uset(i, uop.eval(buffer.uget(i)));
             }
     
-            Self::new_op(
-                Rc::new(data), 
-                self.shape().clone(),
-                OpGraph::new(&[self.op()], uop.to_op()),
-            )
+            let shape = self.shape().clone();
+            self.next_uop(data, shape, uop.to_op())
         }
     }
 
@@ -125,7 +86,10 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
                 ));
             }
     
-            Self::new(Rc::new(data), b.shape().clone())
+            //Self::new(Rc::new(data), b.shape().clone())
+    
+            let shape = b.shape().clone();
+            self.next_binop(&b, data, shape, op.to_op())
         }
     }
 }
@@ -149,5 +113,9 @@ impl<F, D:Dtype> Binop<D> for F
 where F: Fn(D, D) -> D {
     fn eval(&self, a: D, b: D) -> D {
         (self)(a, b)
+    }
+
+    fn to_op(&self) -> Box<dyn Op> {
+        todo!()
     }
 }

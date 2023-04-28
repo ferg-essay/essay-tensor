@@ -38,7 +38,7 @@ impl Op for Unary {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Binary {
     Add,
     Max,
@@ -54,6 +54,16 @@ impl Binop<f32> for Binary {
             Binary::Min => a.min(b),
             Binary::Sub => a - b,
         }
+    }
+    
+    fn to_op(&self) -> Box<dyn Op> {
+        self.box_clone()
+    }
+}
+
+impl Op for Binary {
+    fn box_clone(&self) -> BoxOp {
+        Box::new(self.clone())
     }
 }
 

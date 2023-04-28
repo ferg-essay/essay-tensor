@@ -77,6 +77,49 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
     pub fn get(&self, offset: usize) -> Option<D> {
         self.data.get(offset)
     }
+
+    pub fn next_uop<const M: usize>(
+        self, 
+        data: TensorData<D>, 
+        shape: [usize; M], 
+        op: Box<dyn Op>
+    ) -> Tensor<M, D> {
+        if self.op().is_none() {
+            Tensor {
+                data: Rc::new(data),
+                shape: shape,
+                op: None,
+            }
+        } else {
+            Tensor {
+                data: Rc::new(data),
+                shape: shape,
+                op: Some(OpGraph::new(&[self.op()], op)),
+            }
+        }
+    }
+
+    pub fn next_binop<const M: usize, const L: usize>(
+        self, 
+        b: &Tensor<L, D>,
+        data: TensorData<D>, 
+        shape: [usize; M], 
+        op: Box<dyn Op>
+    ) -> Tensor<M, D> {
+        if self.op().is_none() && b.op().is_none() {
+            Tensor {
+                data: Rc::new(data),
+                shape: shape,
+                op: None,
+            }
+        } else {
+            Tensor {
+                data: Rc::new(data),
+                shape: shape,
+                op: Some(OpGraph::new(&[self.op(), b.op()], op)),
+            }
+        }
+    }
 }
 
 impl<const N:usize,D:Dtype> Clone for Tensor<N, D> {
