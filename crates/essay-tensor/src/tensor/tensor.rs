@@ -1,12 +1,12 @@
 use core::fmt;
 use std::{cmp::max, any::type_name, fmt::Display, rc::Rc};
 
-use super::buffer::TensorData;
+use super::{buffer::TensorData, ops::OpGraph};
 
 pub trait Dtype : Copy + PartialEq + fmt::Debug + Display + 'static {}
 
 pub struct Tensor<const N:usize,D:Dtype=f32> {
-    op: Option<BoxOp>,
+    op: Option<OpGraph>,
     shape: [usize; N],
     data: Rc<TensorData<D>>,
 }
@@ -37,7 +37,7 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
     pub fn new_op(
         data: Rc<TensorData<D>>, 
         shape: [usize; N],
-        op: BoxOp,
+        op: OpGraph,
     ) -> Self {
         let len: usize = max(1, shape.iter().product());
         assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
@@ -50,15 +50,15 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
         }
     }
 
-    pub fn set_op(self, op: impl Op) -> Self {
+    pub fn set_op(self, op: OpGraph) -> Self {
         Self {
-            op: Some(Box::new(op)),
+            op: Some(op),
             shape: self.shape,
             data: self.data,
         }
     }
 
-    pub fn op(&self) -> &Option<Box<dyn Op>> {
+    pub fn op(&self) -> &Option<OpGraph> {
         &self.op
     }
 
@@ -82,11 +82,7 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
 impl<const N:usize,D:Dtype> Clone for Tensor<N, D> {
     fn clone(&self) -> Self {
         Self { 
-            op: if let Some(op) = &self.op {
-                Some(op.box_clone())
-            } else {
-                None
-            },
+            op: self.op.clone(),
             shape: self.shape.clone(), 
             data: self.data.clone(),
         }

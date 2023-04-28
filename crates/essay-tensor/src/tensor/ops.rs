@@ -10,7 +10,9 @@ use super::{BoxOp, Op};
 pub trait Uop<D:Dtype> : fmt::Debug + Sync + Send + 'static {
     fn eval(&self, value: D) -> D;
 
-    fn box_clone(&self) -> Box<dyn Uop<D>>;
+    //fn box_clone(&self) -> Box<dyn Uop<D>>;
+
+    fn to_op(&self) -> Box<dyn Op>;
 }
 
 pub trait Binop<D:Dtype> {
@@ -23,6 +25,37 @@ pub struct UopRecord<D:Dtype> {
     uop: Box<dyn Uop<D>>,
 }
 
+#[derive(Debug)]
+pub struct OpGraph {
+    args: Vec<Option<OpGraph>>,
+    //tensor: Option<Tensor<D>>,
+    op: BoxOp,
+}
+
+impl OpGraph {
+    pub fn new(args: &[&Option<OpGraph>], op: Box<dyn Op>) -> OpGraph {
+        Self {
+            args: args.iter().map(|g| 
+                if let Some(graph) = g {
+                    Some(graph.clone())
+                } else {
+                    None
+                }
+            ).collect(),
+            op,
+        }
+    }
+}
+
+impl Clone for OpGraph {
+    fn clone(&self) -> Self {
+        Self { 
+            args: self.args.clone(), 
+            op: self.op.box_clone()
+         }
+    }
+}
+/*
 impl<D:Dtype> UopRecord<D> {
     fn new(prev: &Option<BoxOp>, uop: Box<dyn Uop<D>>) -> UopRecord<D> {
         Self {
@@ -53,7 +86,7 @@ impl<D:Dtype> Clone for UopRecord<D> {
         }
     }
 }
-
+*/
 impl<const N:usize, D:Dtype> Tensor<N, D> {
     pub fn uop(self, uop: impl Uop<D>) -> Self {
         let buffer = self.buffer();
@@ -69,7 +102,7 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
             Self::new_op(
                 Rc::new(data), 
                 self.shape().clone(),
-                Box::new(UopRecord::new(self.op(), Box::new(uop))),
+                OpGraph::new(&[self.op()], uop.to_op()),
             )
         }
     }
@@ -102,9 +135,13 @@ where F: Fn(D) -> D + Clone + fmt::Debug + Sync + Send + 'static {
     fn eval(&self, value: D) -> D {
         (self)(value)
     }
-
+    /*
     fn box_clone(&self) -> Box<dyn Uop<D>> {
         Box::new(self.clone())
+    }
+ */
+    fn to_op(&self) -> Box<dyn Op> {
+        todo!()
     }
 }
 

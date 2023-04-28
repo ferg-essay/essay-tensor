@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, Uop}};
+use crate::{tensor::{Tensor, Uop, Op, BoxOp}};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -13,8 +13,19 @@ impl Uop<f32> for Unary {
             Unary::Softplus => (value.exp() + 1.).ln(),
         }
     }
-
+/*
     fn box_clone(&self) -> Box<dyn Uop<f32>> {
+        Box::new(self.clone())
+    }
+     */
+
+    fn to_op(&self) -> Box<dyn Op> {
+        self.box_clone()
+    }
+}
+
+impl Op for Unary {
+    fn box_clone(&self) -> BoxOp {
         Box::new(self.clone())
     }
 }

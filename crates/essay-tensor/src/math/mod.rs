@@ -1,6 +1,6 @@
 use std::{ops};
 
-use crate::{tensor::{Tensor, Uop, Binop}};
+use crate::{tensor::{Tensor, Uop, Binop, Op, BoxOp}};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -21,8 +21,19 @@ impl Uop<f32> for Unary {
             Unary::Sin => value.sin(),
         }
     }
-
+/*
     fn box_clone(&self) -> Box<dyn Uop<f32>> {
+        Box::new(self.clone())
+    }
+     */
+
+    fn to_op(&self) -> Box<dyn Op> {
+        self.box_clone()
+    }
+}
+
+impl Op for Unary {
+    fn box_clone(&self) -> BoxOp {
         Box::new(self.clone())
     }
 }

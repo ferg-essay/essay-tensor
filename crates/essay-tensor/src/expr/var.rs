@@ -1,6 +1,4 @@
-use std::marker::PhantomData;
-
-use crate::{tensor::{Dtype, Uop, Binop, Op, BoxOp}, Tensor, prelude::IntoTensor};
+use crate::{tensor::{Dtype, Op, BoxOp, OpGraph}, Tensor, prelude::IntoTensor};
 
 pub struct Var<const N:usize, D:Dtype=f32> {
     name: String,
@@ -13,7 +11,7 @@ pub struct VarOp(String);
 impl<const N:usize, D:Dtype> Var<N, D> {
     pub fn new(name: &str, tensor: Tensor<N, D>) -> Self {
         Self {
-            tensor: tensor.set_op(VarOp(name.to_string())),
+            tensor: tensor.set_op(OpGraph::new(&[], VarOp(name.to_string()).box_clone())),
             name: name.to_string(),
         }
     }
