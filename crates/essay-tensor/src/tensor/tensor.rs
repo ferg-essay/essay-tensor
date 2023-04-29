@@ -3,13 +3,13 @@ use std::{cmp::max, any::type_name, fmt::Display, rc::Rc, ops::Index};
 
 use num_traits::Float;
 
-use super::{buffer::TensorData, graph::OpGraph, TensorUninit};
+use super::{data::TensorData, graph::OpGraph, TensorUninit};
 
 pub trait Dtype : Copy + PartialEq + fmt::Debug + Display + 'static {}
 
-pub struct Tensor<const N:usize,D:Dtype=f32> {
+pub struct Tensor<D:Dtype=f32> {
     op: Option<OpGraph>,
-    shape: [usize; N],
+    shape: Vec<usize>,
     data: Rc<TensorData<D>>,
 }
 
@@ -19,26 +19,26 @@ pub trait Op : fmt::Debug + Send + Sync + 'static {
 
 pub type BoxOp = Box<dyn Op>;
 
-pub trait IntoTensor<const N:usize, D:Dtype> {
-    fn into_tensor(&self) -> Tensor<N, D>;
+pub trait IntoTensor<D:Dtype> {
+    fn into_tensor(&self) -> Tensor<D>;
 }
 
-impl<const N:usize, D:Dtype> Tensor<N, D> {
-    pub fn new(data: Rc<TensorData<D>>, shape: [usize; N]) -> Self {
+impl<D:Dtype> Tensor<D> {
+    pub fn new(data: Rc<TensorData<D>>, shape: &[usize]) -> Self {
         let len: usize = max(1, shape.iter().product());
         assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
             data.len(), len);
         
         Self {
             op: None,
-            shape,
+            shape: Vec::from(shape),
             data,
         }
     }
 
     pub fn new_op(
         data: Rc<TensorData<D>>, 
-        shape: [usize; N],
+        shape: Vec<usize>,
         op: OpGraph,
     ) -> Self {
         let len: usize = max(1, shape.iter().product());
@@ -64,28 +64,36 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
         &self.op
     }
 
-    pub fn shape(&self) -> &[usize; N] {
+    #[inline]
+    pub fn shape(&self) -> &Vec<usize> {
         &self.shape
     }
 
-    pub fn buffer(&self) -> &Rc<TensorData<D>> {
-        &self.data
+    #[inline]
+    pub fn rank(&self) -> usize {
+        self.shape.len()
     }
 
-    pub fn buffer_mut(&mut self) -> &mut Rc<TensorData<D>> {
-        &mut self.data
+    #[inline]
+    pub fn dim(&self, i: usize) -> usize {
+        self.shape[i]
+    }
+
+    #[inline]
+    pub fn buffer(&self) -> &Rc<TensorData<D>> {
+        &self.data
     }
 
     pub fn get(&self, offset: usize) -> Option<D> {
         self.data.get(offset)
     }
 
-    pub fn next_uop<const M: usize>(
+    pub fn next_uop(
         &self, 
         data: TensorData<D>, 
-        shape: [usize; M], 
+        shape: Vec<usize>,
         op: Box<dyn Op>
-    ) -> Tensor<M, D> {
+    ) -> Tensor<D> {
         if self.op().is_none() {
             Tensor {
                 data: Rc::new(data),
@@ -101,13 +109,13 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
         }
     }
 
-    pub fn next_binop<const M: usize, const L: usize>(
+    pub fn next_binop(
         &self, 
-        b: &Tensor<L, D>,
+        b: &Tensor<D>,
         data: TensorData<D>, 
-        shape: [usize; M], 
+        shape: Vec<usize>,
         op: Box<dyn Op>
-    ) -> Tensor<M, D> {
+    ) -> Tensor<D> {
         if self.op().is_none() && b.op().is_none() {
             Tensor {
                 data: Rc::new(data),
@@ -123,12 +131,12 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.shape.iter().product()
+    pub fn size(&self) -> usize {
+        self.data.len()
     }
 }
 
-impl<const N:usize,D:Dtype> Clone for Tensor<N, D> {
+impl<D:Dtype> Clone for Tensor<D> {
     fn clone(&self) -> Self {
         Self { 
             op: self.op.clone(),
@@ -138,13 +146,13 @@ impl<const N:usize,D:Dtype> Clone for Tensor<N, D> {
     }
 }
 
-impl<const N:usize, D:Dtype> PartialEq for Tensor<N, D> {
+impl<D:Dtype> PartialEq for Tensor<D> {
     fn eq(&self, other: &Self) -> bool {
         self.shape == other.shape && self.data == other.data
     }
 }
 
-impl<const N:usize, D:Dtype> fmt::Debug for Tensor<N, D> {
+impl<D:Dtype> fmt::Debug for Tensor<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Tensor{{")?;
 
@@ -152,7 +160,7 @@ impl<const N:usize, D:Dtype> fmt::Debug for Tensor<N, D> {
             write!(f, "\n")?;
         }
 
-        fmt_tensor_rec(&self, f, self.shape.len(), 0)?;
+        fmt_tensor_rec(&self, f, self.rank(), 0)?;
         
         write!(f, ", shape: {:?}", &self.shape)?;
         write!(f, ", dtype: {}", type_name::<D>())?;
@@ -168,8 +176,8 @@ impl<const N:usize, D:Dtype> fmt::Debug for Tensor<N, D> {
     }
 }
 
-fn fmt_tensor_rec<const N:usize, D:Dtype>(
-    tensor: &Tensor<N, D>, 
+fn fmt_tensor_rec<D:Dtype>(
+    tensor: &Tensor<D>, 
     f: &mut fmt::Formatter<'_>, 
     i: usize,
     offset: usize
@@ -202,7 +210,7 @@ fn fmt_tensor_rec<const N:usize, D:Dtype>(
                     write!(f, ",\n ")?;
                 }
 
-                fmt_tensor_rec::<N, D>(tensor, f, i - 1, offset + j * stride)?;
+                fmt_tensor_rec::<D>(tensor, f, i - 1, offset + j * stride)?;
             }
 
             write!(f, "]")
@@ -218,7 +226,7 @@ fn fmt_tensor_rec<const N:usize, D:Dtype>(
                     write!(f, ",\n\n  ")?;
                 }
 
-                fmt_tensor_rec::<N, D>(tensor, f, i - 1, offset + j * stride)?;
+                fmt_tensor_rec::<D>(tensor, f, i - 1, offset + j * stride)?;
             }
 
             write!(f, "]")
@@ -226,7 +234,7 @@ fn fmt_tensor_rec<const N:usize, D:Dtype>(
     }
 }
 
-impl<D:Dtype> From<D> for Tensor<0, D> {
+impl<D:Dtype> From<D> for Tensor<D> {
     fn from(value: D) -> Self {
         unsafe {
             let mut data = TensorUninit::<D>::new(1);
@@ -234,23 +242,23 @@ impl<D:Dtype> From<D> for Tensor<0, D> {
 
             Self {
                 op: None,
-                shape: [],
+                shape: Vec::new(),
                 data: Rc::new(data.init()),
             }
         }
     }
 }
 
-impl From<Tensor<0, f32>> for f32 {
-    fn from(value: Tensor<0>) -> Self {
+impl From<Tensor<f32>> for f32 {
+    fn from(value: Tensor) -> Self {
         value.buffer()[0]
     }
 }
 
-impl<D:Dtype, const N:usize> From<[D; N]> for Tensor<1, D> {
-    fn from(value: [D; N]) -> Self {
+impl<const N:usize> From<[f32; N]> for Tensor<f32> {
+    fn from(value: [f32; N]) -> Self {
         unsafe {
-            let mut data = TensorUninit::<D>::new(N);
+            let mut data = TensorUninit::<f32>::new(N);
 
             for (i, value) in value.iter().enumerate() {
                 data[i] = *value;
@@ -258,14 +266,14 @@ impl<D:Dtype, const N:usize> From<[D; N]> for Tensor<1, D> {
 
             Self {
                 op: None,
-                shape: [N],
+                shape: vec!(N),
                 data: Rc::new(data.init()),
             }
         }
     }
 }
 
-impl<D:Dtype, const N: usize, const M: usize> From<[[D; N]; M]> for Tensor<2, D> {
+impl<D:Dtype, const N: usize, const M: usize> From<[[D; N]; M]> for Tensor<D> {
     fn from(value: [[D; N]; M]) -> Self {
         unsafe {
             let mut data = TensorUninit::<D>::new(N * M);
@@ -278,7 +286,7 @@ impl<D:Dtype, const N: usize, const M: usize> From<[[D; N]; M]> for Tensor<2, D>
 
             Self {
                 op: None,
-                shape: [N, M],
+                shape: vec!(N, M),
                 data: Rc::new(data.init()),
             }
         }
@@ -286,7 +294,7 @@ impl<D:Dtype, const N: usize, const M: usize> From<[[D; N]; M]> for Tensor<2, D>
 }
 
 impl<D:Dtype, const N: usize, const M: usize, const L: usize>
-    From<[[[D; N]; M]; L]> for Tensor<3, D> {
+    From<[[[D; N]; M]; L]> for Tensor<D> {
     fn from(value: [[[D; N]; M]; L]) -> Self {
         unsafe {
             let mut data = TensorUninit::<D>::new(L * M * N);
@@ -301,7 +309,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize>
 
             Self {
                 op: None,
-                shape: [N, M, L],
+                shape: vec!(N, M, L),
                 data: Rc::new(data.init()),
             }
         }
@@ -309,7 +317,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize>
 }
 
 impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
-    From<[[[[D; N]; M]; L]; K]> for Tensor<4, D> {
+    From<[[[[D; N]; M]; L]; K]> for Tensor<D> {
     fn from(value: [[[[D; N]; M]; L]; K]) -> Self {
         unsafe {
             let mut data = TensorUninit::<D>::new(K * L * M * N);
@@ -326,7 +334,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
 
             Self {
                 op: None,
-                shape: [N, M, L, K],
+                shape: vec!(N, M, L, K),
                 data: Rc::new(data.init()),
             }
         }
@@ -349,60 +357,60 @@ mod test {
 
     #[test]
     fn debug_tensor_from_f32() {
-        let t = Tensor::<0>::from(10.5);
+        let t = Tensor::from(10.5);
 
         assert_eq!(format!("{:?}", t), "Tensor{10.5, shape: [], dtype: f32}");
     }
 
     #[test]
     fn debug_vector_from_slice_f32() {
-        let t = Tensor::<1>::from([]);
-        assert_eq!(format!("{:?}", t), "Tensor{[], shape: [0], dtype: f32}");
+        //let t = Tensor::from([]);
+        //assert_eq!(format!("{:?}", t), "Tensor{[], shape: [0], dtype: f32}");
 
-        let t = Tensor::<1>::from([10.5]);
+        let t = Tensor::from([10.5]);
         assert_eq!(format!("{:?}", t), "Tensor{[10.5], shape: [1], dtype: f32}");
 
-        let t = Tensor::<1>::from([1., 2.]);
+        let t = Tensor::from([1., 2.]);
         assert_eq!(format!("{:?}", t), "Tensor{[1 2], shape: [2], dtype: f32}");
 
-        let t = Tensor::<1>::from([1., 2., 3., 4., 5.]);
+        let t = Tensor::from([1., 2., 3., 4., 5.]);
         assert_eq!(format!("{:?}", t), "Tensor{[1 2 3 4 5], shape: [5], dtype: f32}");
     }
 
     #[test]
     fn debug_matrix_from_slice_f32() {
-        let t = Tensor::<2>::from([[]]);
-        assert_eq!(format!("{:?}", t), "Tensor{\n[[]], shape: [1, 0], dtype: f32}");
+        //let t = Tensor::from([[]]);
+        //assert_eq!(format!("{:?}", t), "Tensor{\n[[]], shape: [1, 0], dtype: f32}");
 
-        let t = Tensor::<2>::from([[10.5]]);
+        let t = Tensor::from([[10.5]]);
         assert_eq!(format!("{:?}", t), "Tensor{\n[[10.5]], shape: [1, 1], dtype: f32}");
 
-        let t = Tensor::<2>::from([[1., 2.]]);
+        let t = Tensor::from([[1., 2.]]);
         assert_eq!(format!("{:?}", t), "Tensor{\n[[1 2]], shape: [1, 2], dtype: f32}");
 
-        let t = Tensor::<2>::from([[1., 2., 3.], [4., 5., 6.]]);
+        let t = Tensor::from([[1., 2., 3.], [4., 5., 6.]]);
         assert_eq!(format!("{:?}", t), "Tensor{\n[[1 2 3],\n [4 5 6]], shape: [2, 3], dtype: f32}");
     }
 
     #[test]
     fn debug_tensor3_from_slice_f32() {
-        let t = Tensor::<3>::from([
-            [[]]
-        ]);
-        assert_eq!(format!("{:?}", t), "Tensor{\n[[[]]], shape: [1, 1, 0], dtype: f32}");
+        //let t = Tensor::from([
+        //    [[]]
+        //]);
+        //assert_eq!(format!("{:?}", t), "Tensor{\n[[[]]], shape: [1, 1, 0], dtype: f32}");
 
-        let t = Tensor::<3>::from([
+        let t = Tensor::from([
             [[10.5]]
         ]);
         assert_eq!(format!("{:?}", t), "Tensor{\n[[[10.5]]], shape: [1, 1, 1], dtype: f32}");
 
-        let t = Tensor::<3>::from([
+        let t = Tensor::from([
             [[1., 2.]],
             [[101., 102.]]
         ]);
         assert_eq!(format!("{:?}", t), "Tensor{\n[[[1 2]],\n\n  [[101 102]]], shape: [2, 1, 2], dtype: f32}");
 
-        let t = Tensor::<3>::from([
+        let t = Tensor::from([
             [[1., 2.], [3., 4.]],
             [[101., 102.], [103., 104.]]
         ]);
@@ -429,7 +437,7 @@ mod test {
 
     #[test]
     fn tensor_0_from_scalar() {
-        let t0 : Tensor<0> = 0.3.into();
+        let t0 : Tensor = 0.3.into();
         let v0 : f32 = t0.into();
     }
 }

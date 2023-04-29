@@ -1,9 +1,9 @@
 mod graph;
 mod ops;
-mod buffer;
+mod data;
 mod tensor;
 
-pub use buffer::{
+pub use data::{
     TensorData, TensorUninit,
 };
 

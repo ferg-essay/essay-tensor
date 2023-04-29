@@ -17,8 +17,8 @@ mod test {
     }
 
     struct TestModel {
-        w: Var<0>,
-        b: Var<0>,
+        w: Var,
+        b: Var,
     }
 
     impl TestModel {
@@ -30,7 +30,7 @@ mod test {
             }
         }
 
-        fn call(&self, tape: &Tape, x: Tensor<0>) -> Tensor<0> {
+        fn call(&self, tape: &Tape, x: Tensor) -> Tensor {
             self.w.tensor() * x + self.b.tensor()
         }
     }

@@ -17,13 +17,13 @@ impl Op for Matvec {
     }
 }
 
-impl<const N:usize> Tensor<N, f32> {
-    pub fn matvec<const M:usize>(
+impl Tensor<f32> {
+    pub fn matvec(
         &self,
-        b: &Tensor<M, f32>
-    ) -> Tensor<M, f32> {
-        assert!(N > 1, "matrix[{}]-vector multiplication requires dim >= 2", N);
-        assert!(N > M, "matrix[{}]-vector[{}] multiplication needs", N, M);
+        b: &Tensor<f32>
+    ) -> Tensor<f32> {
+        assert!(self.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", self.rank());
+        // assert!(N > M, "matrix[{}]-vector[{}] multiplication needs", N, M);
         assert_eq!(self.shape()[2..], b.shape()[1..], "matmul batch shape must match");
         assert_eq!(self.shape()[0], b.shape()[0], "matmul a.shape[0] must equal b.shape[1]");
 
@@ -68,12 +68,12 @@ impl<const N:usize> Tensor<N, f32> {
     }
 }
 
-unsafe fn naive_matvec_f32<const N:usize, const M:usize>(
+unsafe fn naive_matvec_f32(
     out: &mut TensorUninit<f32>, 
     out_start: usize,
-    a: &Tensor<N, f32>, 
+    a: &Tensor<f32>, 
     a_start: usize,
-    b: &Tensor<M, f32>,
+    b: &Tensor<f32>,
     b_start: usize,
     cols: usize,
     rows: usize,
@@ -126,33 +126,15 @@ unsafe fn naive_matvec_f32<const N:usize, const M:usize>(
         a_row += a_stride;
     }
 }
+/*
+impl ops::Mul<Tensor> for Tensor {
+    type Output = Tensor;
 
-macro_rules! matvec_impl {
-    ($lhs:expr, $rhs:expr) => {
-
-       impl ops::Mul<Tensor<$rhs>> for Tensor<$lhs> {
-            type Output = Tensor<$rhs>;
-
-            fn mul(self, rhs: Tensor<$rhs>) -> Self::Output {
-                self.matvec(&rhs)
-            }
-        }
+    fn mul(self, rhs: Tensor) -> Self::Output {
+        self.matvec(&rhs)
     }
 }
-
-macro_rules! matvec {
-    ( $(($lhs:expr, $rhs:expr)),* ) => {
-        $(
-            matvec_impl!($lhs, $rhs);
-        )*
-    }
-}
-
-matvec!((2, 1), (2, 2), (2, 3), (2, 4), (2, 5));
-matvec!((3, 1), (3, 2));
-matvec!((4, 1), (4, 3));
-matvec!((5, 1), (5, 4));
-
+*/
 // matvec!((2, 1, 1), (2, 2, 2), (2, 3, 3), (2, 4, 4), (2, 5, 5), (2, 6, 6))
 // matvec!((4, 1, 2), (4, 2, 2),
 // matvec!((4, 1, 2), (4, 2, 2),

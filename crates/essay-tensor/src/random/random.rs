@@ -9,7 +9,7 @@ pub fn uniform<const N:usize>(
     min: f32, 
     max: f32, 
     seed: Option<u64>,
-) -> Tensor<N> {
+) -> Tensor {
     let len : usize = shape.iter().product();
 
     unsafe {
@@ -32,7 +32,7 @@ pub fn uniform<const N:usize>(
             }
         };
 
-        Tensor::new(Rc::new(data.init()), shape)
+        Tensor::new(Rc::new(data.init()), &shape)
     }
 }
 
@@ -65,7 +65,7 @@ impl<const N:usize> UniformBuilder<N> {
         self
     }
 
-    pub fn go(self) -> Tensor<N> {
+    pub fn go(self) -> Tensor {
         uniform(self.shape, self.min, self.max, self.seed)
     }
 }

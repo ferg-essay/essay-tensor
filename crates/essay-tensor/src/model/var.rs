@@ -2,34 +2,34 @@ use core::fmt;
 
 use crate::{tensor::{Dtype, Op, BoxOp, OpGraph}, Tensor, prelude::IntoTensor};
 
-pub struct Var<const N:usize, D:Dtype=f32> {
+pub struct Var<D:Dtype=f32> {
     name: String,
-    tensor: Tensor<N, D>,
+    tensor: Tensor<D>,
 }
 
 #[derive(Debug, Clone)]
 pub struct VarOp(String);
 
-impl<const N:usize, D:Dtype> Var<N, D> {
-    pub fn new(name: &str, tensor: Tensor<N, D>) -> Self {
+impl<D:Dtype> Var<D> {
+    pub fn new(name: &str, tensor: Tensor<D>) -> Self {
         Self {
             tensor: tensor.set_op(OpGraph::new(&[], VarOp(name.to_string()).box_clone())),
             name: name.to_string(),
         }
     }
 
-    pub fn tensor(&self) -> Tensor<N, D> {
+    pub fn tensor(&self) -> Tensor<D> {
         self.tensor.clone()
     }
 }
 
-impl<const N:usize, D:Dtype> Tensor<N, D> {
-    pub fn as_var(self, name: &str) -> Var<N, D> {
+impl<D:Dtype> Tensor<D> {
+    pub fn as_var(self, name: &str) -> Var<D> {
         Var::new(name, self)
     }
 }
 
-impl<const N:usize> fmt::Debug for Var<N> {
+impl fmt::Debug for Var {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Var")
             .field("name", &self.name)
@@ -44,14 +44,14 @@ impl Op for VarOp {
     }
 }
 
-impl<const N:usize, D:Dtype> IntoTensor<N, D> for Var<N, D> {
-    fn into_tensor(&self) -> Tensor<N, D> {
+impl<D:Dtype> IntoTensor<D> for Var<D> {
+    fn into_tensor(&self) -> Tensor<D> {
         self.tensor.clone()
     }
 }
 
-impl<const N:usize, D:Dtype> From<Var<N, D>> for Tensor<N,D> {
-    fn from(value: Var<N,D>) -> Self {
+impl<D:Dtype> From<Var<D>> for Tensor<D> {
+    fn from(value: Var<D>) -> Self {
         value.tensor.clone()
     }
 }

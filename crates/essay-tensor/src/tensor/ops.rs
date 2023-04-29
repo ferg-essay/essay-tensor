@@ -32,7 +32,7 @@ pub trait BiFold<D:Dtype> {
     fn to_op(&self) -> Box<dyn Op>;
 }
 
-impl<const N:usize, D:Dtype> Tensor<N, D> {
+impl<D:Dtype> Tensor<D> {
     pub fn uop(&self, uop: impl Uop<D>) -> Self {
         let buffer = self.buffer();
         let len = buffer.len();
@@ -45,7 +45,7 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
             }
     
             let shape = self.shape().clone();
-            self.next_uop(data.init(), shape, uop.to_op())
+            self.next_uop(data.init(), Vec::from(shape), uop.to_op())
         }
     }
 
@@ -74,17 +74,15 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
         }
     }
 
-    pub fn fold_impl<const M:usize>(
+    pub fn fold(
         &self, 
         init: D, 
         op: impl Fold<D>, 
-    ) -> Tensor<M, D> {
-        assert_eq!(N, M + 1);
-    
+    ) -> Tensor<D> {
         let a_data = self.buffer();
     
         let len = a_data.len();
-        let stride = self.shape()[0];
+        let stride = self.dim(0);
         let batch = len / stride;
     
         unsafe {
@@ -108,29 +106,25 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
             //Self::new(Rc::new(data), b.shape().clone())
     
             let shape = self.shape();
-            let mut o_shape = [0; M];
-            for i in 1..shape.len() {
-                o_shape[i] = shape[i];
-            }
+            let o_shape: Vec<usize> = shape[1..].iter().map(|d| *d).collect();
 
             self.next_uop(o_data.init(), o_shape, op.to_op())
         }
     }
 
-    pub fn bi_fold_impl<const M:usize>(
+    pub fn bi_fold(
         &self, 
         init: D, 
         op: impl BiFold<D>, 
         b: &Self
-    ) -> Tensor<M, D> {
-        assert!(N == M + 1 || N == 0 && M == 0);
+    ) -> Tensor<D> {
         assert_eq!(self.shape(), b.shape());
     
         let a_data = self.buffer();
         let b_data = b.buffer();
 
         let len = a_data.len();
-        let stride = if N > 0 { self.shape()[0] } else { 1 };
+        let stride = if self.rank() > 0 { self.dim(0) } else { 1 };
         let batch = len / stride;
     
         unsafe {
@@ -155,36 +149,12 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
             //Self::new(Rc::new(data), b.shape().clone())
     
             let shape = self.shape();
-            let mut o_shape = [0; M];
-            for i in 1..shape.len() {
-                o_shape[i] = shape[i];
-            }
+            let o_shape: Vec<usize> = shape[1..].iter().map(|d| *d).collect();
+
             self.next_binop(&b, o_data.init(), o_shape, op.to_op())
         }
     }
 }
-
-macro_rules! fold {
-    ( $n:expr, $m:expr ) => {
-        impl<D:Dtype> Tensor<$n, D> {
-            pub fn fold(&self, init: D, op: impl Fold<D>) -> Tensor<$m, D> {
-                self.fold_impl(init, op)
-            }
-        }
-
-        impl<D:Dtype> Tensor<$n, D> {
-            pub fn bi_fold(&self, b: &Self, init: D, op: impl BiFold<D>) -> Tensor<$m, D> {
-                self.bi_fold_impl(init, op, b)
-            }
-        }
-    }
-}
-
-fold!(1, 0);
-fold!(2, 1);
-fold!(3, 2);
-fold!(4, 3);
-fold!(5, 4);
 
 impl<F, D:Dtype> Uop<D> for F
 where F: Fn(D) -> D + Clone + fmt::Debug + Sync + Send + 'static {

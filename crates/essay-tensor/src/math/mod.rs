@@ -69,7 +69,7 @@ impl Op for Binary {
     }
 }
 
-impl<const N:usize> Tensor<N> {
+impl Tensor {
     pub fn abs(&self) -> Self {
         self.uop(Unary::Abs)
     }
@@ -95,7 +95,7 @@ impl<const N:usize> Tensor<N> {
 // binops
 //
 
-impl<const N:usize> Tensor<N> {
+impl Tensor {
     pub fn max(self, rhs: Self) -> Self {
         self.binop(Binary::Max, rhs)
     }
@@ -105,47 +105,26 @@ impl<const N:usize> Tensor<N> {
     }
 }
 
-impl<const N:usize> ops::Add for Tensor<N> {
-    type Output = Tensor<N>;
+impl ops::Add for Tensor {
+    type Output = Tensor;
 
     fn add(self, rhs: Self) -> Self::Output {
         self.binop(Binary::Add, rhs)
     }
 }
 
-impl<const N:usize> ops::Sub for Tensor<N> {
-    type Output = Tensor<N>;
+impl ops::Sub for Tensor {
+    type Output = Tensor;
 
     fn sub(self, rhs: Self) -> Self::Output {
         self.binop(Binary::Sub, rhs)
     }
 }
 
-impl<const N:usize> ops::Mul<Tensor<N>> for Tensor<0> {
-    type Output = Tensor<N>;
+impl ops::Mul<Tensor> for Tensor {
+    type Output = Tensor;
 
-    fn mul(self, rhs: Tensor<N>) -> Self::Output {
-        let len = rhs.len();
-        let a = self.get(0).unwrap();
-
-        unsafe {
-            let b_data = rhs.buffer();
-            let mut o_data = TensorUninit::new(len);
-
-            for i in 0..len {
-                o_data[i] = a * b_data[i];
-            }
-
-            // TODO: graph
-            Tensor::new(Rc::new(o_data.init()), rhs.shape().clone())
-        }
-    }
-}
-
-impl<const N:usize> ops::Mul<Tensor<N>> for f32 {
-    type Output = Tensor<N>;
-
-    fn mul(self, rhs: Tensor<N>) -> Self::Output {
-        Tensor::<0>::from(self).mul(rhs)
+    fn mul(self, rhs: Self) -> Self::Output {
+        self.binop(Binary::Mul, rhs)
     }
 }

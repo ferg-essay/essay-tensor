@@ -30,7 +30,7 @@ impl Op for Unary {
     }
 }
 
-impl<const N:usize> Tensor<N> {
+impl Tensor {
     pub fn relu(&self) -> Self {
         self.uop(Unary::ReLU)
     }
@@ -62,12 +62,10 @@ impl Op for BiReduce {
     }
 }
 
-impl<const N:usize> Tensor<N> {
-    pub fn mean_square_error<const M:usize>(&self, b: &Self) -> Tensor<M> {
-        assert!(N == M + 1 || N == 0 && M == 0);
-
-        let n = if N > 0 { self.shape()[0] } else { 1 };
+impl Tensor {
+    pub fn mean_square_error(&self, b: &Self) -> Tensor {
+        let n = if self.rank() > 0 { self.dim(0) } else { 1 };
         let n_f = n as f32;
-        Tensor::<0>::from(1.0 / n_f) * self.bi_fold_impl(0.0.into(), BiReduce::MSE, b)
+        Tensor::from(1.0 / n_f) * self.bi_fold(0.0.into(), BiReduce::MSE, b)
     }
 }

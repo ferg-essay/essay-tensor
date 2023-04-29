@@ -12,16 +12,16 @@ impl Tape {
         }
     }
 
-    pub fn var<const N:usize>(&mut self, var: &Var<N>) -> Tensor<N> {
+    pub fn var(&mut self, var: &Var) -> Tensor {
         println!("Var: {:?}", var);
         var.tensor()
     }
 
-    fn gradient<const N:usize, const M:usize>(
+    fn gradient(
         &self, 
-        loss: &Tensor<N>, 
-        var: &Var<M>
-    ) -> Tensor<M> {
+        loss: &Tensor, 
+        var: &Var
+    ) -> Tensor {
         println!("var {:?}", var);
         println!("loss {:?}", loss);
         todo!()
@@ -48,8 +48,8 @@ mod test {
 
         let z = x.clone() * w_t.clone() + b_t;
 
-        let y : Tensor<0> = tensor!(2.0) * x + 1.0.into();
-        let loss: Tensor<0> = z.mean_square_error(&y);
+        let y : Tensor = tensor!(2.0) * x + 1.0.into();
+        let loss: Tensor = z.mean_square_error(&y);
 
         println!("w_t {:#?}", &w_t);
         println!("{:#?} loss {:#?}", &z, &loss);

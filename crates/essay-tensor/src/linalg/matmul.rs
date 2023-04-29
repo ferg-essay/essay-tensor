@@ -15,10 +15,10 @@ impl Op for Matmul {
     }
 }
 
-impl<const N:usize> Tensor<N> {
-    pub fn matmul<const M:usize>(&self, b: Tensor<M>) -> Tensor<M> {
-        assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
-        assert!(N > 1, "matrix multiplication requires dim >= 2");
+impl Tensor {
+    pub fn matmul(&self, b: Tensor) -> Tensor {
+        //assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
+        assert!(self.rank() > 1, "matrix multiplication requires rank >= 2");
         assert_eq!(&self.shape()[2..], &b.shape()[2..], "matmul batch shape must match");
         assert_eq!(self.shape()[0], b.shape()[1], "matmul a.shape[0] must equal b.shape[1]");
 
@@ -63,12 +63,12 @@ impl<const N:usize> Tensor<N> {
     }
 }
 
-unsafe fn naive_matmul<const M:usize, const N:usize>(
+unsafe fn naive_matmul(
     out: &mut TensorUninit, 
     out_start: usize,
-    a: &Tensor<N>, 
+    a: &Tensor, 
     a_start: usize,
-    b: &Tensor<M>,
+    b: &Tensor,
     b_start: usize,
     cols: usize,
     rows: usize,

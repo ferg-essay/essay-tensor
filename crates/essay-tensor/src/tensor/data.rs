@@ -43,7 +43,7 @@ impl<D:Dtype> Index<usize> for TensorData<D> {
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        assert!(index < self.len());
+        let index = if index < self.len() { index } else { index % self.len() };
 
         unsafe {
             self.data.as_ptr().add(index).as_ref().unwrap_unchecked()
