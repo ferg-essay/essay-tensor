@@ -43,6 +43,7 @@ enum Binary {
     Add,
     Max,
     Min,
+    Mul,
     Sub,
 }
 
@@ -52,6 +53,7 @@ impl Binop<f32> for Binary {
             Binary::Add => a + b,
             Binary::Max => a.max(b),
             Binary::Min => a.min(b),
+            Binary::Mul => a * b,
             Binary::Sub => a - b,
         }
     }
@@ -137,5 +139,13 @@ impl<const N:usize> ops::Mul<Tensor<N>> for Tensor<0> {
             // TODO: graph
             Tensor::new(Rc::new(o_data.init()), rhs.shape().clone())
         }
+    }
+}
+
+impl<const N:usize> ops::Mul<Tensor<N>> for f32 {
+    type Output = Tensor<N>;
+
+    fn mul(self, rhs: Tensor<N>) -> Self::Output {
+        Tensor::<0>::from(self).mul(rhs)
     }
 }

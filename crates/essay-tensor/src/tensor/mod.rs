@@ -12,7 +12,7 @@ pub use tensor::{
 };
 
 pub use ops::{
-    Uop, Binop,
+    Uop, Binop, BiFold,
 };
 
 pub use graph::{

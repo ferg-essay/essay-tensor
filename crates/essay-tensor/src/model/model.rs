@@ -1,24 +1,27 @@
 #[cfg(test)]
 mod test {
-    use crate::expr::Var;
+    use crate::model::Var;
+    use crate::model::gradient::Tape;
     use crate::{Tensor, random::uniform};
     use crate::prelude::{*};
 
     #[test]
     fn test() {
-        let model = Model::new();
-        println!("{:?}", model.call(0.0.into()));
-        println!("{:?}", model.call(0.0.into()));
-        println!("{:?}", model.call(0.5.into()));
-        println!("{:?}", model.call(1.0.into()));
+        let model = TestModel::new();
+        let mut tape = Tape::new();
+        
+        let tail = model.call(&tape, 0.0.into());
+        //tape.complete(&tail);
+
+        println!("{:?}", &tail);
     }
 
-    struct Model {
+    struct TestModel {
         w: Var<0>,
         b: Var<0>,
     }
 
-    impl Model {
+    impl TestModel {
         fn new() -> Self {
             let v = uniform([2], 0., 1., Some(100));
             Self {
@@ -27,7 +30,7 @@ mod test {
             }
         }
 
-        fn call(&self, x: Tensor<0>) -> Tensor<0> {
+        fn call(&self, tape: &Tape, x: Tensor<0>) -> Tensor<0> {
             self.w.tensor() * x + self.b.tensor()
         }
     }

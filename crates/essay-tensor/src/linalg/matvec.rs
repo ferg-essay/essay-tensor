@@ -1,3 +1,5 @@
+use std::ops;
+
 use crate::tensor::{Tensor, Op, BoxOp, TensorUninit};
 
 enum Transpose {
@@ -17,11 +19,11 @@ impl Op for Matvec {
 
 impl<const N:usize> Tensor<N, f32> {
     pub fn matvec<const M:usize>(
-        self,
-        b: Tensor<M, f32>
+        &self,
+        b: &Tensor<M, f32>
     ) -> Tensor<M, f32> {
-        assert!(N > 1, "matrix multiplication requires dim >= 2");
-        assert_eq!(N, M + 1);
+        assert!(N > 1, "matrix[{}]-vector multiplication requires dim >= 2", N);
+        assert!(N > M, "matrix[{}]-vector[{}] multiplication needs", N, M);
         assert_eq!(self.shape()[2..], b.shape()[1..], "matmul batch shape must match");
         assert_eq!(self.shape()[0], b.shape()[0], "matmul a.shape[0] must equal b.shape[1]");
 
@@ -78,22 +80,82 @@ unsafe fn naive_matvec_f32<const N:usize, const M:usize>(
 ) {
     let a_stride = a.shape()[0];
 
-    let a_ptr = a.buffer().as_ptr();
-    let b_ptr = b.buffer().as_ptr();
-    let out_ptr = out.as_ptr();
+    let a_data = a.buffer();
+    let b_data = b.buffer();
 
     let mut a_row = a_start;
 
     for row in 0..rows {
+        let mut len = a_stride;
+
+        let mut a_off = a_row;
+        let mut b_off = b_start;
+
+        let mut v0;
+        let mut v1;
+        let mut v2;
+        let mut v3;
+
         let mut v = 0.0;
-        for k in 0..a_stride {
-            v += a_ptr.add(a_row + k).read() * b_ptr.add(b_start + k).read();
+
+        // unroll for simd
+        while len > 3 {
+            v0 = a_data.get_unchecked(a_off + 0)
+                * b_data.get_unchecked(b_off + 0);
+            v1 = a_data.get_unchecked(a_off + 1)
+                * b_data.get_unchecked(b_off + 1);
+            v2 = a_data.get_unchecked(a_off + 2)
+                * b_data.get_unchecked(b_off + 2);
+            v3 = a_data.get_unchecked(a_off + 3)
+                * b_data.get_unchecked(b_off + 3);
+
+            a_off += 4;
+            b_off += 4;
+            len -= 4;
+
+            v += v0 + v2;
+            v += v1 + v3;
         }
 
-        out_ptr.add(out_start + row).write(v);
+        for i in 0..len {
+            v += a_data.get_unchecked(a_off + i)
+                * b_data.get_unchecked(b_off + i);
+        }
+
+        out.set_unchecked(out_start + row, v);
         a_row += a_stride;
     }
 }
+
+macro_rules! matvec_impl {
+    ($lhs:expr, $rhs:expr) => {
+
+       impl ops::Mul<Tensor<$rhs>> for Tensor<$lhs> {
+            type Output = Tensor<$rhs>;
+
+            fn mul(self, rhs: Tensor<$rhs>) -> Self::Output {
+                self.matvec(&rhs)
+            }
+        }
+    }
+}
+
+macro_rules! matvec {
+    ( $(($lhs:expr, $rhs:expr)),* ) => {
+        $(
+            matvec_impl!($lhs, $rhs);
+        )*
+    }
+}
+
+matvec!((2, 1), (2, 2), (2, 3), (2, 4), (2, 5));
+matvec!((3, 1), (3, 2));
+matvec!((4, 1), (4, 3));
+matvec!((5, 1), (5, 4));
+
+// matvec!((2, 1, 1), (2, 2, 2), (2, 3, 3), (2, 4, 4), (2, 5, 5), (2, 6, 6))
+// matvec!((4, 1, 2), (4, 2, 2),
+// matvec!((4, 1, 2), (4, 2, 2),
 
 #[cfg(test)]
 mod test {
@@ -104,7 +166,7 @@ mod test {
         let a = tensor!([[2.]]);
         let b = tensor!([3.]);
 
-        assert_eq!(a.matvec(b), tensor!([6.]));
+        assert_eq!(a.matvec(&b), tensor!([6.]));
     }
 
     #[test]
@@ -112,24 +174,31 @@ mod test {
         let a = tensor!([[1., 2.]]);
         let b = tensor!([3., 4.]);
 
-        assert_eq!(a.matvec(b), tensor!([11.]));
+        assert_eq!(a.matvec(&b), tensor!([11.]));
     }
 
     #[test]
     fn test_matvec_2_n() {
         let a = tensor!([[1.], [2.]]);
         let b = tensor!([2.]);
-        assert_eq!(a.matvec(b), tensor!([2., 4.]));
+        assert_eq!(a.matvec(&b), tensor!([2., 4.]));
 
         let a = tensor!([[1., 2.], [2., 3.]]);
         let b = tensor!([2., 3.]);
-        assert_eq!(a.matvec(b), tensor!([8., 13.]));
+        assert_eq!(a.matvec(&b), tensor!([8., 13.]));
     }
 
     #[test]
     fn test_matvec_3_n() {
         let a = tensor!([[1.], [2.], [3.]]);
         let b = tensor!([2.]);
-        assert_eq!(a.matvec(b), tensor!([2., 4., 6.]));
+        assert_eq!(a.matvec(&b), tensor!([2., 4., 6.]));
+    }
+
+    #[test]
+    fn test_mul_2_1() {
+        let a = tensor!([[1.], [2.], [3.]]);
+        let b = tensor!([2.]);
+        assert_eq!(a * b, tensor!([2., 4., 6.]));
     }
 }

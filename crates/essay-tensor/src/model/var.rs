@@ -1,7 +1,9 @@
+use core::fmt;
+
 use crate::{tensor::{Dtype, Op, BoxOp, OpGraph}, Tensor, prelude::IntoTensor};
 
 pub struct Var<const N:usize, D:Dtype=f32> {
-    _name: String,
+    name: String,
     tensor: Tensor<N, D>,
 }
 
@@ -12,7 +14,7 @@ impl<const N:usize, D:Dtype> Var<N, D> {
     pub fn new(name: &str, tensor: Tensor<N, D>) -> Self {
         Self {
             tensor: tensor.set_op(OpGraph::new(&[], VarOp(name.to_string()).box_clone())),
-            _name: name.to_string(),
+            name: name.to_string(),
         }
     }
 
@@ -24,6 +26,15 @@ impl<const N:usize, D:Dtype> Var<N, D> {
 impl<const N:usize, D:Dtype> Tensor<N, D> {
     pub fn as_var(self, name: &str) -> Var<N, D> {
         Var::new(name, self)
+    }
+}
+
+impl<const N:usize> fmt::Debug for Var<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Var")
+            .field("name", &self.name)
+            .field("tensor", &self.tensor)
+            .finish()
     }
 }
 

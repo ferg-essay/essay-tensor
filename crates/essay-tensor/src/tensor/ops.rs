@@ -74,7 +74,7 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
         }
     }
 
-    fn fold_impl<const M:usize>(
+    pub fn fold_impl<const M:usize>(
         &self, 
         init: D, 
         op: impl Fold<D>, 
@@ -117,20 +117,20 @@ impl<const N:usize, D:Dtype> Tensor<N, D> {
         }
     }
 
-    fn bi_fold_impl<const M:usize>(
+    pub fn bi_fold_impl<const M:usize>(
         &self, 
         init: D, 
         op: impl BiFold<D>, 
         b: &Self
     ) -> Tensor<M, D> {
-        assert_eq!(N, M + 1);
+        assert!(N == M + 1 || N == 0 && M == 0);
         assert_eq!(self.shape(), b.shape());
     
         let a_data = self.buffer();
         let b_data = b.buffer();
 
         let len = a_data.len();
-        let stride = self.shape()[0];
+        let stride = if N > 0 { self.shape()[0] } else { 1 };
         let batch = len / stride;
     
         unsafe {
@@ -173,7 +173,7 @@ macro_rules! fold {
         }
 
         impl<D:Dtype> Tensor<$n, D> {
-            pub fn bi_fold(&self, init: D, op: impl BiFold<D>, b: &Self) -> Tensor<$m, D> {
+            pub fn bi_fold(&self, b: &Self, init: D, op: impl BiFold<D>) -> Tensor<$m, D> {
                 self.bi_fold_impl(init, op, b)
             }
         }
