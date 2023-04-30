@@ -1,6 +1,8 @@
 use core::fmt;
 
-use crate::{tensor::{Dtype, Op, BoxOp, OpGraph}, Tensor, prelude::IntoTensor};
+use crate::{tensor::{Dtype, Op, BoxOp}, Tensor, prelude::IntoTensor};
+
+use super::OpGraph;
 
 pub struct Var<D:Dtype=f32> {
     name: String,
@@ -13,7 +15,7 @@ pub struct VarOp(String);
 impl<D:Dtype> Var<D> {
     pub fn new(name: &str, tensor: Tensor<D>) -> Self {
         Self {
-            tensor: tensor.set_op(OpGraph::new(&[], VarOp(name.to_string()).box_clone())),
+            tensor: tensor.set_op(OpGraph::new::<D>(&[], VarOp(name.to_string()).box_clone())),
             name: name.to_string(),
         }
     }

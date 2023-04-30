@@ -1,19 +1,25 @@
 use core::fmt;
-use std::{cmp::max, any::type_name, fmt::Display, rc::Rc, ops::Index};
+use std::{cmp::{max, self}, any::type_name, sync::Arc};
 
 use num_traits::Float;
 
-use super::{data::TensorData, graph::OpGraph, TensorUninit};
+use crate::model::OpGraph;
 
-pub trait Dtype : Copy + PartialEq + fmt::Debug + Display + 'static {}
+use super::{data::TensorData, TensorUninit};
+
+pub trait Dtype : Copy + PartialEq + fmt::Debug + Sync + Send + 'static {}
 
 pub struct Tensor<D:Dtype=f32> {
     op: Option<OpGraph>,
     shape: Vec<usize>,
-    data: Rc<TensorData<D>>,
+    data: Arc<TensorData<D>>,
 }
 
 pub trait Op : fmt::Debug + Send + Sync + 'static {
+    fn gradient(&self, _i: usize, _args: &[&Tensor]) {
+        todo!()
+    }
+
     fn box_clone(&self) -> BoxOp;
 }
 
@@ -24,7 +30,7 @@ pub trait IntoTensor<D:Dtype> {
 }
 
 impl<D:Dtype> Tensor<D> {
-    pub fn new(data: Rc<TensorData<D>>, shape: &[usize]) -> Self {
+    pub fn new(data: Arc<TensorData<D>>, shape: &[usize]) -> Self {
         let len: usize = max(1, shape.iter().product());
         assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
             data.len(), len);
@@ -37,7 +43,7 @@ impl<D:Dtype> Tensor<D> {
     }
 
     pub fn new_op(
-        data: Rc<TensorData<D>>, 
+        data: Arc<TensorData<D>>, 
         shape: Vec<usize>,
         op: OpGraph,
     ) -> Self {
@@ -80,7 +86,44 @@ impl<D:Dtype> Tensor<D> {
     }
 
     #[inline]
-    pub fn buffer(&self) -> &Rc<TensorData<D>> {
+    pub fn broadcast(&self, b: &Tensor<D>) -> usize {
+        let a_shape = self.shape();
+        let b_shape = b.shape();
+        let min_rank = cmp::min(a_shape.len(), b.shape.len());
+        for i in 0..min_rank {
+            assert_eq!(a_shape[i], b_shape[i], "broadcast ranks must match");
+        }
+
+        if a_shape.len() < b_shape.len() { b.size() } else { self.size() }
+    }
+
+    #[inline]
+    pub fn broadcast_min(
+        &self, 
+        a_min: usize, 
+        b: &Tensor<D>, 
+        b_min: usize
+    ) -> usize {
+        let a_shape = self.shape();
+        let b_shape = b.shape();
+        let min_rank = cmp::min(
+            a_shape.len() - a_min, 
+            b.shape.len() - b_min
+        );
+
+        for i in 0..min_rank {
+            assert_eq!(a_shape[i + a_min], b_shape[i + b_min], "broadcast ranks must match");
+        }
+
+        if a_shape.len() - a_min < b_shape.len() - b_min { 
+            b_shape.iter().skip(b_min).product()
+        } else { 
+            a_shape.iter().skip(a_min).product()
+        }
+    }
+
+    #[inline]
+    pub fn buffer(&self) -> &Arc<TensorData<D>> {
         &self.data
     }
 
@@ -96,15 +139,15 @@ impl<D:Dtype> Tensor<D> {
     ) -> Tensor<D> {
         if self.op().is_none() {
             Tensor {
-                data: Rc::new(data),
+                data: Arc::new(data),
                 shape: shape,
                 op: None,
             }
         } else {
             Tensor {
-                data: Rc::new(data),
+                data: Arc::new(data),
                 shape: shape,
-                op: Some(OpGraph::new(&[self.op()], op)),
+                op: Some(OpGraph::new(&[self], op)),
             }
         }
     }
@@ -118,15 +161,15 @@ impl<D:Dtype> Tensor<D> {
     ) -> Tensor<D> {
         if self.op().is_none() && b.op().is_none() {
             Tensor {
-                data: Rc::new(data),
+                data: Arc::new(data),
                 shape: shape,
                 op: None,
             }
         } else {
             Tensor {
-                data: Rc::new(data),
+                data: Arc::new(data),
                 shape: shape,
-                op: Some(OpGraph::new(&[self.op(), b.op()], op)),
+                op: Some(OpGraph::new(&[self, b], op))
             }
         }
     }
@@ -179,22 +222,20 @@ impl<D:Dtype> fmt::Debug for Tensor<D> {
 fn fmt_tensor_rec<D:Dtype>(
     tensor: &Tensor<D>, 
     f: &mut fmt::Formatter<'_>, 
-    i: usize,
+    rank: usize,
     offset: usize
 ) -> fmt::Result {
-    match i {
-        0 => write!(f, "{}", tensor.get(offset).unwrap()),
+    match rank {
+        0 => write!(f, "{:?}", tensor.get(offset).unwrap()),
         1 => {
             write!(f, "[")?;
 
-            let shape = tensor.shape();
-
-            for j in 0..shape[0] {
+            for j in 0..tensor.dim(0) {
                 if j > 0 {
                     write!(f, " ")?;
                 }
 
-                fmt_tensor_rec(tensor, f, i - 1, offset + j)?;
+                fmt_tensor_rec(tensor, f, rank - 1, offset + j)?;
             }
 
             write!(f, "]")
@@ -210,23 +251,23 @@ fn fmt_tensor_rec<D:Dtype>(
                     write!(f, ",\n ")?;
                 }
 
-                fmt_tensor_rec::<D>(tensor, f, i - 1, offset + j * stride)?;
+                fmt_tensor_rec::<D>(tensor, f, rank - 1, offset + j * stride)?;
             }
 
             write!(f, "]")
         },
-        i => {
+        rank => {
             write!(f, "[")?;
 
             let shape = tensor.shape();
             // TODO:
-            let stride : usize = shape[0..i].iter().product();
-            for j in 0..shape[i] {
+            let stride : usize = shape[0..rank - 1].iter().product();
+            for j in 0..shape[rank - 1] {
                 if j > 0 {
                     write!(f, ",\n\n  ")?;
                 }
 
-                fmt_tensor_rec::<D>(tensor, f, i - 1, offset + j * stride)?;
+                fmt_tensor_rec::<D>(tensor, f, rank - 1, offset + j * stride)?;
             }
 
             write!(f, "]")
@@ -234,16 +275,16 @@ fn fmt_tensor_rec<D:Dtype>(
     }
 }
 
-impl<D:Dtype> From<D> for Tensor<D> {
-    fn from(value: D) -> Self {
+impl From<f32> for Tensor<f32> {
+    fn from(value: f32) -> Self {
         unsafe {
-            let mut data = TensorUninit::<D>::new(1);
+            let mut data = TensorUninit::<f32>::new(1);
             data[0] = value;
 
             Self {
                 op: None,
                 shape: Vec::new(),
-                data: Rc::new(data.init()),
+                data: Arc::new(data.init()),
             }
         }
     }
@@ -267,16 +308,16 @@ impl<const N:usize> From<[f32; N]> for Tensor<f32> {
             Self {
                 op: None,
                 shape: vec!(N),
-                data: Rc::new(data.init()),
+                data: Arc::new(data.init()),
             }
         }
     }
 }
 
-impl<D:Dtype, const N: usize, const M: usize> From<[[D; N]; M]> for Tensor<D> {
-    fn from(value: [[D; N]; M]) -> Self {
+impl<const N: usize, const M: usize> From<[[f32; N]; M]> for Tensor<f32> {
+    fn from(value: [[f32; N]; M]) -> Self {
         unsafe {
-            let mut data = TensorUninit::<D>::new(N * M);
+            let mut data = TensorUninit::<f32>::new(N * M);
 
             for (j, value) in value.iter().enumerate() {
                 for (i, value) in value.iter().enumerate() {
@@ -287,17 +328,17 @@ impl<D:Dtype, const N: usize, const M: usize> From<[[D; N]; M]> for Tensor<D> {
             Self {
                 op: None,
                 shape: vec!(N, M),
-                data: Rc::new(data.init()),
+                data: Arc::new(data.init()),
             }
         }
     }
 }
 
-impl<D:Dtype, const N: usize, const M: usize, const L: usize>
-    From<[[[D; N]; M]; L]> for Tensor<D> {
-    fn from(value: [[[D; N]; M]; L]) -> Self {
+impl<const N: usize, const M: usize, const L: usize>
+    From<[[[f32; N]; M]; L]> for Tensor<f32> {
+    fn from(value: [[[f32; N]; M]; L]) -> Self {
         unsafe {
-            let mut data = TensorUninit::<D>::new(L * M * N);
+            let mut data = TensorUninit::<f32>::new(L * M * N);
 
             for (l, value) in value.iter().enumerate() {
                 for (m, value) in value.iter().enumerate() {
@@ -310,7 +351,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize>
             Self {
                 op: None,
                 shape: vec!(N, M, L),
-                data: Rc::new(data.init()),
+                data: Arc::new(data.init()),
             }
         }
     }
@@ -335,7 +376,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
             Self {
                 op: None,
                 shape: vec!(N, M, L, K),
-                data: Rc::new(data.init()),
+                data: Arc::new(data.init()),
             }
         }
     }
@@ -344,7 +385,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
 // impl Dtype for f32 {}
 impl<T> Dtype for T 
 where
-    T:Float + fmt::Display + fmt::Debug + 'static
+    T:Float + fmt::Display + fmt::Debug + Sync + Send + 'static
 {
 
 }
@@ -438,6 +479,6 @@ mod test {
     #[test]
     fn tensor_0_from_scalar() {
         let t0 : Tensor = 0.3.into();
-        let v0 : f32 = t0.into();
+        let _v0 : f32 = t0.into();
     }
 }

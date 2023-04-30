@@ -1,4 +1,3 @@
-mod graph;
 mod ops;
 mod data;
 mod tensor;
@@ -13,8 +12,4 @@ pub use tensor::{
 
 pub use ops::{
     Uop, Binop, BiFold,
-};
-
-pub use graph::{
-    OpGraph,
 };

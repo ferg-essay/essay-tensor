@@ -2,13 +2,17 @@ use crate::{Tensor};
 
 use super::Var;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TensorId(pub usize);
+
 pub struct Tape {
+    tensors: Vec<Tensor>,
 }
 
 impl Tape {
     pub fn new() -> Tape {
         Self {
-
+            tensors: Default::default(),
         }
     }
 
@@ -17,26 +21,48 @@ impl Tape {
         var.tensor()
     }
 
-    fn gradient(
+    pub fn gradient(
         &self, 
         loss: &Tensor, 
         var: &Var
     ) -> Tensor {
+        let op = match loss.op() {
+            Some(op) => op,
+            None => panic!("gradient needs saved graph in loss tensor"),
+        };
+        
         println!("var {:?}", var);
         println!("loss {:?}", loss);
-        todo!()
+        op.gradient(self, 0)
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::model::Var;
-    use crate::model::gradient::Tape;
+    use crate::model::tape::Tape;
     use crate::{Tensor, random::uniform};
     use crate::prelude::{*};
 
     #[test]
-    fn test() {
+    fn test_mse() {
+        let mut tape = Tape::new();
+        let z = Var::new("z", tensor!(0.));
+        let z_t = tape.var(&z);
+
+        let y : Tensor = tensor!(1.0);
+        let loss: Tensor = z_t.mean_square_error(&y);
+
+        println!("z {:#?}", &z_t);
+        println!("y {:#?}", &y);
+        println!("loss {:#?}", &loss);
+
+        let dz = tape.gradient(&loss, &z);
+        println!("dz {:#?}", &dz);
+    }
+
+    #[test]
+    fn test_matvec() {
         let w = Var::new("w", tensor!(0.5));
         let b = Var::new("b", tensor!(0.5));
 

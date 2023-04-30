@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use rand::prelude::*;
 
@@ -32,7 +32,7 @@ pub fn uniform<const N:usize>(
             }
         };
 
-        Tensor::new(Rc::new(data.init()), &shape)
+        Tensor::new(Arc::new(data.init()), &shape)
     }
 }
 

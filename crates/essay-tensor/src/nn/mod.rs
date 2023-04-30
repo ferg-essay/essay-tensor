@@ -8,7 +8,7 @@ enum Unary {
 
 #[derive(Debug, Clone)]
 enum BiReduce {
-    MSE,
+    MSE(f32),
 }
 
 impl Uop<f32> for Unary {
@@ -43,10 +43,10 @@ impl Tensor {
 impl BiFold<f32> for BiReduce {
     fn apply(&self, acc: f32, a: f32, b: f32) -> f32 {
         match &self {
-            BiReduce::MSE => {
+            BiReduce::MSE(n_inv) => {
                 let v = a - b;
 
-                acc + v * v
+                acc + n_inv * v * v
             },
         }
     }
@@ -65,7 +65,7 @@ impl Op for BiReduce {
 impl Tensor {
     pub fn mean_square_error(&self, b: &Self) -> Tensor {
         let n = if self.rank() > 0 { self.dim(0) } else { 1 };
-        let n_f = n as f32;
-        Tensor::from(1.0 / n_f) * self.bi_fold(0.0.into(), BiReduce::MSE, b)
+        let n_inv = 1.0 / n as f32;
+        self.bi_fold(0.0.into(), BiReduce::MSE(n_inv), b)
     }
 }

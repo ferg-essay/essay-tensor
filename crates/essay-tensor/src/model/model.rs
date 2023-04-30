@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test {
-    use crate::model::Var;
-    use crate::model::gradient::Tape;
+    use crate::model::{Var, Tape};
     use crate::{Tensor, random::uniform};
     use crate::prelude::{*};
 

@@ -1,6 +1,6 @@
-use std::{ops, rc::Rc};
+use std::{ops};
 
-use crate::{tensor::{Tensor, Uop, Binop, Op, BoxOp, TensorUninit}};
+use crate::{tensor::{Tensor, Uop, Binop, Op, BoxOp}};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -97,11 +97,11 @@ impl Tensor {
 
 impl Tensor {
     pub fn max(self, rhs: Self) -> Self {
-        self.binop(Binary::Max, rhs)
+        self.binop(&rhs, Binary::Max)
     }
     
     pub fn min(self, rhs: Self) -> Self {
-        self.binop(Binary::Min, rhs)
+        self.binop(&rhs, Binary::Min)
     }
 }
 
@@ -109,7 +109,7 @@ impl ops::Add for Tensor {
     type Output = Tensor;
 
     fn add(self, rhs: Self) -> Self::Output {
-        self.binop(Binary::Add, rhs)
+        self.binop(&rhs, Binary::Add)
     }
 }
 
@@ -117,7 +117,7 @@ impl ops::Sub for Tensor {
     type Output = Tensor;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        self.binop(Binary::Sub, rhs)
+        self.binop(&rhs, Binary::Sub)
     }
 }
 
@@ -125,6 +125,6 @@ impl ops::Mul<Tensor> for Tensor {
     type Output = Tensor;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        self.binop(Binary::Mul, rhs)
+        self.binop(&rhs, Binary::Mul)
     }
 }

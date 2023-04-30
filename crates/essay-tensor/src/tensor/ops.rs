@@ -49,27 +49,29 @@ impl<D:Dtype> Tensor<D> {
         }
     }
 
-    pub fn binop(&self, op: impl Binop<D>, b: Self) -> Self {
-        assert_eq!(self.shape(), b.shape());
+    pub fn binop(&self, b: &Self, op: impl Binop<D>) -> Self {
+        let size = self.broadcast(b);
     
         let a_data = self.buffer();
         let b_data = b.buffer();
     
-        let len = a_data.len();
-    
         unsafe {
-            let mut data = TensorUninit::<D>::new(len);
+            let mut data = TensorUninit::<D>::new(size);
     
-            for i in 0..len {
+            for i in 0..size {
                 data.set_unchecked(i, op.eval(
-                    a_data.get_unchecked(i), 
-                    b_data.get_unchecked(i)
+                    a_data[i],
+                    b_data[i],
                 ));
             }
     
             //Self::new(Rc::new(data), b.shape().clone())
     
-            let shape = b.shape().clone();
+            let shape = if self.rank() < b.rank() { 
+                b.shape().clone() 
+            } else { 
+                self.shape().clone() 
+            };
             self.next_binop(&b, data.init(), shape, op.to_op())
         }
     }
@@ -149,7 +151,11 @@ impl<D:Dtype> Tensor<D> {
             //Self::new(Rc::new(data), b.shape().clone())
     
             let shape = self.shape();
-            let o_shape: Vec<usize> = shape[1..].iter().map(|d| *d).collect();
+            let o_shape: Vec<usize> = if shape.len() > 0 {
+                shape[1..].iter().map(|d| *d).collect()
+            } else {
+                Vec::new()
+            };
 
             self.next_binop(&b, o_data.init(), o_shape, op.to_op())
         }
@@ -163,7 +169,7 @@ where F: Fn(D) -> D + Clone + fmt::Debug + Sync + Send + 'static {
     }
 
     fn to_op(&self) -> Box<dyn Op> {
-        todo!()
+        Box::new(FnOp)
     }
 }
 
@@ -174,6 +180,72 @@ where F: Fn(D, D) -> D {
     }
 
     fn to_op(&self) -> Box<dyn Op> {
+        Box::new(FnOp)
+    }
+}
+
+#[derive(Debug)]
+struct FnOp;
+
+impl Op for FnOp {
+    fn box_clone(&self) -> super::BoxOp {
         todo!()
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::{*};
+
+    #[test]
+    fn binop_broadcast() {
+        let a = tensor!([1., 2., 3.]);
+        let b = tensor!(1.);
+
+        assert_eq!(
+            a.binop(&b, |a, b| 100. * a + b),
+            tensor!([101., 201., 301.])
+        );
+
+        assert_eq!(
+            b.binop(&a, |a, b| 100. * a + b),
+            tensor!([101., 102., 103.])
+        );
+
+        let a = tensor!([1., 2.]);
+        let b = tensor!([[1., 2.], [3., 4.]]);
+
+        assert_eq!(
+            a.binop(&b, |a, b| 100. * a + b),
+            tensor!([[101., 202.], [103., 204.]])
+        );
+
+        assert_eq!(
+            b.binop(&a, |a, b| 100. * a + b),
+            tensor!([[101., 202.], [301., 402.]])
+        );
+
+        let a = tensor!([1., 2.]);
+        let b = tensor!([
+            [[1., 2.], [3., 4.]],
+            [[10., 20.], [30., 40.]],
+        ]);
+
+        assert_eq!(
+            a.binop(&b, |a, b| 100. * a + b),
+            tensor!([
+                [[101., 202.], [103., 204.]],
+                [[110., 220.], [130., 240.]],
+            ])
+        );
+
+        assert_eq!(
+            b.binop(&a, |a, b| 100. * a + b),
+            tensor!([
+                [[101., 202.], [301., 402.]],
+                [[1001., 2002.], [3001., 4002.]],
+            ]),
+        );
     }
 }

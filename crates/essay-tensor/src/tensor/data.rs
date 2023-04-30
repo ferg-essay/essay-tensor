@@ -67,6 +67,9 @@ impl<D:Dtype + PartialEq> PartialEq for TensorData<D> {
     }
 }
 
+unsafe impl<D:Dtype + Sync> Sync for TensorData<D> {}
+unsafe impl<D:Dtype + Send> Send for TensorData<D> {}
+
 impl<D:Dtype> TensorUninit<D> {
     pub unsafe fn new(len: usize) -> Self {
         let layout = Layout::array::<D>(len).unwrap();
