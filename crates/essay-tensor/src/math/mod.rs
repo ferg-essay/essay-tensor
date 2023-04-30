@@ -8,6 +8,7 @@ enum Unary {
     Cos,
     Exp,
     Ln,
+    Neg,
     Sin,
 }
 
@@ -18,17 +19,53 @@ impl Uop<f32> for Unary {
             Unary::Cos => value.cos(),
             Unary::Exp => value.exp(),
             Unary::Ln => value.ln(),
+            Unary::Neg => -value,
             Unary::Sin => value.sin(),
         }
     }
-/*
-    fn box_clone(&self) -> Box<dyn Uop<f32>> {
-        Box::new(self.clone())
-    }
-     */
 
     fn to_op(&self) -> Box<dyn Op> {
         self.box_clone()
+    }
+}
+
+macro_rules! tensor_uop {
+    ($fun:ident, $op:expr) => {
+        pub fn $fun(a: &Tensor) -> Tensor {
+            a.uop($op)
+        }
+
+        impl Tensor {
+            pub fn $fun(&self) -> Tensor {
+                self.uop($op)
+            }
+        }
+    }
+}
+
+tensor_uop!(abs, Unary::Abs);
+tensor_uop!(cos, Unary::Cos);
+tensor_uop!(exp, Unary::Exp);
+tensor_uop!(ln, Unary::Ln);
+tensor_uop!(sin, Unary::Sin);
+
+pub fn neg(a: &Tensor) -> Tensor {
+    a.uop(Unary::Neg)
+}
+
+impl ops::Neg for Tensor {
+    type Output = Tensor;
+
+    fn neg(self) -> Self::Output {
+        self.uop(Unary::Neg)
+    }
+}
+
+impl ops::Neg for &Tensor {
+    type Output = Tensor;
+
+    fn neg(self) -> Self::Output {
+        self.uop(Unary::Neg)
     }
 }
 
@@ -38,12 +75,25 @@ impl Op for Unary {
     }
 }
 
+//
+// binops
+//
+
 #[derive(Debug, Clone)]
 enum Binary {
     Add,
+    Atan2,
+    Div,
+    DivEuclid,
+    Hypot,
+    Log,
     Max,
     Min,
     Mul,
+    Powf,
+    Powi,
+    Rem,
+    RemEuclid,
     Sub,
 }
 
@@ -51,9 +101,18 @@ impl Binop<f32> for Binary {
     fn eval(&self, a: f32, b: f32) -> f32 {
         match &self {
             Binary::Add => a + b,
+            Binary::Atan2 => a.atan2(b),
+            Binary::Div => a / b,
+            Binary::DivEuclid => a.div_euclid(b),
+            Binary::Hypot => a.hypot(b),
+            Binary::Log => a.log(b),
             Binary::Max => a.max(b),
             Binary::Min => a.min(b),
             Binary::Mul => a * b,
+            Binary::Powf => a.powf(b),
+            Binary::Powi => a.powi(b as i32),
+            Binary::Rem => a % b,
+            Binary::RemEuclid => a.rem_euclid(b),
             Binary::Sub => a - b,
         }
     }
@@ -69,44 +128,40 @@ impl Op for Binary {
     }
 }
 
-impl Tensor {
-    pub fn abs(&self) -> Self {
-        self.uop(Unary::Abs)
-    }
+macro_rules! tensor_binop {
+    ($fun:ident, $op:expr) => {
+        pub fn $fun(a: &Tensor, b: &Tensor) -> Tensor {
+            a.binop(b, $op)
+        }
 
-    pub fn cos(&self) -> Self {
-        self.uop(Unary::Cos)
-    }
-    
-    pub fn exp(&self) -> Self {
-        self.uop(Unary::Exp)
-    }
-    
-    pub fn ln(&self) -> Self {
-        self.uop(Unary::Ln)
-    }
-    
-    pub fn sin(&self) -> Self {
-        self.uop(Unary::Sin)
+        impl Tensor {
+            pub fn $fun(&self, b: &Tensor) -> Tensor {
+                self.binop(b, $op)
+            }
+        }
     }
 }
 
-//
-// binops
-//
+tensor_binop!(atan2, Binary::Atan2);
+tensor_binop!(div_euclid, Binary::DivEuclid);
+tensor_binop!(hypot, Binary::Hypot);
+tensor_binop!(log, Binary::Log);
+tensor_binop!(max, Binary::Max);
+tensor_binop!(min, Binary::Min);
+tensor_binop!(powf, Binary::Powf);
+tensor_binop!(powi, Binary::Powi);
+tensor_binop!(rem_euclid, Binary::RemEuclid);
 
-impl Tensor {
-    pub fn max(self, rhs: Self) -> Self {
-        self.binop(&rhs, Binary::Max)
-    }
-    
-    pub fn min(self, rhs: Self) -> Self {
-        self.binop(&rhs, Binary::Min)
-    }
-}
+//
+// overloaded operations: Add, Sub, Mul
+//
 
 macro_rules! tensor_ops {
     ($op:ident, $fun:ident) => {
+        pub fn $fun(a: &Tensor, b: &Tensor) -> Tensor {
+            a.binop(b, Binary::$op)
+        }
+
         impl ops::$op for &Tensor {
             type Output = Tensor;
         
@@ -150,5 +205,7 @@ macro_rules! tensor_ops {
 }
 
 tensor_ops!(Add, add);
-tensor_ops!(Sub, sub);
+tensor_ops!(Div, div);
 tensor_ops!(Mul, mul);
+tensor_ops!(Rem, rem);
+tensor_ops!(Sub, sub);

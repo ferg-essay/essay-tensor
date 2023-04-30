@@ -105,8 +105,9 @@ macro_rules! var_ops {
     }
 }
 
-var_ops!(Mul, mul);
 var_ops!(Add, add);
+var_ops!(Sub, sub);
+var_ops!(Mul, mul);
 
 #[cfg(test)]
 mod test {

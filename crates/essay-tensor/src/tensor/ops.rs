@@ -36,7 +36,7 @@ impl Tensor {
     pub fn uop(&self, uop: impl Uop<f32>) -> Self {
         let buffer = self.buffer();
         let len = buffer.len();
-    
+
         unsafe {
             let mut data = TensorUninit::<f32>::new(len);
     
