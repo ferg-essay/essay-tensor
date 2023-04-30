@@ -3,21 +3,29 @@ use std::{cmp::{max, self}, any::type_name, sync::Arc};
 
 use num_traits::Float;
 
-use crate::model::OpGraph;
+use crate::model::{NodeOp, TensorId, Tape};
 
 use super::{data::TensorData, TensorUninit};
 
 pub trait Dtype : Copy + PartialEq + fmt::Debug + Sync + Send + 'static {}
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum NodeId {
+    None,
+    Var(String),
+    Id(TensorId),
+}
+
 pub struct Tensor<D:Dtype=f32> {
-    op: Option<OpGraph>,
     shape: Vec<usize>,
     data: Arc<TensorData<D>>,
+
+    node: NodeId,
 }
 
 pub trait Op : fmt::Debug + Send + Sync + 'static {
-    fn gradient(&self, _i: usize, _args: &[&Tensor]) {
-        todo!()
+    fn gradient(&self, _i: usize, _args: &[&Tensor]) -> Tensor {
+        todo!("{:?}", self)
     }
 
     fn box_clone(&self) -> BoxOp;
@@ -36,38 +44,40 @@ impl<D:Dtype> Tensor<D> {
             data.len(), len);
         
         Self {
-            op: None,
             shape: Vec::from(shape),
             data,
+
+            node: NodeId::None,
         }
     }
 
-    pub fn new_op(
-        data: Arc<TensorData<D>>, 
-        shape: Vec<usize>,
-        op: OpGraph,
-    ) -> Self {
-        let len: usize = max(1, shape.iter().product());
-        assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
-            data.len(), len);
-        
-        Self {
-            op: Some(op),
-            shape,
-            data,
+    pub(crate) fn clone_id(&self, id: TensorId) -> Tensor<D> {
+        Tensor {
+            shape: self.shape.clone(),
+            data: self.data.clone(),
+
+            node: NodeId::Id(id),
         }
     }
 
-    pub fn set_op(self, op: OpGraph) -> Self {
+    /*
+    pub(crate) fn new_var(tensor: &Tensor<D>, name: &str) -> Tensor<D> {
         Self {
-            op: Some(op),
+            shape: tensor.shape().clone(),
+            data: tensor.buffer().clone(),
+
+            graph: TensorGraph::Var(name.to_string()),
+        }
+    }
+    */
+
+    pub(crate) fn to_var(self, name: &str) -> Tensor<D> {
+        Self {
             shape: self.shape,
             data: self.data,
-        }
-    }
 
-    pub fn op(&self) -> &Option<OpGraph> {
-        &self.op
+            node: NodeId::Var(name.to_string()),
+        }
     }
 
     #[inline]
@@ -86,7 +96,48 @@ impl<D:Dtype> Tensor<D> {
     }
 
     #[inline]
-    pub fn broadcast(&self, b: &Tensor<D>) -> usize {
+    pub fn buffer(&self) -> &Arc<TensorData<D>> {
+        &self.data
+    }
+
+    pub fn get(&self, offset: usize) -> Option<D> {
+        self.data.get(offset)
+    }
+
+    pub fn set_op(self, graph: NodeId) -> Self {
+        Self {
+            shape: self.shape,
+            data: self.data,
+
+            node: graph,
+        }
+    }
+
+    pub fn op(&self) -> &NodeId {
+        &self.node
+    }
+}
+
+impl Tensor {
+    pub fn new_op(
+        data: Arc<TensorData>, 
+        shape: Vec<usize>,
+        graph: NodeId,
+    ) -> Self {
+        let len: usize = max(1, shape.iter().product());
+        assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
+            data.len(), len);
+        
+        Self {
+            shape,
+            data,
+
+            node: graph,
+        }
+    }
+
+    #[inline]
+    pub fn broadcast(&self, b: &Tensor) -> usize {
         let a_shape = self.shape();
         let b_shape = b.shape();
         let min_rank = cmp::min(a_shape.len(), b.shape.len());
@@ -101,7 +152,7 @@ impl<D:Dtype> Tensor<D> {
     pub fn broadcast_min(
         &self, 
         a_min: usize, 
-        b: &Tensor<D>, 
+        b: &Tensor, 
         b_min: usize
     ) -> usize {
         let a_shape = self.shape();
@@ -122,56 +173,37 @@ impl<D:Dtype> Tensor<D> {
         }
     }
 
-    #[inline]
-    pub fn buffer(&self) -> &Arc<TensorData<D>> {
-        &self.data
-    }
-
-    pub fn get(&self, offset: usize) -> Option<D> {
-        self.data.get(offset)
-    }
-
     pub fn next_uop(
         &self, 
-        data: TensorData<D>, 
+        data: TensorData, 
         shape: Vec<usize>,
         op: Box<dyn Op>
-    ) -> Tensor<D> {
-        if self.op().is_none() {
-            Tensor {
-                data: Arc::new(data),
-                shape: shape,
-                op: None,
-            }
-        } else {
-            Tensor {
-                data: Arc::new(data),
-                shape: shape,
-                op: Some(OpGraph::new(&[self], op)),
-            }
+    ) -> Tensor {
+        Tensor {
+            data: Arc::new(data),
+            shape: shape,
+            node: NodeOp::new(&[self], op),
         }
     }
 
     pub fn next_binop(
         &self, 
-        b: &Tensor<D>,
-        data: TensorData<D>, 
+        b: &Tensor,
+        data: TensorData, 
         shape: Vec<usize>,
         op: Box<dyn Op>
-    ) -> Tensor<D> {
-        if self.op().is_none() && b.op().is_none() {
-            Tensor {
-                data: Arc::new(data),
-                shape: shape,
-                op: None,
-            }
-        } else {
-            Tensor {
-                data: Arc::new(data),
-                shape: shape,
-                op: Some(OpGraph::new(&[self, b], op))
-            }
+    ) -> Tensor {
+        let tensor = Tensor {
+            data: Arc::new(data),
+            shape: shape,
+            node: NodeOp::new(&[self, b], op),
+        };
+
+        if let NodeId::Id(id) = tensor.node {
+            Tape::set_tensor(id, tensor.clone());
         }
+
+        tensor
     }
 
     pub fn size(&self) -> usize {
@@ -182,9 +214,10 @@ impl<D:Dtype> Tensor<D> {
 impl<D:Dtype> Clone for Tensor<D> {
     fn clone(&self) -> Self {
         Self { 
-            op: self.op.clone(),
             shape: self.shape.clone(), 
             data: self.data.clone(),
+
+            node: self.node.clone(),
         }
     }
 }
@@ -197,7 +230,7 @@ impl<D:Dtype> PartialEq for Tensor<D> {
 
 impl<D:Dtype> fmt::Debug for Tensor<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Tensor{{")?;
+        write!(f, "Tensor {{")?;
 
         if self.shape.len() > 1 {
             write!(f, "\n")?;
@@ -209,9 +242,7 @@ impl<D:Dtype> fmt::Debug for Tensor<D> {
         write!(f, ", dtype: {}", type_name::<D>())?;
 
         if f.alternate() {
-            if let Some(op) = &self.op {
-                write!(f, ", op: {:#?}", op)?;
-            }
+            write!(f, ", graph: {:#?}", &self.node)?;
         }
 
         write!(f, "}}")?;
@@ -282,9 +313,9 @@ impl From<f32> for Tensor<f32> {
             data[0] = value;
 
             Self {
-                op: None,
                 shape: Vec::new(),
                 data: Arc::new(data.init()),
+                node: NodeId::None,
             }
         }
     }
@@ -306,9 +337,10 @@ impl<const N:usize> From<[f32; N]> for Tensor<f32> {
             }
 
             Self {
-                op: None,
                 shape: vec!(N),
                 data: Arc::new(data.init()),
+
+                node: NodeId::None,
             }
         }
     }
@@ -326,9 +358,10 @@ impl<const N: usize, const M: usize> From<[[f32; N]; M]> for Tensor<f32> {
             }
 
             Self {
-                op: None,
                 shape: vec!(N, M),
                 data: Arc::new(data.init()),
+
+                node: NodeId::None,
             }
         }
     }
@@ -349,9 +382,10 @@ impl<const N: usize, const M: usize, const L: usize>
             }
 
             Self {
-                op: None,
                 shape: vec!(N, M, L),
                 data: Arc::new(data.init()),
+
+                node: NodeId::None,
             }
         }
     }
@@ -374,9 +408,10 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
             }
 
             Self {
-                op: None,
                 shape: vec!(N, M, L, K),
                 data: Arc::new(data.init()),
+
+                node: NodeId::None,
             }
         }
     }

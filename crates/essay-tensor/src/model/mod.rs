@@ -12,5 +12,5 @@ pub use tape::{
 };
 
 pub use graph::{
-    OpGraph, 
+    NodeOp, 
 };

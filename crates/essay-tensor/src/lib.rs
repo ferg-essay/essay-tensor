@@ -1,4 +1,4 @@
-mod model;
+pub mod model;
 pub mod random;
 pub mod expr;
 pub mod linalg;

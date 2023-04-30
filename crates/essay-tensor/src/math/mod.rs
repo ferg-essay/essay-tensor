@@ -105,26 +105,50 @@ impl Tensor {
     }
 }
 
-impl ops::Add for Tensor {
-    type Output = Tensor;
+macro_rules! tensor_ops {
+    ($op:ident, $fun:ident) => {
+        impl ops::$op for &Tensor {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: Self) -> Self::Output {
+                self.binop(&rhs, Binary::$op)
+            }
+        }
 
-    fn add(self, rhs: Self) -> Self::Output {
-        self.binop(&rhs, Binary::Add)
+        impl ops::$op for Tensor {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: Self) -> Self::Output {
+                self.binop(&rhs, Binary::$op)
+            }
+        }
+
+        impl ops::$op<&Tensor> for Tensor {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: &Tensor) -> Self::Output {
+                self.binop(&rhs, Binary::$op)
+            }
+        }
+
+        impl ops::$op<&Tensor> for f32 {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: &Tensor) -> Self::Output {
+                Tensor::from(self).binop(&rhs, Binary::$op)
+            }
+        }
+
+        impl ops::$op<Tensor> for f32 {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: Tensor) -> Self::Output {
+                Tensor::from(self).binop(&rhs, Binary::$op)
+            }
+        }
     }
 }
 
-impl ops::Sub for Tensor {
-    type Output = Tensor;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        self.binop(&rhs, Binary::Sub)
-    }
-}
-
-impl ops::Mul<Tensor> for Tensor {
-    type Output = Tensor;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        self.binop(&rhs, Binary::Mul)
-    }
-}
+tensor_ops!(Add, add);
+tensor_ops!(Sub, sub);
+tensor_ops!(Mul, mul);

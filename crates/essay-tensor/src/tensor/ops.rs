@@ -32,13 +32,13 @@ pub trait BiFold<D:Dtype> {
     fn to_op(&self) -> Box<dyn Op>;
 }
 
-impl<D:Dtype> Tensor<D> {
-    pub fn uop(&self, uop: impl Uop<D>) -> Self {
+impl Tensor {
+    pub fn uop(&self, uop: impl Uop<f32>) -> Self {
         let buffer = self.buffer();
         let len = buffer.len();
     
         unsafe {
-            let mut data = TensorUninit::<D>::new(len);
+            let mut data = TensorUninit::<f32>::new(len);
     
             for i in 0..len {
                 data.set_unchecked(i, uop.eval(buffer.get_unchecked(i)));
@@ -49,14 +49,14 @@ impl<D:Dtype> Tensor<D> {
         }
     }
 
-    pub fn binop(&self, b: &Self, op: impl Binop<D>) -> Self {
+    pub fn binop(&self, b: &Self, op: impl Binop<f32>) -> Self {
         let size = self.broadcast(b);
     
         let a_data = self.buffer();
         let b_data = b.buffer();
     
         unsafe {
-            let mut data = TensorUninit::<D>::new(size);
+            let mut data = TensorUninit::<f32>::new(size);
     
             for i in 0..size {
                 data.set_unchecked(i, op.eval(
@@ -78,9 +78,9 @@ impl<D:Dtype> Tensor<D> {
 
     pub fn fold(
         &self, 
-        init: D, 
-        op: impl Fold<D>, 
-    ) -> Tensor<D> {
+        init: f32, 
+        op: impl Fold<f32>, 
+    ) -> Tensor<f32> {
         let a_data = self.buffer();
     
         let len = a_data.len();
@@ -88,7 +88,7 @@ impl<D:Dtype> Tensor<D> {
         let batch = len / stride;
     
         unsafe {
-            let mut o_data = TensorUninit::<D>::new(len);
+            let mut o_data = TensorUninit::<f32>::new(len);
     
             for i in 0..batch {
                 let offset = i * stride;
@@ -116,10 +116,10 @@ impl<D:Dtype> Tensor<D> {
 
     pub fn bi_fold(
         &self, 
-        init: D, 
-        op: impl BiFold<D>, 
+        init: f32, 
+        op: impl BiFold<f32>, 
         b: &Self
-    ) -> Tensor<D> {
+    ) -> Tensor<f32> {
         assert_eq!(self.shape(), b.shape());
     
         let a_data = self.buffer();
@@ -130,7 +130,7 @@ impl<D:Dtype> Tensor<D> {
         let batch = len / stride;
     
         unsafe {
-            let mut o_data = TensorUninit::<D>::new(len);
+            let mut o_data = TensorUninit::<f32>::new(len);
     
             for i in 0..batch {
                 let offset = i * stride;

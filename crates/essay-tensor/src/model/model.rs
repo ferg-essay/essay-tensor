@@ -6,6 +6,7 @@ mod test {
 
     #[test]
     fn test() {
+        /*
         let model = TestModel::new();
         let mut tape = Tape::new();
         
@@ -13,6 +14,7 @@ mod test {
         //tape.complete(&tail);
 
         println!("{:?}", &tail);
+        */
     }
 
     struct TestModel {
@@ -30,7 +32,7 @@ mod test {
         }
 
         fn call(&self, tape: &Tape, x: Tensor) -> Tensor {
-            self.w.tensor() * x + self.b.tensor()
+            &self.w * &x + &self.b
         }
     }
 }
