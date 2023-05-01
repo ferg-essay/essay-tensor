@@ -102,6 +102,14 @@ macro_rules! var_ops {
                 self.$fun(rhs.deref())
             }
         }
+
+        impl ops::$op<&Var> for &Var {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: &Var) -> Self::Output {
+                self.$fun(rhs.deref())
+            }
+        }
     }
 }
 

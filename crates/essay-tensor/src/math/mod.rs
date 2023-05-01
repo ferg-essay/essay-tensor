@@ -123,6 +123,29 @@ impl Binop<f32> for Binary {
 }
 
 impl Op for Binary {
+    fn gradient(&self, i: usize, next: &Tensor, args: &[&Tensor]) -> Tensor {
+        match &self {
+            Binary::Mul => {
+                if i == 0 {
+                    next * args[1]
+                } else {
+                    args[0] * next
+                }
+            },
+            Binary::Sub => {
+                if i == 0 {
+                    next.clone()
+                } else {
+                    -next
+                }
+            },
+            Binary::Add => {
+                next.clone()
+            },
+            _ => todo!("{:?}", self)
+        }
+    }
+
     fn box_clone(&self) -> BoxOp {
         Box::new(self.clone())
     }

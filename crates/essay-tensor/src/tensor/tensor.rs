@@ -24,7 +24,7 @@ pub struct Tensor<D:Dtype=f32> {
 }
 
 pub trait Op : fmt::Debug + Send + Sync + 'static {
-    fn gradient(&self, _i: usize, _args: &[&Tensor]) -> Tensor {
+    fn gradient(&self, i: usize, next: &Tensor, args: &[&Tensor]) -> Tensor {
         todo!("{:?}", self)
     }
 
