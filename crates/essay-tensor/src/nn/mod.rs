@@ -57,7 +57,7 @@ impl BiFold<f32> for BiReduce {
 }
 
 impl Op for BiReduce {
-    fn gradient(&self, i: usize, next: &Tensor, args: &[&Tensor]) -> Tensor {
+    fn gradient(&self, i: usize, args: &[&Tensor], next: Option<Tensor>) -> Tensor {
         match i {
             0 => args[0] - args[1],
             1 => args[1] - args[0],

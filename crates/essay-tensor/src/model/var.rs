@@ -26,6 +26,14 @@ impl<D:Dtype> Var<D> {
     }
 }
 
+impl Var {
+    pub fn tensor(&self) -> &Tensor {
+        Tape::set_var(&self.name, &self.tensor);
+    
+        &self.tensor
+    }
+}
+
 impl Deref for Var {
     type Target = Tensor;
 

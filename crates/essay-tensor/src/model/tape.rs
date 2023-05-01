@@ -257,33 +257,34 @@ impl Tape {
         let id = self.var_map.get(var.name()).unwrap();
         let trace = self.build_backtrace(*id).unwrap();
 
-        self.gradient_rec(&trace)
+        match self.gradient_rec(&trace) {
+            Some(gradient) => gradient,
+            None => Tensor::ones(self.get_tensor(*id).unwrap().shape())
+        }
     }
 
     fn gradient_rec(
         &self, 
-        trace: &BackTrace
-    ) -> Tensor {
+        trace: &BackTrace,
+    ) -> Option<Tensor> {
         match &self.nodes[trace.id.index()] {
             NodeOp::None => todo!(),
             NodeOp::Const(_) => todo!(),
             NodeOp::Var(id, name) => {
-                Tensor::from(1.)
+                None
             },
             NodeOp::Op(op, args) => {
                 //println!("OP: {:?} {{", op);
                 let t_args = self.to_args(&args);
 
-                let next = self.gradient_rec(&trace.args[0].1);
-                let mut gradient = op.gradient(trace.args[0].0, &next, &t_args);
-                //println!("gradient.0 {:?}", gradient);
+                let mut gradient: Option<Tensor> = None;
 
-                for i in 1..trace.args.len() {
+                for i in 0..trace.args.len() {
                     let next = self.gradient_rec(&trace.args[i].1);
-                    let p2 = op.gradient(trace.args[i].0, &next, &t_args);
+                    let partial = op.gradient(trace.args[i].0, &t_args, next);
                     //println!("gradient.{} {:?}", i, p2);
 
-                    gradient = gradient + p2;
+                    gradient = Some(partial + gradient)
                 }
                 //println!("}} -> {:?}", gradient);
 
@@ -337,6 +338,25 @@ mod test {
         }).unwrap();
         
         assert_eq!(Tape::alloc_id(), None);
+    }
+
+    #[test]
+    fn test_var() {
+        let x = Var::new("x", tensor!(0.));
+
+        let tape = Tape::with(|| {
+            Ok(x.tensor().clone())
+        }).unwrap();
+
+        assert_eq!(tape.gradient(&x), tensor!(1.));
+
+        let x = Var::new("x", tensor!([[0., 2.], [10., 11.]]));
+
+        let tape = Tape::with(|| {
+            Ok(x.tensor().clone())
+        }).unwrap();
+
+        assert_eq!(tape.gradient(&x), tensor!([[1., 1.], [1., 1.]]));
     }
 
     #[test]

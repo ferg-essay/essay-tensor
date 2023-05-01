@@ -123,24 +123,38 @@ impl Binop<f32> for Binary {
 }
 
 impl Op for Binary {
-    fn gradient(&self, i: usize, next: &Tensor, args: &[&Tensor]) -> Tensor {
+    fn gradient(&self, i: usize, args: &[&Tensor], next: Option<Tensor>) -> Tensor {
         match &self {
             Binary::Mul => {
                 if i == 0 {
-                    next * args[1]
+                    args[1] * next
                 } else {
                     args[0] * next
                 }
             },
             Binary::Sub => {
-                if i == 0 {
-                    next.clone()
-                } else {
-                    -next
+                match next {
+                    Some(next) => {
+                        if i == 0 { 
+                            next 
+                        } else { 
+                            - next
+                        }
+                    }
+                    None => {
+                        if i == 0 { 
+                            Tensor::ones(args[0].shape())
+                        } else { 
+                            Tensor::fill(-1., args[1].shape())
+                        }
+                    }
                 }
             },
             Binary::Add => {
-                next.clone()
+                match next {
+                    Some(next) => next,
+                    None => Tensor::ones(args[0].shape())
+                }
             },
             _ => todo!("{:?}", self)
         }
@@ -209,6 +223,14 @@ macro_rules! tensor_ops {
             }
         }
 
+        impl ops::$op<Tensor> for &Tensor {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: Tensor) -> Self::Output {
+                self.binop(&rhs, Binary::$op)
+            }
+        }
+
         impl ops::$op<&Tensor> for f32 {
             type Output = Tensor;
         
@@ -232,3 +254,47 @@ tensor_ops!(Div, div);
 tensor_ops!(Mul, mul);
 tensor_ops!(Rem, rem);
 tensor_ops!(Sub, sub);
+
+impl ops::Mul<Option<Tensor>> for Tensor {
+    type Output = Tensor;
+
+    fn mul(self, rhs: Option<Tensor>) -> Self::Output {
+        match rhs {
+            Some(rhs) => self * rhs,
+            None => self,
+        }
+    }
+}
+
+impl ops::Add<Option<Tensor>> for &Tensor {
+    type Output = Tensor;
+
+    fn add(self, rhs: Option<Tensor>) -> Self::Output {
+        match rhs {
+            Some(rhs) => self + rhs,
+            None => self.clone(),
+        }
+    }
+}
+
+impl ops::Add<Option<Tensor>> for Tensor {
+    type Output = Tensor;
+
+    fn add(self, rhs: Option<Tensor>) -> Self::Output {
+        match rhs {
+            Some(rhs) => self + rhs,
+            None => self,
+        }
+    }
+}
+
+impl ops::Mul<Option<Tensor>> for &Tensor {
+    type Output = Tensor;
+
+    fn mul(self, rhs: Option<Tensor>) -> Self::Output {
+        match rhs {
+            Some(rhs) => self * rhs,
+            None => self.clone(),
+        }
+    }
+}
