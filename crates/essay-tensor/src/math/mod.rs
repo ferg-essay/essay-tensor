@@ -123,22 +123,33 @@ impl Binop<f32> for Binary {
 }
 
 impl Op for Binary {
-    fn gradient(&self, i: usize, args: &[&Tensor], next: Option<Tensor>) -> Tensor {
+    fn gradient(&self, i: usize, args: &[&Tensor], prev: &Option<Tensor>) -> Tensor {
         match &self {
             Binary::Mul => {
-                if i == 0 {
-                    args[1] * next
-                } else {
-                    args[0] * next
+                match prev {
+                    Some(prev) => {
+                        if i == 0 {
+                            args[1] * prev
+                        } else {
+                            args[0] * prev
+                        }
+                    }
+                    None => {
+                        if i == 0 {
+                            args[1].clone()
+                        } else {
+                            args[0].clone()
+                        }
+                    }
                 }
             },
             Binary::Sub => {
-                match next {
-                    Some(next) => {
+                match prev {
+                    Some(prev) => {
                         if i == 0 { 
-                            next 
+                            prev.clone()
                         } else { 
-                            - next
+                            - prev
                         }
                     }
                     None => {
@@ -151,8 +162,8 @@ impl Op for Binary {
                 }
             },
             Binary::Add => {
-                match next {
-                    Some(next) => next,
+                match prev {
+                    Some(prev) => prev.clone(),
                     None => Tensor::ones(args[0].shape())
                 }
             },

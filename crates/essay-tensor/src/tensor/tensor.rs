@@ -28,7 +28,7 @@ pub trait Op : fmt::Debug + Send + Sync + 'static {
         &self, 
         i: usize, 
         args: &[&Tensor],
-        next: Option<Tensor>, 
+        prev: &Option<Tensor>, 
     ) -> Tensor {
         todo!("{:?}", self)
     }

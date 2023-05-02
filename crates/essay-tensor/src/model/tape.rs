@@ -257,38 +257,38 @@ impl Tape {
         let id = self.var_map.get(var.name()).unwrap();
         let trace = self.build_backtrace(*id).unwrap();
 
-        match self.gradient_rec(&trace) {
-            Some(gradient) => gradient,
-            None => Tensor::ones(self.get_tensor(*id).unwrap().shape())
-        }
+        self.gradient_rec(&trace, None)
+
+        // None => Tensor::ones(self.get_tensor(*id).unwrap().shape())
     }
 
     fn gradient_rec(
         &self, 
         trace: &BackTrace,
-    ) -> Option<Tensor> {
+        prev: Option<Tensor>,
+    ) -> Tensor {
         match &self.nodes[trace.id.index()] {
             NodeOp::None => todo!(),
             NodeOp::Const(_) => todo!(),
             NodeOp::Var(id, name) => {
-                None
+                match prev {
+                    Some(prev) => prev,
+                    None => Tensor::ones(self.get_tensor(*id).unwrap().shape())
+                }
             },
             NodeOp::Op(op, args) => {
-                //println!("OP: {:?} {{", op);
                 let t_args = self.to_args(&args);
 
                 let mut gradient: Option<Tensor> = None;
 
                 for i in 0..trace.args.len() {
-                    let next = self.gradient_rec(&trace.args[i].1);
-                    let partial = op.gradient(trace.args[i].0, &t_args, next);
-                    //println!("gradient.{} {:?}", i, p2);
+                    let partial = op.gradient(trace.args[i].0, &t_args, &prev);
+                    let next = self.gradient_rec(&trace.args[i].1, Some(partial));
 
-                    gradient = Some(partial + gradient)
+                    gradient = Some(next + gradient)
                 }
-                //println!("}} -> {:?}", gradient);
 
-                gradient
+                gradient.unwrap()
             }
         }
     }
