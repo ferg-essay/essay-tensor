@@ -365,26 +365,25 @@ mod test {
 
         let tape = Tape::with(|| {
             let y : Tensor = tensor!(0.0);
-            //let loss: Tensor = (&a - &y) * (&a - &y);
-            let loss: Tensor = a.l2_loss(&y);
-
-            println!("z {:#?}", &a);
-            println!("y {:#?}", &y);
-            println!("loss {:#?}", &loss);
+            let loss: Tensor = a.x_l2_loss(&y);
 
             Ok(loss)
         }).unwrap();
 
-        println!("tensor len {:?}", tape.len());
-        for i in 0..tape.len() {
-            println!("  tensor[{:?}] {:?}", i, tape.get_tensor(TensorId(i)));
-        }
-        println!("graph len {:?}", tape.graph_len());
-        for i in 0..tape.graph_len() {
-            println!("  graph[{:?}] {:?}", i, tape.get_graph(TensorId(i)));
-        }
         let dz = tape.gradient(&a);
-        println!("dz {:#?}", &dz);
+        assert_eq!(dz, tensor!(1.0));
+
+        let a = Var::new("z", tensor!([1., 2.]));
+
+        let tape = Tape::with(|| {
+            let y : Tensor = tensor!([0.0, 0.0]);
+            let loss: Tensor = a.x_l2_loss(&y);
+
+            Ok(loss)
+        }).unwrap();
+
+        let dz = tape.gradient(&a);
+        assert_eq!(dz, tensor!([1.0, 2.0]));
     }
 
     #[test]

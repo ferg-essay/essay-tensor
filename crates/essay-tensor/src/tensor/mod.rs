@@ -11,5 +11,5 @@ pub use tensor::{
 };
 
 pub use ops::{
-    Uop, Binop, BiFold,
+    Uop, Binop, Fold, BiFold,
 };

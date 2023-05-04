@@ -1,9 +1,14 @@
-use crate::{tensor::{Tensor, Uop, Op, BoxOp, BiFold}};
+use crate::{tensor::{Tensor, Uop, Op, BoxOp, BiFold, Fold}};
 
 #[derive(Debug, Clone)]
 enum Unary {
     ReLU,
     Softplus,
+}
+
+#[derive(Debug, Clone)]
+enum UReduce {
+    L2Loss(f32),
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +45,38 @@ impl Tensor {
     }
 }
 
+impl Fold<f32> for UReduce {
+    fn apply(&self, acc: f32, a: f32) -> f32 {
+        match &self {
+            UReduce::L2Loss(n_inv) => {
+                acc + n_inv * a * a
+            },
+        }
+    }
+
+    fn to_op(&self) -> Box<dyn Op> {
+        self.box_clone()
+    }
+}
+
+impl Op for UReduce {
+    fn gradient(&self, i: usize, args: &[&Tensor], prev: &Option<Tensor>) -> Tensor {
+        match self {
+            UReduce::L2Loss(n) => {
+                println!("L2 {:?} args{:?}", prev, args[0]);
+                match i {
+                    0 => Tensor::ones(args[0].shape()),
+                    _ => panic!("invalid argument")
+                }
+            },
+        }
+    }
+
+    fn box_clone(&self) -> BoxOp {
+        Box::new(self.clone())
+    }
+}
+
 impl BiFold<f32> for BiReduce {
     fn apply(&self, acc: f32, a: f32, b: f32) -> f32 {
         match &self {
@@ -71,7 +108,13 @@ impl Op for BiReduce {
 }
 
 impl Tensor {
-    pub fn l2_loss(&self, b: &Self) -> Tensor {
+    pub fn l2_loss(&self) -> Tensor {
+        let n = if self.rank() > 0 { self.dim(0) } else { 1 };
+        let n_inv = 0.5 / n as f32;
+        self.fold(0.0.into(), UReduce::L2Loss(n_inv))
+    }
+
+    pub fn x_l2_loss(&self, b: &Self) -> Tensor {
         let n = if self.rank() > 0 { self.dim(0) } else { 1 };
         let n_inv = 0.5 / n as f32;
         self.bi_fold(0.0.into(), BiReduce::L2Loss(n_inv), b)
