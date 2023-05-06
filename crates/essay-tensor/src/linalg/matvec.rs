@@ -8,10 +8,11 @@ use super::matmul::Transpose;
 struct Matvec;
 
 #[derive(Debug, Clone)]
-struct MatvecBackLeft {
-    dim1: usize,
-}
-
+struct MatvecBackLeft;
+// {
+//dim1: usize,
+//}
+/*
 impl MatvecBackLeft {
     fn new(dim1: usize) -> Self {
         Self {
@@ -19,9 +20,13 @@ impl MatvecBackLeft {
         }
     }
 }
+*/
 
 #[derive(Debug, Clone)]
 struct MatvecBackRight;
+
+#[derive(Debug, Clone)]
+struct MatvecBackRightT;
 
 pub trait TransposeMatvec {
     fn inner_len(
@@ -49,6 +54,7 @@ impl TransposeMatvec for Transpose {
             Transpose::None => b_cols,
             Transpose::TransposeA => b_cols,
             Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
         }
     }
 
@@ -57,6 +63,7 @@ impl TransposeMatvec for Transpose {
             Transpose::None => 1,
             Transpose::TransposeA => a_cols,
             Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
         }
     }
 
@@ -65,6 +72,7 @@ impl TransposeMatvec for Transpose {
             Transpose::None => a_cols,
             Transpose::TransposeA => 1,
             Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
         }
     }
 
@@ -73,6 +81,7 @@ impl TransposeMatvec for Transpose {
             Transpose::None => a_rows,
             Transpose::TransposeA => a_cols,
             Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
         }
     }
 
@@ -81,6 +90,7 @@ impl TransposeMatvec for Transpose {
             Transpose::None => b_cols,
             Transpose::TransposeA => b_cols,
             Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
         }
     }
 
@@ -89,6 +99,7 @@ impl TransposeMatvec for Transpose {
             Transpose::None => a_rows,
             Transpose::TransposeA => a_cols,
             Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
         }
     }
 }
@@ -101,6 +112,12 @@ impl Tensor<f32> {
     pub fn matvec_t(&self, b: &Tensor<f32>, transpose: impl TransposeMatvec) -> Tensor {
         matvec_t(&self, b, transpose)
     }
+
+    /*
+    pub fn outer_product(&self, b: &Tensor<f32>) -> Tensor {
+        outer_product(&self, b)
+    }
+    */
 }
 
 pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
@@ -121,7 +138,7 @@ pub fn matvec_t(
     let (a_cols, a_rows) = (a.shape()[0], a.shape()[1]);
     let b_cols = b.shape()[0];
 
-    // let inner_len = b_cols;
+    let inner_len = transpose.inner_len(b_cols, b_cols);
 
     let a_inc = transpose.a_inc(a_cols, a_rows);
     let a_stride = transpose.a_stride(a_cols, a_rows);
@@ -136,6 +153,8 @@ pub fn matvec_t(
             naive_matvec_f32(
                 &mut out, 
                 block * o_size,
+                o_size,
+                inner_len,
                 &a,
                 block * a_size,
                 a_inc,
@@ -144,7 +163,6 @@ pub fn matvec_t(
                 &b,
                 block * b_cols,
                 b_cols,
-                o_size,
             );
         }
 
@@ -159,25 +177,24 @@ pub fn matvec_t(
 unsafe fn naive_matvec_f32(
     out: &mut TensorUninit<f32>, 
     out_start: usize,
+    o_cols: usize,
+    inner_len: usize,
     a: &Tensor<f32>, 
     a_start: usize,
     a_inc: usize,
-    _a_stride: usize,
+    a_stride: usize,
     _a_size: usize,
     b: &Tensor<f32>,
     b_start: usize,
     _b_size: usize,
-    o_cols: usize,
 ) {
-    let a_stride = a.shape()[0];
-
     let a_data = a.data();
     let b_data = b.data();
 
     // let mut a_row = a_start;
 
     for col in 0..o_cols {
-        let mut len = a_stride;
+        let mut len = inner_len;
 
         let mut a_off = a_start + col * a_stride;
         let mut b_off = b_start;
@@ -198,11 +215,85 @@ unsafe fn naive_matvec_f32(
 
         for i in 0..len {
             v += a_data.get_unchecked(a_off + i * a_inc)
-                * b_data.get_unchecked(b_off + i * a_inc);
-        }
+                * b_data.get_unchecked(b_off + i);
+                /*
+                println!("  A={:?}->{:?}", a_off + i * a_inc, a_data.get_unchecked(a_off + i * a_inc));
+                println!("  B={:?}->{:?}", b_off + i, b_data.get_unchecked(b_off + i));
+                println!("V={:?} ({:?})", v, col);
+                */
+            }
 
         out.set_unchecked(out_start + col, v);
         // a_row += a_stride;
+    }
+}
+
+pub fn x_outer_product(
+    a: &Tensor<f32>,
+    b: &Tensor<f32>,
+) -> Tensor<f32> {
+    assert!(a.rank() >= 1, "vector outer product dim[{}] should be >= 1", a.rank());
+    assert_eq!(a.rank(), b.rank(), "vector outer product rank must match");
+    assert_eq!(a.shape()[1..], b.shape()[1..], "outer product shape must match");
+
+    let n : usize = a.shape()[1..].iter().product();
+
+    let a_cols = a.shape()[0];
+    let b_cols = b.shape()[0];
+
+    let o_cols = a_cols;
+    let o_rows = b_cols;
+    let o_size = o_cols * o_rows;
+
+    unsafe {
+        let mut out = TensorUninit::<f32>::new(o_size * n);
+
+        for block in 0..n {
+            x_naive_outer_product_f32(
+                &mut out, 
+                block * o_size,
+                o_cols,
+                o_rows,
+                &a,
+                block * a_cols,
+                &b,
+                block * b_cols,
+            );
+        }
+
+        let mut o_shape = vec![o_cols, o_rows];
+        for size in &a.shape()[1..] {
+            o_shape.push(*size);
+        }
+
+        // Tensor::new(Rc::new(out), o_shape)
+        a.next_binop(&b, out.init(), o_shape, Matvec)
+        //todo!()
+    }
+}
+
+unsafe fn x_naive_outer_product_f32(
+    out: &mut TensorUninit<f32>, 
+    out_start: usize,
+    o_cols: usize,
+    o_rows: usize,
+    a: &Tensor<f32>, 
+    a_start: usize,
+    b: &Tensor<f32>,
+    b_start: usize,
+) {
+    let a_data = a.data();
+    let b_data = b.data();
+
+    // let mut a_row = a_start;
+
+    for row in 0..o_rows {
+        for col in 0..o_cols {
+            let v = a_data.get_unchecked(a_start + col)
+                    * b_data.get_unchecked(b_start + row);
+
+            out.set_unchecked(out_start + row * o_cols + col, v);
+        }
     }
 }
 
@@ -223,14 +314,22 @@ impl ForwardOp for Matvec {
 
     fn backtrace(
         &self,
-        forward: &crate::model::Graph,
-        graph: &mut crate::model::Graph,
+        forward: &Graph,
+        graph: &mut Graph,
         i: usize,
-        args: &[crate::model::TensorId],
-        tensor: crate::model::TensorId,
-        prev: crate::model::TensorId,
-    ) -> crate::model::TensorId {
-        todo!()
+        args: &[TensorId],
+        out: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        match i {
+            0 => {
+                graph.add_back_op(MatvecBackLeft, &[args[1], out])
+            },
+            1 => {
+                graph.add_back_op(MatvecBackRightT, &[args[0], out])
+            }
+            _ => panic!("invalid argument")
+        }
     }
 
     fn backtrace_top(
@@ -244,7 +343,9 @@ impl ForwardOp for Matvec {
         match i {
             0 => {
                 let left = forward.tensor(args[0]).unwrap();
-                graph.add_back_op(MatvecBackLeft::new(left.dim(1)), &[args[1]])
+                let fwd_left = graph.constant_id(args[1]);
+                let right = graph.constant(Tensor::ones(&[left.dim(1)]));
+                graph.add_op(MatvecBackLeft, &[fwd_left, right])
             },
             1 => {
                 graph.add_back_op(MatvecBackRight, &[args[0]])
@@ -303,7 +404,8 @@ impl ForwardOp for MatvecBackLeft {
         tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor {
-        args[0].extend_dim1(self.dim1)
+        //args[0].extend_dim1(self.dim1)
+        args[0].outer_product(args[1])
     }
 
     fn backtrace(
@@ -371,6 +473,43 @@ impl ForwardOp for MatvecBackRight {
     }
 }
 
+impl ForwardOp for MatvecBackRightT {
+    fn eval(
+        &self,
+        tensors: &TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
+        args[0].matvec_t(args[1], Transpose::TransposeA)
+    }
+
+    fn backtrace(
+        &self,
+        forward: &crate::model::Graph,
+        graph: &mut crate::model::Graph,
+        i: usize,
+        args: &[crate::model::TensorId],
+        tensor: crate::model::TensorId,
+        prev: crate::model::TensorId,
+    ) -> crate::model::TensorId {
+        todo!()
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn box_clone(&self) -> BoxForwardOp {
+        todo!()
+    }
+}
+
 impl IntoForward for MatvecBackLeft {
     fn to_op(&self) -> BoxForwardOp {
         Box::new(self.clone())
@@ -378,6 +517,12 @@ impl IntoForward for MatvecBackLeft {
 }
 
 impl IntoForward for MatvecBackRight {
+    fn to_op(&self) -> BoxForwardOp {
+        Box::new(self.clone())
+    }
+}
+
+impl IntoForward for MatvecBackRightT {
     fn to_op(&self) -> BoxForwardOp {
         Box::new(self.clone())
     }
@@ -409,7 +554,7 @@ fn matvec_0_gradient(a: &Tensor) -> Tensor {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, model::{Var, Tape}};
+    use crate::{tensor, Tensor, model::{Var, Tape}, linalg::matmul::Transpose};
 
     #[test]
     fn test_matvec_1_1() {
@@ -444,6 +589,18 @@ mod test {
         let b = tensor!([2.]);
         assert_eq!(a.matvec(&b), tensor!([2., 4., 6.]));
     }
+
+    #[test]
+    fn test_matvec_t() {
+        let a = tensor!([[1., 4.], [2., 5.], [3., 6.]]);
+        let b = tensor!([10., 20.]);
+        assert_eq!(a.matvec(&b), tensor!([90., 120., 150.]));
+
+        let a = tensor!([[1., 2., 3.], [4., 5., 6.]]);
+        let b = tensor!([10., 20.]);
+        assert_eq!(a.matvec_t(&b, Transpose::TransposeA), tensor!([90., 120., 150.]));
+
+    }
     
     #[test]
     fn backprop_1_1() {
@@ -457,8 +614,11 @@ mod test {
             Ok(loss)
         }).unwrap();
     
-        let dz = tape.gradient(&a);
-        assert_eq!(dz, tensor!([[1.0]]));
+        let da = tape.gradient(&a);
+        assert_eq!(da, tensor!([[1.0]]));
+    
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!([1.0]));
 
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
@@ -473,32 +633,8 @@ mod test {
         let da = tape.gradient(&a);
         assert_eq!(da, tensor!([[10., 20., 30.], [10., 20., 30.]]));
 
-        // gradient
-
-        let a = Var::new("a", tensor!([[1.]]));
-        let x = Var::new("x", tensor!([1.]));
-    
-        let mut tape = Tape::with(|| {
-            let loss: Tensor = a.matvec(&x);
-    
-            Ok(loss)
-        }).unwrap();
-    
         let dx = tape.gradient(&x);
-        assert_eq!(dx, tensor!([1.0]));
-
-        let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
-        let x = Var::new("x", tensor!([10., 20., 30.]));
-    
-        let mut tape = Tape::with(|| {
-            let out: Tensor = a.matvec(&x);
-            assert_eq!(out, tensor!([140., 320.]));
-    
-            Ok(out)
-        }).unwrap();
-    
-        let dz = tape.gradient(&x);
-        assert_eq!(dz, tensor!([5., 7., 9.]));
+        assert_eq!(dx, tensor!([5., 7., 9.]));
     }
     
     #[test]
@@ -510,29 +646,32 @@ mod test {
             let out: Tensor = a.matvec(&x);
 
             let loss = out.l2_loss();
-
-            println!("Loss: {:?}", loss);
+            assert_eq!(loss, tensor!(0.5));
     
             Ok(loss)
         }).unwrap();
     
-        let dz = tape.gradient(&x);
-        assert_eq!(dz, tensor!([1.0]));
+        //let da = tape.gradient(&a);
+        //assert_eq!(da, tensor!([1.0]));
+    
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!([1.0]));
 
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
         let mut tape = Tape::with(|| {
             let out: Tensor = a.matvec(&x);
+            assert_eq!(out, tensor!([140., 320.]));
 
             Ok(out.l2_loss())
         }).unwrap();
-
-        //let dz = tape.gradient(&a);
-        //assert_eq!(dz, tensor!([10., 20., 30.]));
-
-        let dz = tape.gradient(&x);
-        assert_eq!(dz, tensor!([1420., 1880., 2340.]));
+    
+        let da = tape.gradient(&a);
+        assert_eq!(da, tensor!([[1400., 2800., 4200.], [3200., 6400., 9600.]]));
+    
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!([1420., 1880., 2340.]));
 
         // gradient
 
@@ -546,23 +685,7 @@ mod test {
             Ok(loss)
         }).unwrap();
     
-        let dz = tape.gradient(&x);
-        assert_eq!(dz, tensor!([1.0]));
-
-        let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
-        let x = Var::new("x", tensor!([10., 20., 30.]));
-    
-        let mut tape = Tape::with(|| {
-            let out: Tensor = a.matvec(&x);
-            assert_eq!(out, tensor!([140., 320.]));
-    
-            Ok(out.l2_loss())
-        }).unwrap();
-    
-        let dz = tape.gradient(&a);
-        assert_eq!(dz, tensor!([[1400., 2800., 4200.], [3200., 6400., 9600.]]));
-    
-        let dz = tape.gradient(&x);
-        assert_eq!(dz, tensor!([1420., 1880., 2340.]));
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!([1.0]));
     }
 }

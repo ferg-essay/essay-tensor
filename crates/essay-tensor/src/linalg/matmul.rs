@@ -1,10 +1,11 @@
 use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, BoxForwardOp, Graph, TensorId, IntoForward}};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Transpose {
     None,
     TransposeA,
     TransposeB,
+    TransposeAB,
 }
 
 pub trait TransposeMatmul {
@@ -48,6 +49,10 @@ impl TransposeMatmul for Transpose {
                 assert_eq!(a_cols, b_cols, "left columns must match right columns {:?}", &self);
                 a_cols
             },
+            Transpose::TransposeAB => {
+                assert_eq!(a_rows, b_cols, "left rows must match right columns {:?}", &self);
+                a_rows
+            },
         }
     }
 
@@ -57,6 +62,7 @@ impl TransposeMatmul for Transpose {
             Transpose::None => b_cols,
             Transpose::TransposeA => b_cols,
             Transpose::TransposeB => b_rows,
+            Transpose::TransposeAB => b_rows,
         }
     }
 
@@ -66,6 +72,7 @@ impl TransposeMatmul for Transpose {
             Transpose::None => a_rows,
             Transpose::TransposeA => a_cols,
             Transpose::TransposeB => a_rows,
+            Transpose::TransposeAB => a_rows,
         }
     }
 
@@ -75,6 +82,7 @@ impl TransposeMatmul for Transpose {
             Transpose::None => 1,
             Transpose::TransposeA => a_cols,
             Transpose::TransposeB => 1,
+            Transpose::TransposeAB => 1,
         }
     }
 
@@ -84,6 +92,7 @@ impl TransposeMatmul for Transpose {
             Transpose::None => a_cols,
             Transpose::TransposeA => 1,
             Transpose::TransposeB => a_cols,
+            Transpose::TransposeAB => a_cols,
         }
     }
 
@@ -93,6 +102,7 @@ impl TransposeMatmul for Transpose {
             Transpose::None => b_cols,
             Transpose::TransposeA => b_cols,
             Transpose::TransposeB => 1,
+            Transpose::TransposeAB => 1,
         }
     }
 
@@ -102,6 +112,7 @@ impl TransposeMatmul for Transpose {
             Transpose::None => 1,
             Transpose::TransposeA => 1,
             Transpose::TransposeB => b_cols,
+            Transpose::TransposeAB => b_cols,
         }
     }
 }
