@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::{HashMap, HashSet}, ops::{self}};
+use std::{collections::{HashMap, HashSet}, ops::{self}, any::type_name};
 
 use crate::{Tensor, model::Tape, tensor::{Dtype, NodeId}};
 
@@ -28,47 +28,81 @@ pub enum NodeOp {
 }
 
 pub trait ForwardOp : Send + Sync + 'static {
-    /*
-    fn gradient(
-        &self, 
-        i: usize, 
-        args: &[&Tensor],
-        prev: &Option<Tensor>, 
-    ) -> Tensor {
-        todo!("{:?}", self)
-    }
-    */
-
     fn eval(
         &self,
         tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor;
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        tensor: TensorId,
+        out: TensorId,
         prev: TensorId,
     ) -> TensorId;
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        tensor: TensorId,
+        out: TensorId,
     ) -> TensorId;
 
     fn box_clone(&self) -> BoxForwardOp;
 }
 
-pub type BoxForwardOp = Box<dyn ForwardOp>;
+pub trait EvalOp : Send + Sync + 'static {
+    fn eval(
+        &self,
+        tensors: &TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor;
+}
 
+impl<Op:EvalOp> ForwardOp for Op {
+    fn eval(
+        &self,
+        tensors: &TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
+        (self as &dyn EvalOp).eval(tensors, args)
+    }
+
+    fn backprop(
+        &self,
+        _forward: &Graph,
+        _graph: &mut Graph,
+        _i: usize,
+        _args: &[TensorId],
+        _tensor: TensorId,
+        _prev: TensorId,
+    ) -> TensorId {
+        panic!("{} does not implement backprop", type_name::<Op>())
+    }
+
+    fn backprop_top(
+        &self,
+        _forward: &Graph,
+        _graph: &mut Graph,
+        _i: usize,
+        _args: &[TensorId],
+        _tensor: TensorId,
+    ) -> TensorId {
+        panic!("{} does not implement backprop", type_name::<Op>())
+    }
+
+    fn box_clone(&self) -> BoxForwardOp {
+        panic!("{} does not implement box_clone", type_name::<Op>())
+    }
+}
+
+pub type BoxForwardOp = Box<dyn ForwardOp>;
+/*
 pub trait BackOp : fmt::Debug + Send + Sync + 'static {
     fn gradient(
         &self, 
@@ -83,6 +117,7 @@ pub trait BackOp : fmt::Debug + Send + Sync + 'static {
 }
 
 pub type BoxBackOp = Box<dyn BackOp>;
+*/
 
 #[derive(Clone, Debug)]
 pub struct ConstOp<D:Dtype>(Tensor<D>);
@@ -119,7 +154,7 @@ impl<D:Dtype> ForwardOp for ConstOp<D> {
         Box::new(self.clone())
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -131,7 +166,7 @@ impl<D:Dtype> ForwardOp for ConstOp<D> {
         todo!()
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -158,6 +193,15 @@ pub trait IntoForward {
 impl IntoForward for BoxForwardOp {
     fn to_op(&self) -> BoxForwardOp {
         self.box_clone()
+    }
+}
+
+impl<Op> IntoForward for Op
+where
+    Op: Clone + ForwardOp
+{
+    fn to_op(&self) -> BoxForwardOp {
+        Box::new(self.clone())
     }
 }
 
@@ -301,10 +345,10 @@ impl Graph {
             NodeOp::Op(id, op, args) => {
                 match prev {
                     Some(prev) => {
-                        op.backtrace(self, graph, i, args, *id, prev)
+                        op.backprop(self, graph, i, args, *id, prev)
                     },
                     None => {
-                        op.backtrace_top(self, graph, i, args, *id)
+                        op.backprop_top(self, graph, i, args, *id)
                     }
                 }
             },

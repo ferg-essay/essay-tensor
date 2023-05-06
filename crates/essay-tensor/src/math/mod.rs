@@ -1,6 +1,6 @@
 use std::{ops};
 
-use crate::{tensor::{Tensor, Uop, Binop}, model::{BackOp, ForwardOp, BoxForwardOp, TensorId, Graph, IntoForward, TensorCache}};
+use crate::{tensor::{Tensor, Uop, Binop}, model::{ForwardOp, BoxForwardOp, TensorId, Graph, IntoForward, TensorCache}};
 
 #[derive(Debug, Clone)]
 pub enum Unary {
@@ -76,7 +76,7 @@ impl ForwardOp for Unary {
         Box::new(self.clone())
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -88,7 +88,7 @@ impl ForwardOp for Unary {
         todo!()
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -117,12 +117,6 @@ impl ForwardOp for Unary {
             },
             Unary::Sin => todo!(),
         }
-    }
-}
-
-impl IntoForward for Unary {
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
     }
 }
 
@@ -228,14 +222,8 @@ impl Binop<f32> for Binary {
     }
 }
 
-impl IntoForward for Binary {
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
-    }
-}
-
 impl ForwardOp for Binary {
-    fn backtrace(
+    fn backprop(
         &self, 
         forward: &Graph,
         graph: &mut Graph, 
@@ -262,7 +250,7 @@ impl ForwardOp for Binary {
         todo!()
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -279,56 +267,6 @@ impl ForwardOp for Binary {
         args: &[&Tensor],
     ) -> Tensor {
         todo!()
-    }
-}
-
-impl BackOp for Binary {
-    fn gradient(&self, i: usize, args: &[&Tensor], prev: &Option<Tensor>) -> Tensor {
-        match &self {
-            Binary::Mul => {
-                match prev {
-                    Some(prev) => {
-                        if i == 0 {
-                            args[1] * prev
-                        } else {
-                            args[0] * prev
-                        }
-                    }
-                    None => {
-                        if i == 0 {
-                            args[1].clone()
-                        } else {
-                            args[0].clone()
-                        }
-                    }
-                }
-            },
-            Binary::Sub => {
-                match prev {
-                    Some(prev) => {
-                        if i == 0 { 
-                            prev.clone()
-                        } else { 
-                            - prev
-                        }
-                    }
-                    None => {
-                        if i == 0 { 
-                            Tensor::ones(args[0].shape())
-                        } else { 
-                            Tensor::fill(-1., args[1].shape())
-                        }
-                    }
-                }
-            },
-            Binary::Add => {
-                match prev {
-                    Some(prev) => prev.clone(),
-                    None => Tensor::ones(args[0].shape())
-                }
-            },
-            _ => todo!("{:?}", self)
-        }
     }
 }
 

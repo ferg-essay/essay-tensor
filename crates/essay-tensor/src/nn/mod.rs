@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, Uop, BiFold, Fold}, model::{BackOp, TensorId, ForwardOp, BoxForwardOp, Graph}, math};
+use crate::{tensor::{Tensor, Uop, BiFold, Fold}, model::{TensorId, ForwardOp, BoxForwardOp, Graph}, math};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -34,7 +34,7 @@ impl ForwardOp for Unary {
         Box::new(self.clone())
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -45,7 +45,7 @@ impl ForwardOp for Unary {
         todo!()
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -91,7 +91,7 @@ impl Fold<f32> for UReduce {
 }
 
 impl ForwardOp for UReduce {
-    fn backtrace(
+    fn backprop(
         &self, 
         forward: &Graph,
         graph: &mut Graph,
@@ -110,22 +110,18 @@ impl ForwardOp for UReduce {
         }
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
-        forward: &Graph,
+        _forward: &Graph,
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        tensor: TensorId,
+        _tensor: TensorId,
     ) -> TensorId {
         match self {
             UReduce::L2Loss(n) => {
                 assert_eq!(i, 0, "{:?} reduce has only one argument", self);
 
-                //Tensor::ones(args[0].shape())
-                //let id = graph.constant_id(tensor);
-                //graph.add_op(math::Unary::Mul(2.), &[id])
-                //args[0]
                 graph.constant_id(args[0])
             },
         }
@@ -144,26 +140,6 @@ impl ForwardOp for UReduce {
     }
 }
 
-impl BackOp for UReduce {
-    fn gradient(&self, i: usize, args: &[&Tensor], prev: &Option<Tensor>) -> Tensor {
-        match self {
-            UReduce::L2Loss(n) => {
-                match i {
-                    0 => Tensor::ones(args[0].shape()),
-                    _ => panic!("invalid argument")
-                }
-            },
-        }
-    }
-
-    /*
-    fn box_clone(&self) -> BoxForwardOp {
-        //Box::new(self.clone())
-        todo!()
-    }
-    */
-}
-
 impl BiFold<f32> for BiReduce {
     fn apply(&self, acc: f32, a: f32, b: f32) -> f32 {
         match &self {
@@ -176,18 +152,7 @@ impl BiFold<f32> for BiReduce {
     }
 
     fn to_op(&self) -> Box<dyn ForwardOp> {
-        //Box::new(self.clone())
         todo!()
-    }
-}
-
-impl BackOp for BiReduce {
-    fn gradient(&self, i: usize, args: &[&Tensor], prev: &Option<Tensor>) -> Tensor {
-        match i {
-            0 => args[0] - args[1],
-            1 => args[1] - args[0],
-            _ => panic!("invalid argument")
-        }
     }
 }
 

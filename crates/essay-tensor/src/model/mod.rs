@@ -11,6 +11,7 @@ pub use tape::{
 };
 
 pub use graph::{
-    Graph, NodeOp, ForwardOp, BackOp, IntoForward, BoxForwardOp, BoxBackOp,
+    Graph, NodeOp, EvalOp, ForwardOp, IntoForward, BoxForwardOp,
+    // BackOp, BoxBackOp,
     TensorCache,
 };

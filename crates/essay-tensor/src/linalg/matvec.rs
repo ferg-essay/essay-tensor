@@ -1,6 +1,6 @@
 use std::{sync::Arc};
 
-use crate::{tensor::{Tensor, TensorUninit}, model::{BackOp, IntoForward, BoxForwardOp, ForwardOp, Graph, TensorId, TensorCache}};
+use crate::{tensor::{Tensor, TensorUninit}, model::{IntoForward, BoxForwardOp, ForwardOp, Graph, TensorId, TensorCache, EvalOp}};
 
 use super::matmul::Transpose;
 
@@ -9,18 +9,6 @@ struct Matvec;
 
 #[derive(Debug, Clone)]
 struct MatvecBackLeft;
-// {
-//dim1: usize,
-//}
-/*
-impl MatvecBackLeft {
-    fn new(dim1: usize) -> Self {
-        Self {
-            dim1,
-        }
-    }
-}
-*/
 
 #[derive(Debug, Clone)]
 struct MatvecBackRight;
@@ -112,12 +100,6 @@ impl Tensor<f32> {
     pub fn matvec_t(&self, b: &Tensor<f32>, transpose: impl TransposeMatvec) -> Tensor {
         matvec_t(&self, b, transpose)
     }
-
-    /*
-    pub fn outer_product(&self, b: &Tensor<f32>) -> Tensor {
-        outer_product(&self, b)
-    }
-    */
 }
 
 pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
@@ -228,81 +210,6 @@ unsafe fn naive_matvec_f32(
     }
 }
 
-pub fn x_outer_product(
-    a: &Tensor<f32>,
-    b: &Tensor<f32>,
-) -> Tensor<f32> {
-    assert!(a.rank() >= 1, "vector outer product dim[{}] should be >= 1", a.rank());
-    assert_eq!(a.rank(), b.rank(), "vector outer product rank must match");
-    assert_eq!(a.shape()[1..], b.shape()[1..], "outer product shape must match");
-
-    let n : usize = a.shape()[1..].iter().product();
-
-    let a_cols = a.shape()[0];
-    let b_cols = b.shape()[0];
-
-    let o_cols = a_cols;
-    let o_rows = b_cols;
-    let o_size = o_cols * o_rows;
-
-    unsafe {
-        let mut out = TensorUninit::<f32>::new(o_size * n);
-
-        for block in 0..n {
-            x_naive_outer_product_f32(
-                &mut out, 
-                block * o_size,
-                o_cols,
-                o_rows,
-                &a,
-                block * a_cols,
-                &b,
-                block * b_cols,
-            );
-        }
-
-        let mut o_shape = vec![o_cols, o_rows];
-        for size in &a.shape()[1..] {
-            o_shape.push(*size);
-        }
-
-        // Tensor::new(Rc::new(out), o_shape)
-        a.next_binop(&b, out.init(), o_shape, Matvec)
-        //todo!()
-    }
-}
-
-unsafe fn x_naive_outer_product_f32(
-    out: &mut TensorUninit<f32>, 
-    out_start: usize,
-    o_cols: usize,
-    o_rows: usize,
-    a: &Tensor<f32>, 
-    a_start: usize,
-    b: &Tensor<f32>,
-    b_start: usize,
-) {
-    let a_data = a.data();
-    let b_data = b.data();
-
-    // let mut a_row = a_start;
-
-    for row in 0..o_rows {
-        for col in 0..o_cols {
-            let v = a_data.get_unchecked(a_start + col)
-                    * b_data.get_unchecked(b_start + row);
-
-            out.set_unchecked(out_start + row * o_cols + col, v);
-        }
-    }
-}
-
-impl IntoForward for Matvec {
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
-    }
-}
-
 impl ForwardOp for Matvec {
     fn eval(
         &self,
@@ -312,7 +219,7 @@ impl ForwardOp for Matvec {
         todo!()
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -332,7 +239,7 @@ impl ForwardOp for Matvec {
         }
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -359,46 +266,7 @@ impl ForwardOp for Matvec {
     }
 }
 
-impl BackOp for Matvec {
-    fn gradient(
-            &self, 
-            i: usize, 
-            args: &[&Tensor],
-            prev: &Option<Tensor>, 
-    ) -> Tensor {
-            println!("args[0] {:?}", args[0]);
-            println!("args[1] {:?}", args[1]);
-            println!("ones[0] {:?}", Tensor::ones(args[0].shape()));
-            println!("prev {:?}", prev);
-        match prev {
-            None => {
-                if i == 0 {
-                    Tensor::ones(args[0].shape()) * args[1]
-                } else {
-                    matvec_0_gradient(args[0])
-                }
-            },
-            Some(prev) => {
-                if i == 0 {
-                    Tensor::ones(args[0].shape())
-                } else {
-                    println!("Prev {:?}", prev);
-                    println!("Args[0] {:?}", args[0]);
-                    args[0].matvec(prev)
-                }
-            },
-        }
-    }
-
-    /*
-    fn box_clone(&self) -> BoxForwardOp {
-        //Box::new(Matvec)
-        todo!()
-    }
-    */
-}
-
-impl ForwardOp for MatvecBackLeft {
+impl EvalOp for MatvecBackLeft {
     fn eval(
         &self,
         tensors: &TensorCache,
@@ -407,36 +275,9 @@ impl ForwardOp for MatvecBackLeft {
         //args[0].extend_dim1(self.dim1)
         args[0].outer_product(args[1])
     }
-
-    fn backtrace(
-        &self,
-        forward: &crate::model::Graph,
-        graph: &mut crate::model::Graph,
-        i: usize,
-        args: &[crate::model::TensorId],
-        tensor: crate::model::TensorId,
-        prev: crate::model::TensorId,
-    ) -> crate::model::TensorId {
-        todo!()
-    }
-
-    fn backtrace_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
-    }
 }
 
-impl ForwardOp for MatvecBackRight {
+impl EvalOp for MatvecBackRight {
     fn eval(
         &self,
         tensors: &TensorCache,
@@ -444,87 +285,15 @@ impl ForwardOp for MatvecBackRight {
     ) -> Tensor {
         args[0].fold_1(0., |a, b| a + b)
     }
-
-    fn backtrace(
-        &self,
-        forward: &crate::model::Graph,
-        graph: &mut crate::model::Graph,
-        i: usize,
-        args: &[crate::model::TensorId],
-        tensor: crate::model::TensorId,
-        prev: crate::model::TensorId,
-    ) -> crate::model::TensorId {
-        todo!()
-    }
-
-    fn backtrace_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
-    }
 }
 
-impl ForwardOp for MatvecBackRightT {
+impl EvalOp for MatvecBackRightT {
     fn eval(
         &self,
         tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor {
         args[0].matvec_t(args[1], Transpose::TransposeA)
-    }
-
-    fn backtrace(
-        &self,
-        forward: &crate::model::Graph,
-        graph: &mut crate::model::Graph,
-        i: usize,
-        args: &[crate::model::TensorId],
-        tensor: crate::model::TensorId,
-        prev: crate::model::TensorId,
-    ) -> crate::model::TensorId {
-        todo!()
-    }
-
-    fn backtrace_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
-    }
-}
-
-impl IntoForward for MatvecBackLeft {
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
-    }
-}
-
-impl IntoForward for MatvecBackRight {
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
-    }
-}
-
-impl IntoForward for MatvecBackRightT {
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
     }
 }
 

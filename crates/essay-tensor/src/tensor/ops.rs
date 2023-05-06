@@ -52,7 +52,7 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         todo!()
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -63,7 +63,7 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         todo!()
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -355,7 +355,7 @@ impl ForwardOp for FnOp {
         todo!()
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -366,7 +366,7 @@ impl ForwardOp for FnOp {
         todo!()
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,

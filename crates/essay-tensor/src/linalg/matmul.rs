@@ -125,7 +125,7 @@ impl ForwardOp for Matmul {
         Box::new(Matmul)
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -136,7 +136,7 @@ impl ForwardOp for Matmul {
         todo!()
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -262,12 +262,6 @@ unsafe fn naive_matmul(
 
             out_ptr.add(row * o_cols + col).write(v);
         }
-    }
-}
-
-impl IntoForward for Matmul {
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
     }
 }
 

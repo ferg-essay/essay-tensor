@@ -64,7 +64,7 @@ impl ForwardOp for VarOp {
         Box::new(self.clone())
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -75,7 +75,7 @@ impl ForwardOp for VarOp {
         todo!()
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,

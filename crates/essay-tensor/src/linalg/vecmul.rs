@@ -71,8 +71,6 @@ unsafe fn naive_outer_product_f32(
     let a_data = a.data();
     let b_data = b.data();
 
-    // let mut a_row = a_start;
-
     for row in 0..o_rows {
         for col in 0..o_cols {
             let v = a_data.get_unchecked(a_start + col)
@@ -92,7 +90,7 @@ impl ForwardOp for OuterProduct {
         todo!()
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -104,24 +102,18 @@ impl ForwardOp for OuterProduct {
         todo!();
     }
 
-    fn backtrace_top(
+    fn backprop_top(
         &self,
         forward: &Graph,
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        tensor: TensorId,
+        out: TensorId,
     ) -> TensorId {
         todo!();
     }
 
     fn box_clone(&self) -> BoxForwardOp {
         todo!()
-    }
-}
-
-impl IntoForward for OuterProduct {
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
     }
 }
