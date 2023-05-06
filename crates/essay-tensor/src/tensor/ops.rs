@@ -96,8 +96,8 @@ impl<Op:Binop<f32>> BinopImpl<Op> {
     pub fn binop(a: &Tensor, b: &Tensor, op: Op) -> Tensor {
         let size = a.broadcast(b);
     
-        let a_data = a.buffer();
-        let b_data = b.buffer();
+        let a_data = a.data();
+        let b_data = b.data();
     
         unsafe {
             let mut data = TensorUninit::<f32>::new(size);
@@ -123,7 +123,7 @@ impl<Op:Binop<f32>> BinopImpl<Op> {
 
 impl Tensor {
     pub fn uop(&self, uop: impl Uop<f32>) -> Self {
-        let buffer = self.buffer();
+        let buffer = self.data();
         let len = buffer.len();
 
         unsafe {
@@ -141,8 +141,8 @@ impl Tensor {
     pub fn binop<Op:Binop<f32>>(&self, b: &Self, op: Op) -> Self {
         let size = self.broadcast(b);
     
-        let a_data = self.buffer();
-        let b_data = b.buffer();
+        let a_data = self.data();
+        let b_data = b.data();
     
         unsafe {
             let mut data = TensorUninit::<f32>::new(size);
@@ -171,7 +171,7 @@ impl Tensor {
         init: f32, 
         op: impl Fold<f32>, 
     ) -> Tensor<f32> {
-        let a_data = self.buffer();
+        let a_data = self.data();
 
         let shape = self.shape();
         let o_shape: Vec<usize> = if shape.len() > 0 {
@@ -216,8 +216,8 @@ impl Tensor {
     ) -> Tensor<f32> {
         assert_eq!(self.shape(), b.shape());
     
-        let a_data = self.buffer();
-        let b_data = b.buffer();
+        let a_data = self.data();
+        let b_data = b.data();
 
         let len = a_data.len();
         let stride = if self.rank() > 0 { self.dim(0) } else { 1 };
@@ -254,6 +254,50 @@ impl Tensor {
             self.next_binop(&b, o_data.init(), o_shape, op.to_op())
         }
     }
+
+    pub fn fold_1(
+        &self, 
+        init: f32, 
+        op: impl Fold<f32>, 
+    ) -> Tensor<f32> {
+        assert!(self.rank() >= 2);
+
+        let a_data = self.data();
+
+        // let shape = self.shape();
+        let mut o_shape: Vec<usize> = Vec::new();
+        let dim_0 = self.dim(0);
+        let dim_1 = self.dim(1);
+        o_shape.push(dim_0);
+        for i in 2..self.rank() {
+            o_shape.push(i);
+        }
+        let len : usize = o_shape.iter().product();
+        let batch_len : usize = o_shape[1..].iter().product();
+    
+        unsafe {
+            let mut o_data = TensorUninit::<f32>::new(len);
+    
+            for batch in 0..batch_len {
+                let a_start = batch * dim_0 * dim_1;
+                let o_start = batch * dim_0;
+
+                for i in 0..dim_0 {
+                    let mut value = init;
+
+                    for j in 0..dim_1 {
+                        value = op.apply(value, a_data[a_start + j * dim_0 + i]);
+                    }
+
+                    o_data[o_start + i] = value;
+                }
+            }
+    
+            //Self::new(Rc::new(data), b.shape().clone())
+            // TODO: fold has different op
+            self.next_uop(o_data.init(), o_shape, op.to_op())
+        }
+    }
 }
 
 impl<F, D:Dtype> Uop<D> for F
@@ -288,6 +332,18 @@ where F: Fn(D, D) -> D + Send + Sync + 'static {
         prev: TensorId,
     ) -> TensorId {
         todo!()
+    }
+}
+
+impl<F, D:Dtype> Fold<D> for F
+where F: Fn(D, D) -> D + Send + Sync + Clone + 'static {
+    fn apply(&self, state: D, a: D) -> D {
+        self(state, a)
+    }
+
+    fn to_op(&self) -> Box<dyn ForwardOp> {
+        // TODO: placeholder
+        Box::new(FnOp)
     }
 }
 

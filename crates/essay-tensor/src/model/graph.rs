@@ -20,9 +20,11 @@ pub struct TensorCache {
 pub enum NodeOp {
     None,
     Const(TensorId),
-    BackConst(TensorId, TensorId),
     Var(TensorId, String),
     Op(TensorId, BoxForwardOp, Vec<TensorId>),
+
+    BackConst(TensorId, TensorId),
+    BackOp(TensorId, BoxForwardOp, Vec<TensorId>),
 }
 
 pub trait ForwardOp : Send + Sync + 'static {
@@ -153,6 +155,12 @@ pub trait IntoForward {
     fn to_op(&self) -> BoxForwardOp;
 }
 
+impl IntoForward for BoxForwardOp {
+    fn to_op(&self) -> BoxForwardOp {
+        self.box_clone()
+    }
+}
+
 impl Graph {
     pub(crate) fn var(&mut self, name: &str) -> TensorId {
         let len = self.nodes.len();
@@ -196,6 +204,16 @@ impl Graph {
     ) -> TensorId {
         let id = self.alloc_id();
         self.set_node(id, NodeOp::Op(id, into_op.to_op(), prev.into()));
+        id
+    }
+
+    pub(crate) fn add_back_op(
+        &mut self, 
+        into_op: impl IntoForward,
+        prev: &[TensorId]
+    ) -> TensorId {
+        let id = self.alloc_id();
+        self.set_node(id, NodeOp::BackOp(id, into_op.to_op(), prev.into()));
         id
     }
 
@@ -291,6 +309,7 @@ impl Graph {
                 }
             },
             NodeOp::BackConst(_, _) => panic!("BackConst is invalid when generating backtrace"),
+            NodeOp::BackOp(_, _, _) => panic!("BackConst is invalid when generating backtrace"),
         }
     }
 
@@ -341,7 +360,10 @@ impl Graph {
                 },
                 NodeOp::BackConst(_, _) => {
                     panic!("BackConst is invalid in this context");
-                }
+                },
+                NodeOp::BackOp(_, _, _) => {
+                    panic!("BackOp is invalid in this context");
+                },
             }
         }
     }
@@ -425,9 +447,6 @@ impl NodeOp {
         match self {
             NodeOp::None => todo!(),
             NodeOp::Const(id) => tensors[*id].clone(),
-            NodeOp::BackConst(_, forward_id) => {
-                fwd_tensors[*forward_id].clone()
-            },
             NodeOp::Var(_, _) => todo!(),
             NodeOp::Op(id, op, args) => {
                 let t_args: Vec<&Tensor> = args.iter()
@@ -435,7 +454,18 @@ impl NodeOp {
                     .collect();
 
                 op.eval(tensors, &t_args)
-            }
+            },
+
+            NodeOp::BackConst(_, forward_id) => {
+                fwd_tensors[*forward_id].clone()
+            },
+            NodeOp::BackOp(id, op, args) => {
+                let t_args: Vec<&Tensor> = args.iter()
+                    .map(|id| fwd_tensors.get(*id).unwrap())
+                    .collect();
+
+                op.eval(tensors, &t_args)
+            },
         }
     }
 
@@ -459,6 +489,7 @@ impl NodeOp {
             NodeOp::BackConst(id, _) => *id,
             NodeOp::Var(id, _) => *id,
             NodeOp::Op(id, _, _) => *id,
+            NodeOp::BackOp(id, _, _) => *id,
         }
     }
 }
@@ -473,8 +504,11 @@ impl Clone for NodeOp {
                 NodeOp::Op(*id, op.box_clone(), args.clone())
             }
             NodeOp::BackConst(_, _) => todo!(),
+            NodeOp::BackOp(id, op, args) => {
+                NodeOp::BackOp(*id, op.box_clone(), args.clone())
+            }
         }
-        /*
+    /*
         Self { 
             tensor_id: self.tensor_id,
             args: self.args.clone(), 

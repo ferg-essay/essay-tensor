@@ -3,7 +3,7 @@ use std::{cmp::{max, self}, any::type_name, sync::Arc};
 
 use num_traits::Float;
 
-use crate::model::{NodeOp, TensorId, Tape, ForwardOp};
+use crate::model::{NodeOp, TensorId, Tape, ForwardOp, IntoForward};
 
 use super::{data::TensorData, TensorUninit};
 
@@ -100,7 +100,7 @@ impl<D:Dtype> Tensor<D> {
     }
 
     #[inline]
-    pub fn buffer(&self) -> &Arc<TensorData<D>> {
+    pub fn data(&self) -> &Arc<TensorData<D>> {
         &self.data
     }
 
@@ -131,6 +131,32 @@ impl<D:Dtype> Tensor<D> {
             }
 
             Tensor::new(data.init().into(), shape)
+        }
+    }
+
+    pub(crate) fn extend_dim1(&self, dim1: usize) -> Tensor<D> {
+        unsafe {
+            // let batch_len : usize = self.shape[1..].iter().product();
+            let dim0 = self.dim_zero();
+            let len = self.len() * dim1;
+            let batch_len = self.len() / dim0;
+
+            let mut o_data = TensorUninit::<D>::new(len);
+            let a_data = self.data();
+
+            for batch in 0..batch_len {
+                for j in 0..dim1 {
+                    for i in 0..dim0 {
+                        o_data[batch * dim1 + j * dim0 + i] =
+                            a_data[batch * dim0 + i];
+                    }
+                }
+            }
+
+            let mut o_vec = vec![dim0, dim1];
+            o_vec.append(&mut Vec::from(&self.shape[1..]));
+
+            Tensor::new(Arc::new(o_data.init()), &o_vec)
         }
     }
 }
@@ -222,12 +248,12 @@ impl Tensor {
         b: &Tensor,
         data: TensorData, 
         shape: Vec<usize>,
-        op: Box<dyn ForwardOp>
+        into_op: impl IntoForward, // Box<dyn ForwardOp>
     ) -> Tensor {
         let tensor = Self::new_op(
             Arc::new(data), 
             shape, 
-            NodeOp::new(&[self, b], op),
+            NodeOp::new(&[self, b], into_op.to_op()),
         );
 
         if let NodeId::Id(id) = tensor.node {
@@ -354,7 +380,7 @@ impl From<f32> for Tensor<f32> {
 
 impl From<Tensor<f32>> for f32 {
     fn from(value: Tensor) -> Self {
-        value.buffer()[0]
+        value.data()[0]
     }
 }
 

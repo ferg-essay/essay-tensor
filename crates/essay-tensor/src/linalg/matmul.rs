@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, BoxForwardOp, Graph, TensorId}};
+use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, BoxForwardOp, Graph, TensorId, IntoForward}};
 
 #[derive(Debug)]
 pub enum Transpose {
@@ -212,7 +212,7 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
         o_shape[0] = o_cols;
         o_shape[1] = o_rows;
 
-        a.next_binop(&b, out.init(), o_shape, Matmul.box_clone())
+        a.next_binop(&b, out.init(), o_shape, Matmul)
     }
 }
 
@@ -233,8 +233,8 @@ unsafe fn naive_matmul(
     o_cols: usize,
     o_rows: usize,
 ) {
-    let a_ptr = a.buffer().as_ptr().add(a_start);
-    let b_ptr = b.buffer().as_ptr().add(b_start);
+    let a_ptr = a.data().as_ptr().add(a_start);
+    let b_ptr = b.data().as_ptr().add(b_start);
     let out_ptr = out.as_ptr().add(out_start);
 
     for row in 0..o_rows {
@@ -251,6 +251,12 @@ unsafe fn naive_matmul(
 
             out_ptr.add(row * o_cols + col).write(v);
         }
+    }
+}
+
+impl IntoForward for Matmul {
+    fn to_op(&self) -> BoxForwardOp {
+        Box::new(self.clone())
     }
 }
 
