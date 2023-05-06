@@ -3,7 +3,7 @@ use std::{cmp::{max, self}, any::type_name, sync::Arc};
 
 use num_traits::Float;
 
-use crate::model::{NodeOp, TensorId, Tape};
+use crate::model::{NodeOp, TensorId, Tape, ForwardOp};
 
 use super::{data::TensorData, TensorUninit};
 
@@ -22,21 +22,6 @@ pub struct Tensor<D:Dtype=f32> {
 
     node: NodeId,
 }
-
-pub trait Op : fmt::Debug + Send + Sync + 'static {
-    fn gradient(
-        &self, 
-        i: usize, 
-        args: &[&Tensor],
-        prev: &Option<Tensor>, 
-    ) -> Tensor {
-        todo!("{:?}", self)
-    }
-
-    fn box_clone(&self) -> BoxOp;
-}
-
-pub type BoxOp = Box<dyn Op>;
 
 pub trait IntoTensor<D:Dtype> {
     fn into_tensor(&self) -> Tensor<D>;
@@ -98,6 +83,20 @@ impl<D:Dtype> Tensor<D> {
     #[inline]
     pub fn dim(&self, i: usize) -> usize {
         self.shape[i]
+    }
+
+    #[inline]
+    pub fn dim_zero(&self) -> usize {
+        if self.shape.len() > 0 {
+            self.shape[0]
+        } else {
+            1
+        }
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.data.len()
     }
 
     #[inline]
@@ -203,13 +202,19 @@ impl Tensor {
         &self, 
         data: TensorData, 
         shape: Vec<usize>,
-        op: Box<dyn Op>
+        op: Box<dyn ForwardOp>
     ) -> Tensor {
-        Tensor {
-            data: Arc::new(data),
-            shape: shape,
-            node: NodeOp::new(&[self], op),
+        let tensor = Self::new_op(
+            Arc::new(data), 
+            shape, 
+            NodeOp::new(&[self], op),
+        );
+
+        if let NodeId::Id(id) = tensor.node {
+            Tape::set_tensor(id, tensor.clone());
         }
+
+        tensor
     }
 
     pub fn next_binop(
@@ -217,13 +222,13 @@ impl Tensor {
         b: &Tensor,
         data: TensorData, 
         shape: Vec<usize>,
-        op: Box<dyn Op>
+        op: Box<dyn ForwardOp>
     ) -> Tensor {
-        let tensor = Tensor {
-            data: Arc::new(data),
-            shape: shape,
-            node: NodeOp::new(&[self, b], op),
-        };
+        let tensor = Self::new_op(
+            Arc::new(data), 
+            shape, 
+            NodeOp::new(&[self, b], op),
+        );
 
         if let NodeId::Id(id) = tensor.node {
             Tape::set_tensor(id, tensor.clone());

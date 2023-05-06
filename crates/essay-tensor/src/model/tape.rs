@@ -1,8 +1,8 @@
 use std::{cell::RefCell, collections::{HashMap, HashSet}};
 
-use crate::{Tensor, tensor::{NodeId, Op}};
+use crate::{Tensor, tensor::{NodeId}};
 
-use super::{Var, NodeOp};
+use super::{Var, NodeOp, graph::{ArgTrace, BackTrace, Graph}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TensorId(pub usize);
@@ -11,16 +11,12 @@ pub struct Tape {
     tensors: Vec<Option<Tensor>>,
     tail: Option<Tensor>,
 
+    graph: Graph,
+    /*
     var_map: HashMap<String, TensorId>,
 
     nodes: Vec<NodeOp>,
-}
-
-struct NextTrace(usize,BackTrace);
-
-struct BackTrace {
-    id: TensorId,
-    args: Vec<NextTrace>,
+    */
 }
 
 thread_local! {
@@ -37,7 +33,7 @@ impl Tape {
     }
 
     pub fn graph_len(&self) -> usize {
-        self.nodes.len()
+        self.graph.len()
     }
 
     pub fn with(
@@ -47,8 +43,7 @@ impl Tape {
             tensors: Default::default(),
             tail: None,
 
-            var_map: Default::default(),
-            nodes: Default::default(),
+            graph: Default::default(),
         };
 
         // TODO: add RALL guard?
@@ -80,12 +75,13 @@ impl Tape {
     pub fn alloc_id() -> Option<TensorId> {
         TAPE.with(|f| {
             match f.borrow_mut().as_mut() {
-                Some(tape) => Some(tape.alloc_id_inner()),
+                Some(tape) => Some(tape.graph.alloc_id()),
                 None => None,
             }
         })
     }
 
+    /*
     fn alloc_id_inner(&mut self) -> TensorId {
         let id = TensorId(self.nodes.len());
 
@@ -98,15 +94,17 @@ impl Tape {
 
         id
     }
+    */
 
-    pub fn get_graph(&self, id: TensorId) -> &NodeOp {
-        &self.nodes[id.index()]
+    pub fn node(&self, id: TensorId) -> &NodeOp {
+        &self.graph.node(id) // nodes[id.index()]
     }
 
-    pub(crate) fn set_graph(id: TensorId, node: NodeOp) {
+    pub(crate) fn set_node(id: TensorId, node: NodeOp) {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.nodes[id.index()] = node;
+                tape.graph.set_node(id, node);
+                // tape.nodes[id.index()] = node;
             } else {
                 panic!("call set_graph with no active tape");
             }
@@ -123,25 +121,32 @@ impl Tape {
     pub(crate) fn set_tensor(id: TensorId, tensor: Tensor) {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.set_tensor_inner(id, tensor);
+                tape.graph.set_tensor(id, tensor);
             }
         })
     }
 
+    /*
     fn set_tensor_inner(&mut self, id: TensorId, tensor: Tensor) {
+        while self.tensors.len () <= id.index() {
+            self.tensors.push(None);
+        }
+
         self.tensors[id.index()] = Some(tensor);
     }
+    */
 
     pub fn var(name: &str) -> TensorId {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.var_inner(name)
+                tape.graph.var(name)
             } else {
                 panic!("Tape::var without context")
             }
         })
     }
 
+    /*
     fn var_inner(&mut self, name: &str) -> TensorId {
         let len = self.len();
         let id = *self.var_map
@@ -155,11 +160,18 @@ impl Tape {
 
         id
     }
+    */
 
     pub fn set_var(name: &str, tensor: &Tensor) {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
-                let id = tape.var_inner(name);
+                let id = tape.graph.var(name);
+
+                tape.graph.set_tensor(id, tensor.clone());
+
+                while tape.tensors.len() <= id.index() {
+                    tape.tensors.push(None);
+                }
 
                 if tape.tensors[id.index()].is_none() {
                     tape.tensors[id.index()] = Some(tensor.clone_id(id));
@@ -168,6 +180,7 @@ impl Tape {
         })
     }
 
+    /*
     fn build_backtrace(&self, target: TensorId) -> Option<BackTrace> {
         let tail_id = TensorId(self.nodes.len() - 1);
 
@@ -216,6 +229,7 @@ impl Tape {
             }
         }
     }
+    */
 
     pub fn x_gradient(
         &self, 
@@ -251,15 +265,22 @@ impl Tape {
     }
 
     pub fn gradient(
-        &self, 
+        &mut self, 
         var: &Var
     ) -> Tensor {
-        let id = self.var_map.get(var.name()).unwrap();
-        let trace = self.build_backtrace(*id).unwrap();
+        let id = self.graph.get_var(var);
+        //let trace = self.graph.build_backtrace(id).unwrap();
 
-        self.gradient_rec(&trace, None)
+        let graph = self.graph.backtrace_graph(id);
+
+        let tensors_in = self.graph.tensors();
+
+        let tensors = graph.apply(&tensors_in, &[]);
+
+        //self.gradient_rec(&trace, None)
 
         // None => Tensor::ones(self.get_tensor(*id).unwrap().shape())
+        tensors.last()
     }
 
     fn gradient_rec(
@@ -267,7 +288,9 @@ impl Tape {
         trace: &BackTrace,
         prev: Option<Tensor>,
     ) -> Tensor {
-        match &self.nodes[trace.id.index()] {
+        todo!();
+        /*
+        match &self.graph.node(trace.id) { // nodes[trace.id.index()] {
             NodeOp::None => todo!(),
             NodeOp::Const(_) => todo!(),
             NodeOp::Var(id, name) => {
@@ -276,14 +299,17 @@ impl Tape {
                     None => Tensor::ones(self.get_tensor(*id).unwrap().shape())
                 }
             },
-            NodeOp::Op(op, args) => {
+            NodeOp::Op(id, op, args) => {
                 let t_args = self.to_args(&args);
 
                 let mut gradient: Option<Tensor> = None;
 
                 for i in 0..trace.args.len() {
-                    let partial = op.gradient(trace.args[i].0, &t_args, &prev);
-                    let next = self.gradient_rec(&trace.args[i].1, Some(partial));
+                    let partial = match &prev {
+                        Some(prev) => op.gradient(trace.args[i].index(), &t_args, prev),
+                        None => op.gradient_top(trace.args[i].index(), &t_args),
+
+                    let next = self.gradient_rec(&trace.args[i].backtrace(), Some(partial));
 
                     gradient = Some(next + gradient)
                 }
@@ -291,6 +317,7 @@ impl Tape {
                 gradient.unwrap()
             }
         }
+        */
     }
 
     fn to_args(&self, args: &[TensorId]) -> Vec<&Tensor> {
@@ -321,7 +348,7 @@ impl TensorId {
 mod test {
     use crate::model::{Var, TensorId};
     use crate::model::tape::Tape;
-    use crate::{Tensor, random::uniform};
+    use crate::{Tensor};
     use crate::prelude::{*};
 
     #[test]
@@ -344,7 +371,7 @@ mod test {
     fn test_var() {
         let x = Var::new("x", tensor!(0.));
 
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             Ok(x.tensor().clone())
         }).unwrap();
 
@@ -352,7 +379,7 @@ mod test {
 
         let x = Var::new("x", tensor!([[0., 2.], [10., 11.]]));
 
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             Ok(x.tensor().clone())
         }).unwrap();
 
@@ -361,23 +388,38 @@ mod test {
 
     #[test]
     fn test_mse() {
-        let a = Var::new("z", tensor!(1.));
+        let a = Var::new("a", tensor!(2.));
 
-        let tape = Tape::with(|| {
-            let y : Tensor = tensor!(0.0);
-            let loss: Tensor = a.x_l2_loss(&y);
+        let mut tape = Tape::with(|| {
+            let loss: Tensor = a.l2_loss();
 
             Ok(loss)
         }).unwrap();
 
         let dz = tape.gradient(&a);
-        assert_eq!(dz, tensor!(1.0));
+        assert_eq!(dz, tensor!(2.0));
 
-        let a = Var::new("z", tensor!([1., 2.]));
+        let a = Var::new("a", tensor!(3.));
+        let y = Var::new("y", tensor!(0.));
 
-        let tape = Tape::with(|| {
-            let y : Tensor = tensor!([0.0, 0.0]);
-            let loss: Tensor = a.x_l2_loss(&y);
+        let mut tape = Tape::with(|| {
+            let loss: Tensor = (&a - &y).l2_loss();
+            assert_eq!(loss, tensor!(4.5));
+            Ok(loss)
+        }).unwrap();
+
+        let da = tape.gradient(&a);
+        assert_eq!(da, tensor!(3.0));
+
+        let dy = tape.gradient(&y);
+        assert_eq!(dy, tensor!(-3.0));
+
+        let a = Var::new("a", tensor!([1., 2.]));
+
+        let mut tape = Tape::with(|| {
+            let loss: Tensor = a.l2_loss();
+
+            assert_eq!(&loss, &tensor!(1.25));
 
             Ok(loss)
         }).unwrap();
@@ -391,7 +433,7 @@ mod test {
         let a = Var::new("a", tensor!(1.));
         let x = Var::new("x", tensor!(0.));
 
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             Ok(loss)
@@ -406,7 +448,7 @@ mod test {
         let a = Var::new("a", tensor!([1., 2.]));
         let x = Var::new("x", tensor!([0., 0.]));
 
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             Ok(loss)
@@ -421,7 +463,7 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2.], [3., 4.]]));
         let x = Var::new("x", tensor!([[0., 1.], [0., 2.]]));
 
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             Ok(loss)

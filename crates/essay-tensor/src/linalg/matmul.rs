@@ -1,4 +1,4 @@
-use crate::tensor::{Tensor, Op, BoxOp, TensorUninit};
+use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, BoxForwardOp, Graph, TensorId}};
 
 #[derive(Debug)]
 pub enum Transpose {
@@ -109,9 +109,40 @@ impl TransposeMatmul for Transpose {
 #[derive(Debug, Clone)]
 struct Matmul;
 
-impl Op for Matmul {
-    fn box_clone(&self) -> BoxOp {
+impl ForwardOp for Matmul {
+    fn box_clone(&self) -> BoxForwardOp {
         Box::new(Matmul)
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn backtrace(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn eval(
+        &self,
+        tensors: &crate::model::TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
+        todo!()
     }
 }
 

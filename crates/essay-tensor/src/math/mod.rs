@@ -1,13 +1,14 @@
 use std::{ops};
 
-use crate::{tensor::{Tensor, Uop, Binop, Op, BoxOp}};
+use crate::{tensor::{Tensor, Uop, Binop}, model::{BackOp, ForwardOp, BoxForwardOp, TensorId, Graph, IntoForward, TensorCache}};
 
 #[derive(Debug, Clone)]
-enum Unary {
+pub enum Unary {
     Abs,
     Cos,
     Exp,
     Ln,
+    Mul(f32),
     Neg,
     Sin,
 }
@@ -19,12 +20,13 @@ impl Uop<f32> for Unary {
             Unary::Cos => value.cos(),
             Unary::Exp => value.exp(),
             Unary::Ln => value.ln(),
+            Unary::Mul(a) => todo!(), // a * value,
             Unary::Neg => -value,
             Unary::Sin => value.sin(),
         }
     }
 
-    fn to_op(&self) -> Box<dyn Op> {
+    fn to_op(&self) -> Box<dyn ForwardOp> {
         self.box_clone()
     }
 }
@@ -69,8 +71,57 @@ impl ops::Neg for &Tensor {
     }
 }
 
-impl Op for Unary {
-    fn box_clone(&self) -> BoxOp {
+impl ForwardOp for Unary {
+    fn box_clone(&self) -> BoxForwardOp {
+        Box::new(self.clone())
+    }
+
+    fn backtrace(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn eval(
+        &self,
+        tensors: &TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
+        match self {
+            Unary::Abs => todo!(),
+            Unary::Cos => todo!(),
+            Unary::Exp => todo!(),
+            Unary::Ln => todo!(),
+            Unary::Mul(a) => {
+                (1. / *a) * args[0]
+            },
+            Unary::Neg => {
+                neg(args[0])
+            },
+            Unary::Sin => todo!(),
+        }
+    }
+}
+
+impl IntoForward for Unary {
+    fn to_op(&self) -> BoxForwardOp {
         Box::new(self.clone())
     }
 }
@@ -96,8 +147,41 @@ enum Binary {
     RemEuclid,
     Sub,
 }
+/*
+#[derive(Clone, Debug)]
+pub struct BinaryAdd;
+
+impl Binop<f32> for BinaryAdd {
+    #[inline]
+    fn eval(&self, a: f32, b: f32) -> f32 {
+        a + b
+    }
+
+    fn to_op(&self) -> Box<dyn ForwardOp> {
+        self.box_clone()
+    }
+}
+
+impl ForwardOp for BinaryAdd {
+    fn box_clone(&self) -> BoxForwardOp {
+        todo!()
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+}
+*/
 
 impl Binop<f32> for Binary {
+    #[inline]
     fn eval(&self, a: f32, b: f32) -> f32 {
         match &self {
             Binary::Add => a + b,
@@ -117,12 +201,88 @@ impl Binop<f32> for Binary {
         }
     }
 
-    fn to_op(&self) -> Box<dyn Op> {
-        self.box_clone()
+    fn backtrace(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        match self {
+            Binary::Sub => {
+                match i {
+                    0 => { prev },
+                    1 => { graph.add_op(Unary::Neg, &[prev]) }
+                    _ => { todo!() },
+                }
+            },
+            _ => todo!("backtrace {:?}", self)
+        }
+    }
+
+    fn to_op(&self) -> Box<dyn ForwardOp> {
+        //self.box_clone()
+        todo!()
     }
 }
 
-impl Op for Binary {
+impl IntoForward for Binary {
+    fn to_op(&self) -> BoxForwardOp {
+        Box::new(self.clone())
+    }
+}
+
+impl ForwardOp for Binary {
+    fn backtrace(
+        &self, 
+        forward: &Graph,
+        graph: &mut Graph, 
+        i: usize, 
+        args: &[TensorId], 
+        tensor: TensorId, 
+        prev: TensorId
+    ) -> TensorId {
+        match &self {
+            Binary::Mul => {
+                if i == 0 {
+                    graph.add_op(Binary::Mul, &[args[1], prev])
+                } else {
+                    graph.add_op(Binary::Mul, &[args[0], prev])
+                }
+            },
+            _ => { 
+                todo!()
+            }
+        }
+    }
+
+    fn box_clone(&self) -> BoxForwardOp {
+        todo!()
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn eval(
+        &self,
+        tensors: &TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
+        todo!()
+    }
+}
+
+impl BackOp for Binary {
     fn gradient(&self, i: usize, args: &[&Tensor], prev: &Option<Tensor>) -> Tensor {
         match &self {
             Binary::Mul => {
@@ -169,10 +329,6 @@ impl Op for Binary {
             },
             _ => todo!("{:?}", self)
         }
-    }
-
-    fn box_clone(&self) -> BoxOp {
-        Box::new(self.clone())
     }
 }
 

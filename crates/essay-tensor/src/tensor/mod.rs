@@ -7,7 +7,7 @@ pub use data::{
 };
 
 pub use tensor::{
-    Dtype, Tensor, Op, BoxOp, IntoTensor, NodeId,
+    Dtype, Tensor, IntoTensor, NodeId,
 };
 
 pub use ops::{

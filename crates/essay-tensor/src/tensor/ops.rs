@@ -1,35 +1,124 @@
-use crate::{Tensor, tensor::TensorUninit};
+use crate::{Tensor, tensor::TensorUninit, model::{ForwardOp, BoxForwardOp, Graph, TensorId}};
 use core::fmt;
+use std::marker::PhantomData;
 
 use crate::tensor::{Dtype};
-
-use super::{Op};
-
 
 pub trait Uop<D:Dtype> : fmt::Debug + Sync + Send + 'static {
     fn eval(&self, value: D) -> D;
 
     //fn box_clone(&self) -> Box<dyn Uop<D>>;
 
-    fn to_op(&self) -> Box<dyn Op>;
+    fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
-pub trait Binop<D:Dtype> {
+pub struct UopImpl;
+
+pub trait Binop<D:Dtype> : Send + Sync + 'static {
     fn eval(&self, a: D, b: D) -> D;
 
-    fn to_op(&self) -> Box<dyn Op>;
+    fn backtrace(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId;
+ 
+    fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
 pub trait Fold<D:Dtype> {
     fn apply(&self, state: D, a: D) -> D;
 
-    fn to_op(&self) -> Box<dyn Op>;
+    fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
 pub trait BiFold<D:Dtype> {
     fn apply(&self, state: D, a: D, b: D) -> D;
 
-    fn to_op(&self) -> Box<dyn Op>;
+    fn to_op(&self) -> Box<dyn ForwardOp>;
+}
+
+#[derive(Debug)]
+pub struct BinopImpl<Op:Binop<f32>> {
+    op: Op,
+}
+
+impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
+    fn box_clone(&self) -> BoxForwardOp {
+        todo!()
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn backtrace(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        self.op.backtrace(forward, graph, i, args, tensor, prev)
+    }
+
+    fn eval(
+        &self,
+        tensors: &crate::model::TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
+        todo!()
+    }
+}
+
+impl<Op:Binop<f32>> BinopImpl<Op> {
+    pub fn to_op(op: Op) -> Box<dyn ForwardOp> {
+        let binop: BinopImpl<Op> = BinopImpl {
+            op: op,
+        };
+
+        Box::new(binop)
+    }
+
+    pub fn binop(a: &Tensor, b: &Tensor, op: Op) -> Tensor {
+        let size = a.broadcast(b);
+    
+        let a_data = a.buffer();
+        let b_data = b.buffer();
+    
+        unsafe {
+            let mut data = TensorUninit::<f32>::new(size);
+    
+            for i in 0..size {
+                data.set_unchecked(i, op.eval(
+                    a_data[i],
+                    b_data[i],
+                ));
+            }
+    
+            let shape = if a.rank() < b.rank() { 
+                b.shape().clone() 
+            } else { 
+                a.shape().clone() 
+            };
+
+            a.next_binop(&b, data.init(), shape, op.to_op())
+        }
+    }
+
 }
 
 impl Tensor {
@@ -49,7 +138,7 @@ impl Tensor {
         }
     }
 
-    pub fn binop(&self, b: &Self, op: impl Binop<f32>) -> Self {
+    pub fn binop<Op:Binop<f32>>(&self, b: &Self, op: Op) -> Self {
         let size = self.broadcast(b);
     
         let a_data = self.buffer();
@@ -72,7 +161,8 @@ impl Tensor {
             } else { 
                 self.shape().clone() 
             };
-            self.next_binop(&b, data.init(), shape, op.to_op())
+            self.next_binop(&b, data.init(), shape, 
+                BinopImpl::<Op>::to_op(op))
         }
     }
 
@@ -82,10 +172,17 @@ impl Tensor {
         op: impl Fold<f32>, 
     ) -> Tensor<f32> {
         let a_data = self.buffer();
-    
-        let len = a_data.len();
-        let stride = self.dim(0);
-        let batch = len / stride;
+
+        let shape = self.shape();
+        let o_shape: Vec<usize> = if shape.len() > 0 {
+            shape[1..].iter().map(|d| *d).collect()
+        } else {
+            Vec::new()
+        };
+
+        let len = o_shape.iter().product();
+        let stride = self.dim_zero();
+        let batch = self.len() / stride;
     
         unsafe {
             let mut o_data = TensorUninit::<f32>::new(len);
@@ -107,9 +204,6 @@ impl Tensor {
     
             //Self::new(Rc::new(data), b.shape().clone())
     
-            let shape = self.shape();
-            let o_shape: Vec<usize> = shape[1..].iter().map(|d| *d).collect();
-
             self.next_uop(o_data.init(), o_shape, op.to_op())
         }
     }
@@ -168,27 +262,71 @@ where F: Fn(D) -> D + Clone + fmt::Debug + Sync + Send + 'static {
         (self)(value)
     }
 
-    fn to_op(&self) -> Box<dyn Op> {
+    fn to_op(&self) -> Box<dyn ForwardOp> {
         Box::new(FnOp)
     }
 }
 
+// TODO: debug seems wrong
 impl<F, D:Dtype> Binop<D> for F
-where F: Fn(D, D) -> D {
+where F: Fn(D, D) -> D + Send + Sync + 'static {
     fn eval(&self, a: D, b: D) -> D {
         (self)(a, b)
     }
 
-    fn to_op(&self) -> Box<dyn Op> {
+    fn to_op(&self) -> Box<dyn ForwardOp> {
         Box::new(FnOp)
+    }
+
+    fn backtrace(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        todo!()
     }
 }
 
 #[derive(Debug)]
 struct FnOp;
 
-impl Op for FnOp {
-    fn box_clone(&self) -> super::BoxOp {
+impl ForwardOp for FnOp {
+    fn box_clone(&self) -> BoxForwardOp {
+        todo!()
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> crate::model::TensorId {
+        todo!()
+    }
+
+    fn backtrace(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn eval(
+        &self,
+        tensors: &crate::model::TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
         todo!()
     }
 }

@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, Uop, Op, BoxOp, BiFold, Fold}};
+use crate::{tensor::{Tensor, Uop, BiFold, Fold}, model::{BackOp, TensorId, ForwardOp, BoxForwardOp, Graph}, math};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -24,14 +24,45 @@ impl Uop<f32> for Unary {
         }
     }
 
-    fn to_op(&self) -> Box<dyn Op> {
+    fn to_op(&self) -> Box<dyn ForwardOp> {
         self.box_clone()
     }
 }
 
-impl Op for Unary {
-    fn box_clone(&self) -> BoxOp {
+impl ForwardOp for Unary {
+    fn box_clone(&self) -> BoxForwardOp {
         Box::new(self.clone())
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn backtrace(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn eval(
+        &self,
+        tensors: &crate::model::TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
+        todo!()
     }
 }
 
@@ -54,16 +85,69 @@ impl Fold<f32> for UReduce {
         }
     }
 
-    fn to_op(&self) -> Box<dyn Op> {
+    fn to_op(&self) -> Box<dyn ForwardOp> {
         self.box_clone()
     }
 }
 
-impl Op for UReduce {
+impl ForwardOp for UReduce {
+    fn backtrace(
+        &self, 
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize, 
+        args: &[TensorId], 
+        tensor: TensorId, 
+        prev: TensorId
+    ) -> TensorId {
+        match self {
+            UReduce::L2Loss(n) => {
+                assert_eq!(i, 0, "{:?} reduce has only one argument", self);
+
+                //Tensor::ones(args[0].shape())
+                todo!()
+            },
+        }
+    }
+
+    fn backtrace_top(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+    ) -> TensorId {
+        match self {
+            UReduce::L2Loss(n) => {
+                assert_eq!(i, 0, "{:?} reduce has only one argument", self);
+
+                //Tensor::ones(args[0].shape())
+                //let id = graph.constant_id(tensor);
+                //graph.add_op(math::Unary::Mul(2.), &[id])
+                //args[0]
+                graph.constant_id(args[0])
+            },
+        }
+    }
+
+    fn box_clone(&self) -> BoxForwardOp {
+        Box::new(self.clone())
+    }
+
+    fn eval(
+        &self,
+        tensors: &crate::model::TensorCache,
+        args: &[&Tensor],
+    ) -> Tensor {
+        todo!()
+    }
+}
+
+impl BackOp for UReduce {
     fn gradient(&self, i: usize, args: &[&Tensor], prev: &Option<Tensor>) -> Tensor {
         match self {
             UReduce::L2Loss(n) => {
-                println!("L2 {:?} args{:?}", prev, args[0]);
                 match i {
                     0 => Tensor::ones(args[0].shape()),
                     _ => panic!("invalid argument")
@@ -72,9 +156,12 @@ impl Op for UReduce {
         }
     }
 
-    fn box_clone(&self) -> BoxOp {
-        Box::new(self.clone())
+    /*
+    fn box_clone(&self) -> BoxForwardOp {
+        //Box::new(self.clone())
+        todo!()
     }
+    */
 }
 
 impl BiFold<f32> for BiReduce {
@@ -88,22 +175,19 @@ impl BiFold<f32> for BiReduce {
         }
     }
 
-    fn to_op(&self) -> Box<dyn Op> {
-        self.box_clone()
+    fn to_op(&self) -> Box<dyn ForwardOp> {
+        //Box::new(self.clone())
+        todo!()
     }
 }
 
-impl Op for BiReduce {
+impl BackOp for BiReduce {
     fn gradient(&self, i: usize, args: &[&Tensor], prev: &Option<Tensor>) -> Tensor {
         match i {
             0 => args[0] - args[1],
             1 => args[1] - args[0],
             _ => panic!("invalid argument")
         }
-    }
-
-    fn box_clone(&self) -> BoxOp {
-        Box::new(self.clone())
     }
 }
 

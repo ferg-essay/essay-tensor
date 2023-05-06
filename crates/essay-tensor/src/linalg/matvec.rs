@@ -1,6 +1,6 @@
 use std::{ops, sync::Arc};
 
-use crate::tensor::{Tensor, Op, BoxOp, TensorUninit};
+use crate::{tensor::{Tensor, TensorUninit}, model::{BackOp, BoxForwardOp}};
 
 use super::matmul::Transpose;
 
@@ -136,7 +136,8 @@ pub fn matvec_t(
         let mut o_shape = b.shape().clone();
         o_shape[0] = o_size;
         // Tensor::new(Rc::new(out), o_shape)
-        a.next_binop(&b, out.init(), o_shape, Matvec.box_clone())
+        // a.next_binop(&b, out.init(), o_shape, Matvec.box_clone())
+        todo!()
     }
 }
 
@@ -166,30 +167,18 @@ unsafe fn naive_matvec_f32(
         let mut a_off = a_start + col * a_stride;
         let mut b_off = b_start;
 
-        let mut v0;
-        let mut v1;
-        let mut v2;
-        let mut v3;
-
         let mut v = 0.0;
 
         // unroll for simd
-        while len > 3 {
-            v0 = a_data.get_unchecked(a_off + 0)
-                * b_data.get_unchecked(b_off + 0);
-            v1 = a_data.get_unchecked(a_off + a_inc)
-                * b_data.get_unchecked(b_off + 1);
-            v2 = a_data.get_unchecked(a_off + 2 * a_inc)
-                * b_data.get_unchecked(b_off + 2);
-            v3 = a_data.get_unchecked(a_off + 3 * a_inc)
-                * b_data.get_unchecked(b_off + 3);
+        while len > 4 {
+            let a_chunk = a_data.read_4(a_off, a_inc);
+            let b_chunk = b_data.read_4(b_off, 1);
+
+            v += &a_chunk.muladd(&b_chunk);
 
             a_off += 4 * a_inc;
             b_off += 4;
             len -= 4;
-
-            v += v0 + v2;
-            v += v1 + v3;
         }
 
         for i in 0..len {
@@ -202,7 +191,7 @@ unsafe fn naive_matvec_f32(
     }
 }
 
-impl Op for Matvec {
+impl BackOp for Matvec {
     fn gradient(
             &self, 
             i: usize, 
@@ -233,9 +222,12 @@ impl Op for Matvec {
         }
     }
 
-    fn box_clone(&self) -> BoxOp {
-        Box::new(Matvec)
+    /*
+    fn box_clone(&self) -> BoxForwardOp {
+        //Box::new(Matvec)
+        todo!()
     }
+    */
 }
 
 fn matvec_0_gradient(a: &Tensor) -> Tensor {
@@ -312,7 +304,7 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let loss: Tensor = a.matvec(&x);
     
             Ok(loss)
@@ -324,7 +316,7 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let loss: Tensor = a.matvec(&x);
     
             Ok(loss)
@@ -338,7 +330,7 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let loss: Tensor = a.matvec(&x);
     
             Ok(loss)
@@ -350,7 +342,7 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let out: Tensor = a.matvec(&x);
             assert_eq!(out, tensor!([140., 320.]));
     
@@ -366,7 +358,7 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let out: Tensor = a.matvec(&x);
 
             let loss = out.l2_loss();
@@ -382,9 +374,9 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let out: Tensor = a.matvec(&x);
-            println!("Out {:?}", out);
+
             Ok(out.l2_loss())
         }).unwrap();
 
@@ -399,7 +391,7 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let out: Tensor = a.matvec(&x);
             let loss = out.l2_loss();
 
@@ -412,7 +404,7 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let tape = Tape::with(|| {
+        let mut tape = Tape::with(|| {
             let out: Tensor = a.matvec(&x);
             assert_eq!(out, tensor!([140., 320.]));
     
