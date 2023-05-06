@@ -20,7 +20,7 @@ impl Uop<f32> for Unary {
             Unary::Cos => value.cos(),
             Unary::Exp => value.exp(),
             Unary::Ln => value.ln(),
-            Unary::Mul(a) => todo!(), // a * value,
+            Unary::Mul(a) => a * value,
             Unary::Neg => -value,
             Unary::Sin => value.sin(),
         }

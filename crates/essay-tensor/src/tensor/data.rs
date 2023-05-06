@@ -1,5 +1,5 @@
 use core::{slice, fmt};
-use std::{ptr::NonNull, alloc::Layout, alloc, ops::{Index, IndexMut, self}};
+use std::{ptr::NonNull, alloc::Layout, alloc, ops::{Index, self}};
 
 use super::tensor::Dtype;
 
@@ -435,4 +435,3 @@ impl ops::Mul<Data8<f32>> for Data8<f32> {
         }
     }
 }
-

@@ -1,8 +1,8 @@
-use std::{rc::Rc, sync::Arc};
+use std::{sync::Arc};
 
 use rand::prelude::*;
 
-use crate::{tensor::{TensorData, Dtype, TensorUninit}, Tensor};
+use crate::{tensor::{TensorUninit}, Tensor};
 
 pub fn uniform<const N:usize>(
     shape: [usize; N], 

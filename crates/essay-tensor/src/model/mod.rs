@@ -1,5 +1,4 @@
 mod tape;
-mod model;
 mod var;
 mod graph;
 

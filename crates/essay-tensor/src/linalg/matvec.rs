@@ -1,6 +1,6 @@
-use std::{ops, sync::Arc};
+use std::{sync::Arc};
 
-use crate::{tensor::{Tensor, TensorUninit}, model::{BackOp, BoxForwardOp}};
+use crate::{tensor::{Tensor, TensorUninit}, model::{BackOp}};
 
 use super::matmul::Transpose;
 
@@ -28,7 +28,7 @@ impl TransposeMatvec for Transpose {
     fn inner_len(
         &self, 
         b_cols: usize, 
-        b_rows: usize
+        _b_rows: usize
     ) -> usize {
         match self {
             Transpose::None => b_cols,
@@ -61,7 +61,7 @@ impl TransposeMatvec for Transpose {
         }
     }
 
-    fn b_inc(&self, b_cols: usize, b_rows: usize) -> usize {
+    fn b_inc(&self, b_cols: usize, _b_rows: usize) -> usize {
         match self {
             Transpose::None => b_cols,
             Transpose::TransposeA => b_cols,
@@ -106,7 +106,7 @@ pub fn matvec_t(
     let (a_cols, a_rows) = (a.shape()[0], a.shape()[1]);
     let b_cols = b.shape()[0];
 
-    let inner_len = b_cols;
+    // let inner_len = b_cols;
 
     let a_inc = transpose.a_inc(a_cols, a_rows);
     let a_stride = transpose.a_stride(a_cols, a_rows);
@@ -147,11 +147,11 @@ unsafe fn naive_matvec_f32(
     a: &Tensor<f32>, 
     a_start: usize,
     a_inc: usize,
-    a_stride: usize,
-    a_size: usize,
+    _a_stride: usize,
+    _a_size: usize,
     b: &Tensor<f32>,
     b_start: usize,
-    b_size: usize,
+    _b_size: usize,
     o_cols: usize,
 ) {
     let a_stride = a.shape()[0];
@@ -159,7 +159,7 @@ unsafe fn naive_matvec_f32(
     let a_data = a.buffer();
     let b_data = b.buffer();
 
-    let mut a_row = a_start;
+    // let mut a_row = a_start;
 
     for col in 0..o_cols {
         let mut len = a_stride;
@@ -187,7 +187,7 @@ unsafe fn naive_matvec_f32(
         }
 
         out.set_unchecked(out_start + col, v);
-        a_row += a_stride;
+        // a_row += a_stride;
     }
 }
 
