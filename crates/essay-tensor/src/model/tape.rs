@@ -1,8 +1,8 @@
-use std::{cell::RefCell, collections::{HashMap, HashSet}};
+use std::{cell::RefCell};
 
-use crate::{Tensor, tensor::{NodeId}};
+use crate::{Tensor};
 
-use super::{Var, NodeOp, graph::{ArgTrace, BackTrace, Graph}};
+use super::{Var, NodeOp, graph::{Graph}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TensorId(pub usize);
@@ -12,11 +12,6 @@ pub struct Tape {
     tail: Option<Tensor>,
 
     graph: Graph,
-    /*
-    var_map: HashMap<String, TensorId>,
-
-    nodes: Vec<NodeOp>,
-    */
 }
 
 thread_local! {
@@ -80,21 +75,6 @@ impl Tape {
             }
         })
     }
-
-    /*
-    fn alloc_id_inner(&mut self) -> TensorId {
-        let id = TensorId(self.nodes.len());
-
-        assert_eq!(self.tensors.len(), self.nodes.len(), 
-            "alloc_id with mismatch graph and tensor");
-
-        self.nodes.push(NodeOp::None);
-
-        self.tensors.push(None);
-
-        id
-    }
-    */
 
     pub fn node(&self, id: TensorId) -> &NodeOp {
         &self.graph.node(id) // nodes[id.index()]
@@ -180,90 +160,6 @@ impl Tape {
         })
     }
 
-    /*
-    fn build_backtrace(&self, target: TensorId) -> Option<BackTrace> {
-        let tail_id = TensorId(self.nodes.len() - 1);
-
-        self.build_backtrace_rec(target, tail_id, &mut HashSet::new())
-    }
-
-    fn build_backtrace_rec(
-        &self, 
-        target: TensorId,
-        id: TensorId,
-        visited: &mut HashSet<TensorId>,
-    ) -> Option<BackTrace> {
-        if target == id {
-            Some(BackTrace {
-                id,
-                args: Default::default(),
-            })
-        } else if visited.contains(&id) {
-            None
-        } else {
-            match &self.nodes[id.index()] {
-                NodeOp::None => None,
-                NodeOp::Const(_) => None,
-                NodeOp::Var(_, _) => None,
-                NodeOp::Op(_, args) => {
-                    visited.insert(id);
-
-                    let mut next_args = Vec::<NextTrace>::new();
-
-                    for (i, arg) in args.iter().enumerate() {
-                        if let Some(trace) =  self.build_backtrace_rec(target, *arg, visited) {
-                            next_args.push(NextTrace(i, trace));
-                        }
-                    }
-
-                    if next_args.len() > 0 {
-                        Some(BackTrace {
-                            id,
-                            args: next_args
-                        })
-                    } else {
-                        None
-                    }
-
-                }
-            }
-        }
-    }
-    */
-
-    pub fn x_gradient(
-        &self, 
-        var: &Var
-    ) -> Tensor {
-        todo!();
-        /*
-        let id = self.var_map.get(var.name()).unwrap();
-        let mut trace = self.build_backtrace(*id).unwrap();
-        let mut partial = Tensor::from(1.);
-
-        let mut trace_ptr = &trace;
-        while let NodeOp::Op(op, args) = &self.nodes[trace_ptr.id.index()] {
-            let mut next_partial = op.gradient(trace_ptr.args[0].0, &self.to_args(args));
-            println!("  partial.0 {:?}", next_partial);
-
-            for arg in &trace_ptr.args[1..] {
-                let sub_partial = op.gradient(arg.0, &self.to_args(args));
-                println!("    sub-partial.0 {:?}", sub_partial);
-                next_partial = next_partial + sub_partial;
-                println!("    => next-partial.0 {:?}", next_partial);
-            }
-            //}
-
-            //partial = partial.matmul(next_partial);
-            partial = partial * next_partial;
-
-            trace_ptr = &trace_ptr.args[0].1;
-        };
-
-        partial
-        */
-    }
-
     pub fn gradient(
         &mut self, 
         var: &Var
@@ -277,64 +173,8 @@ impl Tape {
 
         let tensors = graph.apply(&tensors_in, &[]);
 
-        //self.gradient_rec(&trace, None)
-
-        // None => Tensor::ones(self.get_tensor(*id).unwrap().shape())
         tensors.last()
     }
-
-    fn gradient_rec(
-        &self, 
-        trace: &BackTrace,
-        prev: Option<Tensor>,
-    ) -> Tensor {
-        todo!();
-        /*
-        match &self.graph.node(trace.id) { // nodes[trace.id.index()] {
-            NodeOp::None => todo!(),
-            NodeOp::Const(_) => todo!(),
-            NodeOp::Var(id, name) => {
-                match prev {
-                    Some(prev) => prev,
-                    None => Tensor::ones(self.get_tensor(*id).unwrap().shape())
-                }
-            },
-            NodeOp::Op(id, op, args) => {
-                let t_args = self.to_args(&args);
-
-                let mut gradient: Option<Tensor> = None;
-
-                for i in 0..trace.args.len() {
-                    let partial = match &prev {
-                        Some(prev) => op.gradient(trace.args[i].index(), &t_args, prev),
-                        None => op.gradient_top(trace.args[i].index(), &t_args),
-
-                    let next = self.gradient_rec(&trace.args[i].backtrace(), Some(partial));
-
-                    gradient = Some(next + gradient)
-                }
-
-                gradient.unwrap()
-            }
-        }
-        */
-    }
-
-    fn to_args(&self, args: &[TensorId]) -> Vec<&Tensor> {
-        args.iter().map(|id| {
-            match &self.tensors[id.index()] {
-                Some(tensor) => tensor,
-                None => panic!("unassigned tensor {:?}", id),
-            }
-        }).collect()
-    }
-    /*
-    fn partial(&self, op: &dyn Op, index: usize, args: &[TensorId]) -> Tensor {
-        let args = self.to_args(args);
-
-        op.gradient(index, &args)
-    }
-    */
 }
 
 impl TensorId {
@@ -475,9 +315,10 @@ mod test {
 
     #[test]
     fn test_matvec() {
+        /*
         let w = Var::new("w", tensor!(0.5));
         let b = Var::new("b", tensor!(0.5));
-        /*
+
         let mut tape = Tape::new();
         let w_t = tape.var(&w);
         let b_t = tape.var(&b);

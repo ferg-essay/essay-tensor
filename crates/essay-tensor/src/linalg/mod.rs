@@ -2,6 +2,10 @@ mod vecmul;
 mod matvec;
 mod matmul;
 
+pub use matmul::{
+    matmul,
+};
+
 pub use matvec::{
     matvec, matvec_t,
 };

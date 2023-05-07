@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, BoxForwardOp, Graph, TensorId, IntoForward}};
+use crate::{tensor::{Tensor, TensorUninit}, model::{EvalOp}};
 
 #[derive(Clone, Debug)]
 pub enum Transpose {
@@ -177,7 +177,7 @@ impl TransposeMatmul for Transpose {
         }
     }
 
-    fn a_inner_stride(&self, a_cols: usize, a_rows: usize) -> usize
+    fn a_inner_stride(&self, a_cols: usize, _a_rows: usize) -> usize
     {
         match self {
             Transpose::None => 1,
@@ -187,7 +187,7 @@ impl TransposeMatmul for Transpose {
         }
     }
 
-    fn a_outer_stride(&self, a_cols: usize, a_rows: usize) -> usize
+    fn a_outer_stride(&self, a_cols: usize, _a_rows: usize) -> usize
     {
         match self {
             Transpose::None => a_cols,
@@ -197,7 +197,7 @@ impl TransposeMatmul for Transpose {
         }
     }
 
-    fn b_inner_stride(&self, b_cols: usize, b_rows: usize) -> usize
+    fn b_inner_stride(&self, b_cols: usize, _b_rows: usize) -> usize
     {
         match self {
             Transpose::None => b_cols,
@@ -207,7 +207,7 @@ impl TransposeMatmul for Transpose {
         }
     }
 
-    fn b_outer_stride(&self, b_cols: usize, b_rows: usize) -> usize
+    fn b_outer_stride(&self, b_cols: usize, _b_rows: usize) -> usize
     {
         match self {
             Transpose::None => 1,
@@ -218,38 +218,11 @@ impl TransposeMatmul for Transpose {
     }
 }
 
-impl ForwardOp for Matmul {
-    fn box_clone(&self) -> BoxForwardOp {
-        Box::new(Matmul)
-    }
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
-    fn backprop(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-        prev: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
+impl EvalOp for Matmul {
     fn eval(
         &self,
-        tensors: &crate::model::TensorCache,
-        args: &[&Tensor],
+        _tensors: &crate::model::TensorCache,
+        _args: &[&Tensor],
     ) -> Tensor {
         todo!()
     }
