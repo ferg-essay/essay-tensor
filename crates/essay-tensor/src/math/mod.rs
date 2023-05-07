@@ -1,6 +1,6 @@
 use std::{ops};
 
-use crate::{tensor::{Tensor, Uop, Binop}, model::{ForwardOp, BoxForwardOp, TensorId, Graph, TensorCache, EvalOp}};
+use crate::{tensor::{Tensor, Uop, Binop}, model::{ForwardOp, TensorId, Graph, TensorCache, EvalOp}};
 
 #[derive(Debug, Clone)]
 pub enum Unary {
@@ -27,7 +27,7 @@ impl Uop<f32> for Unary {
     }
 
     fn to_op(&self) -> Box<dyn ForwardOp> {
-        self.box_clone()
+        Box::new(self.clone())
     }
 }
 
@@ -193,10 +193,6 @@ impl ForwardOp for Binary {
                 todo!()
             }
         }
-    }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
     }
 }
 

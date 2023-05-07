@@ -1,12 +1,10 @@
-use crate::{Tensor, tensor::TensorUninit, model::{ForwardOp, BoxForwardOp, Graph, TensorId, EvalOp, IntoForward}};
+use crate::{Tensor, tensor::TensorUninit, model::{ForwardOp, Graph, TensorId, EvalOp, IntoForward}};
 use core::fmt;
 
 use crate::tensor::{Dtype};
 
 pub trait Uop<D:Dtype> : fmt::Debug + Clone + Sync + Send + 'static {
     fn eval(&self, value: D) -> D;
-
-    //fn box_clone(&self) -> Box<dyn Uop<D>>;
 
     fn to_op(&self) -> Box<dyn ForwardOp>;
 }
@@ -27,13 +25,13 @@ pub trait Binop<D:Dtype=f32> : Clone + Send + Sync + 'static {
     fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
-pub trait Fold<D:Dtype=f32> {
+pub trait Fold<D:Dtype=f32> : Clone {
     fn apply(&self, state: D, a: D) -> D;
 
     fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
-pub trait BiFold<D:Dtype=f32> {
+pub trait BiFold<D:Dtype=f32> : Clone {
     fn apply(&self, state: D, a: D, b: D) -> D;
 
     fn to_op(&self) -> Box<dyn ForwardOp>;
@@ -92,10 +90,10 @@ impl Tensor {
         }
     }
 
-    pub fn fold(
+    pub fn fold<Op:Fold + IntoForward>(
         &self, 
         init: f32, 
-        op: impl Fold<f32>, 
+        op: Op,
     ) -> Tensor<f32> {
         let a_data = self.data();
 
@@ -130,14 +128,14 @@ impl Tensor {
     
             //Self::new(Rc::new(data), b.shape().clone())
     
-            self.next_uop(o_data.init(), o_shape, op.to_op())
+            self.next_uop(o_data.init(), o_shape, op)
         }
     }
 
-    pub fn bi_fold(
+    pub fn bi_fold<Op:BiFold + IntoForward>(
         &self, 
         init: f32, 
-        op: impl BiFold<f32>, 
+        op: Op,
         b: &Self
     ) -> Tensor<f32> {
         assert_eq!(self.shape(), b.shape());
@@ -177,14 +175,14 @@ impl Tensor {
                 Vec::new()
             };
 
-            self.next_binop(&b, o_data.init(), o_shape, op.to_op())
+            self.next_binop(&b, o_data.init(), o_shape, op)
         }
     }
 
-    pub fn fold_1(
+    pub fn fold_1<Op:Fold + IntoForward>(
         &self, 
         init: f32, 
-        op: impl Fold<f32>, 
+        op: Op,
     ) -> Tensor<f32> {
         assert!(self.rank() >= 2);
 
@@ -221,7 +219,7 @@ impl Tensor {
     
             //Self::new(Rc::new(data), b.shape().clone())
             // TODO: fold has different op
-            self.next_uop(o_data.init(), o_shape, op.to_op())
+            self.next_uop(o_data.init(), o_shape, op)
         }
     }
 }
@@ -253,10 +251,6 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         prev: TensorId,
     ) -> TensorId {
         self.op.backprop(forward, graph, i, args, tensor, prev)
-    }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
     }
 }
 

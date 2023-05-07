@@ -146,16 +146,6 @@ impl<Op:EvalOp> ForwardOp for Op {
     ) -> TensorId {
         panic!("{} does not implement backprop", type_name::<Op>())
     }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        panic!("{} does not implement box_clone", type_name::<Op>())
-    }
-}
-
-impl IntoForward for BoxForwardOp {
-    fn to_op(&self) -> BoxForwardOp {
-        self.box_clone()
-    }
 }
 
 impl<Op> IntoForward for Op

@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, Uop, Fold}, model::{TensorId, ForwardOp, BoxForwardOp, Graph, EvalOp}};
+use crate::{tensor::{Tensor, Uop, Fold}, model::{TensorId, ForwardOp, Graph, EvalOp}};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -34,7 +34,7 @@ impl Uop<f32> for Unary {
     }
 
     fn to_op(&self) -> Box<dyn ForwardOp> {
-        self.box_clone()
+        Box::new(self.clone())
     }
 }
 
@@ -66,7 +66,7 @@ impl Fold<f32> for UReduce {
     }
 
     fn to_op(&self) -> Box<dyn ForwardOp> {
-        self.box_clone()
+        Box::new(self.clone())
     }
 }
 
@@ -96,9 +96,5 @@ impl ForwardOp for UReduce {
                 graph.constant_id(args[0])
             },
         }
-    }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        Box::new(self.clone())
     }
 }

@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, model::{BoxForwardOp, ForwardOp, Graph, TensorId, TensorCache, EvalOp}};
+use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, Graph, TensorId, TensorCache, EvalOp}};
 
 use super::matmul::Transpose;
 
@@ -234,10 +234,6 @@ impl ForwardOp for Matvec {
             _ => panic!("invalid argument")
         }
     }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
-    }
 }
 
 impl EvalOp for MatvecOuter {
@@ -247,16 +243,6 @@ impl EvalOp for MatvecOuter {
         args: &[&Tensor],
     ) -> Tensor {
         args[0].outer_product(args[1])
-    }
-}
-
-impl EvalOp for MatvecBackRight {
-    fn eval(
-        &self,
-        _tensors: &TensorCache,
-        args: &[&Tensor],
-    ) -> Tensor {
-        args[0].fold_1(0., |a, b| a + b)
     }
 }
 

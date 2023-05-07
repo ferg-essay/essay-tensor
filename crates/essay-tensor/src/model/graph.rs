@@ -42,8 +42,6 @@ pub trait ForwardOp : Send + Sync + 'static {
         out: TensorId,
         prev: TensorId,
     ) -> TensorId;
-
-    fn box_clone(&self) -> BoxForwardOp;
 }
 
 pub trait IntoForward {
@@ -259,23 +257,6 @@ impl NodeOp {
             NodeOp::Var(id, _) => *id,
             NodeOp::Op(id, _, _) => *id,
             NodeOp::BackOp(id, _, _) => *id,
-        }
-    }
-}
-
-impl Clone for NodeOp {
-    fn clone(&self) -> Self {
-        match self {
-            NodeOp::None => NodeOp::None,
-            NodeOp::Const(id) => NodeOp::Const(*id),
-            NodeOp::Var(id, name) => NodeOp::Var(*id, name.clone()),
-            NodeOp::Op(id, op, args) => {
-                NodeOp::Op(*id, op.box_clone(), args.clone())
-            }
-            NodeOp::BackConst(_, _) => todo!(),
-            NodeOp::BackOp(id, op, args) => {
-                NodeOp::BackOp(*id, op.box_clone(), args.clone())
-            }
         }
     }
 }
