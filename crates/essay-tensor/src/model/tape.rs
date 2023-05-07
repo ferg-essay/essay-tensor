@@ -201,7 +201,7 @@ mod test {
     }
 
     #[test]
-    fn test_mse() {
+    fn test_l2_loss() {
         let a = Var::new("a", tensor!(2.));
 
         let mut tape = Tape::with(|| {

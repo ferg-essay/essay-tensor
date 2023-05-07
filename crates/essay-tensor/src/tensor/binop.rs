@@ -1,6 +1,8 @@
-use crate::{model::{Graph, TensorId, ForwardOp}, Tensor};
+use std::sync::Arc;
 
-use super::{Dtype, TensorUninit};
+use crate::{model::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape}, Tensor};
+
+use super::{Dtype, TensorUninit, TensorData, NodeId};
 
 pub trait Binop<D:Dtype=f32> : Clone + Send + Sync + 'static {
     fn eval(&self, a: D, b: D) -> D;
@@ -49,6 +51,26 @@ impl Tensor {
             self.next_binop(&b, data.init(), shape, 
                 BinopImpl::new(op))
         }
+    }
+
+    pub fn next_binop(
+        &self, 
+        b: &Tensor,
+        data: TensorData, 
+        shape: Vec<usize>,
+        into_op: impl IntoForward, // Box<dyn ForwardOp>
+    ) -> Tensor {
+        let tensor = Self::new_op(
+            Arc::new(data), 
+            shape, 
+            NodeOp::new(&[self, b], into_op.to_op()),
+        );
+
+        if let NodeId::Id(id) = tensor.node() {
+            Tape::set_tensor(*id, tensor.clone());
+        }
+
+        tensor
     }
 }
 

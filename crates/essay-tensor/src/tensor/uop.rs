@@ -1,8 +1,9 @@
 use core::fmt;
+use std::sync::Arc;
 
-use crate::{model::{IntoForward}, Tensor};
+use crate::{model::{IntoForward, NodeOp, Tape}, Tensor};
 
-use super::{Dtype, TensorUninit};
+use super::{Dtype, TensorUninit, TensorData, NodeId};
 
 
 pub trait Uop<D:Dtype> : fmt::Debug + Clone + Sync + Send + 'static {
@@ -27,6 +28,25 @@ impl Tensor {
             let shape = self.shape().clone();
             self.next_uop(data.init(), Vec::from(shape), uop)
         }
+    }
+
+    pub fn next_uop(
+        &self, 
+        data: TensorData, 
+        shape: Vec<usize>,
+        op: impl IntoForward,
+    ) -> Tensor {
+        let tensor = Self::new_op(
+            Arc::new(data), 
+            shape, 
+            NodeOp::new(&[self], op.to_op()),
+        );
+
+        if let NodeId::Id(id) = tensor.node() {
+            Tape::set_tensor(*id, tensor.clone());
+        }
+
+        tensor
     }
 }
 

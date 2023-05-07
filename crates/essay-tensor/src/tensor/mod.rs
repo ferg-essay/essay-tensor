@@ -1,3 +1,4 @@
+mod new;
 mod fold;
 mod binop;
 mod uop;

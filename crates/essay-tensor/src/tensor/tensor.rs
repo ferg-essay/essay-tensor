@@ -3,7 +3,7 @@ use std::{cmp::{max, self}, any::type_name, sync::Arc};
 
 use num_traits::Float;
 
-use crate::model::{NodeOp, TensorId, Tape, IntoForward};
+use crate::model::{TensorId};
 
 use super::{data::TensorData, TensorUninit};
 
@@ -97,12 +97,12 @@ impl<D:Dtype> Tensor<D> {
         self.data.get(offset)
     }
 
-    pub fn set_op(self, graph: NodeId) -> Self {
+    pub fn set_node(self, node: NodeId) -> Self {
         Self {
             shape: self.shape,
             data: self.data,
 
-            node: graph,
+            node,
         }
     }
 
@@ -110,33 +110,16 @@ impl<D:Dtype> Tensor<D> {
         &self.node
     }
 
-    pub fn fill(fill: D, shape: &[usize]) -> Tensor<D> {
-        unsafe {
-            let len = shape.iter().product();
-            let mut data = TensorUninit::<D>::new(len);
-
-            for i in 0..len {
-                data[i] = fill;
-            }
-
-            Tensor::new(data.init().into(), shape)
-        }
+    pub(crate) fn node(&self) -> &NodeId {
+        &self.node
     }
 }
 
 impl Tensor {
-    pub fn zeros(shape: &[usize]) -> Tensor {
-        Tensor::fill(0., shape)
-    }
-
-    pub fn ones(shape: &[usize]) -> Tensor {
-        Tensor::fill(1., shape)
-    }
-
     pub fn new_op(
         data: Arc<TensorData>, 
         shape: Vec<usize>,
-        graph: NodeId,
+        node: NodeId,
     ) -> Self {
         let len: usize = max(1, shape.iter().product());
         assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
@@ -146,7 +129,7 @@ impl Tensor {
             shape,
             data,
 
-            node: graph,
+            node,
         }
     }
 
@@ -185,45 +168,6 @@ impl Tensor {
         } else { 
             a_shape.iter().skip(a_min).product()
         }
-    }
-
-    pub fn next_uop(
-        &self, 
-        data: TensorData, 
-        shape: Vec<usize>,
-        op: impl IntoForward,
-    ) -> Tensor {
-        let tensor = Self::new_op(
-            Arc::new(data), 
-            shape, 
-            NodeOp::new(&[self], op.to_op()),
-        );
-
-        if let NodeId::Id(id) = tensor.node {
-            Tape::set_tensor(id, tensor.clone());
-        }
-
-        tensor
-    }
-
-    pub fn next_binop(
-        &self, 
-        b: &Tensor,
-        data: TensorData, 
-        shape: Vec<usize>,
-        into_op: impl IntoForward, // Box<dyn ForwardOp>
-    ) -> Tensor {
-        let tensor = Self::new_op(
-            Arc::new(data), 
-            shape, 
-            NodeOp::new(&[self, b], into_op.to_op()),
-        );
-
-        if let NodeId::Id(id) = tensor.node {
-            Tape::set_tensor(id, tensor.clone());
-        }
-
-        tensor
     }
 
     pub fn size(&self) -> usize {
@@ -454,7 +398,6 @@ mod test {
     #[test]
     fn debug_tensor_from_f32() {
         let t = Tensor::from(10.5);
-
         assert_eq!(format!("{:?}", t), "Tensor{10.5, shape: [], dtype: f32}");
     }
 
@@ -516,19 +459,22 @@ mod test {
     #[test]
     fn debug_vector_from_macro() {
         let t = tensor!(1.);
-        assert_eq!(format!("{:?}", t), "Tensor{1, shape: [], dtype: f32}");
+        assert_eq!(format!("{:?}", t), "Tensor {1.0, shape: [], dtype: f32}");
+
+        let t = tensor!([1.]);
+        assert_eq!(format!("{:?}", t), "Tensor {[1.0], shape: [1], dtype: f32}");
 
         let t = tensor!([1., 2.]);
-        assert_eq!(format!("{:?}", t), "Tensor{[1 2], shape: [2], dtype: f32}");
+        assert_eq!(format!("{:?}", t), "Tensor {[1.0 2.0], shape: [2], dtype: f32}");
 
         let t = tensor!([[1., 2., 3.], [3., 4., 5.]]);
-        assert_eq!(format!("{:?}", t), "Tensor{\n[[1 2 3],\n [3 4 5]], shape: [2, 3], dtype: f32}");
+        assert_eq!(format!("{:?}", t), "Tensor {\n[[1.0 2.0 3.0],\n [3.0 4.0 5.0]], shape: [3, 2], dtype: f32}");
 
         let t = tensor!([
             [[1., 2.], [3., 4.]],
             [[11., 12.], [13., 14.]]
         ]);
-        assert_eq!(format!("{:?}", t), "Tensor{\n[[[1 2],\n [3 4]],\n\n  [[11 12],\n [13 14]]], shape: [2, 2, 2], dtype: f32}");
+        assert_eq!(format!("{:?}", t), "Tensor {\n[[[1.0 2.0],\n [3.0 4.0]],\n\n  [[11.0 12.0],\n [13.0 14.0]]], shape: [2, 2, 2], dtype: f32}");
     }
 
     #[test]
