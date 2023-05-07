@@ -109,7 +109,8 @@ impl Tape {
     pub fn var(name: &str) -> TensorId {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.graph.var(name)
+                todo!()
+                // tape.graph.var(name)
             } else {
                 panic!("Tape::var without context")
             }
@@ -119,6 +120,8 @@ impl Tape {
     pub fn set_var(name: &str, tensor: &Tensor) {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
+                todo!()
+                /*
                 let id = tape.graph.var(name);
 
                 tape.graph.set_tensor(id, tensor.clone());
@@ -130,6 +133,7 @@ impl Tape {
                 if tape.tensors[id.index()].is_none() {
                     tape.tensors[id.index()] = Some(tensor.clone_id(id));
                 }
+                */
             }
         })
     }

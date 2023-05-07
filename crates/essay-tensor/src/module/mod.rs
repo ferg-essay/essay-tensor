@@ -12,6 +12,10 @@ pub use tape::{
     Tape, TensorId,
 };
 
+pub use module::{
+    ModuleTape,
+};
+
 pub use graph::{
     Graph, NodeOp, EvalOp, ForwardOp, IntoForward, BoxForwardOp,
     // BackOp, BoxBackOp,

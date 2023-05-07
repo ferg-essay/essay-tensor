@@ -1,7 +1,7 @@
 use core::fmt;
 use std::sync::Arc;
 
-use crate::{module::{IntoForward, NodeOp, Tape}, Tensor};
+use crate::{module::{IntoForward, NodeOp, Tape, ModuleTape}, Tensor};
 
 use super::{Dtype, TensorUninit, TensorData, NodeId};
 
@@ -43,7 +43,8 @@ impl Tensor {
         );
 
         if let NodeId::Id(id) = tensor.node() {
-            Tape::set_tensor(*id, tensor.clone());
+            // Tape::set_tensor(*id, tensor.clone());
+            ModuleTape::set_tensor(*id, tensor.clone());
         }
 
         tensor

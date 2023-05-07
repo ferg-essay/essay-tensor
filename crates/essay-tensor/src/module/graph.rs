@@ -73,15 +73,15 @@ pub trait IntoBack {
 pub type BoxBackOp = Box<dyn BackOp>;
 
 impl Graph {
-    pub(crate) fn var(&mut self, name: &str) -> TensorId {
+    pub(crate) fn var(&mut self, name: &str, tensor: &Tensor) -> TensorId {
         let len = self.nodes.len();
         let id = *self.var_map
             .entry(name.to_string())
             .or_insert(TensorId(len));
 
         if id.index() == len {
-            self.nodes.push(NodeOp::Var(id, name.to_string()));
-            self.tensors.push(None);
+            self.nodes.push(NodeOp::Const(id));
+            self.tensors.push(Some(tensor.clone()));
         }
 
         id
@@ -233,7 +233,9 @@ impl NodeOp {
         match self {
             NodeOp::None => todo!(),
             NodeOp::Const(id) => tensors[*id].clone(),
-            NodeOp::Var(_, _) => todo!(),
+            NodeOp::Var(id, name) => {
+                panic!()
+            },
             NodeOp::Op(_, op, args) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| tensors.get(*id).unwrap())

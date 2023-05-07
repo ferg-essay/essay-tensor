@@ -1,19 +1,23 @@
 use core::fmt;
-use std::ops::{Deref, self};
+use std::{ops::{Deref, self}, rc::Rc, cell::RefCell};
 
 use crate::{tensor::{Dtype}, Tensor, prelude::IntoTensor};
 
-use super::{Tape};
+use super::{module::ModuleTape};
 
 pub struct Var<D:Dtype=f32> {
     name: String,
+    tensor_share: Rc<RefCell<Tensor<D>>>,
     tensor: Tensor<D>,
 }
 
 impl<D:Dtype> Var<D> {
     pub fn new(name: &str, tensor: Tensor<D>) -> Self {
+        let tensor = tensor.to_var(name);
+
         Self {
-            tensor: tensor.to_var(name),
+            tensor_share: Rc::new(RefCell::new(tensor.clone())),
+            tensor: tensor,
             name: name.to_string(),
         }
     }
@@ -21,12 +25,24 @@ impl<D:Dtype> Var<D> {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn set(&mut self, tensor: Tensor<D>) {
+        let tensor = tensor.to_var(&self.name);
+
+        self.tensor = tensor.clone();
+        self.tensor_share.replace(tensor);
+    }
 }
 
 impl Var {
     pub fn tensor(&self) -> &Tensor {
-        Tape::set_var(&self.name, &self.tensor);
+        // Tape::set_var(&self.name, &self.tensor);
+        ModuleTape::var(&self);
     
+        &self.tensor
+    }
+
+    pub(crate) fn tensor_raw(&self) -> &Tensor {
         &self.tensor
     }
 }
@@ -34,8 +50,9 @@ impl Var {
 impl Deref for Var {
     type Target = Tensor;
 
-    fn deref(&self) -> &Tensor {
-        Tape::set_var(&self.name, &self.tensor);
+    fn deref(&self) -> &Self::Target {
+        // Tape::set_var(&self.name, &self.tensor);
+        ModuleTape::var(&self);
 
         &self.tensor
     }
@@ -53,6 +70,16 @@ impl fmt::Debug for Var {
             .field("name", &self.name)
             .field("tensor", &self.tensor)
             .finish()
+    }
+}
+
+impl Clone for Var {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            tensor_share: self.tensor_share.clone(),
+            tensor: self.tensor.clone(),
+        }
     }
 }
 
