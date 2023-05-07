@@ -25,10 +25,6 @@ impl Uop<f32> for Unary {
             Unary::Sin => value.sin(),
         }
     }
-
-    fn to_op(&self) -> Box<dyn ForwardOp> {
-        Box::new(self.clone())
-    }
 }
 
 tensor_uop!(abs, Unary::Abs);

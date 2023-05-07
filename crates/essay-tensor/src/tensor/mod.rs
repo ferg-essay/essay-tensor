@@ -1,3 +1,4 @@
+mod uop;
 mod ops;
 mod data;
 mod tensor;
@@ -11,5 +12,9 @@ pub use tensor::{
 };
 
 pub use ops::{
-    Uop, Binop, Fold, BiFold,
+    Binop, Fold, BiFold,
+};
+
+pub use uop::{
+    Uop,
 };

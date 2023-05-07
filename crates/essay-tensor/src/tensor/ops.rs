@@ -1,13 +1,6 @@
 use crate::{Tensor, tensor::TensorUninit, model::{ForwardOp, Graph, TensorId, EvalOp, IntoForward}};
-use core::fmt;
 
 use crate::tensor::{Dtype};
-
-pub trait Uop<D:Dtype> : fmt::Debug + Clone + Sync + Send + 'static {
-    fn eval(&self, value: D) -> D;
-
-    fn to_op(&self) -> Box<dyn ForwardOp>;
-}
 
 pub trait Binop<D:Dtype=f32> : Clone + Send + Sync + 'static {
     fn eval(&self, a: D, b: D) -> D;
@@ -42,25 +35,6 @@ pub struct BinopImpl<Op:Binop> {
 }
 
 impl Tensor {
-    pub fn uop<Op>(&self, uop: Op) -> Self
-    where
-        Op:Uop<f32> + IntoForward
-    {
-        let buffer = self.data();
-        let len = buffer.len();
-
-        unsafe {
-            let mut data = TensorUninit::<f32>::new(len);
-    
-            for i in 0..len {
-                data.set_unchecked(i, uop.eval(buffer.get_unchecked(i)));
-            }
-    
-            let shape = self.shape().clone();
-            self.next_uop(data.init(), Vec::from(shape), uop)
-        }
-    }
-
     pub fn binop<Op:Binop<f32>>(&self, b: &Self, op: Op) -> Self {
         let size = self.broadcast(b);
     
@@ -249,17 +223,6 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         prev: TensorId,
     ) -> TensorId {
         self.op.backprop(forward, graph, i, args, prev)
-    }
-}
-
-impl<F, D:Dtype> Uop<D> for F
-where F: Fn(D) -> D + Clone + fmt::Debug + Sync + Send + 'static {
-    fn eval(&self, value: D) -> D {
-        (self)(value)
-    }
-
-    fn to_op(&self) -> Box<dyn ForwardOp> {
-        Box::new(FnOp)
     }
 }
 

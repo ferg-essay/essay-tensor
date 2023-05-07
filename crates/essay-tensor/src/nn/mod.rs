@@ -22,10 +22,6 @@ impl Uop<f32> for Unary {
             Unary::Softplus => (value.exp() + 1.).ln(),
         }
     }
-
-    fn to_op(&self) -> Box<dyn ForwardOp> {
-        Box::new(self.clone())
-    }
 }
 
 impl EvalOp for Unary {

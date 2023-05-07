@@ -26,8 +26,6 @@ pub(crate) fn backprop_graph(forward: &Graph, target: TensorId) -> Graph {
 
     backprop_graph_rec(forward, &mut graph, &backtrace, tail);
 
-    assert!(graph.len() > 0, "backtrace produced empty graph");
-
     graph
 }
 
