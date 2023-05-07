@@ -1,6 +1,7 @@
+mod backprop;
 mod tape;
 mod var;
-mod graph;
+pub(crate) mod graph;
 
 pub use var::{
     Var,

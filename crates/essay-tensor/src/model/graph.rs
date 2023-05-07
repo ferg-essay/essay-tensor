@@ -69,16 +69,6 @@ pub trait EvalOp : Send + Sync + 'static {
 
 pub type BoxForwardOp = Box<dyn ForwardOp>;
 
-pub struct ArgTrace {
-    arg_index: usize,
-    backtrace: BackTrace
-}
-
-pub struct BackTrace {
-    pub id: TensorId,
-    pub args: Vec<ArgTrace>,
-}
-
 impl Graph {
     pub(crate) fn var(&mut self, name: &str) -> TensorId {
         let len = self.nodes.len();
@@ -156,134 +146,6 @@ impl Graph {
         self.nodes[id.index()] = node;
     }
 
-    pub(crate) fn backtrace_graph(&mut self, target: TensorId) -> Graph {
-        let backtrace = self.build_backtrace(target).unwrap();
-
-        let mut graph = Graph::default();
-
-        self.backtrace_graph_rec(&mut graph, &backtrace, None);
-
-        assert!(graph.len() > 0, "backtrace produced empty graph");
-
-        graph
-    }
-
-    pub(crate) fn backtrace_graph_rec(
-        &mut self,
-        graph: &mut Graph,
-        backtrace: &BackTrace,
-        prev: Option<TensorId>,
-    ) {
-        //let args : Vec<TensorId> = backtrace.args.iter().map(|arg| {
-            
-        //}).collect();
-
-        let len = backtrace.args.len();
-
-        if len == 0 {
-        //let node = self.node(backtrace.id);
-            self.node_backtrace(graph, 0, backtrace.id, prev);
-        }
-
-        for arg in &backtrace.args {
-            let back_arg = self.node_backtrace(graph, arg.index(), backtrace.id, prev);
-
-            self.backtrace_graph_rec(graph, arg.backtrace(), Some(back_arg));
-        }
-    }
-
-    fn node_backtrace(
-        &mut self, 
-        graph: &mut Graph,
-        i: usize,
-        id: TensorId,
-        prev: Option<TensorId>
-    ) -> TensorId {
-        match self.node(id) {
-            NodeOp::None => todo!(),
-            NodeOp::Const(_id) => todo!(),
-            NodeOp::Var(id, _) => {
-                match prev {
-                    Some(prev) => {
-                        prev
-                    },
-                    None => {
-                        let id = graph.constant(Tensor::ones(self.tensor(*id).unwrap().shape()));
-
-                        id
-                    }
-                }
-            }
-            NodeOp::Op(id, op, args) => {
-                match prev {
-                    Some(prev) => {
-                        op.backprop(self, graph, i, args, *id, prev)
-                    },
-                    None => {
-                        op.backprop_top(self, graph, i, args, *id)
-                    }
-                }
-            },
-            NodeOp::BackConst(_, _) => panic!("BackConst is invalid when generating backtrace"),
-            NodeOp::BackOp(_, _, _) => panic!("BackConst is invalid when generating backtrace"),
-        }
-    }
-
-    pub(crate) fn build_backtrace(&self, target: TensorId) -> Option<BackTrace> {
-        let tail_id = TensorId(self.nodes.len() - 1);
-
-        self.build_backtrace_rec(target, tail_id, &mut HashSet::new())
-    }
-
-    fn build_backtrace_rec(
-        &self, 
-        target: TensorId,
-        id: TensorId,
-        visited: &mut HashSet<TensorId>,
-    ) -> Option<BackTrace> {
-        if target == id {
-            Some(BackTrace {
-                id,
-                args: Default::default(),
-            })
-        } else if visited.contains(&id) {
-            None
-        } else {
-            match &self.nodes[id.index()] {
-                NodeOp::None => None,
-                NodeOp::Const(_) => None,
-                NodeOp::Var(_, _) => None,
-                NodeOp::Op(_, _, args) => {
-                    visited.insert(id);
-
-                    let mut next_args = Vec::<ArgTrace>::new();
-
-                    for (i, arg) in args.iter().enumerate() {
-                        if let Some(trace) =  self.build_backtrace_rec(target, *arg, visited) {
-                            next_args.push(ArgTrace::new(i, trace));
-                        }
-                    }
-
-                    if next_args.len() > 0 {
-                        Some(BackTrace {
-                            id,
-                            args: next_args
-                        })
-                    } else {
-                        None
-                    }
-
-                },
-                NodeOp::BackConst(_, _) => {
-                    panic!("BackConst is invalid in this context");
-                },
-                NodeOp::BackOp(_, _, _) => {
-                    panic!("BackOp is invalid in this context");
-                },
-            }
-        }
-    }
-
     pub fn tensor(&self, id: TensorId) -> Option<&Tensor> {
         self.tensors.get(id)
     }
@@ -313,6 +175,10 @@ impl Graph {
 
     pub(crate) fn tensors(&self) -> &TensorCache {
         &self.tensors
+    }
+
+    pub(crate) fn tail_id(&self) -> TensorId {
+        TensorId(self.nodes.len() - 1)
     }
 }
 
@@ -461,74 +327,5 @@ impl ops::Index<TensorId> for TensorCache {
 impl Default for TensorCache {
     fn default() -> Self {
         Self { tensors: Default::default() }
-    }
-}
-
-impl ArgTrace {
-    fn new(index: usize, backtrace: BackTrace) -> Self {
-        Self {
-            arg_index: index,
-            backtrace,
-        }
-    }
-
-    pub(crate) fn index(&self) -> usize {
-        self.arg_index
-    }
-
-    pub(crate) fn backtrace(&self) -> &BackTrace {
-        &self.backtrace
-    }
-}
-
-impl<Op:EvalOp> ForwardOp for Op {
-    fn eval(
-        &self,
-        tensors: &TensorCache,
-        args: &[&Tensor],
-    ) -> Tensor {
-        (self as &dyn EvalOp).eval(tensors, args)
-    }
-
-    fn backprop(
-        &self,
-        _forward: &Graph,
-        _graph: &mut Graph,
-        _i: usize,
-        _args: &[TensorId],
-        _tensor: TensorId,
-        _prev: TensorId,
-    ) -> TensorId {
-        panic!("{} does not implement backprop", type_name::<Op>())
-    }
-
-    fn backprop_top(
-        &self,
-        _forward: &Graph,
-        _graph: &mut Graph,
-        _i: usize,
-        _args: &[TensorId],
-        _tensor: TensorId,
-    ) -> TensorId {
-        panic!("{} does not implement backprop", type_name::<Op>())
-    }
-
-    fn box_clone(&self) -> BoxForwardOp {
-        panic!("{} does not implement box_clone", type_name::<Op>())
-    }
-}
-
-impl IntoForward for BoxForwardOp {
-    fn to_op(&self) -> BoxForwardOp {
-        self.box_clone()
-    }
-}
-
-impl<Op> IntoForward for Op
-where
-    Op: Clone + ForwardOp
-{
-    fn to_op(&self) -> BoxForwardOp {
-        Box::new(self.clone())
     }
 }
