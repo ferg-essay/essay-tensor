@@ -53,10 +53,6 @@ impl Fold<f32> for UReduce {
             },
         }
     }
-
-    fn to_op(&self) -> Box<dyn ForwardOp> {
-        Box::new(self.clone())
-    }
 }
 
 impl ForwardOp for UReduce {

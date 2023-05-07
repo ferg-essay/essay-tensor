@@ -1,5 +1,7 @@
+mod fold;
+mod binop;
 mod uop;
-mod ops;
+mod bifold;
 mod data;
 mod tensor;
 
@@ -11,10 +13,18 @@ pub use tensor::{
     Dtype, Tensor, IntoTensor, NodeId,
 };
 
-pub use ops::{
-    Binop, Fold, BiFold,
+pub use bifold::{
+    BiFold,
+};
+
+pub use fold::{
+    Fold,
 };
 
 pub use uop::{
     Uop,
+};
+
+pub use binop::{
+    Binop,
 };

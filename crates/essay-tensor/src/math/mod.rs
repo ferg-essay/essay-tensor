@@ -1,6 +1,11 @@
 use std::{ops};
 
-use crate::{tensor::{Tensor, Uop, Binop}, model::{ForwardOp, TensorId, Graph, TensorCache, EvalOp}, tensor_uop, tensor_binop};
+use crate::{
+    tensor::{Tensor, Uop, Binop}, 
+    model::{TensorId, Graph, TensorCache, EvalOp}, 
+    tensor_uop, 
+    tensor_binop
+};
 
 #[derive(Debug, Clone)]
 pub enum Unary {
@@ -141,11 +146,6 @@ impl Binop<f32> for Binary {
             },
             _ => todo!("backtrace {:?}", self)
         }
-    }
-
-    fn to_op(&self) -> Box<dyn ForwardOp> {
-        //self.box_clone()
-        todo!()
     }
 }
 
