@@ -1,6 +1,6 @@
 use std::{ops};
 
-use crate::{tensor::{Tensor, Uop, Binop}, model::{ForwardOp, TensorId, Graph, TensorCache, EvalOp}};
+use crate::{tensor::{Tensor, Uop, Binop}, model::{ForwardOp, TensorId, Graph, TensorCache, EvalOp}, tensor_uop, tensor_binop};
 
 #[derive(Debug, Clone)]
 pub enum Unary {
@@ -28,20 +28,6 @@ impl Uop<f32> for Unary {
 
     fn to_op(&self) -> Box<dyn ForwardOp> {
         Box::new(self.clone())
-    }
-}
-
-macro_rules! tensor_uop {
-    ($fun:ident, $op:expr) => {
-        pub fn $fun(a: &Tensor) -> Tensor {
-            a.uop($op)
-        }
-
-        impl Tensor {
-            pub fn $fun(&self) -> Tensor {
-                self.uop($op)
-            }
-        }
     }
 }
 
@@ -78,17 +64,17 @@ impl EvalOp for Unary {
         args: &[&Tensor],
     ) -> Tensor {
         match self {
-            Unary::Abs => todo!(),
-            Unary::Cos => todo!(),
-            Unary::Exp => todo!(),
-            Unary::Ln => todo!(),
+            Unary::Abs => args[0].abs(),
+            Unary::Cos => args[0].cos(),
+            Unary::Exp => args[0].exp(),
+            Unary::Ln => args[0].ln(),
             Unary::Mul(a) => {
                 (1. / *a) * args[0]
             },
             Unary::Neg => {
                 neg(args[0])
             },
-            Unary::Sin => todo!(),
+            Unary::Sin => args[0].sin(),
         }
     }
 }
@@ -145,12 +131,17 @@ impl Binop<f32> for Binary {
         _tensor: TensorId,
         prev: TensorId,
     ) -> TensorId {
+        assert!(i <= 1);
+
         match self {
+            Binary::Add => {
+                prev
+            },
             Binary::Sub => {
                 match i {
                     0 => { prev },
                     1 => { graph.add_op(Unary::Neg, &[prev]) }
-                    _ => { todo!() },
+                    _ => { panic!() },
                 }
             },
             _ => todo!("backtrace {:?}", self)
@@ -160,53 +151,6 @@ impl Binop<f32> for Binary {
     fn to_op(&self) -> Box<dyn ForwardOp> {
         //self.box_clone()
         todo!()
-    }
-}
-
-impl ForwardOp for Binary {
-    fn eval(
-        &self,
-        _tensors: &TensorCache,
-        _args: &[&Tensor],
-    ) -> Tensor {
-        todo!()
-    }
-
-    fn backprop(
-        &self, 
-        _forward: &Graph,
-        graph: &mut Graph, 
-        i: usize, 
-        args: &[TensorId], 
-        _tensor: TensorId, 
-        prev: TensorId
-    ) -> TensorId {
-        match &self {
-            Binary::Mul => {
-                if i == 0 {
-                    graph.add_op(Binary::Mul, &[args[1], prev])
-                } else {
-                    graph.add_op(Binary::Mul, &[args[0], prev])
-                }
-            },
-            _ => { 
-                todo!()
-            }
-        }
-    }
-}
-
-macro_rules! tensor_binop {
-    ($fun:ident, $op:expr) => {
-        pub fn $fun(a: &Tensor, b: &Tensor) -> Tensor {
-            a.binop(b, $op)
-        }
-
-        impl Tensor {
-            pub fn $fun(&self, b: &Tensor) -> Tensor {
-                self.binop(b, $op)
-            }
-        }
     }
 }
 

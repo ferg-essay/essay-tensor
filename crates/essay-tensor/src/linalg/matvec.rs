@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, Graph, TensorId, TensorCache, EvalOp}};
+use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, Graph, TensorId, TensorCache, graph::BackOp}};
 
 use super::matmul::Transpose;
 
@@ -223,36 +223,36 @@ impl ForwardOp for Matvec {
     ) -> TensorId {
         match i {
             0 => {
-                let left = graph.constant_id(args[1]);
-                
-                graph.add_op(MatvecOuter, &[left, prev])
+                graph.add_back_op(MatvecOuter, &[args[1]], prev)
             },
             1 => {
-                let left = graph.constant_id(args[0]);
-                graph.add_op(MatvecBackRightT, &[left, prev])
+                // let left = graph.constant_id(args[0]);
+                graph.add_back_op(MatvecBackRightT, &[args[0]], prev)
             }
             _ => panic!("invalid argument")
         }
     }
 }
 
-impl EvalOp for MatvecOuter {
+impl BackOp for MatvecOuter {
     fn eval(
         &self,
         _tensors: &TensorCache,
         args: &[&Tensor],
+        prev: &Tensor,
     ) -> Tensor {
-        args[0].outer_product(args[1])
+        args[0].outer_product(prev)
     }
 }
 
-impl EvalOp for MatvecBackRightT {
+impl BackOp for MatvecBackRightT {
     fn eval(
         &self,
         _tensors: &TensorCache,
         args: &[&Tensor],
+        prev: &Tensor,
     ) -> Tensor {
-        args[0].matvec_t(args[1], Transpose::TransposeA)
+        args[0].matvec_t(prev, Transpose::TransposeA)
     }
 }
 

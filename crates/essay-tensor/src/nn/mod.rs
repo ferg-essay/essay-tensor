@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, Uop, Fold}, model::{TensorId, ForwardOp, Graph, EvalOp}};
+use crate::{tensor::{Tensor, Uop, Fold}, model::{TensorId, ForwardOp, Graph, EvalOp}, tensor_uop};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -13,16 +13,6 @@ enum UReduce {
 
 #[derive(Debug, Clone)]
 enum BiReduce {
-}
-
-impl Tensor {
-    pub fn relu(&self) -> Self {
-        self.uop(Unary::ReLU)
-    }
-
-    pub fn softplus(&self) -> Self {
-        self.uop(Unary::Softplus)
-    }
 }
 
 impl Uop<f32> for Unary {
@@ -48,9 +38,12 @@ impl EvalOp for Unary {
     }
 }
 
+tensor_uop!(relu, Unary::ReLU);
+tensor_uop!(softplus, Unary::Softplus);
+
 impl Tensor {
     pub fn l2_loss(&self) -> Tensor {
-        let n = if self.rank() > 0 { self.dim(0) } else { 1 };
+        let n = self.dim_zero();
         let n_inv = 0.5 / n as f32;
         self.fold(0.0.into(), UReduce::L2Loss(n_inv))
     }
@@ -92,7 +85,6 @@ impl ForwardOp for UReduce {
             UReduce::L2Loss(_) => {
                 assert_eq!(i, 0, "{:?} reduce has only one argument", self);
 
-                //Tensor::ones(args[0].shape())
                 graph.constant_id(args[0])
             },
         }

@@ -2,7 +2,7 @@ use std::{collections::HashSet, any::type_name};
 
 use crate::Tensor;
 
-use super::{Graph, TensorId, NodeOp, IntoForward, BoxForwardOp, ForwardOp, EvalOp, TensorCache};
+use super::{Graph, TensorId, NodeOp, IntoForward, BoxForwardOp, ForwardOp, EvalOp, TensorCache, graph::{IntoBack, BackOp, BoxBackOp}};
 
 
 pub struct ArgTrace {
@@ -67,7 +67,7 @@ fn node_backprop(
             op.backprop(forward, back, i, args, *id, prev)
         },
         NodeOp::BackConst(_, _) => panic!("BackConst is invalid when generating backtrace"),
-        NodeOp::BackOp(_, _, _) => panic!("BackOp is invalid when generating backtrace"),
+        NodeOp::BackOp(_, _, _, _) => panic!("BackOp is invalid when generating backtrace"),
     }
 }
 
@@ -119,7 +119,7 @@ fn build_backtrace_rec(
             NodeOp::BackConst(_, _) => {
                 panic!("BackConst is invalid in this context");
             },
-            NodeOp::BackOp(_, _, _) => {
+            NodeOp::BackOp(_, _, _, _) => {
                 panic!("BackOp is invalid in this context");
             },
         }
@@ -153,6 +153,15 @@ where
     Op: Clone + ForwardOp
 {
     fn to_op(&self) -> BoxForwardOp {
+        Box::new(self.clone())
+    }
+}
+
+impl<Op> IntoBack for Op
+where
+    Op: Clone + BackOp
+{
+    fn to_op(&self) -> BoxBackOp {
         Box::new(self.clone())
     }
 }

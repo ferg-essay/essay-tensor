@@ -23,7 +23,7 @@ pub enum NodeOp {
     Op(TensorId, BoxForwardOp, Vec<TensorId>),
 
     BackConst(TensorId, TensorId),
-    BackOp(TensorId, BoxForwardOp, Vec<TensorId>),
+    BackOp(TensorId, BoxBackOp, Vec<TensorId>, TensorId),
 }
 
 pub trait ForwardOp : Send + Sync + 'static {
@@ -57,6 +57,21 @@ pub trait EvalOp : Send + Sync + 'static {
 }
 
 pub type BoxForwardOp = Box<dyn ForwardOp>;
+
+pub trait BackOp : Send + Sync + 'static {
+    fn eval(
+        &self,
+        tensors: &TensorCache,
+        args: &[&Tensor],
+        prev: &Tensor,
+    ) -> Tensor;
+}
+
+pub trait IntoBack {
+    fn to_op(&self) -> BoxBackOp;
+}
+
+pub type BoxBackOp = Box<dyn BackOp>;
 
 impl Graph {
     pub(crate) fn var(&mut self, name: &str) -> TensorId {
@@ -104,13 +119,14 @@ impl Graph {
         id
     }
 
-    pub(crate) fn _add_back_op(
+    pub(crate) fn add_back_op(
         &mut self, 
-        into_op: impl IntoForward,
+        into_op: impl IntoBack,
         args: &[TensorId],
+        prev: TensorId,
     ) -> TensorId {
         let id = self.alloc_id();
-        self.set_node(id, NodeOp::BackOp(id, into_op.to_op(), args.into()));
+        self.set_node(id, NodeOp::BackOp(id, into_op.to_op(), args.into(), prev));
         id
     }
 
@@ -230,12 +246,12 @@ impl NodeOp {
             NodeOp::BackConst(_, forward_id) => {
                 fwd_tensors[*forward_id].clone()
             },
-            NodeOp::BackOp(_, op, args) => {
+            NodeOp::BackOp(_, op, args, prev) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| fwd_tensors.get(*id).unwrap())
                     .collect();
 
-                op.eval(tensors, &t_args)
+                op.eval(tensors, &t_args, tensors.get(*prev).unwrap())
             },
         }
     }
@@ -256,7 +272,7 @@ impl NodeOp {
             NodeOp::BackConst(id, _) => *id,
             NodeOp::Var(id, _) => *id,
             NodeOp::Op(id, _, _) => *id,
-            NodeOp::BackOp(id, _, _) => *id,
+            NodeOp::BackOp(id, _, _, _) => *id,
         }
     }
 }
