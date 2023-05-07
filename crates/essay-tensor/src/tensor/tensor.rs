@@ -3,7 +3,7 @@ use std::{cmp::{max, self}, any::type_name, sync::Arc};
 
 use num_traits::Float;
 
-use crate::model::{NodeOp, TensorId, Tape, ForwardOp, IntoForward};
+use crate::model::{NodeOp, TensorId, Tape, IntoForward};
 
 use super::{data::TensorData, TensorUninit};
 
@@ -49,17 +49,6 @@ impl<D:Dtype> Tensor<D> {
             node: NodeId::Id(id),
         }
     }
-
-    /*
-    pub(crate) fn new_var(tensor: &Tensor<D>, name: &str) -> Tensor<D> {
-        Self {
-            shape: tensor.shape().clone(),
-            data: tensor.buffer().clone(),
-
-            graph: TensorGraph::Var(name.to_string()),
-        }
-    }
-    */
 
     pub(crate) fn to_var(self, name: &str) -> Tensor<D> {
         Self {
@@ -202,12 +191,12 @@ impl Tensor {
         &self, 
         data: TensorData, 
         shape: Vec<usize>,
-        op: Box<dyn ForwardOp>
+        op: impl IntoForward,
     ) -> Tensor {
         let tensor = Self::new_op(
             Arc::new(data), 
             shape, 
-            NodeOp::new(&[self], op),
+            NodeOp::new(&[self], op.to_op()),
         );
 
         if let NodeId::Id(id) = tensor.node {

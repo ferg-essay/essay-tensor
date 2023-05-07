@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, ops::{self}, any::type_name};
+use std::{collections::{HashMap}, ops::{self}};
 
 use crate::{Tensor, model::Tape, tensor::{NodeId}};
 
@@ -41,15 +41,6 @@ pub trait ForwardOp : Send + Sync + 'static {
         args: &[TensorId],
         out: TensorId,
         prev: TensorId,
-    ) -> TensorId;
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        out: TensorId,
     ) -> TensorId;
 
     fn box_clone(&self) -> BoxForwardOp;
@@ -115,13 +106,13 @@ impl Graph {
         id
     }
 
-    pub(crate) fn add_back_op(
+    pub(crate) fn _add_back_op(
         &mut self, 
         into_op: impl IntoForward,
-        prev: &[TensorId]
+        args: &[TensorId],
     ) -> TensorId {
         let id = self.alloc_id();
-        self.set_node(id, NodeOp::BackOp(id, into_op.to_op(), prev.into()));
+        self.set_node(id, NodeOp::BackOp(id, into_op.to_op(), args.into()));
         id
     }
 

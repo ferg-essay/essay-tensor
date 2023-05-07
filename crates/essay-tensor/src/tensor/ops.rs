@@ -1,9 +1,9 @@
-use crate::{Tensor, tensor::TensorUninit, model::{ForwardOp, BoxForwardOp, Graph, TensorId, EvalOp}};
+use crate::{Tensor, tensor::TensorUninit, model::{ForwardOp, BoxForwardOp, Graph, TensorId, EvalOp, IntoForward}};
 use core::fmt;
 
 use crate::tensor::{Dtype};
 
-pub trait Uop<D:Dtype> : fmt::Debug + Sync + Send + 'static {
+pub trait Uop<D:Dtype> : fmt::Debug + Clone + Sync + Send + 'static {
     fn eval(&self, value: D) -> D;
 
     //fn box_clone(&self) -> Box<dyn Uop<D>>;
@@ -11,7 +11,7 @@ pub trait Uop<D:Dtype> : fmt::Debug + Sync + Send + 'static {
     fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
-pub trait Binop<D:Dtype> : Send + Sync + 'static {
+pub trait Binop<D:Dtype=f32> : Clone + Send + Sync + 'static {
     fn eval(&self, a: D, b: D) -> D;
 
     fn backprop(
@@ -27,25 +27,28 @@ pub trait Binop<D:Dtype> : Send + Sync + 'static {
     fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
-pub trait Fold<D:Dtype> {
+pub trait Fold<D:Dtype=f32> {
     fn apply(&self, state: D, a: D) -> D;
 
     fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
-pub trait BiFold<D:Dtype> {
+pub trait BiFold<D:Dtype=f32> {
     fn apply(&self, state: D, a: D, b: D) -> D;
 
     fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
-#[derive(Debug)]
-pub struct BinopImpl<Op:Binop<f32>> {
+#[derive(Debug, Clone)]
+pub struct BinopImpl<Op:Binop> {
     op: Op,
 }
 
 impl Tensor {
-    pub fn uop(&self, uop: impl Uop<f32>) -> Self {
+    pub fn uop<Op>(&self, uop: Op) -> Self
+    where
+        Op:Uop<f32> + IntoForward
+    {
         let buffer = self.data();
         let len = buffer.len();
 
@@ -57,7 +60,7 @@ impl Tensor {
             }
     
             let shape = self.shape().clone();
-            self.next_uop(data.init(), Vec::from(shape), uop.to_op())
+            self.next_uop(data.init(), Vec::from(shape), uop)
         }
     }
 
@@ -85,7 +88,7 @@ impl Tensor {
                 self.shape().clone() 
             };
             self.next_binop(&b, data.init(), shape, 
-                BinopImpl::<Op>::to_op(op))
+                BinopImpl::new(op))
         }
     }
 
@@ -97,7 +100,7 @@ impl Tensor {
         let a_data = self.data();
 
         let shape = self.shape();
-        let o_shape: Vec<usize> = if shape.len() > 0 {
+        let o_shape: Vec<usize> = if shape.len() > 1 {
             shape[1..].iter().map(|d| *d).collect()
         } else {
             Vec::new()
@@ -224,12 +227,10 @@ impl Tensor {
 }
 
 impl<Op:Binop<f32>> BinopImpl<Op> {
-    pub fn to_op(op: Op) -> Box<dyn ForwardOp> {
-        let binop: BinopImpl<Op> = BinopImpl {
-            op: op,
-        };
-
-        Box::new(binop)
+    fn new(op: Op) -> Self {
+        Self {
+            op,
+        }
     }
 }
 
@@ -254,17 +255,6 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         self.op.backprop(forward, graph, i, args, tensor, prev)
     }
 
-    fn backprop_top(
-        &self,
-        _forward: &Graph,
-        _graph: &mut Graph,
-        _i: usize,
-        _args: &[TensorId],
-        _tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
     fn box_clone(&self) -> BoxForwardOp {
         todo!()
     }
@@ -283,7 +273,7 @@ where F: Fn(D) -> D + Clone + fmt::Debug + Sync + Send + 'static {
 
 // TODO: debug seems wrong
 impl<F, D:Dtype> Binop<D> for F
-where F: Fn(D, D) -> D + Send + Sync + 'static {
+where F: Fn(D, D) -> D + Send + Sync + 'static + Clone {
     fn eval(&self, a: D, b: D) -> D {
         (self)(a, b)
     }

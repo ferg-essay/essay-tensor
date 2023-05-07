@@ -82,9 +82,9 @@ impl ForwardOp for UReduce {
     fn backprop(
         &self, 
         _forward: &Graph,
-        _graph: &mut Graph,
+        graph: &mut Graph,
         i: usize, 
-        _args: &[TensorId], 
+        args: &[TensorId], 
         _tensor: TensorId, 
         _prev: TensorId
     ) -> TensorId {
@@ -93,23 +93,6 @@ impl ForwardOp for UReduce {
                 assert_eq!(i, 0, "{:?} reduce has only one argument", self);
 
                 //Tensor::ones(args[0].shape())
-                todo!()
-            },
-        }
-    }
-
-    fn backprop_top(
-        &self,
-        _forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        _tensor: TensorId,
-    ) -> TensorId {
-        match self {
-            UReduce::L2Loss(_) => {
-                assert_eq!(i, 0, "{:?} reduce has only one argument", self);
-
                 graph.constant_id(args[0])
             },
         }

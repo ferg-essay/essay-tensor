@@ -15,71 +15,59 @@ pub struct BackTrace {
     pub args: Vec<ArgTrace>,
 }
 
-pub(crate) fn backtrace_graph(forward: &Graph, target: TensorId) -> Graph {
+pub(crate) fn backprop_graph(forward: &Graph, target: TensorId) -> Graph {
     let backtrace = build_backtrace(forward, target).unwrap();
 
     let mut graph = Graph::default();
 
-    backtrace_graph_rec(forward, &mut graph, &backtrace, None);
+    let tail = forward.tensor(forward.tail_id()).unwrap();
+
+    let tail = graph.constant(Tensor::ones(tail.shape()));
+
+    backprop_graph_rec(forward, &mut graph, &backtrace, tail);
 
     assert!(graph.len() > 0, "backtrace produced empty graph");
 
     graph
 }
 
-pub(crate) fn backtrace_graph_rec(
+pub(crate) fn backprop_graph_rec(
     forward: &Graph,
     back: &mut Graph,
     backtrace: &BackTrace,
-    prev: Option<TensorId>,
+    prev: TensorId,
 ) {
     let len = backtrace.args.len();
 
     if len == 0 {
-        node_backtrace(forward, back, 0, backtrace.id, prev);
+        node_backprop(forward, back, 0, backtrace.id, prev);
     }
 
     for arg in &backtrace.args {
-        let back_arg = node_backtrace(forward, back, arg.index(), backtrace.id, prev);
+        let back_arg = node_backprop(forward, back, arg.index(), backtrace.id, prev);
 
-        backtrace_graph_rec(forward, back, arg.backtrace(), Some(back_arg));
+        backprop_graph_rec(forward, back, arg.backtrace(), back_arg);
     }
 }
 
-fn node_backtrace(
+fn node_backprop(
     forward: &Graph,
-    graph: &mut Graph,
+    back: &mut Graph,
     i: usize,
     id: TensorId,
-    prev: Option<TensorId>
+    prev: TensorId
 ) -> TensorId {
     match forward.node(id) {
         NodeOp::None => todo!(),
         NodeOp::Const(_id) => todo!(),
-        NodeOp::Var(id, _) => {
-            match prev {
-                Some(prev) => {
-                    prev
-                },
-                None => {
-                    let id = graph.constant(Tensor::ones(forward.tensor(*id).unwrap().shape()));
-
-                    id
-                }
-            }
+        NodeOp::Var(_, _) => {
+            prev
         }
         NodeOp::Op(id, op, args) => {
-            match prev {
-                Some(prev) => {
-                    op.backprop(forward, graph, i, args, *id, prev)
-                },
-                None => {
-                    op.backprop_top(forward, graph, i, args, *id)
-                }
-            }
+            op.backprop(forward, back, i, args, *id, prev)
         },
         NodeOp::BackConst(_, _) => panic!("BackConst is invalid when generating backtrace"),
-        NodeOp::BackOp(_, _, _) => panic!("BackConst is invalid when generating backtrace"),
+        NodeOp::BackOp(_, _, _) => panic!("BackOp is invalid when generating backtrace"),
     }
 }
 
@@ -159,17 +147,6 @@ impl<Op:EvalOp> ForwardOp for Op {
         panic!("{} does not implement backprop", type_name::<Op>())
     }
 
-    fn backprop_top(
-        &self,
-        _forward: &Graph,
-        _graph: &mut Graph,
-        _i: usize,
-        _args: &[TensorId],
-        _tensor: TensorId,
-    ) -> TensorId {
-        panic!("{} does not implement backprop", type_name::<Op>())
-    }
-
     fn box_clone(&self) -> BoxForwardOp {
         panic!("{} does not implement box_clone", type_name::<Op>())
     }
@@ -209,7 +186,7 @@ impl ArgTrace {
 
 #[cfg(test)]
 mod test {
-    use crate::model::{Var, TensorId};
+    use crate::model::{Var};
     use crate::model::tape::Tape;
     use crate::{Tensor};
     use crate::prelude::{*};
@@ -234,18 +211,78 @@ mod test {
     }
 
     #[test]
-    fn test_mse() {
-        let a = Var::new("a", tensor!(2.));
+    fn test_l2_loss() {
+        let x = Var::new("x", tensor!(2.));
 
         let mut tape = Tape::with(|| {
-            let loss: Tensor = a.l2_loss();
+            let loss: Tensor = x.l2_loss();
 
             Ok(loss)
         }).unwrap();
 
-        let dz = tape.gradient(&a);
-        assert_eq!(dz, tensor!(2.0));
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!(2.0));
 
+        let x = Var::new("x", tensor![3.]);
+
+        let mut tape = Tape::with(|| {
+            let loss: Tensor = x.l2_loss();
+
+            Ok(loss)
+        }).unwrap();
+
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor![3.]);
+
+        let x = Var::new("x", tensor!([1., 2., 3.]));
+
+        let mut tape = Tape::with(|| {
+            let loss: Tensor = x.l2_loss();
+
+            Ok(loss)
+        }).unwrap();
+
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!([1., 2., 3.]));
+    }
+
+    #[test]
+    fn test_sub() {
+        let x = Var::new("x", tensor!(3.));
+        let y = Var::new("y", tensor!(1.));
+
+        let mut tape = Tape::with(|| {
+            let out: Tensor = &x - &y;
+            assert_eq!(out, tensor!(2.));
+
+            Ok(out)
+        }).unwrap();
+
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!(1.0));
+
+        let dy = tape.gradient(&y);
+        assert_eq!(dy, tensor!(-1.0));
+
+        let x = Var::new("x", tensor!([4., 5., 7.]));
+        let y = Var::new("y", tensor!([1., 2., 3.]));
+
+        let mut tape = Tape::with(|| {
+            let out: Tensor = &x - &y;
+            assert_eq!(out, tensor!([3., 3., 4.]));
+
+            Ok(out)
+        }).unwrap();
+
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!([1., 1., 1.]));
+
+        let dy = tape.gradient(&y);
+        assert_eq!(dy, tensor!([-1., -1., -1.]));
+    }
+
+    #[test]
+    fn test_l2_loss_diff() {
         let a = Var::new("a", tensor!(3.));
         let y = Var::new("y", tensor!(0.));
 
@@ -262,16 +299,20 @@ mod test {
         assert_eq!(dy, tensor!(-3.0));
 
         let a = Var::new("a", tensor!([1., 2.]));
+        let x = Var::new("x", tensor!([0., 0.]));
 
         let mut tape = Tape::with(|| {
-            let loss: Tensor = a.l2_loss();
+            let loss: Tensor = (&a - &x).l2_loss();
 
             assert_eq!(&loss, &tensor!(1.25));
 
             Ok(loss)
         }).unwrap();
 
-        let dz = tape.gradient(&a);
-        assert_eq!(dz, tensor!([1.0, 2.0]));
+        let da = tape.gradient(&a);
+        assert_eq!(da, tensor!([1.0, 2.0]));
+
+        let dx = tape.gradient(&y);
+        assert_eq!(dx, tensor!([-1.0, -2.0]));
     }
 }

@@ -198,17 +198,6 @@ impl ForwardOp for Binary {
     fn box_clone(&self) -> BoxForwardOp {
         todo!()
     }
-
-    fn backprop_top(
-        &self,
-        _forward: &Graph,
-        _graph: &mut Graph,
-        _i: usize,
-        _args: &[TensorId],
-        _tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
 }
 
 macro_rules! tensor_binop {

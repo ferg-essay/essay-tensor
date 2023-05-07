@@ -6,7 +6,7 @@ use super::matmul::Transpose;
 struct Matvec;
 
 #[derive(Debug, Clone)]
-struct MatvecBackLeft;
+struct MatvecOuter;
 
 #[derive(Debug, Clone)]
 struct MatvecBackRight;
@@ -136,11 +136,6 @@ unsafe fn naive_matvec_f32(
         for i in 0..len {
             v += a_data.get_unchecked(a_off + i * a_inc)
                 * b_data.get_unchecked(b_off + i);
-                /*
-                println!("  A={:?}->{:?}", a_off + i * a_inc, a_data.get_unchecked(a_off + i * a_inc));
-                println!("  B={:?}->{:?}", b_off + i, b_data.get_unchecked(b_off + i));
-                println!("V={:?} ({:?})", v, col);
-                */
             }
 
         out.set_unchecked(out_start + col, v);
@@ -223,37 +218,18 @@ impl ForwardOp for Matvec {
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        out: TensorId,
-        _prev: TensorId,
+        _out: TensorId,
+        prev: TensorId,
     ) -> TensorId {
         match i {
             0 => {
-                graph.add_back_op(MatvecBackLeft, &[args[1], out])
+                let left = graph.constant_id(args[1]);
+                
+                graph.add_op(MatvecOuter, &[left, prev])
             },
             1 => {
-                graph.add_back_op(MatvecBackRightT, &[args[0], out])
-            }
-            _ => panic!("invalid argument")
-        }
-    }
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        _tensor: TensorId,
-    ) -> TensorId {
-        match i {
-            0 => {
-                let left = forward.tensor(args[0]).unwrap();
-                let fwd_left = graph.constant_id(args[1]);
-                let right = graph.constant(Tensor::ones(&[left.dim(1)]));
-                graph.add_op(MatvecBackLeft, &[fwd_left, right])
-            },
-            1 => {
-                graph.add_back_op(MatvecBackRight, &[args[0]])
+                let left = graph.constant_id(args[0]);
+                graph.add_op(MatvecBackRightT, &[left, prev])
             }
             _ => panic!("invalid argument")
         }
@@ -264,7 +240,7 @@ impl ForwardOp for Matvec {
     }
 }
 
-impl EvalOp for MatvecBackLeft {
+impl EvalOp for MatvecOuter {
     fn eval(
         &self,
         _tensors: &TensorCache,
@@ -366,10 +342,10 @@ mod test {
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
         let mut tape = Tape::with(|| {
-            let loss: Tensor = a.matvec(&x);
-            assert_eq!(loss, tensor!([140., 320.]));
+            let out: Tensor = a.matvec(&x);
+            assert_eq!(out, tensor!([140., 320.]));
     
-            Ok(loss)
+            Ok(out)
         }).unwrap();
     
         let da = tape.gradient(&a);
@@ -393,8 +369,8 @@ mod test {
             Ok(loss)
         }).unwrap();
     
-        //let da = tape.gradient(&a);
-        //assert_eq!(da, tensor!([1.0]));
+        let da = tape.gradient(&a);
+        assert_eq!(da, tensor!([[1.0]]));
     
         let dx = tape.gradient(&x);
         assert_eq!(dx, tensor!([1.0]));
@@ -414,20 +390,5 @@ mod test {
     
         let dx = tape.gradient(&x);
         assert_eq!(dx, tensor!([1420., 1880., 2340.]));
-
-        // gradient
-
-        let a = Var::new("a", tensor!([[1.]]));
-        let x = Var::new("x", tensor!([1.]));
-    
-        let mut tape = Tape::with(|| {
-            let out: Tensor = a.matvec(&x);
-            let loss = out.l2_loss();
-
-            Ok(loss)
-        }).unwrap();
-    
-        let dx = tape.gradient(&x);
-        assert_eq!(dx, tensor!([1.0]));
     }
 }

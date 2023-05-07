@@ -2,7 +2,7 @@ use std::{cell::RefCell};
 
 use crate::{Tensor};
 
-use super::{Var, NodeOp, graph::{Graph}, backprop::backtrace_graph};
+use super::{Var, NodeOp, graph::{Graph}, backprop::backprop_graph};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TensorId(pub usize);
@@ -106,16 +106,6 @@ impl Tape {
         })
     }
 
-    /*
-    fn set_tensor_inner(&mut self, id: TensorId, tensor: Tensor) {
-        while self.tensors.len () <= id.index() {
-            self.tensors.push(None);
-        }
-
-        self.tensors[id.index()] = Some(tensor);
-    }
-    */
-
     pub fn var(name: &str) -> TensorId {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
@@ -151,11 +141,11 @@ impl Tape {
         let id = self.graph.get_var(var);
         //let trace = self.graph.build_backtrace(id).unwrap();
 
-        let graph = backtrace_graph(&self.graph, id);
+        let graph = backprop_graph(&self.graph, id);
 
-        let tensors_in = self.graph.tensors();
+        let fwd_tensors = self.graph.tensors();
 
-        let tensors = graph.apply(&tensors_in, &[]);
+        let tensors = graph.apply(&fwd_tensors, &[]);
 
         tensors.last()
     }
