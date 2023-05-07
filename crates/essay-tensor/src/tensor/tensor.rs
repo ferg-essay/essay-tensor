@@ -3,7 +3,7 @@ use std::{cmp::{max, self}, any::type_name, sync::Arc};
 
 use num_traits::Float;
 
-use crate::model::{TensorId};
+use crate::module::{TensorId};
 
 use super::{data::TensorData, TensorUninit};
 

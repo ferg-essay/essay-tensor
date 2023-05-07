@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, model::{ForwardOp, Graph, TensorId, TensorCache, graph::BackOp}};
+use crate::{tensor::{Tensor, TensorUninit}, module::{ForwardOp, Graph, TensorId, TensorCache, graph::BackOp}};
 
 use super::matmul::Transpose;
 
@@ -206,7 +206,7 @@ impl TransposeMatvec for Transpose {
 impl ForwardOp for Matvec {
     fn eval(
         &self,
-        _tensors: &crate::model::TensorCache,
+        _tensors: &crate::module::TensorCache,
         _args: &[&Tensor],
     ) -> Tensor {
         todo!()
@@ -257,7 +257,7 @@ impl BackOp for MatvecBackRightT {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, model::{Var, Tape}, linalg::matmul::Transpose};
+    use crate::{tensor, Tensor, module::{Var, Tape}, linalg::matmul::Transpose};
 
     #[test]
     fn test_matvec_1_1() {

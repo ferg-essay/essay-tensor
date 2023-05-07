@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, model::{EvalOp}};
+use crate::{tensor::{Tensor, TensorUninit}, module::{EvalOp}};
 
 #[derive(Clone, Debug)]
 pub enum Transpose {
@@ -221,7 +221,7 @@ impl TransposeMatmul for Transpose {
 impl EvalOp for Matmul {
     fn eval(
         &self,
-        _tensors: &crate::model::TensorCache,
+        _tensors: &crate::module::TensorCache,
         _args: &[&Tensor],
     ) -> Tensor {
         todo!()

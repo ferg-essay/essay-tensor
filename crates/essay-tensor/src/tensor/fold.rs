@@ -1,4 +1,4 @@
-use crate::{model::{IntoForward}, Tensor};
+use crate::{module::{IntoForward}, Tensor};
 
 use super::{TensorUninit, Dtype};
 

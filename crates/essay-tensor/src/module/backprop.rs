@@ -182,8 +182,8 @@ impl ArgTrace {
 
 #[cfg(test)]
 mod test {
-    use crate::model::{Var};
-    use crate::model::tape::Tape;
+    use crate::module::{Var};
+    use crate::module::tape::Tape;
     use crate::{Tensor};
     use crate::prelude::{*};
 

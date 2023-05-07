@@ -1,4 +1,4 @@
-pub mod model;
+pub mod module;
 pub mod random;
 pub mod linalg;
 pub mod nn;

@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, Uop, Fold}, model::{TensorId, ForwardOp, Graph, EvalOp}, tensor_uop};
+use crate::{tensor::{Tensor, Uop, Fold}, module::{TensorId, ForwardOp, Graph, EvalOp}, tensor_uop};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -27,7 +27,7 @@ impl Uop<f32> for Unary {
 impl EvalOp for Unary {
     fn eval(
         &self,
-        _tensors: &crate::model::TensorCache,
+        _tensors: &crate::module::TensorCache,
         _args: &[&Tensor],
     ) -> Tensor {
         todo!()
@@ -58,7 +58,7 @@ impl Fold<f32> for UReduce {
 impl ForwardOp for UReduce {
     fn eval(
         &self,
-        _tensors: &crate::model::TensorCache,
+        _tensors: &crate::module::TensorCache,
         _args: &[&Tensor],
     ) -> Tensor {
         todo!()

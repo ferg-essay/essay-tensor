@@ -45,7 +45,7 @@ impl Bundle for (Tensor, Tensor) {
 
 #[cfg(test)]
 mod test {
-    use crate::{model::{Var, Tape, module::Module}, tensor, Tensor};
+    use crate::{module::{Var, Tape, module::Module}, tensor, Tensor};
 
     #[test]
     fn backprop_1_1_prev() {

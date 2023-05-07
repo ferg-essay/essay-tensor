@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorUninit, model::{EvalOp}};
+use crate::{Tensor, tensor::TensorUninit, module::{EvalOp}};
 
 
 #[derive(Debug, Clone)]
@@ -84,7 +84,7 @@ unsafe fn naive_outer_product_f32(
 impl EvalOp for OuterProduct {
     fn eval(
         &self,
-        _tensors: &crate::model::TensorCache,
+        _tensors: &crate::module::TensorCache,
         _args: &[&Tensor],
     ) -> Tensor {
         todo!()

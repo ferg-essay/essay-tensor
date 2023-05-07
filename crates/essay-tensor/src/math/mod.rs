@@ -2,7 +2,7 @@ use std::{ops};
 
 use crate::{
     tensor::{Tensor, Uop, Binop}, 
-    model::{TensorId, Graph, TensorCache, EvalOp}, 
+    module::{TensorId, Graph, TensorCache, EvalOp}, 
     tensor_uop, 
     tensor_binop
 };

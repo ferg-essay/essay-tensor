@@ -160,8 +160,8 @@ impl TensorId {
 
 #[cfg(test)]
 mod test {
-    use crate::model::{Var, TensorId};
-    use crate::model::tape::Tape;
+    use crate::module::{Var, TensorId};
+    use crate::module::tape::Tape;
     use crate::{Tensor};
     use crate::prelude::{*};
 

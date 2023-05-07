@@ -1,6 +1,6 @@
 use std::{collections::{HashMap}, ops::{self}};
 
-use crate::{Tensor, model::Tape, tensor::{NodeId}};
+use crate::{Tensor, module::Tape, tensor::{NodeId}};
 
 use super::{TensorId, Var};
 

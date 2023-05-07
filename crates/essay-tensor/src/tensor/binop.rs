@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{model::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape}, Tensor};
+use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape}, Tensor};
 
 use super::{Dtype, TensorUninit, TensorData, NodeId};
 
@@ -86,7 +86,7 @@ impl<Op:Binop<f32>> BinopImpl<Op> {
 impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
     fn eval(
         &self,
-        _tensors: &crate::model::TensorCache,
+        _tensors: &crate::module::TensorCache,
         _args: &[&Tensor],
     ) -> Tensor {
         todo!()
