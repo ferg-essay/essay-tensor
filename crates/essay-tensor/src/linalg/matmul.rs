@@ -27,6 +27,107 @@ pub trait TransposeMatmul {
     fn b_outer_stride(&self, b_cols: usize, b_rows: usize) -> usize;
 }
 
+#[derive(Debug, Clone)]
+struct Matmul;
+
+impl Tensor {
+    pub fn matmul(&self, b: &Tensor) -> Tensor {
+        matmul_t(self, b, Transpose::None)
+    }
+
+    pub fn matmul_t(&self, b: &Tensor, transpose: Transpose) -> Tensor {
+        matmul_t(self, b, transpose)
+    }
+}
+
+pub fn matmul(a: &Tensor, b: &Tensor) -> Tensor {
+    matmul_t(a, b, Transpose::None)
+}
+
+
+pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Tensor {
+    //assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
+    assert!(a.rank() > 1, "matrix multiplication requires rank >= 2");
+    assert_eq!(&a.shape()[2..], &b.shape()[2..], "matmul batch shape must match");
+
+    let (a_cols, a_rows) = (a.shape()[0], a.shape()[1]);
+    let (b_cols, b_rows) = (b.shape()[0], b.shape()[1]);
+
+    let o_cols = transpose.out_cols(b_cols, b_rows);
+    let o_rows = transpose.out_rows(a_cols, a_rows);
+
+    let inner_len = transpose.inner_len(a_cols, a_rows, b_cols, b_rows);
+
+    let a_inc = transpose.a_inner_stride(a_cols, a_rows);
+    let a_stride = transpose.a_outer_stride(a_cols, a_rows);
+
+    let b_inc = transpose.b_inner_stride(b_cols, b_rows);
+    let b_stride = transpose.b_outer_stride(b_cols, b_rows);
+
+    let batch_len : usize = a.shape()[2..].iter().product();
+    let a_size = a_rows * a_cols;
+    let b_size = b_rows * b_cols;
+    let o_size = o_rows * o_cols;
+
+    unsafe {
+        let out = TensorUninit::<f32>::new(o_size * batch_len);
+
+        for batch in 0..batch_len {
+            let a_ptr = a.data().as_ptr().add(a_size * batch);
+            let b_ptr = b.data().as_ptr().add(b_size * batch);
+            let out_ptr = out.as_ptr().add(o_size * batch);
+        
+            naive_matmul(
+                out_ptr,
+                o_cols,
+                o_rows,
+                inner_len,
+                a_ptr,
+                a_inc,
+                a_stride,
+                b_ptr,
+                b_inc,
+                b_stride,
+            );
+        }
+
+        let mut o_shape = b.shape().clone();
+        o_shape[0] = o_cols;
+        o_shape[1] = o_rows;
+
+        a.next_binop(&b, out.init(), o_shape, Matmul)
+    }
+}
+
+unsafe fn naive_matmul(
+    out_ptr: *mut f32,
+    o_cols: usize,
+    o_rows: usize,
+    inner_len: usize,
+    a_ptr: *const f32,
+    a_inc: usize,
+    a_stride: usize,
+    b_ptr: *const f32,
+    b_inc: usize,
+    b_stride: usize,
+) {
+    for row in 0..o_rows {
+        let a_row = row * a_stride;
+
+        for col in 0..o_cols {
+            let b_col = col * b_stride;
+
+            let mut v: f32 = 0.;
+            for k in 0..inner_len {
+                v += a_ptr.add(a_row + k * a_inc).read() 
+                    * b_ptr.add(b_col + k * b_inc).read();
+            }
+
+            out_ptr.add(row * o_cols + col).write(v);
+        }
+    }
+}
+
 impl TransposeMatmul for Transpose {
     #[inline]
     fn inner_len(
@@ -117,9 +218,6 @@ impl TransposeMatmul for Transpose {
     }
 }
 
-#[derive(Debug, Clone)]
-struct Matmul;
-
 impl ForwardOp for Matmul {
     fn box_clone(&self) -> BoxForwardOp {
         Box::new(Matmul)
@@ -154,114 +252,6 @@ impl ForwardOp for Matmul {
         args: &[&Tensor],
     ) -> Tensor {
         todo!()
-    }
-}
-
-impl Tensor {
-    pub fn matmul(&self, b: &Tensor) -> Tensor {
-        matmul_t(self, b, Transpose::None)
-    }
-
-    pub fn matmul_t(&self, b: &Tensor, transpose: Transpose) -> Tensor {
-        matmul_t(self, b, transpose)
-    }
-}
-
-pub fn matmul(a: &Tensor, b: &Tensor) -> Tensor {
-    matmul_t(a, b, Transpose::None)
-}
-
-
-pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Tensor {
-    //assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
-    assert!(a.rank() > 1, "matrix multiplication requires rank >= 2");
-    assert_eq!(&a.shape()[2..], &b.shape()[2..], "matmul batch shape must match");
-
-    let (a_cols, a_rows) = (a.shape()[0], a.shape()[1]);
-    let (b_cols, b_rows) = (b.shape()[0], b.shape()[1]);
-
-    let o_cols = transpose.out_cols(b_cols, b_rows);
-    let o_rows = transpose.out_rows(a_cols, a_rows);
-
-    let inner_len = transpose.inner_len(a_cols, a_rows, b_cols, b_rows);
-
-    let a_inc = transpose.a_inner_stride(a_cols, a_rows);
-    let a_stride = transpose.a_outer_stride(a_cols, a_rows);
-
-    let b_inc = transpose.b_inner_stride(b_cols, b_rows);
-    let b_stride = transpose.b_outer_stride(b_cols, b_rows);
-
-    let batch_len : usize = a.shape()[2..].iter().product();
-    let a_size = a_rows * a_cols;
-    let b_size = b_rows * b_cols;
-    let o_size = o_rows * o_cols;
-
-    unsafe {
-        let mut out = TensorUninit::new(o_size * batch_len);
-
-        for batch in 0..batch_len {
-            naive_matmul(
-                &mut out, 
-                o_size * batch,
-                &a,
-                a_size * batch,
-                a_inc,
-                a_stride,
-                a_size,
-                &b,
-                b_size * batch,
-                b_inc,
-                b_stride,
-                b_size,
-                inner_len,
-                o_cols,
-                o_rows,
-            );
-        }
-
-        let mut o_shape = b.shape().clone();
-        o_shape[0] = o_cols;
-        o_shape[1] = o_rows;
-
-        a.next_binop(&b, out.init(), o_shape, Matmul)
-    }
-}
-
-unsafe fn naive_matmul(
-    out: &mut TensorUninit, 
-    out_start: usize,
-    a: &Tensor, 
-    a_start: usize,
-    a_inc: usize,
-    a_stride: usize,
-    a_size: usize,
-    b: &Tensor,
-    b_start: usize,
-    b_inc: usize,
-    b_stride: usize,
-    b_size: usize,
-    inner_len: usize,
-    o_cols: usize,
-    o_rows: usize,
-) {
-    let a_ptr = a.data().as_ptr().add(a_start);
-    let b_ptr = b.data().as_ptr().add(b_start);
-    let out_ptr = out.as_ptr().add(out_start);
-
-    for row in 0..o_rows {
-        let a_row = row * a_stride;
-
-        for col in 0..o_cols {
-            let b_col = col * b_stride;
-
-            let mut v: f32 = 0.;
-            for k in 0..inner_len {
-                v += a_ptr.add(a_row + k * a_inc).read() 
-                    * b_ptr.add(b_col + k * b_inc).read();
-            }
-
-            out_ptr.add(row * o_cols + col).write(v);
-        }
     }
 }
 
