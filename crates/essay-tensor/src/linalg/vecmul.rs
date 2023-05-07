@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorUninit, model::{IntoForward, BoxForwardOp, Graph, TensorId, ForwardOp}};
+use crate::{Tensor, tensor::TensorUninit, model::{EvalOp}};
 
 
 #[derive(Debug, Clone)]
@@ -81,39 +81,12 @@ unsafe fn naive_outer_product_f32(
     }
 }
 
-impl ForwardOp for OuterProduct {
+impl EvalOp for OuterProduct {
     fn eval(
         &self,
-        tensors: &crate::model::TensorCache,
-        args: &[&Tensor],
+        _tensors: &crate::model::TensorCache,
+        _args: &[&Tensor],
     ) -> Tensor {
-        todo!()
-    }
-
-    fn backprop(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        out: TensorId,
-        prev: TensorId,
-    ) -> TensorId {
-        todo!();
-    }
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        out: TensorId,
-    ) -> TensorId {
-        todo!();
-    }
-
-    fn box_clone(&self) -> BoxForwardOp {
         todo!()
     }
 }

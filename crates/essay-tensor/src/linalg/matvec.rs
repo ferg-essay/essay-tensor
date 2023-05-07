@@ -1,6 +1,4 @@
-use std::{sync::Arc};
-
-use crate::{tensor::{Tensor, TensorUninit}, model::{IntoForward, BoxForwardOp, ForwardOp, Graph, TensorId, TensorCache, EvalOp}};
+use crate::{tensor::{Tensor, TensorUninit}, model::{BoxForwardOp, ForwardOp, Graph, TensorId, TensorCache, EvalOp}};
 
 use super::matmul::Transpose;
 
@@ -30,66 +28,6 @@ pub trait TransposeMatvec {
     fn b_inc(&self, b_cols: usize, b_rows: usize) -> usize;
 
     fn out_size(&self, a_cols: usize, a_rows: usize) -> usize;
-}
-
-impl TransposeMatvec for Transpose {
-    fn inner_len(
-        &self, 
-        b_cols: usize, 
-        _b_rows: usize
-    ) -> usize {
-        match self {
-            Transpose::None => b_cols,
-            Transpose::TransposeA => b_cols,
-            Transpose::TransposeB => todo!(),
-            Transpose::TransposeAB => todo!(),
-        }
-    }
-
-    fn a_inc(&self, a_cols: usize, _a_rows: usize) -> usize {
-        match self {
-            Transpose::None => 1,
-            Transpose::TransposeA => a_cols,
-            Transpose::TransposeB => todo!(),
-            Transpose::TransposeAB => todo!(),
-        }
-    }
-
-    fn a_stride(&self, a_cols: usize, _a_rows: usize) -> usize {
-        match self {
-            Transpose::None => a_cols,
-            Transpose::TransposeA => 1,
-            Transpose::TransposeB => todo!(),
-            Transpose::TransposeAB => todo!(),
-        }
-    }
-
-    fn a_size(&self, a_cols: usize, a_rows: usize) -> usize {
-        match self {
-            Transpose::None => a_rows,
-            Transpose::TransposeA => a_cols,
-            Transpose::TransposeB => todo!(),
-            Transpose::TransposeAB => todo!(),
-        }
-    }
-
-    fn b_inc(&self, b_cols: usize, _b_rows: usize) -> usize {
-        match self {
-            Transpose::None => b_cols,
-            Transpose::TransposeA => b_cols,
-            Transpose::TransposeB => todo!(),
-            Transpose::TransposeAB => todo!(),
-        }
-    }
-
-    fn out_size(&self, a_cols: usize, a_rows: usize) -> usize {
-        match self {
-            Transpose::None => a_rows,
-            Transpose::TransposeA => a_cols,
-            Transpose::TransposeB => todo!(),
-            Transpose::TransposeAB => todo!(),
-        }
-    }
 }
 
 impl Tensor<f32> {
@@ -210,23 +148,83 @@ unsafe fn naive_matvec_f32(
     }
 }
 
+impl TransposeMatvec for Transpose {
+    fn inner_len(
+        &self, 
+        b_cols: usize, 
+        _b_rows: usize
+    ) -> usize {
+        match self {
+            Transpose::None => b_cols,
+            Transpose::TransposeA => b_cols,
+            Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
+        }
+    }
+
+    fn a_inc(&self, a_cols: usize, _a_rows: usize) -> usize {
+        match self {
+            Transpose::None => 1,
+            Transpose::TransposeA => a_cols,
+            Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
+        }
+    }
+
+    fn a_stride(&self, a_cols: usize, _a_rows: usize) -> usize {
+        match self {
+            Transpose::None => a_cols,
+            Transpose::TransposeA => 1,
+            Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
+        }
+    }
+
+    fn a_size(&self, a_cols: usize, a_rows: usize) -> usize {
+        match self {
+            Transpose::None => a_rows,
+            Transpose::TransposeA => a_cols,
+            Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
+        }
+    }
+
+    fn b_inc(&self, b_cols: usize, _b_rows: usize) -> usize {
+        match self {
+            Transpose::None => b_cols,
+            Transpose::TransposeA => b_cols,
+            Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
+        }
+    }
+
+    fn out_size(&self, a_cols: usize, a_rows: usize) -> usize {
+        match self {
+            Transpose::None => a_rows,
+            Transpose::TransposeA => a_cols,
+            Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
+        }
+    }
+}
+
 impl ForwardOp for Matvec {
     fn eval(
         &self,
-        tensors: &crate::model::TensorCache,
-        args: &[&Tensor],
+        _tensors: &crate::model::TensorCache,
+        _args: &[&Tensor],
     ) -> Tensor {
         todo!()
     }
 
     fn backprop(
         &self,
-        forward: &Graph,
+        _forward: &Graph,
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
         out: TensorId,
-        prev: TensorId,
+        _prev: TensorId,
     ) -> TensorId {
         match i {
             0 => {
@@ -245,7 +243,7 @@ impl ForwardOp for Matvec {
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        tensor: TensorId,
+        _tensor: TensorId,
     ) -> TensorId {
         match i {
             0 => {
@@ -269,10 +267,9 @@ impl ForwardOp for Matvec {
 impl EvalOp for MatvecBackLeft {
     fn eval(
         &self,
-        tensors: &TensorCache,
+        _tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor {
-        //args[0].extend_dim1(self.dim1)
         args[0].outer_product(args[1])
     }
 }
@@ -280,7 +277,7 @@ impl EvalOp for MatvecBackLeft {
 impl EvalOp for MatvecBackRight {
     fn eval(
         &self,
-        tensors: &TensorCache,
+        _tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor {
         args[0].fold_1(0., |a, b| a + b)
@@ -290,34 +287,10 @@ impl EvalOp for MatvecBackRight {
 impl EvalOp for MatvecBackRightT {
     fn eval(
         &self,
-        tensors: &TensorCache,
+        _tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor {
         args[0].matvec_t(args[1], Transpose::TransposeA)
-    }
-}
-
-fn matvec_0_gradient(a: &Tensor) -> Tensor {
-    let o_cols = a.shape()[0];
-
-    let a_rows = a.shape()[1];
-
-    unsafe {
-        let mut out = TensorUninit::<f32>::new(o_cols);
-        let a_data = a.data();
-
-        for i in 0..o_cols {
-            let mut v = 0.;
-            for j in 0..a_rows {
-                v += a_data.get_unchecked(j * o_cols + i);
-            }
-            out.set_unchecked(i, v);
-        }
-
-        let mut shape: Vec::<usize> =  a.shape().iter().skip(1).map(|s| *s).collect();
-        shape[0] = o_cols;
-
-        Tensor::new(Arc::new(out.init()), &shape)
     }
 }
 

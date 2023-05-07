@@ -1,6 +1,5 @@
-use crate::{Tensor, tensor::TensorUninit, model::{ForwardOp, BoxForwardOp, Graph, TensorId}};
+use crate::{Tensor, tensor::TensorUninit, model::{ForwardOp, BoxForwardOp, Graph, TensorId, EvalOp}};
 use core::fmt;
-use std::marker::PhantomData;
 
 use crate::tensor::{Dtype};
 
@@ -12,12 +11,10 @@ pub trait Uop<D:Dtype> : fmt::Debug + Sync + Send + 'static {
     fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
-pub struct UopImpl;
-
 pub trait Binop<D:Dtype> : Send + Sync + 'static {
     fn eval(&self, a: D, b: D) -> D;
 
-    fn backtrace(
+    fn backprop(
         &self,
         forward: &Graph,
         graph: &mut Graph,
@@ -45,80 +42,6 @@ pub trait BiFold<D:Dtype> {
 #[derive(Debug)]
 pub struct BinopImpl<Op:Binop<f32>> {
     op: Op,
-}
-
-impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
-    }
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
-    fn backprop(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-        prev: TensorId,
-    ) -> TensorId {
-        self.op.backtrace(forward, graph, i, args, tensor, prev)
-    }
-
-    fn eval(
-        &self,
-        tensors: &crate::model::TensorCache,
-        args: &[&Tensor],
-    ) -> Tensor {
-        todo!()
-    }
-}
-
-impl<Op:Binop<f32>> BinopImpl<Op> {
-    pub fn to_op(op: Op) -> Box<dyn ForwardOp> {
-        let binop: BinopImpl<Op> = BinopImpl {
-            op: op,
-        };
-
-        Box::new(binop)
-    }
-
-    pub fn binop(a: &Tensor, b: &Tensor, op: Op) -> Tensor {
-        let size = a.broadcast(b);
-    
-        let a_data = a.data();
-        let b_data = b.data();
-    
-        unsafe {
-            let mut data = TensorUninit::<f32>::new(size);
-    
-            for i in 0..size {
-                data.set_unchecked(i, op.eval(
-                    a_data[i],
-                    b_data[i],
-                ));
-            }
-    
-            let shape = if a.rank() < b.rank() { 
-                b.shape().clone() 
-            } else { 
-                a.shape().clone() 
-            };
-
-            a.next_binop(&b, data.init(), shape, op.to_op())
-        }
-    }
-
 }
 
 impl Tensor {
@@ -300,6 +223,53 @@ impl Tensor {
     }
 }
 
+impl<Op:Binop<f32>> BinopImpl<Op> {
+    pub fn to_op(op: Op) -> Box<dyn ForwardOp> {
+        let binop: BinopImpl<Op> = BinopImpl {
+            op: op,
+        };
+
+        Box::new(binop)
+    }
+}
+
+impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
+    fn eval(
+        &self,
+        _tensors: &crate::model::TensorCache,
+        _args: &[&Tensor],
+    ) -> Tensor {
+        todo!()
+    }
+
+    fn backprop(
+        &self,
+        forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        tensor: TensorId,
+        prev: TensorId,
+    ) -> TensorId {
+        self.op.backprop(forward, graph, i, args, tensor, prev)
+    }
+
+    fn backprop_top(
+        &self,
+        _forward: &Graph,
+        _graph: &mut Graph,
+        _i: usize,
+        _args: &[TensorId],
+        _tensor: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+
+    fn box_clone(&self) -> BoxForwardOp {
+        todo!()
+    }
+}
+
 impl<F, D:Dtype> Uop<D> for F
 where F: Fn(D) -> D + Clone + fmt::Debug + Sync + Send + 'static {
     fn eval(&self, value: D) -> D {
@@ -322,14 +292,14 @@ where F: Fn(D, D) -> D + Send + Sync + 'static {
         Box::new(FnOp)
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-        prev: TensorId,
+        _forward: &Graph,
+        _graph: &mut Graph,
+        _i: usize,
+        _args: &[TensorId],
+        _tensor: TensorId,
+        _prev: TensorId,
     ) -> TensorId {
         todo!()
     }
@@ -350,38 +320,11 @@ where F: Fn(D, D) -> D + Send + Sync + Clone + 'static {
 #[derive(Debug)]
 struct FnOp;
 
-impl ForwardOp for FnOp {
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
-    }
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> crate::model::TensorId {
-        todo!()
-    }
-
-    fn backprop(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-        prev: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
+impl EvalOp for FnOp {
     fn eval(
         &self,
-        tensors: &crate::model::TensorCache,
-        args: &[&Tensor],
+        _tensors: &crate::model::TensorCache,
+        _args: &[&Tensor],
     ) -> Tensor {
         todo!()
     }

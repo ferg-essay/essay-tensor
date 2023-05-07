@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, Uop, BiFold, Fold}, model::{TensorId, ForwardOp, BoxForwardOp, Graph}, math};
+use crate::{tensor::{Tensor, Uop, Fold}, model::{TensorId, ForwardOp, BoxForwardOp, Graph, EvalOp}};
 
 #[derive(Debug, Clone)]
 enum Unary {
@@ -13,7 +13,16 @@ enum UReduce {
 
 #[derive(Debug, Clone)]
 enum BiReduce {
-    L2Loss(f32),
+}
+
+impl Tensor {
+    pub fn relu(&self) -> Self {
+        self.uop(Unary::ReLU)
+    }
+
+    pub fn softplus(&self) -> Self {
+        self.uop(Unary::Softplus)
+    }
 }
 
 impl Uop<f32> for Unary {
@@ -29,50 +38,21 @@ impl Uop<f32> for Unary {
     }
 }
 
-impl ForwardOp for Unary {
-    fn box_clone(&self) -> BoxForwardOp {
-        Box::new(self.clone())
-    }
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
-    fn backprop(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-        prev: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
+impl EvalOp for Unary {
     fn eval(
         &self,
-        tensors: &crate::model::TensorCache,
-        args: &[&Tensor],
+        _tensors: &crate::model::TensorCache,
+        _args: &[&Tensor],
     ) -> Tensor {
         todo!()
     }
 }
 
 impl Tensor {
-    pub fn relu(&self) -> Self {
-        self.uop(Unary::ReLU)
-    }
-
-    pub fn softplus(&self) -> Self {
-        self.uop(Unary::Softplus)
+    pub fn l2_loss(&self) -> Tensor {
+        let n = if self.rank() > 0 { self.dim(0) } else { 1 };
+        let n_inv = 0.5 / n as f32;
+        self.fold(0.0.into(), UReduce::L2Loss(n_inv))
     }
 }
 
@@ -91,17 +71,25 @@ impl Fold<f32> for UReduce {
 }
 
 impl ForwardOp for UReduce {
+    fn eval(
+        &self,
+        _tensors: &crate::model::TensorCache,
+        _args: &[&Tensor],
+    ) -> Tensor {
+        todo!()
+    }
+
     fn backprop(
         &self, 
-        forward: &Graph,
-        graph: &mut Graph,
+        _forward: &Graph,
+        _graph: &mut Graph,
         i: usize, 
-        args: &[TensorId], 
-        tensor: TensorId, 
-        prev: TensorId
+        _args: &[TensorId], 
+        _tensor: TensorId, 
+        _prev: TensorId
     ) -> TensorId {
         match self {
-            UReduce::L2Loss(n) => {
+            UReduce::L2Loss(_) => {
                 assert_eq!(i, 0, "{:?} reduce has only one argument", self);
 
                 //Tensor::ones(args[0].shape())
@@ -119,7 +107,7 @@ impl ForwardOp for UReduce {
         _tensor: TensorId,
     ) -> TensorId {
         match self {
-            UReduce::L2Loss(n) => {
+            UReduce::L2Loss(_) => {
                 assert_eq!(i, 0, "{:?} reduce has only one argument", self);
 
                 graph.constant_id(args[0])
@@ -129,43 +117,5 @@ impl ForwardOp for UReduce {
 
     fn box_clone(&self) -> BoxForwardOp {
         Box::new(self.clone())
-    }
-
-    fn eval(
-        &self,
-        tensors: &crate::model::TensorCache,
-        args: &[&Tensor],
-    ) -> Tensor {
-        todo!()
-    }
-}
-
-impl BiFold<f32> for BiReduce {
-    fn apply(&self, acc: f32, a: f32, b: f32) -> f32 {
-        match &self {
-            BiReduce::L2Loss(n_inv) => {
-                let v = a - b;
-
-                acc + n_inv * v * v
-            },
-        }
-    }
-
-    fn to_op(&self) -> Box<dyn ForwardOp> {
-        todo!()
-    }
-}
-
-impl Tensor {
-    pub fn l2_loss(&self) -> Tensor {
-        let n = if self.rank() > 0 { self.dim(0) } else { 1 };
-        let n_inv = 0.5 / n as f32;
-        self.fold(0.0.into(), UReduce::L2Loss(n_inv))
-    }
-
-    pub fn x_l2_loss(&self, b: &Self) -> Tensor {
-        let n = if self.rank() > 0 { self.dim(0) } else { 1 };
-        let n_inv = 0.5 / n as f32;
-        self.bi_fold(0.0.into(), BiReduce::L2Loss(n_inv), b)
     }
 }

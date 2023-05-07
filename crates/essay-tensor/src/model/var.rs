@@ -1,17 +1,14 @@
 use core::fmt;
-use std::ops::{Deref, Mul, self};
+use std::ops::{Deref, self};
 
-use crate::{tensor::{Dtype, NodeId}, Tensor, prelude::IntoTensor};
+use crate::{tensor::{Dtype}, Tensor, prelude::IntoTensor};
 
-use super::{NodeOp, Tape, ForwardOp, BoxForwardOp, Graph};
+use super::{Tape};
 
 pub struct Var<D:Dtype=f32> {
     name: String,
     tensor: Tensor<D>,
 }
-
-#[derive(Debug, Clone)]
-pub struct VarOp(String);
 
 impl<D:Dtype> Var<D> {
     pub fn new(name: &str, tensor: Tensor<D>) -> Self {
@@ -56,43 +53,6 @@ impl fmt::Debug for Var {
             .field("name", &self.name)
             .field("tensor", &self.tensor)
             .finish()
-    }
-}
-
-impl ForwardOp for VarOp {
-    fn box_clone(&self) -> BoxForwardOp {
-        Box::new(self.clone())
-    }
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[super::TensorId],
-        tensor: super::TensorId,
-    ) -> super::TensorId {
-        todo!()
-    }
-
-    fn backprop(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[super::TensorId],
-        tensor: super::TensorId,
-        prev: super::TensorId,
-    ) -> super::TensorId {
-        todo!()
-    }
-
-    fn eval(
-        &self,
-        tensors: &super::TensorCache,
-        args: &[&Tensor],
-    ) -> Tensor {
-        todo!()
     }
 }
 

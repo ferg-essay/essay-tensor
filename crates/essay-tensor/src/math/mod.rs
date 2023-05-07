@@ -1,6 +1,6 @@
 use std::{ops};
 
-use crate::{tensor::{Tensor, Uop, Binop}, model::{ForwardOp, BoxForwardOp, TensorId, Graph, IntoForward, TensorCache}};
+use crate::{tensor::{Tensor, Uop, Binop}, model::{ForwardOp, BoxForwardOp, TensorId, Graph, TensorCache, EvalOp}};
 
 #[derive(Debug, Clone)]
 pub enum Unary {
@@ -71,37 +71,10 @@ impl ops::Neg for &Tensor {
     }
 }
 
-impl ForwardOp for Unary {
-    fn box_clone(&self) -> BoxForwardOp {
-        Box::new(self.clone())
-    }
-
-    fn backprop(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-        prev: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
-    fn backprop_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-
+impl EvalOp for Unary {
     fn eval(
         &self,
-        tensors: &TensorCache,
+        _tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor {
         match self {
@@ -141,38 +114,6 @@ enum Binary {
     RemEuclid,
     Sub,
 }
-/*
-#[derive(Clone, Debug)]
-pub struct BinaryAdd;
-
-impl Binop<f32> for BinaryAdd {
-    #[inline]
-    fn eval(&self, a: f32, b: f32) -> f32 {
-        a + b
-    }
-
-    fn to_op(&self) -> Box<dyn ForwardOp> {
-        self.box_clone()
-    }
-}
-
-impl ForwardOp for BinaryAdd {
-    fn box_clone(&self) -> BoxForwardOp {
-        todo!()
-    }
-
-    fn backtrace_top(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
-    ) -> TensorId {
-        todo!()
-    }
-}
-*/
 
 impl Binop<f32> for Binary {
     #[inline]
@@ -195,13 +136,13 @@ impl Binop<f32> for Binary {
         }
     }
 
-    fn backtrace(
+    fn backprop(
         &self,
-        forward: &Graph,
+        _forward: &Graph,
         graph: &mut Graph,
         i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
+        _args: &[TensorId],
+        _tensor: TensorId,
         prev: TensorId,
     ) -> TensorId {
         match self {
@@ -223,13 +164,21 @@ impl Binop<f32> for Binary {
 }
 
 impl ForwardOp for Binary {
+    fn eval(
+        &self,
+        _tensors: &TensorCache,
+        _args: &[&Tensor],
+    ) -> Tensor {
+        todo!()
+    }
+
     fn backprop(
         &self, 
-        forward: &Graph,
+        _forward: &Graph,
         graph: &mut Graph, 
         i: usize, 
         args: &[TensorId], 
-        tensor: TensorId, 
+        _tensor: TensorId, 
         prev: TensorId
     ) -> TensorId {
         match &self {
@@ -252,20 +201,12 @@ impl ForwardOp for Binary {
 
     fn backprop_top(
         &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        tensor: TensorId,
+        _forward: &Graph,
+        _graph: &mut Graph,
+        _i: usize,
+        _args: &[TensorId],
+        _tensor: TensorId,
     ) -> TensorId {
-        todo!()
-    }
-
-    fn eval(
-        &self,
-        tensors: &TensorCache,
-        args: &[&Tensor],
-    ) -> Tensor {
         todo!()
     }
 }
