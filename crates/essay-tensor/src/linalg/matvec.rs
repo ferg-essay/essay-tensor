@@ -218,7 +218,6 @@ impl ForwardOp for Matvec {
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        _out: TensorId,
         prev: TensorId,
     ) -> TensorId {
         match i {

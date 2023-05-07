@@ -63,8 +63,8 @@ fn node_backprop(
         NodeOp::Var(_, _) => {
             prev
         }
-        NodeOp::Op(id, op, args) => {
-            op.backprop(forward, back, i, args, *id, prev)
+        NodeOp::Op(_, op, args) => {
+            op.backprop(forward, back, i, args, prev)
         },
         NodeOp::BackConst(_, _) => panic!("BackConst is invalid when generating backtrace"),
         NodeOp::BackOp(_, _, _, _) => panic!("BackOp is invalid when generating backtrace"),
@@ -141,7 +141,6 @@ impl<Op:EvalOp> ForwardOp for Op {
         _graph: &mut Graph,
         _i: usize,
         _args: &[TensorId],
-        _tensor: TensorId,
         _prev: TensorId,
     ) -> TensorId {
         panic!("{} does not implement backprop", type_name::<Op>())

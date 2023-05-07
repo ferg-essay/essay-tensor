@@ -18,7 +18,6 @@ pub trait Binop<D:Dtype=f32> : Clone + Send + Sync + 'static {
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        tensor: TensorId,
         prev: TensorId,
     ) -> TensorId;
  
@@ -247,10 +246,9 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         graph: &mut Graph,
         i: usize,
         args: &[TensorId],
-        tensor: TensorId,
         prev: TensorId,
     ) -> TensorId {
-        self.op.backprop(forward, graph, i, args, tensor, prev)
+        self.op.backprop(forward, graph, i, args, prev)
     }
 }
 
@@ -282,7 +280,6 @@ where F: Fn(D, D) -> D + Send + Sync + 'static + Clone {
         _graph: &mut Graph,
         _i: usize,
         _args: &[TensorId],
-        _tensor: TensorId,
         _prev: TensorId,
     ) -> TensorId {
         todo!()

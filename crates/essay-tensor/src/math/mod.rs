@@ -128,7 +128,6 @@ impl Binop<f32> for Binary {
         graph: &mut Graph,
         i: usize,
         _args: &[TensorId],
-        _tensor: TensorId,
         prev: TensorId,
     ) -> TensorId {
         assert!(i <= 1);

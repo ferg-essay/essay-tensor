@@ -78,7 +78,6 @@ impl ForwardOp for UReduce {
         graph: &mut Graph,
         i: usize, 
         args: &[TensorId], 
-        _tensor: TensorId, 
         _prev: TensorId
     ) -> TensorId {
         match self {

@@ -36,10 +36,9 @@ pub trait ForwardOp : Send + Sync + 'static {
     fn backprop(
         &self,
         forward: &Graph,
-        graph: &mut Graph,
+        back: &mut Graph,
         i: usize,
         args: &[TensorId],
-        out: TensorId,
         prev: TensorId,
     ) -> TensorId;
 }
