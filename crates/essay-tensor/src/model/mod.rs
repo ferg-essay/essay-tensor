@@ -1,3 +1,4 @@
+mod module;
 mod backprop;
 mod tape;
 mod var;
