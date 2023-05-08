@@ -1,4 +1,4 @@
-use std::{collections::HashMap, cell::RefCell};
+use std::{cell::RefCell};
 
 use crate::Tensor;
 
@@ -85,7 +85,7 @@ impl<In: Bundle> Module<In, Tensor> {
 
         for var in vars {
             let id = self.graph.get_var(var);
-            println!("graph {:?} {:?}", var, id);
+
             let graph = backprop_graph(&self.graph, id);
 
             graphs.push((var.name().to_string(), graph));
@@ -349,5 +349,24 @@ mod test {
 
         assert_eq!(train.value(), tensor!([1., 0., -1.]));
         assert_eq!(train.gradient(&a), tensor!([-1., -1., -1.]));
+    }
+
+    #[test]
+    fn grad_mul() {
+        //env_logger::builder().filter_level(LevelFilter::Debug).init();
+
+        let a = Var::new("a", tensor!([1., 2., 3.]));
+
+        let m_a = Module::build((), 
+        |_| tensor!(2.) * &a
+        ).gradient(&[&a]);
+
+        let value = m_a.eval(());
+        assert_eq!(value, tensor!([2., 4., 6.]));
+
+        let train = m_a.train(());
+
+        assert_eq!(train.value(), tensor!([2., 4., 6.]));
+        assert_eq!(train.gradient(&a), tensor!([2., 2., 2.]));
     }
 }

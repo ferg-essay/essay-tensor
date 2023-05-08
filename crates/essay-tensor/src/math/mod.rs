@@ -1,8 +1,8 @@
-use std::{ops};
+use std::{ops, any::type_name};
 
 use crate::{
     tensor::{Tensor, Uop, Binop}, 
-    module::{TensorId, Graph, TensorCache, EvalOp}, 
+    module::{TensorId, Graph, TensorCache, EvalOp, graph::BackOp}, 
     tensor_uop, 
     tensor_binop
 };
@@ -128,7 +128,7 @@ impl Binop<f32> for Binary {
         _forward: &Graph,
         graph: &mut Graph,
         i: usize,
-        _args: &[TensorId],
+        args: &[TensorId],
         prev: TensorId,
     ) -> TensorId {
         assert!(i <= 1);
@@ -144,7 +144,34 @@ impl Binop<f32> for Binary {
                     _ => { panic!() },
                 }
             },
+            Binary::Mul => {
+                match i {
+                    0 => { graph.add_back_op(Binary::Mul, &[args[1]], prev) },
+                    1 => { graph.add_back_op(Binary::Mul, &[args[0]], prev) }
+                    _ => { panic!() },
+                }
+            },
             _ => todo!("backtrace {:?}", self)
+        }
+    }
+}
+
+impl BackOp for Binary {
+    fn name(&self) -> &str {
+        type_name::<Self>()
+    }
+
+    fn eval(
+        &self,
+        _tensors: &TensorCache,
+        args: &[&Tensor],
+        prev: &Tensor,
+    ) -> Tensor {
+        match self {
+            Binary::Mul => {
+                args[0].eval_binop(prev, self)
+            },
+            _ => todo!("unimplemented back {:?}", self),
         }
     }
 }
