@@ -213,9 +213,9 @@ impl ForwardOp for Matvec {
     fn eval(
         &self,
         _tensors: &crate::module::TensorCache,
-        _args: &[&Tensor],
+        args: &[&Tensor],
     ) -> Tensor {
-        todo!()
+        matvec(args[0], args[1])
     }
 
     fn backprop(
@@ -271,7 +271,7 @@ impl BackOp for MatvecBackRightT {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, module::{Var, Tape}, linalg::matmul::Transpose};
+    use crate::{tensor, Tensor, module::{Var, Tape, Module}, linalg::matmul::Transpose};
 
     #[test]
     fn test_matvec_1_1() {
@@ -324,34 +324,26 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let mut tape = Tape::with(|| {
-            let loss: Tensor = a.matvec(&x);
-            assert_eq!(loss, tensor!([1.]));
-    
-            Ok(loss)
-        }).unwrap();
-    
-        let da = tape.gradient(&a);
-        assert_eq!(da, tensor!([[1.0]]));
-    
-        let dx = tape.gradient(&x);
-        assert_eq!(dx, tensor!([1.0]));
+        let module = Module::build((), |()| {
+            a.matvec(&x)
+        }).training(&[&a, &x]);
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!([1.]));
+        assert_eq!(train.gradient(&a), tensor!([[1.0]]));
+        assert_eq!(train.gradient(&x), tensor!([1.0]));
 
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let mut tape = Tape::with(|| {
-            let out: Tensor = a.matvec(&x);
-            assert_eq!(out, tensor!([140., 320.]));
-    
-            Ok(out)
-        }).unwrap();
-    
-        let da = tape.gradient(&a);
-        assert_eq!(da, tensor!([[10., 20., 30.], [10., 20., 30.]]));
+        let module = Module::build((), |()| {
+            a.matvec(&x)
+        }).training(&[&a, &x]);
+        let train = module.train(());
 
-        let dx = tape.gradient(&x);
-        assert_eq!(dx, tensor!([5., 7., 9.]));
+        assert_eq!(train.value(), tensor!([140., 320.]));
+        assert_eq!(train.gradient(&a), tensor!([[10., 20., 30.], [10., 20., 30.]]));
+        assert_eq!(train.gradient(&x), tensor!([5., 7., 9.]));
     }
     
     #[test]
@@ -359,35 +351,32 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let mut tape = Tape::with(|| {
+        let module = Module::build((), |()| {
             let out: Tensor = a.matvec(&x);
 
-            let loss = out.l2_loss();
-            assert_eq!(loss, tensor!(0.5));
-    
-            Ok(loss)
-        }).unwrap();
-    
-        let da = tape.gradient(&a);
-        assert_eq!(da, tensor!([[1.0]]));
-    
-        let dx = tape.gradient(&x);
-        assert_eq!(dx, tensor!([1.0]));
+            out.l2_loss()
+        }).training(&[&a, &x]);
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!(0.5));
+        assert_eq!(train.gradient(&a), tensor!([[1.0]]));
+        assert_eq!(train.gradient(&x), tensor!([1.0]));
 
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let mut tape = Tape::with(|| {
-            let out: Tensor = a.matvec(&x);
+        let module = Module::build((), |()| {
+            let out = a.matvec(&x);
             assert_eq!(out, tensor!([140., 320.]));
 
-            Ok(out.l2_loss())
-        }).unwrap();
+            out.l2_loss()
+        }).training(&[&a, &x]);
+        let train = module.train(());
     
-        let da = tape.gradient(&a);
+        let da = train.gradient(&a);
         assert_eq!(da, tensor!([[1400., 2800., 4200.], [3200., 6400., 9600.]]));
     
-        let dx = tape.gradient(&x);
+        let dx = train.gradient(&x);
         assert_eq!(dx, tensor!([1420., 1880., 2340.]));
     }
 }

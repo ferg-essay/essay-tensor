@@ -189,8 +189,7 @@ impl ArgTrace {
 
 #[cfg(test)]
 mod test {
-    use crate::module::{Var};
-    use crate::module::tape::Tape;
+    use crate::module::{Var, Module};
     use crate::{Tensor};
     use crate::prelude::{*};
 
@@ -198,54 +197,55 @@ mod test {
     fn test_var() {
         let x = Var::new("x", tensor!(0.));
 
-        let mut tape = Tape::with(|| {
-            Ok(x.tensor().clone())
-        }).unwrap();
+        let module = Module::build((), |()| {
+            x.tensor().clone()
+        }).training(&[&x]);
+        let train = module.train(());
 
-        assert_eq!(tape.gradient(&x), tensor!(1.));
+        assert_eq!(train.gradient(&x), tensor!(1.));
 
         let x = Var::new("x", tensor!([[0., 2.], [10., 11.]]));
 
-        let mut tape = Tape::with(|| {
-            Ok(x.tensor().clone())
-        }).unwrap();
+        let module = Module::build((), |()| {
+            x.tensor().clone()
+        }).training(&[&x]);
+        let train = module.train(());
 
-        assert_eq!(tape.gradient(&x), tensor!([[1., 1.], [1., 1.]]));
+        assert_eq!(train.gradient(&x), tensor!([[1., 1.], [1., 1.]]));
     }
 
     #[test]
     fn test_l2_loss() {
         let x = Var::new("x", tensor!(2.));
 
-        let mut tape = Tape::with(|| {
+        let module = Module::build((), |()| {
             let loss: Tensor = x.l2_loss();
 
-            Ok(loss)
-        }).unwrap();
+            loss
+        }).training(&[&x]);
+        let train = module.train(());
 
-        let dx = tape.gradient(&x);
+        let dx = train.gradient(&x);
         assert_eq!(dx, tensor!(2.0));
 
         let x = Var::new("x", tensor![3.]);
 
-        let mut tape = Tape::with(|| {
-            let loss: Tensor = x.l2_loss();
+        let module = Module::build((), |()| {
+            x.l2_loss()
+        }).training(&[&x]);
+        let train = module.train(());
 
-            Ok(loss)
-        }).unwrap();
-
-        let dx = tape.gradient(&x);
+        let dx = train.gradient(&x);
         assert_eq!(dx, tensor![3.]);
 
         let x = Var::new("x", tensor!([1., 2., 3.]));
 
-        let mut tape = Tape::with(|| {
-            let loss: Tensor = x.l2_loss();
+        let module = Module::build((), |()| {
+            x.l2_loss()
+        }).training(&[&x]);
+        let train = module.train(());
 
-            Ok(loss)
-        }).unwrap();
-
-        let dx = tape.gradient(&x);
+        let dx = train.gradient(&x);
         assert_eq!(dx, tensor!([1., 2., 3.]));
     }
 
@@ -254,49 +254,38 @@ mod test {
         let x = Var::new("x", tensor!(3.));
         let y = Var::new("y", tensor!(1.));
 
-        let mut tape = Tape::with(|| {
-            let out: Tensor = &x - &y;
-            assert_eq!(out, tensor!(2.));
+        let module = Module::build((), |()| {
+            &x - &y
+        }).training(&[&x, &y]);
+        let train = module.train(());
 
-            Ok(out)
-        }).unwrap();
-
-        let dx = tape.gradient(&x);
-        assert_eq!(dx, tensor!(1.0));
-
-        let dy = tape.gradient(&y);
-        assert_eq!(dy, tensor!(-1.0));
+        assert_eq!(train.value(), tensor!(2.));
+        assert_eq!(train.gradient(&x), tensor!(1.0));
+        assert_eq!(train.gradient(&y), tensor!(-1.0));
 
         let x = Var::new("x", tensor!([4., 5., 7.]));
         let y = Var::new("y", tensor!([1., 2., 3.]));
 
-        let mut tape = Tape::with(|| {
-            let out: Tensor = &x - &y;
-            assert_eq!(out, tensor!([3., 3., 4.]));
+        let module = Module::build((), |()| {
+            &x - &y
+        }).training(&[&x, &y]);
+        let train = module.train(());
 
-            Ok(out)
-        }).unwrap();
-
-        let dx = tape.gradient(&x);
-        assert_eq!(dx, tensor!([1., 1., 1.]));
-
-        let dy = tape.gradient(&y);
-        assert_eq!(dy, tensor!([-1., -1., -1.]));
+        assert_eq!(train.value(), tensor!([3., 3., 4.]));
+        assert_eq!(train.gradient(&x), tensor!([1., 1., 1.]));
+        assert_eq!(train.gradient(&y), tensor!([-1., -1., -1.]));
     }
 
     #[test]
     fn test_mul() {
         let x = Var::new("x", tensor!([1., 2., 3.]));
 
-        let mut tape = Tape::with(|| {
-            let out: Tensor = tensor!(2.) * &x;
-            assert_eq!(out, tensor!([2., 4., 6.]));
-
-            Ok(out)
-        }).unwrap();
-
-        let dx = tape.gradient(&x);
-        assert_eq!(dx, tensor!(1.0));
+        let module = Module::build((), |()| {
+            tensor!(2.) * &x
+        }).training(&[&x]);
+        let train = module.train(());
+        assert_eq!(train.value(), tensor!([2., 4., 6.]));
+        assert_eq!(train.gradient(&x), tensor!([2., 2., 2.]));
     }
 
     #[test]
@@ -304,33 +293,25 @@ mod test {
         let a = Var::new("a", tensor!(3.));
         let y = Var::new("y", tensor!(0.));
 
-        let mut tape = Tape::with(|| {
-            let loss: Tensor = (&a - &y).l2_loss();
-            assert_eq!(loss, tensor!(4.5));
-            Ok(loss)
-        }).unwrap();
+        let module = Module::build((), |()| {
+            (&a - &y).l2_loss()
+        }).training(&[&a, &y]);
+        let train = module.train(());
 
-        let da = tape.gradient(&a);
-        assert_eq!(da, tensor!(3.0));
-
-        let dy = tape.gradient(&y);
-        assert_eq!(dy, tensor!(-3.0));
+        assert_eq!(train.value(), tensor!(4.5));
+        assert_eq!(train.gradient(&a), tensor!(3.0));
+        assert_eq!(train.gradient(&y), tensor!(-3.0));
 
         let a = Var::new("a", tensor!([1., 2.]));
         let x = Var::new("x", tensor!([0., 0.]));
 
-        let mut tape = Tape::with(|| {
-            let loss: Tensor = (&a - &x).l2_loss();
+        let module = Module::build((), |()| {
+            (&a - &x).l2_loss()
+        }).training(&[&a, &x]);
+        let train = module.train(());
 
-            assert_eq!(&loss, &tensor!(1.25));
-
-            Ok(loss)
-        }).unwrap();
-
-        let da = tape.gradient(&a);
-        assert_eq!(da, tensor!([1.0, 2.0]));
-
-        let dx = tape.gradient(&y);
-        assert_eq!(dx, tensor!([-1.0, -2.0]));
+        assert_eq!(train.value(), tensor!(1.25));
+        assert_eq!(train.gradient(&a), tensor!([1.0, 2.0]));
+        assert_eq!(train.gradient(&x), tensor!([-1.0, -2.0]));
     }
 }

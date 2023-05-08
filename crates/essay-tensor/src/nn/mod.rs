@@ -63,9 +63,13 @@ impl ForwardOp for UReduce {
     fn eval(
         &self,
         _tensors: &crate::module::TensorCache,
-        _args: &[&Tensor],
+        args: &[&Tensor],
     ) -> Tensor {
-        todo!()
+        match self {
+            UReduce::L2Loss(n_inv) => {
+                args[0].fold(0.0.into(), UReduce::L2Loss(*n_inv))
+            },
+        }
     }
 
     fn backprop(
