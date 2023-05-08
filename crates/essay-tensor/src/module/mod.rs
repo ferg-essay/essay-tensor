@@ -8,7 +8,7 @@ pub use var::{
 };
 
 pub use module::{
-    Module, ModuleTape,
+    Module, Tape,
 };
 
 pub use graph::{

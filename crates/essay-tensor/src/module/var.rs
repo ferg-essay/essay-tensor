@@ -3,7 +3,7 @@ use std::{ops::{Deref, self}, rc::Rc, cell::RefCell};
 
 use crate::{tensor::{Dtype}, Tensor, prelude::IntoTensor};
 
-use super::{module::ModuleTape};
+use super::{module::Tape};
 
 pub struct Var<D:Dtype=f32> {
     name: String,
@@ -37,7 +37,7 @@ impl<D:Dtype> Var<D> {
 impl Var {
     pub fn tensor(&self) -> &Tensor {
         // Tape::set_var(&self.name, &self.tensor);
-        ModuleTape::var(&self);
+        Tape::var(&self);
     
         &self.tensor
     }
@@ -52,7 +52,7 @@ impl Deref for Var {
 
     fn deref(&self) -> &Self::Target {
         // Tape::set_var(&self.name, &self.tensor);
-        ModuleTape::var(&self);
+        Tape::var(&self);
 
         &self.tensor
     }
@@ -85,7 +85,7 @@ impl Clone for Var {
 
 impl IntoTensor<f32> for Var {
     fn into_tensor(&self) -> Tensor {
-        ModuleTape::set_var(&self.name(), &self.tensor);
+        Tape::set_var(&self.name(), &self.tensor);
 
         self.tensor.clone()
     }
@@ -93,7 +93,7 @@ impl IntoTensor<f32> for Var {
 
 impl From<Var> for Tensor {
     fn from(var: Var) -> Self {
-        ModuleTape::set_var(&var.name(), &var.tensor);
+        Tape::set_var(&var.name(), &var.tensor);
 
         var.tensor.clone()
     }

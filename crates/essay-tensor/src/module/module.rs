@@ -22,7 +22,7 @@ pub struct Train<'a, In: Bundle, Out: Bundle> {
 
 }
 
-pub struct ModuleTape {
+pub struct Tape {
     _args: Vec<TensorId>,
     _vars: Vec<(Var, TensorId)>,
     tensors: Vec<Option<Tensor>>,
@@ -32,7 +32,7 @@ pub struct ModuleTape {
 }
 
 thread_local! {
-    pub static TAPE: RefCell<Option<ModuleTape>>  = RefCell::new(None);
+    pub static TAPE: RefCell<Option<Tape>>  = RefCell::new(None);
 }
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ impl<In: Bundle> Module<In, Tensor> {
     where
         F: FnOnce(In) -> Tensor,
     {
-        let tape = ModuleTape {
+        let tape = Tape {
             _args: Default::default(),
             _vars: Default::default(),
             tensors: Default::default(),
@@ -135,7 +135,7 @@ impl<In:Bundle,Out:Bundle> Train<'_, In, Out> {
 
 }
 
-impl ModuleTape {
+impl Tape {
     pub fn len(&self) -> usize {
         self.tensors.len()
     }
@@ -144,7 +144,7 @@ impl ModuleTape {
         self.graph.len()
     }
 
-    pub fn with(fun: impl FnOnce() -> Result<Tensor, TapeError>) -> Result<ModuleTape, TapeError> {
+    pub fn with(fun: impl FnOnce() -> Result<Tensor, TapeError>) -> Result<Tape, TapeError> {
         let tape = Self {
             _args: Default::default(),
             _vars: Default::default(),
@@ -292,7 +292,7 @@ impl Bundle for (Tensor, Tensor) {}
 
 #[cfg(test)]
 mod test {
-    use crate::module::{TensorId, ModuleTape};
+    use crate::module::{TensorId, Tape};
 
     use crate::{
         module::{module::Module, Var},
@@ -301,16 +301,16 @@ mod test {
 
     #[test]
     fn test_alloc() {
-        assert_eq!(ModuleTape::alloc_id(), None);
+        assert_eq!(Tape::alloc_id(), None);
 
         let _module = Module::build((), |()| {
-            assert_eq!(ModuleTape::alloc_id(), Some(TensorId(0)));
-            assert_eq!(ModuleTape::alloc_id(), Some(TensorId(1)));
+            assert_eq!(Tape::alloc_id(), Some(TensorId(0)));
+            assert_eq!(Tape::alloc_id(), Some(TensorId(1)));
 
             tensor!(0.)
         });
         
-        assert_eq!(ModuleTape::alloc_id(), None);
+        assert_eq!(Tape::alloc_id(), None);
     }
 
     #[test]

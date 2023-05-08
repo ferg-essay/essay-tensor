@@ -1,6 +1,6 @@
 use std::{sync::Arc, any::type_name};
 
-use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, ModuleTape}, Tensor};
+use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape}, Tensor};
 
 use super::{Dtype, TensorUninit, TensorData, NodeId};
 
@@ -89,7 +89,7 @@ impl Tensor {
         );
 
         if let NodeId::Id(id) = tensor.node() {
-            ModuleTape::set_tensor(*id, tensor.clone());
+            Tape::set_tensor(*id, tensor.clone());
         }
 
         tensor

@@ -5,7 +5,7 @@ use log::debug;
 
 use crate::{Tensor, tensor::{NodeId}};
 
-use super::{Var, ModuleTape};
+use super::{Var, Tape};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TensorId(pub usize);
@@ -239,7 +239,7 @@ impl Default for Graph {
 
 impl NodeOp {
     pub fn new(args: &[&Tensor], op: BoxForwardOp) -> NodeId {
-        if ! ModuleTape::is_active() {
+        if ! Tape::is_active() {
             return NodeId::None;
         }
 
@@ -247,11 +247,11 @@ impl NodeOp {
             match tensor.op() {
                 NodeId::None => Self::constant(tensor),
                 NodeId::Id(id) => *id,
-                NodeId::Var(name) => ModuleTape::find_var(name),
+                NodeId::Var(name) => Tape::find_var(name),
             }
         ).collect();
 
-        let id = ModuleTape::alloc_id();
+        let id = Tape::alloc_id();
 
         if id.is_none() {
             return NodeId::None;
@@ -261,7 +261,7 @@ impl NodeOp {
 
         let node = NodeOp::Op(id, op, node_args);
 
-        ModuleTape::set_node(id, node);
+        Tape::set_node(id, node);
 
         NodeId::Id(id)
     }
@@ -299,10 +299,10 @@ impl NodeOp {
     }
 
     fn constant(tensor: &Tensor) -> TensorId {
-        let id = ModuleTape::alloc_id().unwrap();
+        let id = Tape::alloc_id().unwrap();
 
-        ModuleTape::set_tensor(id, tensor.clone());
-        ModuleTape::set_node(id, NodeOp::Const(id));
+        Tape::set_tensor(id, tensor.clone());
+        Tape::set_node(id, NodeOp::Const(id));
 
         id
     }
