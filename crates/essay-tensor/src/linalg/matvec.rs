@@ -271,7 +271,7 @@ impl BackOp for MatvecBackRightT {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, module::{Var, Tape, Module}, linalg::matmul::Transpose};
+    use crate::{tensor, Tensor, module::{Var, Module}, linalg::matmul::Transpose};
 
     #[test]
     fn test_matvec_1_1() {

@@ -293,7 +293,6 @@ impl Bundle for (Tensor, Tensor) {}
 #[cfg(test)]
 mod test {
     use crate::module::{TensorId, ModuleTape};
-    use crate::module::tape::Tape;
 
     use crate::{
         module::{module::Module, Var},
@@ -494,14 +493,13 @@ mod test {
         assert_eq!(train.gradient(&a), tensor!(2.));
         assert_eq!(train.gradient(&x), tensor!(-2.));
 
-        let mut tape = Tape::with(|| {
-            let loss: Tensor = (&a - &x) * (&a - &x);
+        let module = Module::build((), |()| {
+            (&a - &x) * (&a - &x)
+        }).training(&[&a, &x]);
+        let train = module.train(());
 
-            Ok(loss)
-        }).unwrap();
-
-        assert_eq!(tape.gradient(&a), tensor!([[2., 2.], [6., 4.]]));
-        assert_eq!(tape.gradient(&x), tensor!([[-2., -2.], [-6., -4.]]));
+        assert_eq!(train.gradient(&a), tensor!([[2., 2.], [6., 4.]]));
+        assert_eq!(train.gradient(&x), tensor!([[-2., -2.], [-6., -4.]]));
     }
 
     #[test]
