@@ -2,26 +2,29 @@ use std::{collections::HashMap, cell::RefCell};
 
 use crate::Tensor;
 
-use super::{Var, TensorId, NodeOp, backprop::backprop_graph, Graph};
-
-pub trait Bundle {}
-
-pub struct Train<'a, In: Bundle, Out: Bundle> {
-    out: Out,
-    module: &'a Module<In, Out>,
-}
+use super::{Var, TensorId, NodeOp, backprop::backprop_graph, Graph, TensorCache};
 
 pub struct Module<In: Bundle, Out: Bundle> {
-    vars: Vec<(Var, TensorId)>,
-    fun: Box<dyn Fn(&Graph, In) -> Out>,
+    _vars: Vec<(Var, TensorId)>,
+    fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
 
     graph: Graph,
-    tensors: Vec<Option<Tensor>>,
+    _tensors: Vec<Option<Tensor>>,
+    gradients: Vec<(String, Graph)>,
+}
+
+pub trait Bundle : Clone {}
+
+pub struct Train<'a, In: Bundle, Out: Bundle> {
+    module: &'a Module<In, Out>,
+    tensors: TensorCache,
+    out: Out,
+
 }
 
 pub struct ModuleTape {
-    args: Vec<TensorId>,
-    vars: Vec<(Var, TensorId)>,
+    _args: Vec<TensorId>,
+    _vars: Vec<(Var, TensorId)>,
     tensors: Vec<Option<Tensor>>,
     tail: Option<Tensor>,
 
@@ -41,8 +44,8 @@ impl<In: Bundle> Module<In, Tensor> {
         F: FnOnce(In) -> Tensor,
     {
         let tape = ModuleTape {
-            args: Default::default(),
-            vars: Default::default(),
+            _args: Default::default(),
+            _vars: Default::default(),
             tensors: Default::default(),
             tail: None,
 
@@ -55,32 +58,81 @@ impl<In: Bundle> Module<In, Tensor> {
             f.borrow_mut().replace(tape);
         });
 
-        let tail = fun(init);
+        fun(init);
 
-        let mut tape = TAPE.with(|f| f.borrow_mut().take().unwrap());
+        let tape = TAPE.with(|f| f.borrow_mut().take().unwrap());
 
         let graph = tape.graph;
 
         Self {
-            vars: Default::default(),
-            fun: Box::new(|graph: &Graph, In| { 
-                let tensors = graph.tensors().clone();
-                let out = graph.apply(graph.tensors(), &[]);
+            _vars: Default::default(),
+            fun: Box::new(|graph: &Graph, _input, tensors| { 
+                let out = graph.apply(tensors, &[]);
                 out.last()
             }),
 
             graph: graph,
-            tensors: tape.tensors,
+            _tensors: tape.tensors,
+            gradients: Default::default(),
+        }
+    }
+
+    pub fn gradient(
+        self, 
+        vars: &[&Var],
+    ) -> Self {
+        let mut graphs : Vec<(String, Graph)> = Vec::new();
+
+        for var in vars {
+            let id = self.graph.get_var(var);
+            println!("graph {:?} {:?}", var, id);
+            let graph = backprop_graph(&self.graph, id);
+
+            graphs.push((var.name().to_string(), graph));
+        } 
+
+        Self {
+            gradients: graphs,
+            ..self
         }
     }
 
     pub fn eval(&self, input: In) -> Tensor {
-        (self.fun)(&self.graph, input)
+        let tensors = self.graph.tensors().clone();
+
+        (self.fun)(&self.graph, input, &tensors)
     }
 
     pub fn train(&self, input: In) -> Train<In, Tensor> {
-        todo!()
+        let tensors = self.graph.tensors().clone();
+
+        let out = (self.fun)(&self.graph, input, &tensors);
+
+        Train {
+            module: self,
+            out,
+            tensors,
+        }
     }
+}
+
+impl<In:Bundle,Out:Bundle> Train<'_, In, Out> {
+    pub fn value(&self) -> Out {
+        self.out.clone()
+    }
+
+    pub fn gradient(&self, var :&Var) -> Tensor {
+        for (grad_var, grad_graph) in &self.module.gradients {
+            if var.name() == grad_var {
+                let tensors = grad_graph.apply(&self.tensors, &[]);
+        
+                return tensors.last()
+            }
+        }
+
+        panic!("{:?} is an unknown gradient", var);
+    }
+
 }
 
 impl ModuleTape {
@@ -94,8 +146,8 @@ impl ModuleTape {
 
     pub fn with(fun: impl FnOnce() -> Result<Tensor, TapeError>) -> Result<ModuleTape, TapeError> {
         let tape = Self {
-            args: Default::default(),
-            vars: Default::default(),
+            _args: Default::default(),
+            _vars: Default::default(),
 
             tensors: Default::default(),
             tail: None,
@@ -165,25 +217,57 @@ impl ModuleTape {
     pub fn var(var: &Var) -> TensorId {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.var_inner(var)
+                tape.set_var_inner(var.name(), var.tensor_raw())
             } else {
                 panic!("Tape::var without context")
             }
         })
     }
 
-    pub fn var_inner(&mut self, new_var: &Var) -> TensorId {
+    pub fn find_var(name: &str) -> TensorId {
+        TAPE.with(|f| {
+            if let Some(tape) = f.borrow_mut().as_mut() {
+                tape.find_var_inner(name)
+            } else {
+                panic!("Tape::var without context")
+            }
+        })
+    }
+
+    pub fn set_var(var: &str, tensor: &Tensor) -> TensorId {
+        TAPE.with(|f| {
+            if let Some(tape) = f.borrow_mut().as_mut() {
+                tape.set_var_inner(var, tensor)
+            } else {
+                panic!("Tape::set_var without context")
+            }
+        })
+    }
+
+    pub fn var_inner(&mut self, _new_var: &str) -> TensorId {
+        todo!()
+        //self.graph.var(new_var)
+        /*
         for (var, id) in &self.vars {
-            if var.name() == new_var.name() {
+            if var.name() == new_var {
                 return *id
             }
         }
 
-        let tensor_id = self.graph.var(new_var.name(), new_var.tensor_raw());
+        let tensor_id = self.graph.var(new_var, new_var.tensor_raw());
 
         self.vars.push((new_var.clone(), tensor_id));
 
         tensor_id
+        */
+    }
+
+    pub fn find_var_inner(&mut self, new_var: &str) -> TensorId {
+        self.graph.find_var(new_var)
+    }
+
+    pub fn set_var_inner(&mut self, name: &str, tensor: &Tensor) -> TensorId {
+        self.graph.var(name, tensor)
     }
 
     pub fn gradient(&mut self, var: &Var) -> Tensor {
@@ -208,8 +292,10 @@ impl Bundle for (Tensor, Tensor) {}
 
 #[cfg(test)]
 mod test {
+    // use log::LevelFilter;
+
     use crate::{
-        module::{module::Module, Tape, Var},
+        module::{module::Module, Var},
         tensor, Tensor,
     };
 
@@ -226,11 +312,42 @@ mod test {
         assert_eq!(value, tensor!([[1.]]));
 
         let m_x = Module::build((), 
-        |_| x.tensor().clone()
+        |_| x.into()
         );
 
         let value = m_x.eval(());
         assert_eq!(value, tensor!([2.]));
         // let train = module.train(());
+    }
+
+    #[test]
+    fn binop_mul() {
+        let a = Var::new("a", tensor!([1., 2., 3.]));
+
+        let m_a = Module::build((), 
+        |_| &a * tensor!(2.)
+        );
+
+        let value = m_a.eval(());
+        assert_eq!(value, tensor!([2., 4., 6.]));
+    }
+
+    #[test]
+    fn grad_sub() {
+        //env_logger::builder().filter_level(LevelFilter::Debug).init();
+
+        let a = Var::new("a", tensor!([1., 2., 3.]));
+
+        let m_a = Module::build((), 
+        |_| tensor!(2.) - &a
+        ).gradient(&[&a]);
+
+        let value = m_a.eval(());
+        assert_eq!(value, tensor!([1., 0., -1.]));
+
+        let train = m_a.train(());
+
+        assert_eq!(train.value(), tensor!([1., 0., -1.]));
+        assert_eq!(train.gradient(&a), tensor!([-1., -1., -1.]));
     }
 }

@@ -80,7 +80,7 @@ impl Tape {
         &self.graph.node(id) // nodes[id.index()]
     }
 
-    pub(crate) fn set_node(id: TensorId, node: NodeOp) {
+    pub(crate) fn _set_node(id: TensorId, node: NodeOp) {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
                 tape.graph.set_node(id, node);
@@ -98,7 +98,7 @@ impl Tape {
         }
     }
 
-    pub(crate) fn set_tensor(id: TensorId, tensor: Tensor) {
+    pub(crate) fn _set_tensor(id: TensorId, tensor: Tensor) {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
                 tape.graph.set_tensor(id, tensor);
@@ -106,9 +106,9 @@ impl Tape {
         })
     }
 
-    pub fn var(name: &str) -> TensorId {
+    pub fn var(_name: &str) -> TensorId {
         TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
+            if let Some(_tape) = f.borrow_mut().as_mut() {
                 todo!()
                 // tape.graph.var(name)
             } else {
@@ -117,9 +117,9 @@ impl Tape {
         })
     }
 
-    pub fn set_var(name: &str, tensor: &Tensor) {
+    pub fn set_var(_name: &str, _tensor: &Tensor) {
         TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
+            if let Some(_tape) = f.borrow_mut().as_mut() {
                 todo!()
                 /*
                 let id = tape.graph.var(name);

@@ -56,6 +56,10 @@ impl Fold<f32> for UReduce {
 }
 
 impl ForwardOp for UReduce {
+    fn name(&self) -> &str {
+        "UReduce"
+    }
+    
     fn eval(
         &self,
         _tensors: &crate::module::TensorCache,

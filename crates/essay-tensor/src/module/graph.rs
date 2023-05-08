@@ -1,8 +1,11 @@
+use core::fmt;
 use std::{collections::{HashMap}, ops::{self}};
 
-use crate::{Tensor, module::Tape, tensor::{NodeId}};
+use log::debug;
 
-use super::{TensorId, Var};
+use crate::{Tensor, tensor::{NodeId}};
+
+use super::{TensorId, Var, ModuleTape};
 
 pub struct Graph {
     var_map: HashMap<String, TensorId>,
@@ -16,6 +19,7 @@ pub struct TensorCache {
     tensors: Vec<Option<Tensor>>,
 }
 
+
 pub enum NodeOp {
     None,
     Const(TensorId),
@@ -26,7 +30,32 @@ pub enum NodeOp {
     BackOp(TensorId, BoxBackOp, Vec<TensorId>, TensorId),
 }
 
+impl fmt::Debug for NodeOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Const(arg0) => {
+                f.debug_tuple("Const").field(arg0).finish()
+            },
+            Self::Var(arg0, arg1) => {
+                f.debug_tuple("Var").field(arg0).field(arg1).finish()
+            },
+            Self::Op(id, op, args) => {
+                f.debug_tuple("Op").field(id).field(&op.name().to_string()).field(args).finish()
+            },
+            Self::BackConst(arg0, arg1) => {
+                f.debug_tuple("BackConst").field(arg0).field(arg1).finish()
+            },
+            Self::BackOp(arg0, op, arg2, arg3) => {
+                f.debug_tuple("BackOp").field(arg0).field(&op.name().to_string()).field(arg2).field(arg3).finish()
+            },
+        }
+    }
+}
+
 pub trait ForwardOp : Send + Sync + 'static {
+    fn name(&self) -> &str;
+
     fn eval(
         &self,
         tensors: &TensorCache,
@@ -58,6 +87,8 @@ pub trait EvalOp : Send + Sync + 'static {
 pub type BoxForwardOp = Box<dyn ForwardOp>;
 
 pub trait BackOp : Send + Sync + 'static {
+    fn name(&self) -> &str;
+
     fn eval(
         &self,
         tensors: &TensorCache,
@@ -80,15 +111,21 @@ impl Graph {
             .or_insert(TensorId(len));
 
         if id.index() == len {
-            self.nodes.push(NodeOp::Const(id));
+            let op = NodeOp::Const(id);
+            debug!("GraphVar {} {:?}", name, op);
+            self.nodes.push(op);
             self.tensors.push(Some(tensor.clone()));
         }
 
         id
     }
 
+    pub(crate) fn find_var(&self, name: &str) -> TensorId {
+        *self.var_map.get(name).unwrap()
+    }
+
     pub(crate) fn get_var(&self, var: &Var) -> TensorId {
-       *self.var_map.get(var.name()).unwrap()
+        *self.var_map.get(var.name()).unwrap()
     }
 
     pub(crate) fn constant(&mut self, tensor: Tensor) -> TensorId {
@@ -147,6 +184,7 @@ impl Graph {
     }
 
     pub(crate) fn set_node(&mut self, id: TensorId, node: NodeOp) {
+        debug!("Graph.set_node [{}] {:?}", id.index(), node);
         self.nodes[id.index()] = node;
     }
 
@@ -198,7 +236,7 @@ impl Default for Graph {
 
 impl NodeOp {
     pub fn new(args: &[&Tensor], op: BoxForwardOp) -> NodeId {
-        if ! Tape::is_active() {
+        if ! ModuleTape::is_active() {
             return NodeId::None;
         }
 
@@ -206,11 +244,11 @@ impl NodeOp {
             match tensor.op() {
                 NodeId::None => Self::constant(tensor),
                 NodeId::Id(id) => *id,
-                NodeId::Var(name) => Tape::var(name),
+                NodeId::Var(name) => ModuleTape::find_var(name),
             }
         ).collect();
 
-        let id = Tape::alloc_id();
+        let id = ModuleTape::alloc_id();
 
         if id.is_none() {
             return NodeId::None;
@@ -220,7 +258,7 @@ impl NodeOp {
 
         let node = NodeOp::Op(id, op, node_args);
 
-        Tape::set_node(id, node);
+        ModuleTape::set_node(id, node);
 
         NodeId::Id(id)
     }
@@ -233,7 +271,7 @@ impl NodeOp {
         match self {
             NodeOp::None => todo!(),
             NodeOp::Const(id) => tensors[*id].clone(),
-            NodeOp::Var(id, name) => {
+            NodeOp::Var(_, _) => {
                 panic!()
             },
             NodeOp::Op(_, op, args) => {
@@ -258,10 +296,10 @@ impl NodeOp {
     }
 
     fn constant(tensor: &Tensor) -> TensorId {
-        let id = Tape::alloc_id().unwrap();
+        let id = ModuleTape::alloc_id().unwrap();
 
-        Tape::set_tensor(id, tensor.clone());
-        Tape::set_node(id, NodeOp::Const(id));
+        ModuleTape::set_tensor(id, tensor.clone());
+        ModuleTape::set_node(id, NodeOp::Const(id));
 
         id
     }

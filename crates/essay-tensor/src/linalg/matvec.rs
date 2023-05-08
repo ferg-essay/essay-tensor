@@ -1,3 +1,5 @@
+use std::any::type_name;
+
 use crate::{tensor::{Tensor, TensorUninit}, module::{ForwardOp, Graph, TensorId, TensorCache, graph::BackOp}};
 
 use super::matmul::Transpose;
@@ -204,6 +206,10 @@ impl TransposeMatvec for Transpose {
 }
 
 impl ForwardOp for Matvec {
+    fn name(&self) -> &str {
+        type_name::<Self>()
+    }
+    
     fn eval(
         &self,
         _tensors: &crate::module::TensorCache,
@@ -234,6 +240,10 @@ impl ForwardOp for Matvec {
 }
 
 impl BackOp for MatvecOuter {
+    fn name(&self) -> &str {
+        type_name::<Self>()
+    }
+    
     fn eval(
         &self,
         _tensors: &TensorCache,
@@ -245,6 +255,10 @@ impl BackOp for MatvecOuter {
 }
 
 impl BackOp for MatvecBackRightT {
+    fn name(&self) -> &str {
+        type_name::<Self>()
+    }
+    
     fn eval(
         &self,
         _tensors: &TensorCache,

@@ -41,7 +41,7 @@ impl<D:Dtype> Tensor<D> {
         }
     }
 
-    pub(crate) fn clone_id(&self, id: TensorId) -> Tensor<D> {
+    pub(crate) fn _clone_id(&self, id: TensorId) -> Tensor<D> {
         Tensor {
             shape: self.shape.clone(),
             data: self.data.clone(),
@@ -288,6 +288,12 @@ impl From<f32> for Tensor<f32> {
 impl From<Tensor<f32>> for f32 {
     fn from(value: Tensor) -> Self {
         value.data()[0]
+    }
+}
+
+impl<D:Dtype> From<&Tensor<D>> for Tensor<D> {
+    fn from(value: &Tensor<D>) -> Self {
+        value.clone()
     }
 }
 

@@ -13,7 +13,7 @@ pub use tape::{
 };
 
 pub use module::{
-    ModuleTape,
+    Module, ModuleTape,
 };
 
 pub use graph::{

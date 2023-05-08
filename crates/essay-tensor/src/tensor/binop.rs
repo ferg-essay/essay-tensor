@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{sync::Arc, any::type_name};
 
-use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape}, Tensor};
+use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, ModuleTape}, Tensor};
 
 use super::{Dtype, TensorUninit, TensorData, NodeId};
 
@@ -26,6 +26,28 @@ pub struct BinopImpl<Op:Binop> {
 
 impl Tensor {
     pub fn binop<Op:Binop<f32>>(&self, b: &Self, op: Op) -> Self {
+        let (shape, data) = self.eval_binop_impl(b, &op);
+
+        let binop = BinopImpl::new(op);
+
+        self.next_binop(&b, data, shape, binop)
+    }
+
+    pub fn eval_binop<Op:Binop<f32>>(
+        &self, 
+        b: &Self, 
+        op: &Op
+    ) -> Tensor {
+        let (shape, data) = self.eval_binop_impl(b, op);
+
+        Tensor::new(Arc::new(data), &shape)
+    }
+
+    pub fn eval_binop_impl<Op:Binop<f32>>(
+        &self, 
+        b: &Self, 
+        op: &Op
+    ) -> (Vec<usize>, TensorData) {
         let size = self.broadcast(b);
     
         let a_data = self.data();
@@ -48,8 +70,8 @@ impl Tensor {
             } else { 
                 self.shape().clone() 
             };
-            self.next_binop(&b, data.init(), shape, 
-                BinopImpl::new(op))
+
+            (shape, data.init())
         }
     }
 
@@ -67,7 +89,7 @@ impl Tensor {
         );
 
         if let NodeId::Id(id) = tensor.node() {
-            Tape::set_tensor(*id, tensor.clone());
+            ModuleTape::set_tensor(*id, tensor.clone());
         }
 
         tensor
@@ -84,12 +106,17 @@ impl<Op:Binop<f32>> BinopImpl<Op> {
 }
 
 impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
+    fn name(&self) -> &str {
+        type_name::<Op>()
+    }
+    
     fn eval(
         &self,
         _tensors: &crate::module::TensorCache,
-        _args: &[&Tensor],
+        args: &[&Tensor],
     ) -> Tensor {
-        todo!()
+        // todo!("unimplemented op {}", self.name())
+        args[0].eval_binop(args[1], &self.op)
     }
 
     fn backprop(

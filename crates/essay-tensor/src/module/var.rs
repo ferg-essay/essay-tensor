@@ -83,15 +83,19 @@ impl Clone for Var {
     }
 }
 
-impl<D:Dtype> IntoTensor<D> for Var<D> {
-    fn into_tensor(&self) -> Tensor<D> {
+impl IntoTensor<f32> for Var {
+    fn into_tensor(&self) -> Tensor {
+        ModuleTape::set_var(&self.name(), &self.tensor);
+
         self.tensor.clone()
     }
 }
 
-impl<D:Dtype> From<Var<D>> for Tensor<D> {
-    fn from(value: Var<D>) -> Self {
-        value.tensor.clone()
+impl From<Var> for Tensor {
+    fn from(var: Var) -> Self {
+        ModuleTape::set_var(&var.name(), &var.tensor);
+
+        var.tensor.clone()
     }
 }
 

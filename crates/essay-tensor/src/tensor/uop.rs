@@ -1,7 +1,7 @@
 use core::fmt;
 use std::sync::Arc;
 
-use crate::{module::{IntoForward, NodeOp, Tape, ModuleTape}, Tensor};
+use crate::{module::{IntoForward, NodeOp, ModuleTape}, Tensor};
 
 use super::{Dtype, TensorUninit, TensorData, NodeId};
 

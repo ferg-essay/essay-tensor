@@ -38,7 +38,8 @@ pub(crate) fn backprop_graph_rec(
     let len = backtrace.args.len();
 
     if len == 0 {
-        node_backprop(forward, back, 0, backtrace.id, prev);
+        //node_backprop(forward, back, 0, backtrace.id, prev);
+        return;
     }
 
     for arg in &backtrace.args {
@@ -57,7 +58,9 @@ fn node_backprop(
 ) -> TensorId {
     match forward.node(id) {
         NodeOp::None => todo!(),
-        NodeOp::Const(_id) => todo!(),
+        NodeOp::Const(_) => {
+            panic!("unexpected const");
+        }
         NodeOp::Var(_, _) => {
             prev
         }
@@ -125,6 +128,10 @@ fn build_backtrace_rec(
 }
 
 impl<Op:EvalOp> ForwardOp for Op {
+    fn name(&self) -> &str {
+        type_name::<Op>()
+    }
+
     fn eval(
         &self,
         tensors: &TensorCache,
@@ -275,6 +282,21 @@ mod test {
 
         let dy = tape.gradient(&y);
         assert_eq!(dy, tensor!([-1., -1., -1.]));
+    }
+
+    #[test]
+    fn test_mul() {
+        let x = Var::new("x", tensor!([1., 2., 3.]));
+
+        let mut tape = Tape::with(|| {
+            let out: Tensor = tensor!(2.) * &x;
+            assert_eq!(out, tensor!([2., 4., 6.]));
+
+            Ok(out)
+        }).unwrap();
+
+        let dx = tape.gradient(&x);
+        assert_eq!(dx, tensor!(1.0));
     }
 
     #[test]
