@@ -2,10 +2,7 @@ use std::{cell::RefCell};
 
 use crate::{Tensor};
 
-use super::{Var, NodeOp, graph::{Graph}, backprop::backprop_graph};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TensorId(pub usize);
+use super::{Var, NodeOp, graph::{Graph}, backprop::backprop_graph, TensorId};
 
 pub struct Tape {
     tensors: Vec<Option<Tensor>>,
@@ -152,13 +149,6 @@ impl Tape {
         let tensors = graph.apply(&fwd_tensors, &[]);
 
         tensors.last()
-    }
-}
-
-impl TensorId {
-    #[inline]
-    pub fn index(&self) -> usize {
-        self.0
     }
 }
 

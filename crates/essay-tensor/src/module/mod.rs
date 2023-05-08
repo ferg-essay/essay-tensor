@@ -9,7 +9,7 @@ pub use var::{
 };
 
 pub use tape::{
-    Tape, TensorId,
+    Tape,
 };
 
 pub use module::{
@@ -18,6 +18,7 @@ pub use module::{
 
 pub use graph::{
     Graph, NodeOp, EvalOp, ForwardOp, IntoForward, BoxForwardOp,
+    TensorId,
     // BackOp, BoxBackOp,
     TensorCache,
 };

@@ -5,7 +5,10 @@ use log::debug;
 
 use crate::{Tensor, tensor::{NodeId}};
 
-use super::{TensorId, Var, ModuleTape};
+use super::{Var, ModuleTape};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TensorId(pub usize);
 
 pub struct Graph {
     var_map: HashMap<String, TensorId>,
@@ -354,5 +357,12 @@ impl ops::Index<TensorId> for TensorCache {
 impl Default for TensorCache {
     fn default() -> Self {
         Self { tensors: Default::default() }
+    }
+}
+
+impl TensorId {
+    #[inline]
+    pub fn index(&self) -> usize {
+        self.0
     }
 }
