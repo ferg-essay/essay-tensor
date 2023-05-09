@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{ops::{Deref, self}, rc::Rc, cell::RefCell};
 
-use crate::{tensor::{Dtype}, Tensor, prelude::IntoTensor};
+use crate::{tensor::{Dtype, IntoTensor}, Tensor};
 
 use super::{module::Tape};
 

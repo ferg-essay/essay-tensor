@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{module::{IntoForward}, Tensor, tensor::{Dtype, TensorUninit}};
 
 pub trait Fold<D:Dtype=f32> : Clone {
@@ -43,7 +45,8 @@ impl Tensor {
     
             //Self::new(Rc::new(data), b.shape().clone())
     
-            self.next_uop(o_data.init(), o_shape, op)
+            //self.next_uop(o_data.init(), o_shape, op)
+            Tensor::new(Arc::new(o_data.init()), &o_shape)
         }
     }
 
@@ -87,7 +90,8 @@ impl Tensor {
     
             //Self::new(Rc::new(data), b.shape().clone())
             // TODO: fold has different op
-            self.next_uop(o_data.init(), o_shape, op)
+            //self.next_uop(o_data.init(), o_shape, op)
+            Tensor::new(Arc::new(o_data.init()), &o_shape)
         }
     }
 }

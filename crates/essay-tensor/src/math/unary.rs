@@ -28,6 +28,10 @@ impl Uop<f32> for Unary {
             Unary::Sin => value.sin(),
         }
     }
+
+    fn df_dx(&self, value: f32) -> f32 {
+        todo!()
+    }
 }
 
 tensor_uop!(abs, Unary::Abs);

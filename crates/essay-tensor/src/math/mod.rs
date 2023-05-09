@@ -9,9 +9,6 @@ use crate::{
     tensor_binop, math::unary::Unary, ops::Binop
 };
 
-pub use unary::{
-};
-
 tensor_uop!(square, square::SquareOp);
 
 //

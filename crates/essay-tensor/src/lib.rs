@@ -14,8 +14,7 @@ pub use tensor::Tensor;
 pub mod prelude {
     pub use crate::tensor;
     pub use crate::Tensor;
-
-    pub use crate::tensor::{
-        IntoTensor,
+    pub use crate::module::{
+        Module, Bundle
     };
 }

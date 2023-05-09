@@ -24,6 +24,10 @@ impl Uop<f32> for Unary {
             Unary::Softplus => (value.exp() + 1.).ln(),
         }
     }
+
+    fn df_dx(&self, _value: f32) -> f32 {
+        todo!()
+    }
 }
 
 tensor_uop!(relu, Unary::ReLU);
