@@ -92,7 +92,6 @@ pub trait BackOp : Send + Sync + 'static {
 
     fn df(
         &self,
-        tensors: &TensorCache,
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor;
@@ -289,7 +288,7 @@ impl NodeOp {
                     .map(|id| fwd_tensors.get(*id).unwrap())
                     .collect();
 
-                op.df(tensors, &t_args, tensors.get(*prev).unwrap())
+                op.df(&t_args, tensors.get(*prev).unwrap())
             },
         }
     }

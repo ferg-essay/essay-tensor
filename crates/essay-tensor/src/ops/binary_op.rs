@@ -95,7 +95,6 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
             1 => graph.add_back_op(BinopDy(self.0.clone()), &[args[0], args[1]], prev),
             _ => unimplemented!(),
         }
-        //self.0.backprop(forward, graph, i, args, prev)
     }
 }
 
@@ -106,7 +105,6 @@ impl<Op:Binop<f32>> BackOp for BinopDx<Op> {
 
     fn df(
         &self,
-        _tensors: &TensorCache,
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {
@@ -147,7 +145,6 @@ impl<Op:Binop<f32>> BackOp for BinopDy<Op> {
 
     fn df(
         &self,
-        _tensors: &TensorCache,
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {

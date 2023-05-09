@@ -83,7 +83,6 @@ impl<Op:Uop<f32>> BackOp for UopImpl<Op> {
 
     fn df(
         &self,
-        _tensors: &TensorCache,
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {

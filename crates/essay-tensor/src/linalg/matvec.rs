@@ -1,4 +1,4 @@
-use std::{any::type_name, sync::Arc};
+use std::{any::type_name};
 
 use crate::{tensor::{Tensor, TensorUninit, NodeId}, module::{ForwardOp, Graph, TensorId, TensorCache, graph::BackOp}};
 
@@ -246,7 +246,6 @@ impl BackOp for MatvecOuter {
     
     fn df(
         &self,
-        _tensors: &TensorCache,
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {
@@ -261,7 +260,6 @@ impl BackOp for MatvecBackRightT {
     
     fn df(
         &self,
-        _tensors: &TensorCache,
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {

@@ -1,9 +1,84 @@
 use std::ops;
 
 use crate::{Tensor, 
-    module::{EvalOp, TensorCache}, 
+    module::{EvalOp}, 
     ops::{Uop, unary_op}
 };
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Abs;
+
+impl Uop<f32> for Abs {
+    #[inline]
+    fn f(&self, value: f32) -> f32 {
+        value.abs()
+    }
+
+    #[inline]
+    fn df_dx(&self, value: f32) -> f32 {
+        if value > 0. { 1. } else { -1. }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Cos;
+
+impl Uop<f32> for Cos {
+    #[inline]
+    fn f(&self, value: f32) -> f32 {
+        value.cos()
+    }
+
+    #[inline]
+    fn df_dx(&self, value: f32) -> f32 {
+        value.sin()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Exp;
+
+impl Uop<f32> for Exp {
+    #[inline]
+    fn f(&self, value: f32) -> f32 {
+        value.exp()
+    }
+
+    #[inline]
+    fn df_dx(&self, value: f32) -> f32 {
+        value.exp()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Ln;
+
+impl Uop<f32> for Ln {
+    #[inline]
+    fn f(&self, value: f32) -> f32 {
+        value.ln()
+    }
+
+    #[inline]
+    fn df_dx(&self, value: f32) -> f32 {
+        1. / value
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Sin;
+
+impl Uop<f32> for Sin {
+    #[inline]
+    fn f(&self, value: f32) -> f32 {
+        value.sin()
+    }
+
+    #[inline]
+    fn df_dx(&self, value: f32) -> f32 {
+        - value.cos()
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Unary {
