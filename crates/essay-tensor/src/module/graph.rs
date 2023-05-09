@@ -22,7 +22,6 @@ pub struct TensorCache {
     tensors: Vec<Option<Tensor>>,
 }
 
-
 pub enum NodeOp {
     None,
     Const(TensorId),
@@ -201,21 +200,19 @@ impl Graph {
 
     pub(crate) fn apply(
         &self, 
+        out: &mut TensorCache,
         fwd_tensors: &TensorCache, 
-        _args: &[&Tensor]
-    ) -> TensorCache {
+    ) {
         assert!(self.nodes.len() > 0);
 
-        let mut tensors_out = self.tensors.clone();
+        // let mut tensors_out = self.tensors.clone();
             // TODO: fill args
         for node in self.nodes.iter() {
-            let tensor = node.eval(&tensors_out, &fwd_tensors);
+            let tensor = node.eval(&out, &fwd_tensors);
 
             // TODO: 
-            tensors_out.set(node.id(), tensor);
+            out.set(node.id(), tensor);
         }
-
-        tensors_out
     }
 
     pub(crate) fn tensors(&self) -> &TensorCache {
@@ -324,7 +321,7 @@ impl TensorCache {
         self.tensors.push(tensor)
     }
 
-    fn get(&self, id: TensorId) -> Option<&Tensor> {
+    pub(crate) fn get(&self, id: TensorId) -> Option<&Tensor> {
         match &self.tensors[id.index()] {
             Some(tensor) => Some(tensor),
             None => None,
@@ -340,6 +337,10 @@ impl TensorCache {
             Some(tensor) => tensor.clone(),
             None => todo!(),
         }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.tensors.len()
     }
 }
 

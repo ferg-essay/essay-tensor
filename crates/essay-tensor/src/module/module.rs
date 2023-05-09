@@ -1,6 +1,6 @@
 use std::{cell::RefCell};
 
-use crate::Tensor;
+use crate::{Tensor, tensor::NodeId};
 
 use super::{Var, TensorId, NodeOp, backprop::backprop_graph, Graph, TensorCache};
 
@@ -9,13 +9,22 @@ pub struct Module<In: Bundle, Out: Bundle> {
     fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
 
     graph: Graph,
-    _tensors: Vec<Option<Tensor>>,
+    _tensors: TensorCache,
     gradients: Vec<(String, Graph)>,
 }
 
-pub trait Bundle : Clone {}
+pub trait Bundle : Clone {
+    type Item;
 
-pub struct Train<'a, In: Bundle, Out: Bundle> {
+    fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
+    fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
+    fn make_arg(tensors: &TensorCache, index: &mut usize) -> Self::Item;
+
+    fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item);
+    fn make_out(cache: &TensorCache, out: &Vec<TensorId>, index: &mut usize) -> Self::Item;
+}
+
+pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
     module: &'a Module<In, Out>,
     tensors: TensorCache,
     out: Out,
@@ -25,8 +34,8 @@ pub struct Train<'a, In: Bundle, Out: Bundle> {
 pub struct Tape {
     _args: Vec<TensorId>,
     _vars: Vec<(Var, TensorId)>,
-    tensors: Vec<Option<Tensor>>,
-    tail: Option<Tensor>,
+    tensors: TensorCache,
+    _tail: Option<Tensor>,
 
     graph: Graph,
 }
@@ -38,19 +47,29 @@ thread_local! {
 #[derive(Debug)]
 pub enum TapeError {}
 
-impl<In: Bundle> Module<In, Tensor> {
-    pub fn build<F>(init: In, fun: F) -> Module<In, Tensor>
+impl<In: Bundle<Item=In>, Out: Bundle<Item=Out>> Module<In, Out> {
+    pub fn build<F>(init: In, fun: F) -> Module<In, Out>
     where
-        F: FnOnce(In) -> Tensor,
+        F: FnOnce(In) -> Out,
     {
-        let tape = Tape {
+        let mut tape = Tape {
             _args: Default::default(),
             _vars: Default::default(),
             tensors: Default::default(),
-            tail: None,
+            _tail: None,
 
             graph: Default::default(),
         };
+
+        let len = In::push_arg(&mut tape.tensors, 0, &init);
+
+        // Tensors in args now have their id set.
+        let mut index = 0;
+        let args = In::make_arg(&tape.tensors, &mut index);
+
+        for id in 0..len {
+            tape.graph.constant(tape.get_tensor(TensorId(id)).unwrap().clone());
+        }
 
         // TODO: add RALL guard?
         TAPE.with(|f| {
@@ -58,7 +77,10 @@ impl<In: Bundle> Module<In, Tensor> {
             f.borrow_mut().replace(tape);
         });
 
-        fun(init);
+
+        let out = fun(args);
+        let mut out_ids : Vec<TensorId> = Vec::new();
+        Out::out_ids(&mut out_ids, &out);
 
         let tape = TAPE.with(|f| f.borrow_mut().take().unwrap());
 
@@ -66,9 +88,17 @@ impl<In: Bundle> Module<In, Tensor> {
 
         Self {
             _vars: Default::default(),
-            fun: Box::new(|graph: &Graph, _input, tensors| { 
-                let out = graph.apply(tensors, &[]);
-                out.last()
+            fun: Box::new(move |graph: &Graph, input, fwd_tensors| { 
+                let mut out = graph.tensors().clone();
+
+                In::set_arg(&mut out, 0, &input);
+
+                graph.apply(&mut out, fwd_tensors);
+
+                let mut index = 0;
+                let value = Out::make_out(&out, &out_ids, &mut index);
+
+                value
             }),
 
             graph: graph,
@@ -97,13 +127,13 @@ impl<In: Bundle> Module<In, Tensor> {
         }
     }
 
-    pub fn eval(&self, input: In) -> Tensor {
+    pub fn eval(&self, input: In) -> Out {
         let tensors = self.graph.tensors().clone();
 
         (self.fun)(&self.graph, input, &tensors)
     }
 
-    pub fn train(&self, input: In) -> Train<In, Tensor> {
+    pub fn train(&self, input: In) -> Train<In, Out> {
         let tensors = self.graph.tensors().clone();
 
         let out = (self.fun)(&self.graph, input, &tensors);
@@ -116,7 +146,7 @@ impl<In: Bundle> Module<In, Tensor> {
     }
 }
 
-impl<In:Bundle,Out:Bundle> Train<'_, In, Out> {
+impl<In:Bundle<Item=In>,Out:Bundle<Item=Out>> Train<'_, In, Out> {
     pub fn value(&self) -> Out {
         self.out.clone()
     }
@@ -124,9 +154,11 @@ impl<In:Bundle,Out:Bundle> Train<'_, In, Out> {
     pub fn gradient(&self, var :&Var) -> Tensor {
         for (grad_var, grad_graph) in &self.module.gradients {
             if var.name() == grad_var {
-                let tensors = grad_graph.apply(&self.tensors, &[]);
+                let mut out = grad_graph.tensors().clone();
+
+                grad_graph.apply(&mut out, &self.tensors);
         
-                return tensors.last()
+                return out.last()
             }
         }
 
@@ -142,32 +174,6 @@ impl Tape {
 
     pub fn graph_len(&self) -> usize {
         self.graph.len()
-    }
-
-    pub fn with(fun: impl FnOnce() -> Result<Tensor, TapeError>) -> Result<Tape, TapeError> {
-        let tape = Self {
-            _args: Default::default(),
-            _vars: Default::default(),
-
-            tensors: Default::default(),
-            tail: None,
-
-            graph: Default::default(),
-        };
-
-        // TODO: add RALL guard?
-        TAPE.with(|f| {
-            assert!(f.borrow().is_none());
-            f.borrow_mut().replace(tape);
-        });
-
-        let tail = fun();
-
-        let mut tape = TAPE.with(|f| f.borrow_mut().take().unwrap());
-
-        tape.tail = Some(tail?);
-
-        Ok(tape)
     }
 
     pub fn is_active() -> bool {
@@ -200,7 +206,7 @@ impl Tape {
     }
 
     pub fn get_tensor(&self, id: TensorId) -> Option<&Tensor> {
-        match &self.tensors[id.index()] {
+        match &self.tensors.get(id) {
             Some(tensor) => Some(tensor),
             None => None,
         }
@@ -269,29 +275,137 @@ impl Tape {
     pub fn set_var_inner(&mut self, name: &str, tensor: &Tensor) -> TensorId {
         self.graph.var(name, tensor)
     }
+}
 
-    pub fn gradient(&mut self, var: &Var) -> Tensor {
-        let id = self.graph.get_var(var);
-        //let trace = self.graph.build_backtrace(id).unwrap();
+impl Bundle for Tensor {
+    type Item = Tensor;
 
-        let graph = backprop_graph(&self.graph, id);
+    fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+        let id = TensorId(index);
 
-        let fwd_tensors = self.graph.tensors();
+        out.push(Some(item.with_id(id)));
 
-        let tensors = graph.apply(&fwd_tensors, &[]);
+        index + 1
+    }
 
-        tensors.last()
+    fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+        let id = TensorId(index);
+
+        out.set(id, item.with_id(id));
+
+        index + 1
+    }
+
+    fn make_arg(cache: &TensorCache, index: &mut usize) -> Self::Item {
+        let id = TensorId(*index);
+        *index += 1;
+
+        let tensor = cache.get(id).unwrap().clone();
+
+        tensor
+    }
+
+    fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
+        match &item.op() {
+            NodeId::None => todo!(),
+            NodeId::Var(_) => todo!(),
+            NodeId::Id(id) => out.push(*id)
+        }
+    }
+
+    fn make_out(cache: &TensorCache, ids: &Vec<TensorId>, index: &mut usize) -> Self::Item {
+        let value = cache.get(ids[*index]).unwrap();
+        *index += 1;
+        value.clone()
     }
 }
 
-impl Bundle for Tensor {}
+impl Bundle for () {
+    type Item = ();
 
-impl Bundle for () {}
+    fn push_arg(_out: &mut TensorCache, index: usize, _item: &Self::Item) -> usize {
+        index
+    }
 
-impl Bundle for (Tensor, Tensor) {}
+    fn set_arg(_out: &mut TensorCache, index: usize, _item: &Self::Item) -> usize {
+        index
+    }
+
+    fn make_arg(_cache: &TensorCache, _index: &mut usize) -> Self::Item {
+        ()
+    }
+
+    fn out_ids(_out: &mut Vec<TensorId>, _item: &Self::Item) {
+    }
+
+    fn make_out(_cache: &TensorCache, _ids: &Vec<TensorId>, _index: &mut usize) -> Self::Item {
+        ()
+    }
+}
+
+macro_rules! bundle_tuple {
+    ($( $id:ident ),*) => {
+
+    #[allow(non_snake_case)]
+    impl<$($id: Bundle<Item=$id>,)*> Bundle for ($($id,)*) {
+        type Item = ($($id,)*);
+
+        fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+            let ($($id,)*) = item;
+
+            $(
+                let index = $id::push_arg(out, index, $id);
+            )*
+
+            index
+        }
+
+        fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+            let ($($id,)*) = item;
+
+            $(
+                let index = $id::set_arg(out, index, $id);
+            )*
+
+            index
+        }
+
+        fn make_arg(cache: &TensorCache, index: &mut usize) -> Self::Item {
+            (
+                $(
+                    $id::make_arg(cache, index),
+                )*
+            )
+        }
+
+        fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
+            let ($($id,)*) = item;
+
+            $(
+                $id::out_ids(out, $id);
+            )*
+        }
+
+        fn make_out(cache: &TensorCache, ids: &Vec<TensorId>, index: &mut usize) -> Self::Item {
+            (
+                $(
+                    $id::make_out(cache, ids, index),
+                )*
+            )
+        }
+    }
+}
+}
+
+bundle_tuple!(P1, P2);
+bundle_tuple!(P1, P2, P3);
+bundle_tuple!(P1, P2, P3, P4);
+bundle_tuple!(P1, P2, P3, P4, P5);
 
 #[cfg(test)]
 mod test {
+    use log::LevelFilter;
+
     use crate::module::{TensorId, Tape};
 
     use crate::{
@@ -319,14 +433,14 @@ mod test {
         let x = Var::new("x", tensor!([2.]));
 
         let m_a = Module::build((), 
-        |_| a.tensor().clone()
+            |_| a.tensor().clone()
         );
 
         let value = m_a.eval(());
         assert_eq!(value, tensor!([[1.]]));
 
         let m_x = Module::build((), 
-        |_| x.into()
+            |_| x.tensor().clone()
         );
 
         let value = m_x.eval(());
@@ -344,6 +458,54 @@ mod test {
 
         let value = m_a.eval(());
         assert_eq!(value, tensor!([2., 4., 6.]));
+    }
+
+    #[test]
+    fn single_arg() {
+        env_logger::builder().filter_level(LevelFilter::Debug).init();
+
+        let a = Var::new("a", tensor!([1., 2., 3.]));
+
+        let m_a = Module::build(
+            tensor!([2., 1., 2.]), 
+            |x| &a * &x
+        );
+
+        let value = m_a.eval(tensor!([2., 1., 2.]));
+        assert_eq!(value, tensor!([2., 2., 6.]));
+
+        let value = m_a.eval(tensor!([1., 1., 1.]));
+        assert_eq!(value, tensor!([1., 2., 3.]));
+    }
+
+    #[test]
+    fn dual_arg() {
+        // env_logger::builder().filter_level(LevelFilter::Debug).init();
+
+        let m_a = Module::build(
+            (tensor!([1., 1.]), tensor!([1., 1.])),
+            |(x, y)| &x - &y
+        );
+
+        let value = m_a.eval((tensor!([2., 1.]), tensor!([1., 2.])));
+        assert_eq!(value, tensor!([1., -1.]));
+
+        let value = m_a.eval((tensor!([1., 2.]), tensor!([2., 1.])));
+        assert_eq!(value, tensor!([-1., 1.]));
+    }
+
+    #[test]
+    fn dual_out() {
+        // env_logger::builder().filter_level(LevelFilter::Debug).init();
+
+        let m_a = Module::build(
+            (tensor!([1., 1.]), tensor!([1., 1.])),
+            |(x, y)| (y.clone(), x.clone())
+        );
+
+        let (y, x) = m_a.eval((tensor!([2., 1.]), tensor!([1., 2.])));
+        assert_eq!(x, tensor!([2., 1.]));
+        assert_eq!(y, tensor!([1., 2.]));
     }
 
     #[test]

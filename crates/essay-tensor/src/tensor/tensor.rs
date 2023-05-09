@@ -41,7 +41,7 @@ impl<D:Dtype> Tensor<D> {
         }
     }
 
-    pub(crate) fn _clone_id(&self, id: TensorId) -> Tensor<D> {
+    pub(crate) fn with_id(&self, id: TensorId) -> Tensor<D> {
         Tensor {
             shape: self.shape.clone(),
             data: self.data.clone(),
