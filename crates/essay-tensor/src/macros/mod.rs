@@ -18,12 +18,12 @@ macro_rules! tensor {
 macro_rules! tensor_uop {
     ($fun:ident, $op:expr) => {
         pub fn $fun(a: &Tensor) -> Tensor {
-            uop(a, $op)
+            unary_op(a, $op)
         }
 
         impl Tensor {
             pub fn $fun(&self) -> Tensor {
-                uop(self, $op)
+                unary_op(self, $op)
             }
         }
     }
@@ -33,12 +33,12 @@ macro_rules! tensor_uop {
 macro_rules! tensor_binop {
     ($fun:ident, $op:expr) => {
         pub fn $fun(a: &Tensor, b: &Tensor) -> Tensor {
-            a.binop(b, $op)
+            binary_op(a, b, $op)
         }
 
         impl Tensor {
             pub fn $fun(&self, b: &Tensor) -> Tensor {
-                self.binop(b, $op)
+                binary_op(self, b, $op)
             }
         }
     }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{tensor::{Tensor, TensorUninit}, module::{EvalOp}};
 
 #[derive(Clone, Debug)]
@@ -82,7 +84,8 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
         o_shape[0] = o_stride[0];
         o_shape[1] = o_stride[1];
 
-        a.next_binop(&b, out.init(), o_shape, Matmul)
+        //a.next_binop(&b, out.init(), o_shape, Matmul)
+        Tensor::new(out.init(), &o_shape)
     }
 }
 
@@ -169,7 +172,6 @@ impl TransposeMatmul for Transpose {
 impl EvalOp for Matmul {
     fn eval(
         &self,
-        _tensors: &crate::module::TensorCache,
         _args: &[&Tensor],
     ) -> Tensor {
         todo!()

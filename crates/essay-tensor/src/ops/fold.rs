@@ -46,7 +46,7 @@ impl Tensor {
             //Self::new(Rc::new(data), b.shape().clone())
     
             //self.next_uop(o_data.init(), o_shape, op)
-            Tensor::new(Arc::new(o_data.init()), &o_shape)
+            Tensor::new(o_data.init(), &o_shape)
         }
     }
 
@@ -91,7 +91,7 @@ impl Tensor {
             //Self::new(Rc::new(data), b.shape().clone())
             // TODO: fold has different op
             //self.next_uop(o_data.init(), o_shape, op)
-            Tensor::new(Arc::new(o_data.init()), &o_shape)
+            Tensor::new(o_data.init(), &o_shape)
         }
     }
 }

@@ -9,58 +9,57 @@ pub trait Uop<D:Dtype> : fmt::Debug + Clone + PartialEq + Sync + Send + 'static 
     fn df_dx(&self, value: D) -> D;
 }
 
-#[derive(Clone)]
-pub struct UopCpu<Op:Uop<f32>>(Op);
+#[derive(Clone, PartialEq)]
+pub struct UopImpl<Op:Uop<f32>>(Op);
 
-pub fn uop<Op>(tensor: &Tensor, op: Op) -> Tensor
+pub fn unary_op<Op>(a: &Tensor, op: Op) -> Tensor
 where
     Op:Uop<f32>
 {
-    let node = NodeOp::new(&[tensor], UopCpu(op.clone()).to_op());
+    let uop = UopImpl(op.clone());
 
-    let tensor = eval_uop(tensor, &op, node);
+    let node = NodeOp::new(&[a], uop.to_op());
 
-    if let NodeId::Id(id) = tensor.node() {
-        Tape::set_tensor(*id, tensor.clone());
-    }
+    let tensor = uop.eval(&[&a], node);
 
-    tensor
+    Tape::set_tensor(tensor)
 }
 
-
 fn eval_uop<Op:Uop<f32>>(
-    tensor: &Tensor,
+    a: &Tensor,
     op: &Op,
     node: NodeId,
 ) -> Tensor {
-    let buffer = tensor.data();
-    let len = buffer.len();
+    let len = a.len();
     
     let data = unsafe {
-        let mut data = TensorUninit::<f32>::new(len);
+        let mut out = TensorUninit::<f32>::new(len);
+
+        let a_ptr = a.data().as_ptr();
+        let o_ptr = out.as_mut_ptr();
     
         for i in 0..len {
-            data.set_unchecked(i, op.f(buffer.get_unchecked(i)));
+            *o_ptr.add(i) = op.f(*a_ptr.add(i));
         }
 
-        data.init()
+        out.init()
     };
     
-    let shape = tensor.shape().clone();
+    let shape = a.shape().clone();
     Tensor::new_op(Arc::new(data), shape, node)
 }
 
-impl<Op:Uop<f32>> ForwardOp for UopCpu<Op> {
+impl<Op:Uop<f32>> ForwardOp for UopImpl<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
     
     fn eval(
         &self,
-        _tensors: &TensorCache,
         args: &[&Tensor],
+        node: NodeId,
     ) -> Tensor {
-        eval_uop(args[0], &self.0, NodeId::None)
+        eval_uop(args[0], &self.0, node)
     }
 
     fn backprop(
@@ -77,7 +76,7 @@ impl<Op:Uop<f32>> ForwardOp for UopCpu<Op> {
     }
 }
 
-impl<Op:Uop<f32>> BackOp for UopCpu<Op> {
+impl<Op:Uop<f32>> BackOp for UopImpl<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -109,6 +108,6 @@ impl<Op:Uop<f32>> BackOp for UopCpu<Op> {
         };
         
         let shape = tensor.shape().clone();
-        Tensor::new(Arc::new(data), &shape)
+        Tensor::new(data, &shape)
     }
 }

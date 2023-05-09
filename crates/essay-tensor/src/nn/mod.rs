@@ -1,5 +1,5 @@
-use crate::{tensor::{Tensor}, module::{TensorId, ForwardOp, Graph, EvalOp}, tensor_uop, 
-    ops::{Uop, uop, Fold}
+use crate::{tensor::{Tensor, NodeId}, module::{TensorId, ForwardOp, Graph, EvalOp}, tensor_uop, 
+    ops::{Uop, unary_op, Fold}
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,8 +58,8 @@ impl ForwardOp for UReduce {
     
     fn eval(
         &self,
-        _tensors: &crate::module::TensorCache,
         args: &[&Tensor],
+        node: NodeId,
     ) -> Tensor {
         match self {
             UReduce::L2Loss(n_inv) => {

@@ -5,15 +5,39 @@ use std::{ops, any::type_name};
 use crate::{
     tensor::{Tensor}, 
     module::{TensorId, Graph, TensorCache, graph::BackOp}, 
-    tensor_uop, ops::uop,
-    tensor_binop, math::unary::Unary, ops::Binop
+    tensor_uop, ops::unary_op,
+    tensor_binop, ops::binary_op,
+    math::unary::Unary, ops::Binop
 };
+
+tensor_uop!(abs, Unary::Abs);
+tensor_uop!(cos, Unary::Cos);
+tensor_uop!(exp, Unary::Exp);
+tensor_uop!(ln, Unary::Ln);
+tensor_uop!(sin, Unary::Sin);
 
 tensor_uop!(square, square::SquareOp);
 
 //
 // binops
 //
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Add;
+
+impl Binop for Add {
+    fn f(&self, x: f32, y: f32) -> f32 {
+        x + y
+    }
+
+    fn df_dx(&self, _x: f32, _y: f32) -> f32 {
+        1.
+    }
+
+    fn df_dy(&self, _x: f32, _y: f32) -> f32 {
+        1.
+    }
+}
 
 #[derive(Debug, Clone)]
 enum Binary {
@@ -35,7 +59,7 @@ enum Binary {
 
 impl Binop<f32> for Binary {
     #[inline]
-    fn eval(&self, a: f32, b: f32) -> f32 {
+    fn f(&self, a: f32, b: f32) -> f32 {
         match &self {
             Binary::Add => a + b,
             Binary::Atan2 => a.atan2(b),
@@ -54,39 +78,15 @@ impl Binop<f32> for Binary {
         }
     }
 
-    fn backprop(
-        &self,
-        _forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        prev: TensorId,
-    ) -> TensorId {
-        assert!(i <= 1);
+    fn df_dx(&self, x: f32, y: f32) -> f32 {
+        todo!()
+    }
 
-        match self {
-            Binary::Add => {
-                prev
-            },
-            Binary::Sub => {
-                match i {
-                    0 => { prev },
-                    1 => { graph.add_op(Unary::Neg, &[prev]) }
-                    _ => { panic!() },
-                }
-            },
-            Binary::Mul => {
-                match i {
-                    0 => { graph.add_back_op(Binary::Mul, &[args[1]], prev) },
-                    1 => { graph.add_back_op(Binary::Mul, &[args[0]], prev) }
-                    _ => { panic!() },
-                }
-            },
-            _ => todo!("backtrace {:?}", self)
-        }
+    fn df_dy(&self, x: f32, y: f32) -> f32 {
+        todo!()
     }
 }
-
+/*
 impl BackOp for Binary {
     fn name(&self) -> &str {
         type_name::<Self>()
@@ -106,6 +106,7 @@ impl BackOp for Binary {
         }
     }
 }
+*/
 
 tensor_binop!(atan2, Binary::Atan2);
 tensor_binop!(div_euclid, Binary::DivEuclid);
@@ -122,16 +123,16 @@ tensor_binop!(rem_euclid, Binary::RemEuclid);
 //
 
 macro_rules! tensor_ops {
-    ($op:ident, $fun:ident) => {
+    ($op:ident, $fun:ident, $binop:expr) => {
         pub fn $fun(a: &Tensor, b: &Tensor) -> Tensor {
-            a.binop(b, Binary::$op)
+            binary_op(a, b, $binop)
         }
 
         impl ops::$op for &Tensor {
             type Output = Tensor;
         
             fn $fun(self, rhs: Self) -> Self::Output {
-                self.binop(&rhs, Binary::$op)
+                binary_op(self, &rhs, $binop)
             }
         }
 
@@ -139,7 +140,7 @@ macro_rules! tensor_ops {
             type Output = Tensor;
         
             fn $fun(self, rhs: Self) -> Self::Output {
-                self.binop(&rhs, Binary::$op)
+                binary_op(&self, &rhs, $binop)
             }
         }
 
@@ -147,7 +148,7 @@ macro_rules! tensor_ops {
             type Output = Tensor;
         
             fn $fun(self, rhs: &Tensor) -> Self::Output {
-                self.binop(&rhs, Binary::$op)
+                binary_op(&self, &rhs, $binop)
             }
         }
 
@@ -155,7 +156,7 @@ macro_rules! tensor_ops {
             type Output = Tensor;
         
             fn $fun(self, rhs: Tensor) -> Self::Output {
-                self.binop(&rhs, Binary::$op)
+                binary_op(self, &rhs, $binop)
             }
         }
 
@@ -163,7 +164,7 @@ macro_rules! tensor_ops {
             type Output = Tensor;
         
             fn $fun(self, rhs: &Tensor) -> Self::Output {
-                Tensor::from(self).binop(&rhs, Binary::$op)
+                binary_op(&Tensor::from(self), &rhs, $binop)
             }
         }
 
@@ -171,17 +172,17 @@ macro_rules! tensor_ops {
             type Output = Tensor;
         
             fn $fun(self, rhs: Tensor) -> Self::Output {
-                Tensor::from(self).binop(&rhs, Binary::$op)
+                binary_op(&Tensor::from(self), &rhs, $binop)
             }
         }
     }
 }
 
-tensor_ops!(Add, add);
-tensor_ops!(Div, div);
-tensor_ops!(Mul, mul);
-tensor_ops!(Rem, rem);
-tensor_ops!(Sub, sub);
+tensor_ops!(Add, add, Add);
+tensor_ops!(Div, div, Binary::Div);
+tensor_ops!(Mul, mul, Binary::Mul);
+tensor_ops!(Rem, rem, Binary::Rem);
+tensor_ops!(Sub, sub, Binary::Sub);
 
 impl ops::Mul<Option<Tensor>> for Tensor {
     type Output = Tensor;
@@ -224,5 +225,31 @@ impl ops::Mul<Option<Tensor>> for &Tensor {
             Some(rhs) => self * rhs,
             None => self.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{prelude::*, module::{Var, Module}};
+
+    #[test]
+    fn test_add() {
+        assert_eq!(tensor!(2.) + tensor!(3.), tensor!(5.));
+        assert_eq!(tensor!([3., 4.]) + tensor!([1., 2.]), tensor!([4., 6.]));
+    }
+
+    #[test]
+    fn test_add_df() {
+        let x = Var::new("x", tensor!([1., 2.]));
+        let y = Var::new("y", tensor!([3., 4.]));
+
+        let module = Module::build((), |()| {
+            &x + &y
+        }).training(&[&x, &y]);
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!([4., 6.]));
+        assert_eq!(train.gradient(&x), tensor!([1., 1.]));
+        assert_eq!(train.gradient(&y), tensor!([1., 1.]));
     }
 }

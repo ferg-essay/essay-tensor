@@ -1,8 +1,8 @@
 use std::ops;
 
-use crate::{tensor_uop, Tensor, 
+use crate::{Tensor, 
     module::{EvalOp, TensorCache}, 
-    ops::{Uop, uop}
+    ops::{Uop, unary_op}
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,26 +29,20 @@ impl Uop<f32> for Unary {
         }
     }
 
-    fn df_dx(&self, value: f32) -> f32 {
+    fn df_dx(&self, _value: f32) -> f32 {
         todo!()
     }
 }
 
-tensor_uop!(abs, Unary::Abs);
-tensor_uop!(cos, Unary::Cos);
-tensor_uop!(exp, Unary::Exp);
-tensor_uop!(ln, Unary::Ln);
-tensor_uop!(sin, Unary::Sin);
-
 pub fn neg(a: &Tensor) -> Tensor {
-    uop(a, Unary::Neg)
+    unary_op(a, Unary::Neg)
 }
 
 impl ops::Neg for Tensor {
     type Output = Tensor;
 
     fn neg(self) -> Self::Output {
-        uop(&self, Unary::Neg)
+        unary_op(&self, Unary::Neg)
     }
 }
 
@@ -56,14 +50,13 @@ impl ops::Neg for &Tensor {
     type Output = Tensor;
 
     fn neg(self) -> Self::Output {
-        uop(&self, Unary::Neg)
+        unary_op(&self, Unary::Neg)
     }
 }
 
 impl EvalOp for Unary {
     fn eval(
         &self,
-        _tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor {
         match self {

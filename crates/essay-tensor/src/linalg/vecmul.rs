@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{Tensor, tensor::TensorUninit, module::{EvalOp}};
 
 
@@ -52,9 +54,9 @@ pub fn outer_product(
             o_shape.push(*size);
         }
 
-        // Tensor::new(Rc::new(out), o_shape)
-        a.next_binop(&b, out.init(), o_shape, OuterProduct)
+        //.next_binop(&b, out.init(), o_shape, OuterProduct)
         //todo!()
+        Tensor::new(out.init(), &o_shape)
     }
 }
 
@@ -84,7 +86,6 @@ unsafe fn naive_outer_product_f32(
 impl EvalOp for OuterProduct {
     fn eval(
         &self,
-        _tensors: &crate::module::TensorCache,
         _args: &[&Tensor],
     ) -> Tensor {
         todo!()

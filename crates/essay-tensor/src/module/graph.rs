@@ -60,8 +60,8 @@ pub trait ForwardOp : Send + Sync + 'static {
 
     fn eval(
         &self,
-        tensors: &TensorCache,
         args: &[&Tensor],
+        node: NodeId,
     ) -> Tensor;
 
     fn backprop(
@@ -81,7 +81,6 @@ pub trait IntoForward {
 pub trait EvalOp : Send + Sync + 'static {
     fn eval(
         &self,
-        tensors: &TensorCache,
         args: &[&Tensor],
     ) -> Tensor;
 }
@@ -274,12 +273,12 @@ impl NodeOp {
             NodeOp::Var(_, _) => {
                 panic!()
             },
-            NodeOp::Op(_, op, args) => {
+            NodeOp::Op(id, op, args) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| tensors.get(*id).unwrap())
                     .collect();
 
-                op.eval(tensors, &t_args)
+                op.eval(&t_args, NodeId::Id(*id))
             },
 
             NodeOp::BackConst(_, forward_id) => {
@@ -298,7 +297,7 @@ impl NodeOp {
     fn constant(tensor: &Tensor) -> TensorId {
         let id = Tape::alloc_id().unwrap();
 
-        Tape::set_tensor(id, tensor.clone());
+        Tape::set_tensor_id(id, tensor);
         Tape::set_node(id, NodeOp::Const(id));
 
         id

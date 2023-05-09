@@ -1,8 +1,8 @@
 mod bifold;
-mod binop;
+mod binary_op;
 mod fold;
 mod new;
-mod uop;
+mod unary_op;
 
 pub use bifold::{
     BiFold,
@@ -12,10 +12,10 @@ pub use fold::{
     Fold,
 };
 
-pub use uop::{
-    uop, Uop,
+pub use unary_op::{
+    unary_op, Uop,
 };
 
-pub use binop::{
-    Binop,
+pub use binary_op::{
+    Binop, binary_op
 };

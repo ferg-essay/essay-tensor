@@ -1,6 +1,6 @@
 use std::{collections::HashSet, any::type_name};
 
-use crate::Tensor;
+use crate::{Tensor, tensor::NodeId};
 
 use super::{Graph, TensorId, NodeOp, IntoForward, BoxForwardOp, ForwardOp, EvalOp, TensorCache, graph::{IntoBack, BackOp, BoxBackOp}};
 
@@ -134,10 +134,10 @@ impl<Op:EvalOp> ForwardOp for Op {
 
     fn eval(
         &self,
-        tensors: &TensorCache,
         args: &[&Tensor],
+        node: NodeId,
     ) -> Tensor {
-        (self as &dyn EvalOp).eval(tensors, args)
+        (self as &dyn EvalOp).eval(args)
     }
 
     fn backprop(

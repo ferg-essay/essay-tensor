@@ -1,6 +1,6 @@
-use std::any::type_name;
+use std::{any::type_name, sync::Arc};
 
-use crate::{tensor::{Tensor, TensorUninit}, module::{ForwardOp, Graph, TensorId, TensorCache, graph::BackOp}};
+use crate::{tensor::{Tensor, TensorUninit, NodeId}, module::{ForwardOp, Graph, TensorId, TensorCache, graph::BackOp}};
 
 use super::matmul::Transpose;
 
@@ -90,8 +90,8 @@ pub fn matvec_t(
 
         let mut o_shape = b.shape().clone();
         o_shape[0] = o_size;
-        // Tensor::new(Rc::new(out), o_shape)
-        a.next_binop(&b, out.init(), o_shape, Matvec)
+        Tensor::new(out.init(), &o_shape)
+        //a.next_binop(&b, out.init(), o_shape, Matvec)
         //todo!()
     }
 }
@@ -212,8 +212,8 @@ impl ForwardOp for Matvec {
     
     fn eval(
         &self,
-        _tensors: &crate::module::TensorCache,
         args: &[&Tensor],
+        _node: NodeId,
     ) -> Tensor {
         matvec(args[0], args[1])
     }

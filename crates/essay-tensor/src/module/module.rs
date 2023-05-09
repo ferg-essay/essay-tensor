@@ -212,10 +212,22 @@ impl Tape {
         }
     }
 
-    pub(crate) fn set_tensor(id: TensorId, tensor: Tensor) {
+    pub(crate) fn set_tensor(tensor: Tensor) -> Tensor {
+        if let NodeId::Id(id) = tensor.node() {
+            TAPE.with(|f| {
+                if let Some(tape) = f.borrow_mut().as_mut() {
+                    tape.graph.set_tensor(*id, tensor.clone());
+                }
+            })
+        }
+
+        tensor
+    }
+
+    pub(crate) fn set_tensor_id(id: TensorId, tensor: &Tensor) {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.graph.set_tensor(id, tensor);
+                tape.graph.set_tensor(id, tensor.clone());
             }
         })
     }

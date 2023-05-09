@@ -4,10 +4,12 @@ use crate::{ops::Uop};
 pub struct SquareOp;
 
 impl Uop<f32> for SquareOp {
+    #[inline]
     fn f(&self, value: f32) -> f32 {
         value * value
     }
 
+    #[inline]
     fn df_dx(&self, value: f32) -> f32 {
         2. * value
     }

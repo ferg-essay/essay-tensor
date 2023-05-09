@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{Tensor, tensor::TensorUninit, module::{IntoForward}};
 
 use crate::tensor::{Dtype};
@@ -50,7 +52,8 @@ impl Tensor {
                 Vec::new()
             };
 
-            self.next_binop(&b, o_data.init(), o_shape, op)
+            //self.next_binop(&b, o_data.init(), o_shape, op)
+            Tensor::new(o_data.init(), &o_shape)
         }
     }
 }

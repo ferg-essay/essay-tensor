@@ -28,14 +28,14 @@ pub trait IntoTensor<D:Dtype> {
 }
 
 impl<D:Dtype> Tensor<D> {
-    pub fn new(data: Arc<TensorData<D>>, shape: &[usize]) -> Self {
+    pub fn new(data: TensorData<D>, shape: &[usize]) -> Self {
         let len: usize = max(1, shape.iter().product());
         assert_eq!(data.len(), len, "tensor data size {} doesn't match shape size {}", 
             data.len(), len);
         
         Self {
             shape: Vec::from(shape),
-            data,
+            data: Arc::new(data),
 
             node: NodeId::None,
         }

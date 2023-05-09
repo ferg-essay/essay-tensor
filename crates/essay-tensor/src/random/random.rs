@@ -32,7 +32,7 @@ pub fn uniform<const N:usize>(
             }
         };
 
-        Tensor::new(Arc::new(data.init()), &shape)
+        Tensor::new(data.init(), &shape)
     }
 }
 
