@@ -26,6 +26,66 @@ impl Binop for Add {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Atan2;
+
+impl Binop for Atan2 {
+    #[inline]
+    fn f(&self, x: f32, y: f32) -> f32 {
+        x.atan2(y)
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: f32, _y: f32) -> f32 {
+        todo!()
+    }
+
+    #[inline]
+    fn df_dy(&self, _x: f32, _y: f32) -> f32 {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Div;
+
+impl Binop for Div {
+    #[inline]
+    fn f(&self, x: f32, y: f32) -> f32 {
+        x / y
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+        1. / y
+    }
+
+    #[inline]
+    fn df_dy(&self, x: f32, y: f32) -> f32 {
+        - x / (y * y)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rem;
+
+impl Binop for Rem {
+    #[inline]
+    fn f(&self, x: f32, y: f32) -> f32 {
+        x % y
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: f32, _y: f32) -> f32 {
+        unimplemented!();
+    }
+
+    #[inline]
+    fn df_dy(&self, _x: f32, _y: f32) -> f32 {
+        unimplemented!();
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Sub;
 
 impl Binop for Sub {
@@ -42,6 +102,66 @@ impl Binop for Sub {
     #[inline]
     fn df_dy(&self, _x: f32, _y: f32) -> f32 {
         -1.
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Log;
+
+impl Binop for Log {
+    #[inline]
+    fn f(&self, x: f32, y: f32) -> f32 {
+        x.log(y)
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+        todo!()
+    }
+
+    #[inline]
+    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Max;
+
+impl Binop for Max {
+    #[inline]
+    fn f(&self, x: f32, y: f32) -> f32 {
+        x.max(y)
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+        todo!()
+    }
+
+    #[inline]
+    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Min;
+
+impl Binop for Min {
+    #[inline]
+    fn f(&self, x: f32, y: f32) -> f32 {
+        x.min(y)
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+        todo!()
+    }
+
+    #[inline]
+    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+        todo!()
     }
 }
 
@@ -66,69 +186,41 @@ impl Binop for Mul {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Div;
+pub struct Powf;
 
-impl Binop for Div {
+impl Binop for Powf {
     #[inline]
     fn f(&self, x: f32, y: f32) -> f32 {
-        x / y
+        x.powf(y)
     }
 
     #[inline]
     fn df_dx(&self, _x: f32, y: f32) -> f32 {
-        1. / y
-    }
-
-    #[inline]
-    fn df_dy(&self, x: f32, y: f32) -> f32 {
-        - x / (y * y)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Binary {
-    Add,
-    Atan2,
-    Div,
-    DivEuclid,
-    Hypot,
-    Log,
-    Max,
-    Min,
-    Mul,
-    Powf,
-    Powi,
-    Rem,
-    RemEuclid,
-    Sub,
-}
-
-impl Binop<f32> for Binary {
-    #[inline]
-    fn f(&self, a: f32, b: f32) -> f32 {
-        match &self {
-            Binary::Add => a + b,
-            Binary::Atan2 => a.atan2(b),
-            Binary::Div => a / b,
-            Binary::DivEuclid => a.div_euclid(b),
-            Binary::Hypot => a.hypot(b),
-            Binary::Log => a.log(b),
-            Binary::Max => a.max(b),
-            Binary::Min => a.min(b),
-            Binary::Mul => a * b,
-            Binary::Powf => a.powf(b),
-            Binary::Powi => a.powi(b as i32),
-            Binary::Rem => a % b,
-            Binary::RemEuclid => a.rem_euclid(b),
-            Binary::Sub => a - b,
-        }
-    }
-
-    fn df_dx(&self, x: f32, y: f32) -> f32 {
         todo!()
     }
 
-    fn df_dy(&self, x: f32, y: f32) -> f32 {
+    #[inline]
+    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Powi;
+
+impl Binop for Powi {
+    #[inline]
+    fn f(&self, x: f32, y: f32) -> f32 {
+        x.powi(y as i32)
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+        todo!()
+    }
+
+    #[inline]
+    fn df_dy(&self, x: f32, _y: f32) -> f32 {
         todo!()
     }
 }
