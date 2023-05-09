@@ -1,8 +1,6 @@
 use std::{sync::Arc, any::type_name};
 
-use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape}, Tensor};
-
-use super::{Dtype, TensorUninit, TensorData, NodeId};
+use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape}, Tensor, tensor::{Dtype, TensorData, TensorUninit, NodeId}};
 
 pub trait Binop<D:Dtype=f32> : Clone + Send + Sync + 'static {
     fn eval(&self, a: D, b: D) -> D;

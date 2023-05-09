@@ -91,7 +91,7 @@ pub type BoxForwardOp = Box<dyn ForwardOp>;
 pub trait BackOp : Send + Sync + 'static {
     fn name(&self) -> &str;
 
-    fn eval(
+    fn df(
         &self,
         tensors: &TensorCache,
         args: &[&Tensor],
@@ -290,7 +290,7 @@ impl NodeOp {
                     .map(|id| fwd_tensors.get(*id).unwrap())
                     .collect();
 
-                op.eval(tensors, &t_args, tensors.get(*prev).unwrap())
+                op.df(tensors, &t_args, tensors.get(*prev).unwrap())
             },
         }
     }

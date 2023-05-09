@@ -1,7 +1,4 @@
-use crate::{module::{IntoForward}, Tensor};
-
-use super::{TensorUninit, Dtype};
-
+use crate::{module::{IntoForward}, Tensor, tensor::{Dtype, TensorUninit}};
 
 pub trait Fold<D:Dtype=f32> : Clone {
     fn apply(&self, state: D, a: D) -> D;

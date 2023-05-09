@@ -1,0 +1,11 @@
+[package]
+name = "essay-opencl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+log = { version = "0.4.17" }
+ocl = "0.19"
+
+[lib]
+doctest = false

@@ -244,7 +244,7 @@ impl BackOp for MatvecOuter {
         type_name::<Self>()
     }
     
-    fn eval(
+    fn df(
         &self,
         _tensors: &TensorCache,
         args: &[&Tensor],
@@ -259,7 +259,7 @@ impl BackOp for MatvecBackRightT {
         type_name::<Self>()
     }
     
-    fn eval(
+    fn df(
         &self,
         _tensors: &TensorCache,
         args: &[&Tensor],

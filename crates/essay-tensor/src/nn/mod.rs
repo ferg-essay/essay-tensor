@@ -1,6 +1,8 @@
-use crate::{tensor::{Tensor, Uop, Fold}, module::{TensorId, ForwardOp, Graph, EvalOp}, tensor_uop};
+use crate::{tensor::{Tensor}, module::{TensorId, ForwardOp, Graph, EvalOp}, tensor_uop, 
+    ops::{Uop, uop, Fold}
+};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Unary {
     ReLU,
     Softplus,
@@ -16,21 +18,11 @@ enum BiReduce {
 }
 
 impl Uop<f32> for Unary {
-    fn eval(&self, value: f32) -> f32 {
+    fn f(&self, value: f32) -> f32 {
         match &self {
             Unary::ReLU => value.max(0.),
             Unary::Softplus => (value.exp() + 1.).ln(),
         }
-    }
-}
-
-impl EvalOp for Unary {
-    fn eval(
-        &self,
-        _tensors: &crate::module::TensorCache,
-        _args: &[&Tensor],
-    ) -> Tensor {
-        todo!()
     }
 }
 

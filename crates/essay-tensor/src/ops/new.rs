@@ -1,7 +1,4 @@
-use crate::Tensor;
-
-use super::{TensorUninit, Dtype};
-
+use crate::{Tensor, tensor::{Dtype, TensorUninit}};
 
 impl<D:Dtype> Tensor<D> {
     pub fn fill(fill: D, shape: &[usize]) -> Tensor<D> {

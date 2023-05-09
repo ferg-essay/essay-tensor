@@ -1,3 +1,4 @@
+pub mod ops;
 pub mod module;
 pub mod random;
 pub mod linalg;
