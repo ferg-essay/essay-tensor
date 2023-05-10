@@ -57,14 +57,17 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
 
             let op = self.0;
 
-            let o_ptr = data.as_slice_mut();
+            let o_ptr = data.as_mut_ptr();
 
             for n in 0..batch {
-                let a_ptr = a_data.as_wrap_slice(n * inner..);
-                let b_ptr = b_data.as_wrap_slice(n * inner..);
+                let a_ptr = a_data.as_wrap_ptr(n * inner);
+                let b_ptr = b_data.as_wrap_ptr(n * inner);
 
                 for i in 0..inner {
-                    o_ptr[i] = op.f(a_ptr[i], b_ptr[i]);
+                    *o_ptr.add(i) = op.f(
+                        *a_ptr.add(i), 
+                        *b_ptr.add(i)
+                    );
                 }
             }
     

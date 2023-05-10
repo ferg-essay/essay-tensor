@@ -12,3 +12,6 @@ num-traits = "0.2"
 
 [lib]
 doctest = false
+
+#[workspace.dependencies]
+#essay-mind = { path="crates/ticker" }

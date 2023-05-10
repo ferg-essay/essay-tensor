@@ -11,13 +11,16 @@ path = "src/lib.rs"
 env_logger = { version = "0.10.0" }
 log = { version = "0.4.17" }
 essay-tensor = { path = "crates/essay-tensor" }
-essay-opencl = { path = "crates/essay-opencl" }
-essay-nn = { path = "crates/essay-nn" }
+#essay-opencl = { path = "crates/essay-opencl" }
+#essay-nn = { path = "crates/essay-nn" }
 
 [workspace]
 members = [
     "crates/*",
 ]
+
+#[workspace.dependencies]
+#essay-tensor 
 
 [[bench]]
 name = "tensor-add"

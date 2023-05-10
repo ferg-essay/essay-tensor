@@ -1,3 +1,6 @@
+use std::time::Instant;
+
+use essay_tensor::{Tensor, tensor::TensorUninit};
 use ocl::{Platform, Device, Program, Queue, Buffer, flags, Kernel, builders::KernelBuilder};
 
 
@@ -7,6 +10,17 @@ static KERNEL_SRC: &'static str = r#"
     ) {
         uint const idx = get_global_id(0);
         buffer[idx] += scalar;
+    }
+"#;
+
+static BI_SRC: &'static str = r#"
+    __kernel void add_bi(
+        __global float* out,
+        __global float* a,
+        __global float* b
+    ) {
+        uint const idx = get_global_id(0);
+        out[idx] = a[idx] + b[idx];
     }
 "#;
 
@@ -113,43 +127,69 @@ impl OclKernel {
         }
     }
 }
+
 fn trivial_exploded(src: &str) {
     let context = OclContext::new();
 
     let program = context.program(src);
 
-    let dims = 1 << 20;
+    let len = 256 * 1024;
 
-    let buffer = context.buffer(dims);
+    let a = Tensor::ones(&[len]);
+    let b = Tensor::ones(&[len]);
+
+    let dims = a.len() * 4;
+
+    let a_buffer = context.buffer(dims);
+    let b_buffer = context.buffer(dims);
+    let c_buffer = context.buffer(dims);
     
     let kernel = Kernel::builder()
         .program(&program)
-        .name("add")
+        .name("add_bi")
         .queue(context.queue.clone())
         .global_work_size(dims)
-        .arg(&buffer)
-        .arg(&10.0f32)
+        .arg(&c_buffer)
+        .arg(&a_buffer)
+        .arg(&b_buffer)
         .build().unwrap();
 
-    let kernel = context.kernel(kernel, vec![buffer]);
+    let kernel = context.kernel(kernel, vec![a_buffer, b_buffer, c_buffer]);
 
-    kernel.write(&context, 0, &vec![100.0f32; 128]);
+    //let start = Instant::now();
 
+    let s1 = Instant::now();
+
+    kernel.write(&context, 0, a.data().as_slice());
+    kernel.write(&context, 1, b.data().as_slice());
+
+    let s2 = Instant::now();
     kernel.enq();
+    let t2 = s2.elapsed();
+
+    let out = unsafe {
+        let mut c = TensorUninit::<f32>::new(len);
+        kernel.read(&context, 2, c.as_slice_mut());
+        c.init()
+    };
+    let t1 = s1.elapsed();
+    let s3 = Instant::now();
+    let _c = a + b;
+    let t3 = s3.elapsed();
+
+    println!("T1 {} {} {:?}", 1, out[0], t1);
+    println!("T2 {} {} {:?}", 1, out[1], t2);
+    println!("T3 {} {} {:?}", 1, out[1], t3);
     /*
     unsafe {
         kernel.enq();
     }
     */
     
-    let mut vec = vec![0.0f32; dims];
-    //buffer.cmd().queue(&context.queue).offset(0).read(&mut vec).enq()?;
-    kernel.read(&context, 0, &mut vec);
-    println!("Value [{}] is {}", 107, vec[107]);
-    println!("Value [{}] is {}", 2007, vec[2007]);
+    //println!("Value [{}] is {}", 107, a[107]);
 }
 
 #[test]
 fn test() {
-    trivial_exploded(KERNEL_SRC);
+    trivial_exploded(BI_SRC);
 }
