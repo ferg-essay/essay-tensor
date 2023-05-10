@@ -6,6 +6,15 @@ fn main() {
     println!("Benchmarking tensor add");
 
     for _ in 0..16 {
+
+        let a = Tensor::zeros(&[1]);
+        let b = Tensor::ones(&[1]);
+
+        let start = Instant::now();
+        //let _c = &a + &b;
+        let _c = &a + &b;
+        let time_null = start.elapsed();
+
         let a = Tensor::zeros(&[32 * 1024]);
         let b = Tensor::ones(&[32 * 1024]);
 
@@ -32,6 +41,12 @@ fn main() {
         let _c = &a.matvec(&b);
         let time_matvec = start.elapsed();
 
-        println!("sum={time_sum:?}, mul={time_mul:?}, matmul={time_matmul:?} matvec={time_matvec:?}");
+        let a = Tensor::zeros(&[1024]);
+
+        let start = Instant::now();
+        let _c = &a.softmax();
+        let softmax_matvec = start.elapsed();
+
+        println!("null={time_null:?} sum={time_sum:?}, mul={time_mul:?}, matmul={time_matmul:?} matvec={time_matvec:?} softmax={softmax_matvec:?}");
     }
 }

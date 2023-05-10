@@ -1,5 +1,8 @@
 use core::{slice, fmt};
-use std::{ptr::NonNull, alloc::Layout, alloc, ops::{Index, self}};
+use std::{ptr::{NonNull, self}, alloc::Layout, alloc, 
+    ops::{Index, self, IndexMut, RangeBounds}, 
+    slice::SliceIndex
+};
 
 use super::tensor::Dtype;
 
@@ -11,14 +14,6 @@ pub struct TensorData<D:Dtype=f32> {
 pub struct TensorUninit<D:Dtype=f32> {
     data: NonNull<D>,
     len: usize,
-}
-
-pub struct Data4<D:Dtype=f32> {
-    data: [D; 4]
-}
-
-pub struct Data8<D:Dtype=f32> {
-    data: [D; 8]
 }
 
 impl<D:Dtype> TensorData<D> {
@@ -80,63 +75,48 @@ impl<D:Dtype> TensorData<D> {
     }
 
     #[inline]
-    pub fn read_4(&self, offset: usize, inc: usize) -> Data4<D> {
-        assert!(offset + 3 < self.len);
-
+    pub fn as_slice(&self) -> &[D] {
         unsafe {
-            let ptr = self.data.as_ptr().add(offset);
-
-            Data4 {
-                data: [
-                    *ptr,
-                    *ptr.add(inc),
-                    *ptr.add(2 * inc),
-                    *ptr.add(3 * inc),
-                ]
-            }
+            ptr::slice_from_raw_parts(self.as_ptr(), self.len())
+                .as_ref()
+                .unwrap()
         }
     }
 
     #[inline]
-    pub fn read_4a(&self, offset: usize, inc: usize) -> [D; 4] {
-        assert!(offset + 3 < self.len);
+    pub fn as_wrap_slice(&self, range: impl RangeBounds<usize>) -> &[D] {
+        use ops::Bound::*;
+    
+        match (range.start_bound(), range.end_bound()) {
+            (Included(offset), Unbounded) => {
+                let offset = if *offset < self.len() { 
+                    *offset 
+                } else { 
+                    *offset % self.len() 
+                };
 
-        unsafe {
-            let ptr = self.data.as_ptr().add(offset);
-
-            [
-                *ptr,
-                *ptr.add(inc),
-                *ptr.add(2 * inc),
-                *ptr.add(3 * inc),
-            ]
+                unsafe {
+                    ptr::slice_from_raw_parts(
+                        self.as_ptr().add(offset), self.len() - offset)
+                        .as_ref()
+                        .unwrap()
+                }
+            }
+            (Unbounded, Unbounded) => self.as_slice(),
+            _ => unimplemented!(),
         }
     }
+    }
+
+impl<D:Dtype, I: SliceIndex<[D]>> Index<I> for TensorData<D> {
+    type Output = I::Output;
 
     #[inline]
-    pub fn read_8(&self, offset: usize, inc: usize) -> Data8<D> {
-        assert!(offset + 7 < self.len);
-
-        unsafe {
-            let ptr = self.data.as_ptr().add(offset);
-
-            Data8 {
-                data: [
-                    *ptr,
-                    *ptr.add(inc),
-                    *ptr.add(2 * inc),
-                    *ptr.add(3 * inc),
-
-                    *ptr.add(4 * inc),
-                    *ptr.add(5 * inc),
-                    *ptr.add(6 * inc),
-                    *ptr.add(7 * inc),
-                ]
-            }
-        }
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(self.as_slice(), index)
     }
 }
-
+/*
 impl<D:Dtype> Index<usize> for TensorData<D> {
     type Output = D;
 
@@ -149,6 +129,7 @@ impl<D:Dtype> Index<usize> for TensorData<D> {
         }
     }
 }
+*/
 
 impl<D:Dtype + PartialEq> PartialEq for TensorData<D> {
     fn eq(&self, other: &Self) -> bool {
@@ -227,6 +208,16 @@ impl<D:Dtype> TensorUninit<D> {
     }
 
     #[inline]
+    pub unsafe fn as_mut_ptr(&mut self) -> *mut D {
+        self.data.as_mut()
+    }
+
+    #[inline]
+    pub unsafe fn as_mut(&mut self) -> &mut D {
+        self.data.as_mut()
+    }
+
+    #[inline]
     pub unsafe fn get_unchecked(&self, offset: usize) -> D {
         *self.data.as_ptr().add(offset)
     }
@@ -237,103 +228,23 @@ impl<D:Dtype> TensorUninit<D> {
     }
 
     #[inline]
-    pub fn read_4(&self, offset: usize) -> Data4<D> {
-        assert!(offset + 3 < self.len);
-
+    pub fn as_slice(&self) -> &[D] {
         unsafe {
-            let ptr = self.data.as_ptr().add(offset);
-
-            Data4 {
-                data: [
-                    *ptr,
-                    *ptr.add(1),
-                    *ptr.add(2),
-                    *ptr.add(3),
-                ]
-            }
+            ptr::slice_from_raw_parts(self.as_ptr(), self.len())
+                .as_ref()
+                .unwrap()
         }
     }
 
     #[inline]
-    pub fn read_8(&self, offset: usize) -> Data8<D> {
-        assert!(offset + 7 < self.len);
-
+    pub fn as_slice_mut(&mut self) -> &mut [D] {
         unsafe {
-            let ptr = self.data.as_ptr().add(offset);
-
-            Data8 {
-                data: [
-                    *ptr,
-                    *ptr.add(1),
-                    *ptr.add(2),
-                    *ptr.add(3),
-
-                    *ptr.add(4),
-                    *ptr.add(5),
-                    *ptr.add(6),
-                    *ptr.add(7),
-                ]
-            }
-        }
-    }
-
-    #[inline]
-    pub fn write_4(&self, offset: usize, data: &Data4<D>) {
-        assert!(offset + 3 < self.len);
-
-        unsafe {
-            let ptr = self.data.as_ptr().add(offset);
-
-            *ptr = data.data[0];
-            *ptr.add(1) = data.data[1];
-            *ptr.add(2) = data.data[2];
-            *ptr.add(3) = data.data[3];
-        }
-    }
-
-    #[inline]
-    pub fn write_8(&self, offset: usize, data: &Data8<D>) {
-        assert!(offset + 7 < self.len);
-
-        unsafe {
-            let ptr = self.data.as_ptr().add(offset);
-
-            *ptr = data.data[0];
-            *ptr.add(1) = data.data[1];
-            *ptr.add(2) = data.data[2];
-            *ptr.add(3) = data.data[3];
-
-            *ptr.add(4) = data.data[4];
-            *ptr.add(5) = data.data[5];
-            *ptr.add(6) = data.data[6];
-            *ptr.add(7) = data.data[7];
+            ptr::slice_from_raw_parts_mut(self.as_mut_ptr(), self.len())
+                .as_mut()
+                .unwrap()
         }
     }
 }
-/*
-impl<D:Dtype> Index<usize> for TensorUninit<D> {
-    type Output = D;
-
-    #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
-        assert!(index < self.len());
-
-        unsafe {
-            self.data.as_ptr().add(index).as_ref().unwrap_unchecked()
-        }
-    }
-}
-
-impl<D:Dtype> IndexMut<usize> for TensorUninit<D> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        assert!(index < self.len());
-
-        unsafe {
-            self.data.as_ptr().add(index).as_mut().unwrap_unchecked()
-        }
-    }
-}
-*/
 
 impl<D:Dtype> ops::Deref for TensorUninit<D> {
     type Target = [D];
@@ -343,7 +254,7 @@ impl<D:Dtype> ops::Deref for TensorUninit<D> {
         unsafe { slice::from_raw_parts(self.as_ptr(), self.len) }
     }
 }
-
+/*
 impl<D:Dtype> ops::DerefMut for TensorUninit<D> {
     #[inline]
     fn deref_mut(&mut self) -> &mut [D] {
@@ -351,125 +262,80 @@ impl<D:Dtype> ops::DerefMut for TensorUninit<D> {
     }
 }
 
-impl Data4 {
+impl<D:Dtype, I: SliceIndex<[D]>> Index<I> for TensorUninit<D> {
+    type Output = I::Output;
+
     #[inline]
-    pub fn muladd(&self, right: &Data4) -> f32 {
-        let v0 = self.data[0] * right.data[0];
-        let v1 = self.data[1] * right.data[1];
-        let v2 = self.data[2] * right.data[2];
-        let v3 = self.data[3] * right.data[3];
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(self.as_slice(), index)
+    }
+}
+*/
 
-        let va = v0 + v2;
-        let vb = v1 + v3;
+impl<D:Dtype, I: SliceIndex<[D]>> Index<I> for TensorUninit<D> {
+    type Output = I::Output;
 
-        va + vb
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        Index::index(self.as_slice(), index)
     }
 }
 
-impl ops::Add<Data4> for Data4 {
-    type Output = Data4;
-
+impl<D:Dtype, I: SliceIndex<[D]>> IndexMut<I> for TensorUninit<D> {
     #[inline]
-    fn add(self, rhs: Data4) -> Self::Output {
-        let l_data = &self.data;
-        let r_data = &rhs.data;
-
-        Data4 {
-            data: [
-                l_data[0] + r_data[0],
-                l_data[1] + r_data[1],
-                l_data[2] + r_data[2],
-                l_data[3] + r_data[3],
-            ]
-        }
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        IndexMut::index_mut(self.as_slice_mut(), index)
     }
 }
 
-impl ops::Mul<Data4<f32>> for Data4<f32> {
-    type Output = Data4<f32>;
+#[cfg(test)]
+mod test {
+    use crate::{prelude::*, tensor::TensorUninit};
 
-    #[inline]
-    fn mul(self, rhs: Data4<f32>) -> Self::Output {
-        let l_data = &self.data;
-        let r_data = &rhs.data;
+    #[test]
+    fn test_slice() {
+        let a = tensor!(10.);
+        assert_eq!(a.as_slice(), &[10.]);
 
-        Data4 {
-            data: [
-                l_data[0] * r_data[0],
-                l_data[1] * r_data[1],
-                l_data[2] * r_data[2],
-                l_data[3] * r_data[3],
-            ]
-        }
+        let a = tensor!([10.]);
+        assert_eq!(a.as_slice(), &[10.]);
+
+        let a = tensor!([10., 20., 30.]);
+        assert_eq!(a.as_slice(), &[10., 20., 30.]);
+
+        let a = tensor!([[10., 20.], [30., 40.]]);
+        assert_eq!(a.as_slice(), &[10., 20., 30., 40.]);
     }
-}
 
-impl Data8 {
-    #[inline]
-    pub fn muladd(&self, right: &Data8) -> f32 {
-        let v0 = self.data[0] * right.data[0];
-        let v1 = self.data[1] * right.data[1];
-        let v2 = self.data[2] * right.data[2];
-        let v3 = self.data[3] * right.data[3];
-
-        let v4 = self.data[4] * right.data[4];
-        let v5 = self.data[5] * right.data[5];
-        let v6 = self.data[6] * right.data[6];
-        let v7 = self.data[7] * right.data[7];
-
-        let va = v0 + v4;
-        let vb = v1 + v5;
-        let vc = v2 + v6;
-        let vd = v3 + v7;
-
-        va + vb + vc + vd
+    #[test]
+    fn test_slice_index() {
+        let a = tensor!(10.);
+        assert_eq!(&a.data()[..], &[10.]);
+        assert_eq!(&a.data()[1..], &[]);
     }
-}
 
-impl ops::Add<Data8> for Data8 {
-    type Output = Data8;
+    #[test]
+    fn test_wrap_slice_index() {
+        let a = tensor!(10.);
+        assert_eq!(&a.data().as_wrap_slice(..), &[10.]);
+        assert_eq!(&a.data().as_wrap_slice(1..), &[10.]);
+        assert_eq!(&a.data().as_wrap_slice(2..), &[10.]);
 
-    #[inline]
-    fn add(self, rhs: Data8) -> Self::Output {
-        let l_data = &self.data;
-        let r_data = &rhs.data;
-
-        Data8 {
-            data: [
-                l_data[0] + r_data[0],
-                l_data[1] + r_data[1],
-                l_data[2] + r_data[2],
-                l_data[3] + r_data[3],
-
-                l_data[4] + r_data[4],
-                l_data[5] + r_data[5],
-                l_data[6] + r_data[6],
-                l_data[7] + r_data[7],
-            ]
-        }
+        let a = tensor!([10., 20.]);
+        assert_eq!(&a.data().as_wrap_slice(..), &[10., 20.]);
+        assert_eq!(&a.data().as_wrap_slice(1..), &[20.]);
+        assert_eq!(&a.data().as_wrap_slice(2..), &[10., 20.]);
     }
-}
 
-impl ops::Mul<Data8<f32>> for Data8<f32> {
-    type Output = Data8<f32>;
-
-    #[inline]
-    fn mul(self, rhs: Data8<f32>) -> Self::Output {
-        let l_data = &self.data;
-        let r_data = &rhs.data;
-
-        Data8 {
-            data: [
-                l_data[0] * r_data[0],
-                l_data[1] * r_data[1],
-                l_data[2] * r_data[2],
-                l_data[3] * r_data[3],
-
-                l_data[4] * r_data[4],
-                l_data[5] * r_data[5],
-                l_data[6] * r_data[6],
-                l_data[7] * r_data[7],
-            ]
-        }
+    #[test]
+    fn test_slice_mut() {
+        let a = unsafe {
+            let mut a = TensorUninit::<f32>::new(1);
+            let slice = a.as_slice_mut();
+            slice[0] = 10.0;
+            assert_eq!(slice, &[10.]);
+            a.init()
+        };
+        assert_eq!(a.as_slice(), &[10.]);
     }
 }

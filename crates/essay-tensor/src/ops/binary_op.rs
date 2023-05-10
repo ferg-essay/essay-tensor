@@ -44,6 +44,10 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         let b = args[1];
 
         let size = a.broadcast(b);
+        let inner = a.len().min(b.len());
+        let batch = size / inner;
+
+        assert_eq!(a.dim_zero(), b.dim_zero());
     
         let a_data = a.data();
         let b_data = b.data();
@@ -53,15 +57,15 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
 
             let op = self.0;
 
-            let o_ptr = data.as_mut_ptr();
+            let o_ptr = data.as_slice_mut();
 
-            for i in 0..size {
-                let value = op.f(
-                    a_data.read_wrap(i), 
-                    b_data.read_wrap(i)
-                );
+            for n in 0..batch {
+                let a_ptr = a_data.as_wrap_slice(n * inner..);
+                let b_ptr = b_data.as_wrap_slice(n * inner..);
 
-                *o_ptr.add(i) = value;
+                for i in 0..inner {
+                    o_ptr[i] = op.f(a_ptr[i], b_ptr[i]);
+                }
             }
     
             let shape = if a.rank() < b.rank() { 

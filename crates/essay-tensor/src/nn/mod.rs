@@ -1,3 +1,4 @@
+mod softmax;
 mod l2_loss;
 
 use crate::{tensor::{Tensor}, 

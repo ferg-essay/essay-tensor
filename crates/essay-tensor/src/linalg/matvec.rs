@@ -77,13 +77,11 @@ pub fn matvec_t(
                 block * o_size,
                 o_size,
                 inner_len,
-                &a,
-                block * a_size,
+                a.data().as_wrap_ptr(block * a_size),
                 a_inc,
                 a_stride,
                 a_size,
-                &b,
-                block * b_cols,
+                b.data().as_wrap_ptr(block * b_cols),
                 b_cols,
             );
         }
@@ -101,21 +99,15 @@ unsafe fn naive_matvec_f32(
     out_start: usize,
     o_cols: usize,
     inner_len: usize,
-    a: &Tensor<f32>, 
-    a_start: usize,
+    a: *const f32, 
     a_inc: usize,
     a_stride: usize,
     _a_size: usize,
-    b: &Tensor<f32>,
-    b_start: usize,
+    b: *const f32,
     _b_size: usize,
 ) {
-    let a_data = a.data();
-    let b_data = b.data();
-
     for col in 0..o_cols {
-        let a_ptr = a_data.as_ptr().add(a_start + col * a_stride);
-        let b_ptr = b_data.as_ptr().add(b_start);
+        let a_ptr = a.add(col * a_stride);
 
         let mut v = 0.0;
 
@@ -124,20 +116,20 @@ unsafe fn naive_matvec_f32(
         while k > 4 {
             k -= 4;
             let v0 = *a_ptr.add((k + 0) * a_inc)
-                * *b_ptr.add(k + 0);
+                * *b.add(k + 0);
             let v1 = *a_ptr.add((k + 1) * a_inc)
-                * *b_ptr.add(k + 1);
+                * *b.add(k + 1);
             let v2 = *a_ptr.add((k + 2) * a_inc)
-                * *b_ptr.add(k + 2);
+                * *b.add(k + 2);
             let v3 = *a_ptr.add((k + 3) * a_inc)
-                * *b_ptr.add(k + 3);
+                * *b.add(k + 3);
 
             v += v0 + v1 + v2 + v3;
         }
 
         while k > 0 {
             k -= 1;
-            v += *a_ptr.add(k * a_inc) * *b_ptr.add(k);
+            v += *a_ptr.add(k * a_inc) * *b.add(k);
         }
 
         out.set_unchecked(out_start + col, v);

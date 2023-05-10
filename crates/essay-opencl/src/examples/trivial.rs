@@ -1,4 +1,4 @@
-use ocl::{self, ProQue};
+use ocl::{self, ProQue, Platform, Device, Context, Program, Queue, flags, Buffer, Kernel};
 
 const RESULTS_TO_PRINT: usize = 20;
 const WORK_SIZE: usize = 1 << 20;
@@ -43,7 +43,54 @@ fn trivial() -> ocl::Result<()> {
     Ok(())
 }
 
+fn trivial_exploded() -> ocl::Result<()> {
+    let platform = Platform::default();
+    let device = Device::first(platform)?;
+    let context = Context::builder()
+        .platform(platform)
+        .devices(device.clone())
+        .build()?;
+    let program = Program::builder()
+        .devices(device)
+        .src(KERNEL_SRC)
+        .build(&context)?;
+
+    let queue = Queue::new(&context, device, None)?;
+    let dims = 1 << 20;
+
+    let buffer = Buffer::<f32>::builder()
+        .queue(queue.clone())
+        .flags(flags::MEM_READ_WRITE)
+        .len(dims)
+        .fill_val(0f32)
+        .build()?;
+
+    let kernel = Kernel::builder()
+        .program(&program)
+        .name("add")
+        .queue(queue.clone())
+        .global_work_size(dims)
+        .arg(&buffer)
+        .arg(&10.0f32)
+        .build()?;
+    unsafe {
+        kernel
+            .cmd()
+            .queue(&queue)
+            .global_work_offset(kernel.default_global_work_offset())
+            .global_work_size(dims)
+            .local_work_size(kernel.default_local_work_size())
+            .enq()?;
+    }
+    
+    let mut vec = vec![0.0f32; dims];
+    buffer.cmd().queue(&queue).offset(0).read(&mut vec).enq()?;
+    println!("Value [{}] is {}", 2007, vec[2007]);
+
+    Ok(())
+}
+
 #[test]
 fn test() {
-    trivial();
+    trivial_exploded();
 }

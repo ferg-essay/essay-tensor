@@ -167,6 +167,11 @@ impl<D:Dtype> Tensor<D> {
             node,
         }
     }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[D] {
+        self.data.as_slice()
+    }
 }
 
 impl<D:Dtype> Clone for Tensor<D> {

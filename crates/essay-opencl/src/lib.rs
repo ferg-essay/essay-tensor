@@ -1,3 +1,4 @@
+mod tensor;
 mod examples;
 #[cfg(test)]
 mod test {
