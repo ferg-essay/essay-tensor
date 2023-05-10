@@ -1,8 +1,5 @@
-use std::ops;
-
-use crate::{Tensor, 
-    module::{EvalOp}, 
-    ops::{Uop, unary_op}
+use crate::{
+    ops::{Uop}
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -75,7 +72,7 @@ impl Uop<f32> for Neg {
     }
 
     #[inline]
-    fn df_dx(&self, value: f32) -> f32 {
+    fn df_dx(&self, _value: f32) -> f32 {
         - 1.
     }
 }

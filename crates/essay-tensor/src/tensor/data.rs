@@ -76,6 +76,22 @@ impl<D:Dtype> TensorData<D> {
     }
 
     #[inline]
+    pub fn read_4a(&self, offset: usize, inc: usize) -> [D; 4] {
+        assert!(offset + 3 < self.len);
+
+        unsafe {
+            let ptr = self.data.as_ptr().add(offset);
+
+            [
+                *ptr,
+                *ptr.add(inc),
+                *ptr.add(2 * inc),
+                *ptr.add(3 * inc),
+            ]
+        }
+    }
+
+    #[inline]
     pub fn read_8(&self, offset: usize, inc: usize) -> Data8<D> {
         assert!(offset + 7 < self.len);
 

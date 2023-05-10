@@ -1,9 +1,10 @@
 use core::fmt;
 use std::{sync::Arc, any::type_name};
 
-use crate::{module::{IntoForward, NodeOp, Tape, EvalOp, TensorCache, ForwardOp, Graph, TensorId, graph::BackOp}, Tensor, tensor::{Dtype, TensorUninit, TensorData, NodeId}};
+use crate::{module::{IntoForward, NodeOp, Tape, EvalOp, ForwardOp, Graph, TensorId, graph::BackOp}, Tensor, tensor::{Dtype, TensorUninit, TensorData, NodeId}};
 
-pub trait Uop<D:Dtype> : fmt::Debug + Clone + PartialEq + Sync + Send + 'static {
+pub trait Uop<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + Send + 'static
+{
     fn f(&self, value: D) -> D;
 
     fn df_dx(&self, value: D) -> D;
@@ -25,30 +26,6 @@ where
     Tape::set_tensor(tensor)
 }
 
-fn eval_uop<Op:Uop<f32>>(
-    a: &Tensor,
-    op: &Op,
-    node: NodeId,
-) -> Tensor {
-    let len = a.len();
-    
-    let data = unsafe {
-        let mut out = TensorUninit::<f32>::new(len);
-
-        let a_ptr = a.data().as_ptr();
-        let o_ptr = out.as_mut_ptr();
-    
-        for i in 0..len {
-            *o_ptr.add(i) = op.f(*a_ptr.add(i));
-        }
-
-        out.init()
-    };
-    
-    let shape = a.shape().clone();
-    Tensor::new_op(Arc::new(data), shape, node)
-}
-
 impl<Op:Uop<f32>> ForwardOp for UopImpl<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
@@ -59,7 +36,25 @@ impl<Op:Uop<f32>> ForwardOp for UopImpl<Op> {
         args: &[&Tensor],
         node: NodeId,
     ) -> Tensor {
-        eval_uop(args[0], &self.0, node)
+        let a = args[0];
+        let len = a.len();
+    
+        let data = unsafe {
+            let mut out = TensorUninit::<f32>::new(len);
+    
+            let op = &self.0;
+            let a_ptr = a.data().as_ptr();
+            let o_ptr = out.as_mut_ptr();
+        
+            for i in 0..len {
+                *o_ptr.add(i) = op.f(*a_ptr.add(i));
+            }
+    
+            out.init()
+        };
+        
+        let shape = a.shape().clone();
+        Tensor::new_op(Arc::new(data), shape, node)
     }
 
     fn backprop(

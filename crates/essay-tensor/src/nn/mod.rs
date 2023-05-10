@@ -2,13 +2,13 @@ use crate::{tensor::{Tensor, NodeId}, module::{TensorId, ForwardOp, Graph, EvalO
     ops::{Uop, unary_op, Fold}
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum Unary {
     ReLU,
     Softplus,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum UReduce {
     L2Loss(f32),
 }

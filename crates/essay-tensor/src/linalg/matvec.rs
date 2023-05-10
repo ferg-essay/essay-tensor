@@ -113,35 +113,34 @@ unsafe fn naive_matvec_f32(
     let a_data = a.data();
     let b_data = b.data();
 
-    // let mut a_row = a_start;
-
     for col in 0..o_cols {
-        let mut len = inner_len;
-
-        let mut a_off = a_start + col * a_stride;
-        let mut b_off = b_start;
+        let a_ptr = a_data.as_ptr().add(a_start + col * a_stride);
+        let b_ptr = b_data.as_ptr().add(b_start);
 
         let mut v = 0.0;
 
-        // unroll for simd
-        while len > 4 {
-            let a_chunk = a_data.read_4(a_off, a_inc);
-            let b_chunk = b_data.read_4(b_off, 1);
+        let mut k = inner_len;
 
-            v += &a_chunk.muladd(&b_chunk);
+        while k > 4 {
+            k -= 4;
+            let v0 = *a_ptr.add((k + 0) * a_inc)
+                * *b_ptr.add(k + 0);
+            let v1 = *a_ptr.add((k + 1) * a_inc)
+                * *b_ptr.add(k + 1);
+            let v2 = *a_ptr.add((k + 2) * a_inc)
+                * *b_ptr.add(k + 2);
+            let v3 = *a_ptr.add((k + 3) * a_inc)
+                * *b_ptr.add(k + 3);
 
-            a_off += 4 * a_inc;
-            b_off += 4;
-            len -= 4;
+            v += v0 + v1 + v2 + v3;
         }
 
-        for i in 0..len {
-            v += a_data.get_unchecked(a_off + i * a_inc)
-                * b_data.get_unchecked(b_off + i);
-            }
+        while k > 0 {
+            k -= 1;
+            v += *a_ptr.add(k * a_inc) * *b_ptr.add(k);
+        }
 
         out.set_unchecked(out_start + col, v);
-        // a_row += a_stride;
     }
 }
 

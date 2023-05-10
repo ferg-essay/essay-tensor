@@ -101,10 +101,42 @@ unsafe fn naive_matmul(
     for row in 0..o_stride[1] {
         for col in 0..o_stride[0] {
             let mut v: f32 = 0.;
-            for k in 0..inner_len {
-                let a = *a_ptr.add(row * a_stride[1] + k * a_stride[0]);
-                let b = *b_ptr.add(col * b_stride[1] + k * b_stride[1]);
-                v += a * b;
+            
+            let a_start = a_ptr.add(row * a_stride[1]);
+            let b_start = b_ptr.add(col * b_stride[1]);
+
+            // Unrolling improves >100%
+            //
+            //for k in 0..inner_len {
+            //    let a = *a_start.add(k * a_stride[0]);
+            //    let b = *b_start.add(k * b_stride[1]);
+            //    v += a * b;
+            //}
+
+            let mut k = inner_len;
+
+            while k > 3 {
+                k -= 4;
+
+                let v0 = *a_start.add((k + 0) * a_stride[0])
+                    * *b_start.add((k + 0) * b_stride[1]);
+
+                let v1 = *a_start.add((k + 1) * a_stride[0])
+                    * *b_start.add((k + 1) * b_stride[1]);
+
+                let v2 = *a_start.add((k + 2) * a_stride[0])
+                    * *b_start.add((k + 2) * b_stride[1]);
+
+                let v3 = *a_start.add((k + 3) * a_stride[0])
+                    * *b_start.add((k + 3) * b_stride[1]);
+
+                v += v0 + v1 + v2 + v3;
+            }
+
+            while k > 0 {
+                k -= 1;
+                v += *a_start.add( k * a_stride[0])
+                    * *b_start.add(k * b_stride[1]);
             }
 
             *o_ptr.add(row * o_stride[1] + col) = v;

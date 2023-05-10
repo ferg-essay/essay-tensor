@@ -18,3 +18,7 @@ essay-nn = { path = "crates/essay-nn" }
 members = [
     "crates/*",
 ]
+
+[[bench]]
+name = "tensor-add"
+harness = false

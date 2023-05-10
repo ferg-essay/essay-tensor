@@ -2,7 +2,7 @@ use std::{sync::Arc, any::type_name};
 
 use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape, graph::BackOp, TensorCache}, Tensor, tensor::{Dtype, TensorData, TensorUninit, NodeId}};
 
-pub trait Binop<D:Dtype=f32> : Clone + Send + Sync + 'static {
+pub trait Binop<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
     fn f(&self, x: D, y: D) -> D;
 
     fn df_dx(&self, x: D, y: D) -> D;
@@ -62,15 +62,17 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         unsafe {
             let mut data = TensorUninit::<f32>::new(size);
 
-            let op = &self.0;
-    
-            for i in 0..size {
-                let value = op.f(a_data[i], b_data[i]);
+            let op = self.0;
 
-                data.set_unchecked(i, value);
+            let a_ptr = a_data.as_ptr();
+            let b_ptr = b_data.as_ptr();
+            let o_ptr = data.as_mut_ptr();
+
+            for i in 0..size {
+                let value = op.f(*a_ptr.add(i), *b_ptr.add(i));
+
+                *o_ptr.add(i) = value;
             }
-    
-            //Self::new(Rc::new(data), b.shape().clone())
     
             let shape = if a.rank() < b.rank() { 
                 b.shape().clone() 
@@ -180,7 +182,7 @@ impl<Op:Binop<f32>> BackOp for BinopDy<Op> {
 
 // TODO: debug seems wrong
 impl<F, D:Dtype> Binop<D> for F
-where F: Fn(D, D) -> D + Send + Sync + 'static + Clone {
+where F: Fn(D, D) -> D + Send + Sync + 'static + Clone + Copy {
     fn f(&self, x: D, y: D) -> D {
         (self)(x, y)
     }
