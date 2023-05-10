@@ -48,6 +48,17 @@ impl<D:Dtype> TensorData<D> {
     }
 
     #[inline]
+    pub fn read_wrap(&self, offset: usize) -> D {
+        unsafe {
+           if offset < self.len {
+                self.get_unchecked(offset)
+            } else {
+                self.get_unchecked(offset % self.len)
+            }
+        }
+    }
+
+    #[inline]
     pub unsafe fn get_unchecked(&self, offset: usize) -> D {
         *self.data.as_ptr().add(offset)
     }
@@ -55,6 +66,17 @@ impl<D:Dtype> TensorData<D> {
     #[inline]
     pub unsafe fn as_ptr(&self) -> *const D {
         self.data.as_ptr()
+    }
+
+    // Returns a possibly-wrapped pointer at the offset to support
+    // broadcast
+    #[inline]
+    pub unsafe fn as_wrap_ptr(&self, offset: usize) -> *const D {
+        if offset < self.len {
+            self.data.as_ptr().add(offset)
+        } else {
+            self.data.as_ptr().add(offset % self.len)
+        }
     }
 
     #[inline]

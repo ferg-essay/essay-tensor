@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{sync::Arc, any::type_name};
+use std::{any::type_name};
 
 use crate::{module::{IntoForward, NodeOp, Tape, ForwardOp, Graph, TensorId, graph::BackOp}, Tensor, 
     tensor::{Dtype, TensorUninit, NodeId}
@@ -13,13 +13,13 @@ pub trait Uop<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + Send + '
 }
 
 #[derive(Clone, PartialEq)]
-pub struct UopImpl<Op:Uop<f32>>(Op);
+pub struct UopCpu<Op:Uop<f32>>(Op);
 
 pub fn unary_op<Op>(a: &Tensor, op: Op) -> Tensor
 where
     Op:Uop<f32>
 {
-    let uop = UopImpl(op.clone());
+    let uop = UopCpu(op.clone());
 
     let node = NodeOp::new(&[a], uop.to_op());
 
@@ -28,7 +28,7 @@ where
     Tape::set_tensor(tensor)
 }
 
-impl<Op:Uop<f32>> ForwardOp for UopImpl<Op> {
+impl<Op:Uop<f32>> ForwardOp for UopCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -56,7 +56,7 @@ impl<Op:Uop<f32>> ForwardOp for UopImpl<Op> {
         };
         
         let shape = a.shape().clone();
-        Tensor::new_op(Arc::new(data), shape, node)
+        Tensor::new_op(data, shape, node)
     }
 
     fn backprop(
@@ -73,7 +73,7 @@ impl<Op:Uop<f32>> ForwardOp for UopImpl<Op> {
     }
 }
 
-impl<Op:Uop<f32>> BackOp for UopImpl<Op> {
+impl<Op:Uop<f32>> BackOp for UopCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }

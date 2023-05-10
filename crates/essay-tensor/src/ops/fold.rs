@@ -1,18 +1,61 @@
-use crate::{module::{IntoForward}, Tensor, tensor::{Dtype, TensorUninit}};
+use std::any::type_name;
 
-pub trait Fold<D:Dtype=f32> : Clone {
-    fn apply(&self, state: D, a: D) -> D;
+use crate::{
+    Tensor, 
+    tensor::{Dtype, TensorUninit, NodeId}, 
+    module::{NodeOp, Tape, ForwardOp, IntoForward, Graph, TensorId, graph::BackOp}
+};
+
+pub trait Fold<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
+    fn f(&self, state: D, a: D) -> D;
+
+    fn df_dx(&self, a: D) -> D;
 }
 
-impl Tensor {
-    pub fn fold<Op:Fold + IntoForward>(
-        &self, 
-        init: f32, 
-        op: Op,
-    ) -> Tensor<f32> {
-        let a_data = self.data();
+#[derive(Clone, Copy, PartialEq)]
+pub struct FoldCpu<Op:Fold>(Op, f32);
 
-        let shape = self.shape();
+pub fn fold_op<Op>(a: &Tensor, init: f32, op: Op) -> Tensor
+where
+    Op:Fold
+{
+    let fold_op = FoldCpu(op.clone(), init);
+
+    let node = NodeOp::new(&[a], fold_op.to_op());
+
+    let tensor = fold_op.eval(&[&a], node);
+
+    Tape::set_tensor(tensor)
+}
+
+impl<Op:Fold> FoldCpu<Op> {
+    #[inline]
+    fn op(&self) -> Op {
+        self.0
+    }
+
+    #[inline]
+    fn init(&self) -> f32 {
+        self.1
+    }
+}
+
+impl<Op:Fold> ForwardOp for FoldCpu<Op> {
+    fn name(&self) -> &str {
+        type_name::<Op>()
+    }
+
+    fn eval(
+        &self,
+        args: &[&Tensor],
+        node: NodeId,
+    ) -> Tensor {
+        assert!(args.len() == 1);
+
+        let a = args[0];
+        let a_data = a.data();
+
+        let shape = a.shape();
         let o_shape: Vec<usize> = if shape.len() > 1 {
             shape[1..].iter().map(|d| *d).collect()
         } else {
@@ -20,84 +63,83 @@ impl Tensor {
         };
 
         let len = o_shape.iter().product();
-        let stride = self.dim_zero();
-        let batch = self.len() / stride;
+        let inner_len = a.dim_zero();
     
-        unsafe {
+        let o_data = unsafe {
             let mut o_data = TensorUninit::<f32>::new(len);
+
+            let a_ptr = a_data.as_ptr();
+            let o_ptr = o_data.as_mut_ptr();
+
+            let op = self.op();
     
-            for i in 0..batch {
-                let offset = i * stride;
+            for i in 0..len {
+                let mut v = self.init();
 
-                let mut v = init;
-
-                for j in 0..stride {
-                    v = op.apply(
+                for j in 0..inner_len {
+                    v = op.f(
                         v, 
-                        a_data.get_unchecked(offset + j), 
+                        *a_ptr.add(i * inner_len + j), 
                     );
                 }
 
-                o_data.set_unchecked(i, v);
+                *o_ptr.add(i) = v;
             }
+
+            o_data.init()
+        };
     
-            //Self::new(Rc::new(data), b.shape().clone())
-    
-            //self.next_uop(o_data.init(), o_shape, op)
-            Tensor::new(o_data.init(), &o_shape)
-        }
+        Tensor::new_op(o_data, o_shape, node)
     }
 
-    pub fn fold_1<Op:Fold + IntoForward>(
-        &self, 
-        init: f32, 
-        op: Op,
-    ) -> Tensor<f32> {
-        assert!(self.rank() >= 2);
+    fn backprop(
+        &self,
+        _forward: &Graph,
+        graph: &mut Graph,
+        i: usize,
+        args: &[TensorId],
+        prev: TensorId,
+    ) -> TensorId {
+        assert!(i == 0);
 
-        let a_data = self.data();
-
-        // let shape = self.shape();
-        let mut o_shape: Vec<usize> = Vec::new();
-        let dim_0 = self.dim(0);
-        let dim_1 = self.dim(1);
-        o_shape.push(dim_0);
-        for i in 2..self.rank() {
-            o_shape.push(i);
-        }
-        let len : usize = o_shape.iter().product();
-        let batch_len : usize = o_shape[1..].iter().product();
-    
-        unsafe {
-            let mut o_data = TensorUninit::<f32>::new(len);
-    
-            for batch in 0..batch_len {
-                let a_start = batch * dim_0 * dim_1;
-                let o_start = batch * dim_0;
-
-                for i in 0..dim_0 {
-                    let mut value = init;
-
-                    for j in 0..dim_1 {
-                        value = op.apply(value, a_data[a_start + j * dim_0 + i]);
-                    }
-
-                    o_data[o_start + i] = value;
-                }
-            }
-    
-            //Self::new(Rc::new(data), b.shape().clone())
-            // TODO: fold has different op
-            //self.next_uop(o_data.init(), o_shape, op)
-            Tensor::new(o_data.init(), &o_shape)
-        }
+        graph.add_back_op(self.clone(), &[args[0]], prev)
     }
 }
 
+impl<Op:Fold> BackOp for FoldCpu<Op> {
+    fn name(&self) -> &str {
+        type_name::<Op>()
+    }
 
-impl<F, D:Dtype> Fold<D> for F
-where F: Fn(D, D) -> D + Send + Sync + Clone + 'static {
-    fn apply(&self, state: D, a: D) -> D {
-        self(state, a)
+    fn df(
+        &self,
+        args: &[&Tensor],
+        prev: &Tensor,
+    ) -> Tensor {
+        let a = &args[0];
+        let a_data = a.data();
+        let prev = prev.data();
+
+        assert_eq!(a_data.len(), prev.len());
+        
+        let len = a_data.len();
+        
+        let data = unsafe {
+            let mut out = TensorUninit::<f32>::new(len);
+
+            let op = &self.0;
+        
+            for i in 0..len {
+                let df_dx = op.df_dx(a_data.get_unchecked(i));
+                let prev_df = prev.get_unchecked(i);
+
+                out.set_unchecked(i, df_dx * prev_df);
+            }
+    
+            out.init()
+        };
+        
+        let shape = a.shape().clone();
+        Tensor::new(data, &shape)
     }
 }

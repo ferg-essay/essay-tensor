@@ -1,4 +1,4 @@
-use std::{sync::Arc, any::type_name};
+use std::{any::type_name};
 
 use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
     tensor::{Dtype, TensorUninit, NodeId}
@@ -53,12 +53,13 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
 
             let op = self.0;
 
-            let a_ptr = a_data.as_ptr();
-            let b_ptr = b_data.as_ptr();
             let o_ptr = data.as_mut_ptr();
 
             for i in 0..size {
-                let value = op.f(*a_ptr.add(i), *b_ptr.add(i));
+                let value = op.f(
+                    a_data.read_wrap(i), 
+                    b_data.read_wrap(i)
+                );
 
                 *o_ptr.add(i) = value;
             }
@@ -69,7 +70,7 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
                 a.shape().clone() 
             };
 
-            Tensor::new_op(Arc::new(data.init()), shape, node)
+            Tensor::new_op(data.init(), shape, node)
         }
     }
 

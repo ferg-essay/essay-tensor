@@ -1,15 +1,15 @@
-mod bifold;
+mod fold_2;
 mod binary_op;
 mod fold;
 mod new;
 mod unary_op;
 
-pub use bifold::{
+pub use fold_2::{
     BiFold,
 };
 
 pub use fold::{
-    Fold,
+    fold_op, Fold,
 };
 
 pub use unary_op::{
@@ -17,5 +17,5 @@ pub use unary_op::{
 };
 
 pub use binary_op::{
-    Binop, binary_op
+    binary_op, Binop,
 };

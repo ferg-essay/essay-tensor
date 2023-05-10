@@ -1,3 +1,4 @@
+pub(crate) mod add;
 mod binary;
 mod square;
 mod unary;
@@ -7,6 +8,7 @@ use crate::{
     tensor::{Tensor}, 
     tensor_uop, ops::unary_op,
     tensor_binop, ops::binary_op,
+
 };
 
 tensor_uop!(abs, unary::Abs);
@@ -84,7 +86,7 @@ macro_rules! tensor_ops {
     }
 }
 
-tensor_ops!(Add, add, binary::Add);
+tensor_ops!(Add, add, add::Add);
 tensor_ops!(Div, div, binary::Div);
 tensor_ops!(Mul, mul, binary::Mul);
 tensor_ops!(Rem, rem, binary::Rem);

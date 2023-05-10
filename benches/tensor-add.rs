@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use essay_tensor::Tensor;
+use essay_tensor::{Tensor};
 
 fn main() {
     println!("Benchmarking tensor add");
@@ -10,6 +10,7 @@ fn main() {
         let b = Tensor::ones(&[32 * 1024]);
 
         let start = Instant::now();
+        //let _c = &a + &b;
         let _c = &a + &b;
         let time_sum = start.elapsed();
 

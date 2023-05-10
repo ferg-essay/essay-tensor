@@ -2,7 +2,9 @@ use std::{collections::HashSet, any::type_name};
 
 use crate::{Tensor, tensor::NodeId};
 
-use super::{Graph, TensorId, NodeOp, IntoForward, BoxForwardOp, ForwardOp, EvalOp, TensorCache, graph::{IntoBack, BackOp, BoxBackOp}};
+use super::{Graph, TensorId, NodeOp, IntoForward, BoxForwardOp, ForwardOp, EvalOp, 
+    graph::{IntoBack, BackOp, BoxBackOp}
+};
 
 
 pub struct ArgTrace {
@@ -135,7 +137,7 @@ impl<Op:EvalOp> ForwardOp for Op {
     fn eval(
         &self,
         args: &[&Tensor],
-        node: NodeId,
+        _node: NodeId,
     ) -> Tensor {
         (self as &dyn EvalOp).eval(args)
     }

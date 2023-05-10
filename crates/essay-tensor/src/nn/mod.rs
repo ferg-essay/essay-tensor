@@ -1,20 +1,17 @@
-use crate::{tensor::{Tensor, NodeId}, module::{TensorId, ForwardOp, Graph, EvalOp}, tensor_uop, 
-    ops::{Uop, unary_op, Fold}
+mod l2_loss;
+
+use crate::{tensor::{Tensor}, 
+    tensor_uop, 
+    ops::{Uop, unary_op}
 };
+
+pub use l2_loss::l2_loss;
+
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum Unary {
     ReLU,
     Softplus,
-}
-
-#[derive(Debug, Copy, Clone)]
-enum UReduce {
-    L2Loss(f32),
-}
-
-#[derive(Debug, Clone)]
-enum BiReduce {
 }
 
 impl Uop<f32> for Unary {
@@ -32,56 +29,3 @@ impl Uop<f32> for Unary {
 
 tensor_uop!(relu, Unary::ReLU);
 tensor_uop!(softplus, Unary::Softplus);
-
-impl Tensor {
-    pub fn l2_loss(&self) -> Tensor {
-        let n = self.dim_zero();
-        let n_inv = 0.5 / n as f32;
-        self.fold(0.0.into(), UReduce::L2Loss(n_inv))
-    }
-}
-
-impl Fold<f32> for UReduce {
-    fn apply(&self, acc: f32, a: f32) -> f32 {
-        match &self {
-            UReduce::L2Loss(n_inv) => {
-                acc + n_inv * a * a
-            },
-        }
-    }
-}
-
-impl ForwardOp for UReduce {
-    fn name(&self) -> &str {
-        "UReduce"
-    }
-    
-    fn eval(
-        &self,
-        args: &[&Tensor],
-        node: NodeId,
-    ) -> Tensor {
-        match self {
-            UReduce::L2Loss(n_inv) => {
-                args[0].fold(0.0.into(), UReduce::L2Loss(*n_inv))
-            },
-        }
-    }
-
-    fn backprop(
-        &self, 
-        _forward: &Graph,
-        graph: &mut Graph,
-        i: usize, 
-        args: &[TensorId], 
-        _prev: TensorId
-    ) -> TensorId {
-        match self {
-            UReduce::L2Loss(_) => {
-                assert_eq!(i, 0, "{:?} reduce has only one argument", self);
-
-                graph.constant_id(args[0])
-            },
-        }
-    }
-}

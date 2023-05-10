@@ -137,7 +137,7 @@ impl Graph {
         id
     }
 
-    pub(crate) fn constant_id(&mut self, forward_id: TensorId) -> TensorId {
+    pub(crate) fn _constant_id(&mut self, forward_id: TensorId) -> TensorId {
         let back_id = self.alloc_id();
 
         self.set_node(back_id, NodeOp::BackConst(back_id, forward_id));
@@ -145,7 +145,7 @@ impl Graph {
         back_id
     }
 
-    pub(crate) fn add_op(
+    pub(crate) fn _add_op(
         &mut self, 
         into_op: impl IntoForward,
         prev: &[TensorId]

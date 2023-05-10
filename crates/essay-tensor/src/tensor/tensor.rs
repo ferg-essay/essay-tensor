@@ -84,6 +84,43 @@ impl<D:Dtype> Tensor<D> {
     }
 
     #[inline]
+    pub fn broadcast(&self, b: &Self) -> usize {
+        let a_shape = self.shape();
+        let b_shape = b.shape();
+        let min_rank = cmp::min(a_shape.len(), b.shape.len());
+        for i in 0..min_rank {
+            assert_eq!(a_shape[i], b_shape[i], "broadcast ranks must match");
+        }
+
+        if a_shape.len() < b_shape.len() { b.len() } else { self.len() }
+    }
+
+    #[inline]
+    pub fn broadcast_min(
+        &self, 
+        a_min: usize, 
+        b: &Self, 
+        b_min: usize
+    ) -> usize {
+        let a_shape = self.shape();
+        let b_shape = b.shape();
+        let min_rank = cmp::min(
+            a_shape.len() - a_min, 
+            b.shape.len() - b_min
+        );
+
+        for i in 0..min_rank {
+            assert_eq!(a_shape[i + a_min], b_shape[i + b_min], "broadcast ranks must match");
+        }
+
+        if a_shape.len() - a_min < b_shape.len() - b_min { 
+            b_shape.iter().skip(b_min).product()
+        } else { 
+            a_shape.iter().skip(a_min).product()
+        }
+    }
+
+    #[inline]
     pub fn len(&self) -> usize {
         self.data.len()
     }
@@ -113,11 +150,9 @@ impl<D:Dtype> Tensor<D> {
     pub(crate) fn node(&self) -> &NodeId {
         &self.node
     }
-}
 
-impl Tensor {
     pub fn new_op(
-        data: Arc<TensorData>, 
+        data: TensorData<D>, 
         shape: Vec<usize>,
         node: NodeId,
     ) -> Self {
@@ -127,51 +162,10 @@ impl Tensor {
         
         Self {
             shape,
-            data,
+            data: Arc::new(data),
 
             node,
         }
-    }
-
-    #[inline]
-    pub fn broadcast(&self, b: &Tensor) -> usize {
-        let a_shape = self.shape();
-        let b_shape = b.shape();
-        let min_rank = cmp::min(a_shape.len(), b.shape.len());
-        for i in 0..min_rank {
-            assert_eq!(a_shape[i], b_shape[i], "broadcast ranks must match");
-        }
-
-        if a_shape.len() < b_shape.len() { b.size() } else { self.size() }
-    }
-
-    #[inline]
-    pub fn broadcast_min(
-        &self, 
-        a_min: usize, 
-        b: &Tensor, 
-        b_min: usize
-    ) -> usize {
-        let a_shape = self.shape();
-        let b_shape = b.shape();
-        let min_rank = cmp::min(
-            a_shape.len() - a_min, 
-            b.shape.len() - b_min
-        );
-
-        for i in 0..min_rank {
-            assert_eq!(a_shape[i + a_min], b_shape[i + b_min], "broadcast ranks must match");
-        }
-
-        if a_shape.len() - a_min < b_shape.len() - b_min { 
-            b_shape.iter().skip(b_min).product()
-        } else { 
-            a_shape.iter().skip(a_min).product()
-        }
-    }
-
-    pub fn size(&self) -> usize {
-        self.data.len()
     }
 }
 
