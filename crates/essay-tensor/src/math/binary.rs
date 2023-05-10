@@ -115,12 +115,12 @@ impl Binop for Log {
     }
 
     #[inline]
-    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+    fn df_dx(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 
     #[inline]
-    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+    fn df_dy(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 }
@@ -135,12 +135,12 @@ impl Binop for Max {
     }
 
     #[inline]
-    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+    fn df_dx(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 
     #[inline]
-    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+    fn df_dy(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 }
@@ -155,12 +155,12 @@ impl Binop for Min {
     }
 
     #[inline]
-    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+    fn df_dx(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 
     #[inline]
-    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+    fn df_dy(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 }
@@ -195,12 +195,12 @@ impl Binop for Powf {
     }
 
     #[inline]
-    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+    fn df_dx(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 
     #[inline]
-    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+    fn df_dy(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 }
@@ -215,12 +215,12 @@ impl Binop for Powi {
     }
 
     #[inline]
-    fn df_dx(&self, _x: f32, y: f32) -> f32 {
+    fn df_dx(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 
     #[inline]
-    fn df_dy(&self, x: f32, _y: f32) -> f32 {
+    fn df_dy(&self, _x: f32, _y: f32) -> f32 {
         todo!()
     }
 }

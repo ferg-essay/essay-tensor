@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{module::{IntoForward}, Tensor, tensor::{Dtype, TensorUninit}};
 
 pub trait Fold<D:Dtype=f32> : Clone {

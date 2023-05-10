@@ -1,25 +1,14 @@
 use std::{sync::Arc, any::type_name};
 
-use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape, graph::BackOp, TensorCache}, Tensor, tensor::{Dtype, TensorData, TensorUninit, NodeId}};
+use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
+    tensor::{Dtype, TensorUninit, NodeId}
+};
 
 pub trait Binop<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
     fn f(&self, x: D, y: D) -> D;
 
     fn df_dx(&self, x: D, y: D) -> D;
     fn df_dy(&self, x: D, y: D) -> D;
-
-    /*
-    fn backprop(
-        &self,
-        forward: &Graph,
-        graph: &mut Graph,
-        i: usize,
-        args: &[TensorId],
-        prev: TensorId,
-    ) -> TensorId;
-    */
- 
-    // fn to_op(&self) -> Box<dyn ForwardOp>;
 }
 
 #[derive(Debug, Clone)]

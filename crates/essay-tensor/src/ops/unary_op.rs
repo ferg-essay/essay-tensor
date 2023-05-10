@@ -1,7 +1,9 @@
 use core::fmt;
 use std::{sync::Arc, any::type_name};
 
-use crate::{module::{IntoForward, NodeOp, Tape, EvalOp, ForwardOp, Graph, TensorId, graph::BackOp}, Tensor, tensor::{Dtype, TensorUninit, TensorData, NodeId}};
+use crate::{module::{IntoForward, NodeOp, Tape, ForwardOp, Graph, TensorId, graph::BackOp}, Tensor, 
+    tensor::{Dtype, TensorUninit, NodeId}
+};
 
 pub trait Uop<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + Send + 'static
 {

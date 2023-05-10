@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{tensor::{Tensor, TensorUninit}, module::{EvalOp}};
 
 #[derive(Clone, Debug)]

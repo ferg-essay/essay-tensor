@@ -5,7 +5,7 @@ use essay_tensor::Tensor;
 fn main() {
     println!("Benchmarking tensor add");
 
-    for i in 0..16 {
+    for _ in 0..16 {
         let a = Tensor::zeros(&[32 * 1024]);
         let b = Tensor::ones(&[32 * 1024]);
 
