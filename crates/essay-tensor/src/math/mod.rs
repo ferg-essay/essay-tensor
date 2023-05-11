@@ -15,9 +15,7 @@ mod mul;
 mod div;
 mod atan2;
 pub(crate) mod add;
-mod binary;
 mod square;
-mod unary;
 use std::{ops};
 
 use crate::{
