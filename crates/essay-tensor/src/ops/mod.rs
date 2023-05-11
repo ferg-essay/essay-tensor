@@ -1,7 +1,6 @@
 mod fold_2;
 mod binary_op;
 mod fold;
-mod new;
 mod unary_op;
 
 pub use fold_2::{

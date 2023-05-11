@@ -1,3 +1,19 @@
+mod sin;
+mod neg;
+mod ln;
+mod exp;
+mod cos;
+mod abs;
+mod powi;
+mod powf;
+mod min;
+mod max;
+mod log;
+mod sub;
+mod rem;
+mod mul;
+mod div;
+mod atan2;
 pub(crate) mod add;
 mod binary;
 mod square;
@@ -11,20 +27,20 @@ use crate::{
 
 };
 
-tensor_uop!(abs, unary::Abs);
-tensor_uop!(cos, unary::Cos);
-tensor_uop!(exp, unary::Exp);
-tensor_uop!(ln, unary::Ln);
-tensor_uop!(sin, unary::Sin);
+tensor_uop!(abs, abs::Abs);
+tensor_uop!(cos, cos::Cos);
+tensor_uop!(exp, exp::Exp);
+tensor_uop!(ln, ln::Ln);
+tensor_uop!(sin, sin::Sin);
 
 tensor_uop!(square, square::SquareOp);
 
-tensor_binop!(atan2, binary::Atan2);
-tensor_binop!(log, binary::Log);
-tensor_binop!(max, binary::Max);
-tensor_binop!(min, binary::Min);
-tensor_binop!(powf, binary::Powf);
-tensor_binop!(powi, binary::Powi);
+tensor_binop!(atan2, atan2::Atan2);
+tensor_binop!(log, log::Log);
+tensor_binop!(max, max::Max);
+tensor_binop!(min, min::Min);
+tensor_binop!(powf, powf::Powf);
+tensor_binop!(powi, powi::Powi);
 
 //
 // overloaded operations: Add, Sub, Mul
@@ -87,10 +103,10 @@ macro_rules! tensor_ops {
 }
 
 tensor_ops!(Add, add, add::Add);
-tensor_ops!(Div, div, binary::Div);
-tensor_ops!(Mul, mul, binary::Mul);
-tensor_ops!(Rem, rem, binary::Rem);
-tensor_ops!(Sub, sub, binary::Sub);
+tensor_ops!(Div, div, div::Div);
+tensor_ops!(Mul, mul, mul::Mul);
+tensor_ops!(Rem, rem, rem::Rem);
+tensor_ops!(Sub, sub, sub::Sub);
 
 impl ops::Mul<Option<Tensor>> for Tensor {
     type Output = Tensor;
@@ -141,14 +157,14 @@ impl ops::Mul<Option<Tensor>> for &Tensor {
 //
 
 pub fn neg(a: &Tensor) -> Tensor {
-    unary_op(a, unary::Neg)
+    unary_op(a, neg::Neg)
 }
 
 impl ops::Neg for Tensor {
     type Output = Tensor;
 
     fn neg(self) -> Self::Output {
-        unary_op(&self, unary::Neg)
+        unary_op(&self, neg::Neg)
     }
 }
 
@@ -156,6 +172,6 @@ impl ops::Neg for &Tensor {
     type Output = Tensor;
 
     fn neg(self) -> Self::Output {
-        unary_op(&self, unary::Neg)
+        unary_op(&self, neg::Neg)
     }
 }

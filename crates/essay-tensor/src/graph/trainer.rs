@@ -2,13 +2,7 @@ use crate::{Tensor, tensor::TensorId};
 
 use super::{Bundle, TensorCache, Var, Graph, Tape, backprop::backprop_graph};
 
-
-pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
-    module: &'a Trainer<In, Out>,
-    tensors: TensorCache,
-    out: Out,
-
-}
+pub struct _Loss<Out:Bundle<Item=Out>>(Tensor, Out);
 
 pub struct Trainer<In: Bundle, Out: Bundle> {
     _vars: Vec<(String, TensorId)>,
@@ -16,6 +10,12 @@ pub struct Trainer<In: Bundle, Out: Bundle> {
 
     graph: Graph,
     gradients: Vec<(String, Graph)>,
+}
+
+pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
+    module: &'a Trainer<In, Out>,
+    tensors: TensorCache,
+    out: Out,
 }
 
 impl<In, Out> Trainer<In, Out>

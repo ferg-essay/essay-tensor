@@ -1,5 +1,5 @@
-mod random;
+mod uniform;
 
-pub use random::{
+pub use uniform::{
     uniform, uniform_b,
 };

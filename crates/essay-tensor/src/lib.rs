@@ -1,9 +1,12 @@
-pub mod ops;
-pub mod graph;
-pub mod random;
+pub mod activation;
+pub mod init;
 pub mod linalg;
+pub mod loss;
 pub mod nn;
+pub mod graph;
 pub mod math;
+pub mod ops;
+pub mod random;
 pub mod tensor;
 
 #[macro_use]

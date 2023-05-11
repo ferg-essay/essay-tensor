@@ -357,13 +357,13 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let module = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |()| {
             let out = a.matvec(&x);
             assert_eq!(out, tensor!([140., 320.]));
 
             out.l2_loss()
         }); // .training(&[&a, &x]);
-        let train = module.train(());
+        let train = trainer.train(());
     
         let da = train.gradient(&a);
         assert_eq!(da, tensor!([[1400., 2800., 4200.], [3200., 6400., 9600.]]));
