@@ -207,7 +207,7 @@ impl Binop for Powi {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, module::{Var, Module}};
+    use crate::{prelude::*, graph::{Var, Trainer}};
 
     #[test]
     fn test_add() {
@@ -220,9 +220,9 @@ mod test {
         let x = Var::new("x", tensor!([1., 2.]));
         let y = Var::new("y", tensor!([3., 4.]));
 
-        let module = Module::build((), |()| {
+        let module = Trainer::compile((), |()| {
             &x + &y
-        }).training(&[&x, &y]);
+        }); // .training(&[&x, &y]);
         let train = module.train(());
 
         assert_eq!(train.value(), tensor!([4., 6.]));

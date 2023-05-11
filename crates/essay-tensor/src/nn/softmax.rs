@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorUninit, NodeId}, 
-    module::{NodeOp, Tape, ForwardOp, IntoForward, Graph, TensorId, graph::BackOp}
+    graph::{NodeOp, Tape, Operation, IntoForward, Graph, TensorId, graph::BackOp}
 };
 
 pub trait Softmax<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -59,7 +59,7 @@ where
 
     let node = NodeOp::new(&[a], softmax_op.to_op());
 
-    let tensor = softmax_op.eval(&[&a], node);
+    let tensor = softmax_op.forward(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
@@ -71,12 +71,12 @@ impl<Op:Softmax> SoftmaxCpu<Op> {
     }
 }
 
-impl<Op:Softmax> ForwardOp for SoftmaxCpu<Op> {
+impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
 
-    fn eval(
+    fn forward(
         &self,
         args: &[&Tensor],
         node: NodeId,
@@ -136,7 +136,7 @@ impl<Op:Softmax> ForwardOp for SoftmaxCpu<Op> {
         Tensor::new_op(o_data, shape.clone(), node)
     }
 
-    fn backprop(
+    fn back(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

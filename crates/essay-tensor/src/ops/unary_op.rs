@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{module::{IntoForward, NodeOp, Tape, ForwardOp, Graph, TensorId, graph::BackOp}, Tensor, 
+use crate::{graph::{IntoForward, NodeOp, Tape, Operation, Graph, TensorId, graph::BackOp}, Tensor, 
     tensor::{Dtype, TensorUninit, NodeId}
 };
 
@@ -23,17 +23,17 @@ where
 
     let node = NodeOp::new(&[a], uop.to_op());
 
-    let tensor = uop.eval(&[&a], node);
+    let tensor = uop.forward(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
 
-impl<Op:Uop<f32>> ForwardOp for UopCpu<Op> {
+impl<Op:Uop<f32>> Operation for UopCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
     
-    fn eval(
+    fn forward(
         &self,
         args: &[&Tensor],
         node: NodeId,
@@ -59,7 +59,7 @@ impl<Op:Uop<f32>> ForwardOp for UopCpu<Op> {
         Tensor::new_op(data, shape, node)
     }
 
-    fn backprop(
+    fn back(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

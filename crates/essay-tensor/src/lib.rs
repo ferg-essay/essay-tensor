@@ -1,5 +1,5 @@
 pub mod ops;
-pub mod module;
+pub mod graph;
 pub mod random;
 pub mod linalg;
 pub mod nn;
@@ -14,7 +14,7 @@ pub use tensor::Tensor;
 pub mod prelude {
     pub use crate::tensor;
     pub use crate::Tensor;
-    pub use crate::module::{
-        Module, Bundle
+    pub use crate::graph::{
+        Trainer, Bundle
     };
 }

@@ -1,65 +1,45 @@
-use crate::{Tensor, tensor::NodeId};
+use crate::Tensor;
 
-use super::{Var, TensorId, backprop::backprop_graph, Graph, TensorCache, Tape, Bundle};
+use super::{Bundle, TensorCache, Var, TensorId, Graph, Tape, backprop::backprop_graph};
 
-pub struct Module<In: Bundle, Out: Bundle> {
-    _vars: Vec<(Var, TensorId)>,
-    fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
-
-    graph: Graph,
-    _tensors: TensorCache,
-    gradients: Vec<(String, Graph)>,
-}
 
 pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
-    module: &'a Module<In, Out>,
+    module: &'a Trainer<In, Out>,
     tensors: TensorCache,
     out: Out,
 
 }
 
-impl<In: Bundle<Item=In>, Out: Bundle<Item=Out>> Module<In, Out> {
-    pub fn build<F>(init: In, fun: F) -> Module<In, Out>
+pub struct Trainer<In: Bundle, Out: Bundle> {
+    _vars: Vec<(Var, TensorId)>,
+    fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
+
+    graph: Graph,
+    gradients: Vec<(String, Graph)>,
+}
+
+impl<In, Out> Trainer<In, Out>
+where
+    In: Bundle<Item=In>,
+    Out: Bundle<Item=Out>,
+{
+    pub fn compile<F>(input: In, fun: F) -> Trainer<In, Out>
     where
         F: FnOnce(In) -> Out,
     {
-        /*
-        let mut tape = Tape {
-            _args: Default::default(),
-            _vars: Default::default(),
-            tensors: Default::default(),
-            _tail: None,
-
-            graph: Default::default(),
-        };
-
-        let len = In::push_arg(&mut tape.tensors(), 0, &init);
-
-        // Tensors in args now have their id set.
-        let mut index = 0;
-        let args = In::make_arg(&tape.tensors(), &mut index);
-
-        for id in 0..len {
-            tape.graph().constant(tape.get_tensor(TensorId(id)).unwrap().clone());
-        }
-
-        // TODO: add RALL guard?
-        TAPE.with(|f| {
-            assert!(f.borrow().is_none());
-            f.borrow_mut().replace(tape);
-        });
-
-
-        let out = fun(args);
-        let mut out_ids : Vec<TensorId> = Vec::new();
-        Out::out_ids(&mut out_ids, &out);
-
-        let tape = TAPE.with(|f| f.borrow_mut().take().unwrap());
-        */
-
-        let mut tape = Tape::build(init, fun);
+        let mut tape = Tape::build(input, fun);
 
         let out_ids = tape.out_ids().clone();
+        
+        let mut backprop_graphs : Vec<(String, Graph)> = Vec::new();
+
+        for var in tape.tracked_vars() {
+            let id = tape.graph().find_var(var);
+
+            let graph = backprop_graph(&tape.graph(), id);
+
+            backprop_graphs.push((var.clone(), graph));
+        } 
 
         Self {
             _vars: Default::default(),
@@ -77,32 +57,11 @@ impl<In: Bundle<Item=In>, Out: Bundle<Item=Out>> Module<In, Out> {
             }),
 
             graph: tape.take_graph().unwrap(),
-            _tensors: tape.tensors().clone(),
-            gradients: Default::default(),
+            gradients: backprop_graphs,
         }
     }
 
-    pub fn training(
-        self, 
-        vars: &[&Var],
-    ) -> Self {
-        let mut graphs : Vec<(String, Graph)> = Vec::new();
-
-        for var in vars {
-            let id = self.graph.get_var(var);
-
-            let graph = backprop_graph(&self.graph, id);
-
-            graphs.push((var.name().to_string(), graph));
-        } 
-
-        Self {
-            gradients: graphs,
-            ..self
-        }
-    }
-
-    pub fn eval(&self, input: In) -> Out {
+    pub fn call(&self, input: In) -> Out {
         let tensors = self.graph.tensors().clone();
 
         (self.fun)(&self.graph, input, &tensors)
@@ -146,10 +105,10 @@ impl<In:Bundle<Item=In>,Out:Bundle<Item=Out>> Train<'_, In, Out> {
 mod test {
     use log::LevelFilter;
 
-    use crate::module::{TensorId, Tape};
+    use crate::graph::{TensorId, Tape};
 
     use crate::{
-        module::{module::Module, Var},
+        graph::{Trainer, Var},
         tensor, Tensor,
     };
 
@@ -157,7 +116,7 @@ mod test {
     fn test_alloc() {
         assert_eq!(Tape::alloc_id(), None);
 
-        let _module = Module::build((), |()| {
+        let _trainer = Trainer::compile((), |()| {
             assert_eq!(Tape::alloc_id(), Some(TensorId(0)));
             assert_eq!(Tape::alloc_id(), Some(TensorId(1)));
 
@@ -172,18 +131,18 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([2.]));
 
-        let m_a = Module::build((), 
+        let m_a = Trainer::compile((), 
             |_| a.tensor().clone()
         );
 
-        let value = m_a.eval(());
+        let value = m_a.call(());
         assert_eq!(value, tensor!([[1.]]));
 
-        let m_x = Module::build((), 
+        let m_x = Trainer::compile((), 
             |_| x.tensor().clone()
         );
 
-        let value = m_x.eval(());
+        let value = m_x.call(());
         assert_eq!(value, tensor!([2.]));
         // let train = module.train(());
     }
@@ -192,11 +151,11 @@ mod test {
     fn binop_mul() {
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
-        let m_a = Module::build((), 
+        let m_a = Trainer::compile((), 
         |_| &a * tensor!(2.)
         );
 
-        let value = m_a.eval(());
+        let value = m_a.call(());
         assert_eq!(value, tensor!([2., 4., 6.]));
     }
 
@@ -206,15 +165,15 @@ mod test {
 
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
-        let m_a = Module::build(
+        let m_a = Trainer::compile(
             tensor!([2., 1., 2.]), 
             |x| &a * &x
         );
 
-        let value = m_a.eval(tensor!([2., 1., 2.]));
+        let value = m_a.call(tensor!([2., 1., 2.]));
         assert_eq!(value, tensor!([2., 2., 6.]));
 
-        let value = m_a.eval(tensor!([1., 1., 1.]));
+        let value = m_a.call(tensor!([1., 1., 1.]));
         assert_eq!(value, tensor!([1., 2., 3.]));
     }
 
@@ -222,15 +181,15 @@ mod test {
     fn dual_arg() {
         // env_logger::builder().filter_level(LevelFilter::Debug).init();
 
-        let m_a = Module::build(
+        let m_a = Trainer::compile(
             (tensor!([1., 1.]), tensor!([1., 1.])),
             |(x, y)| &x - &y
         );
 
-        let value = m_a.eval((tensor!([2., 1.]), tensor!([1., 2.])));
+        let value = m_a.call((tensor!([2., 1.]), tensor!([1., 2.])));
         assert_eq!(value, tensor!([1., -1.]));
 
-        let value = m_a.eval((tensor!([1., 2.]), tensor!([2., 1.])));
+        let value = m_a.call((tensor!([1., 2.]), tensor!([2., 1.])));
         assert_eq!(value, tensor!([-1., 1.]));
     }
 
@@ -238,12 +197,12 @@ mod test {
     fn dual_out() {
         // env_logger::builder().filter_level(LevelFilter::Debug).init();
 
-        let m_a = Module::build(
+        let m_a = Trainer::compile(
             (tensor!([1., 1.]), tensor!([1., 1.])),
             |(x, y)| (y.clone(), x.clone())
         );
 
-        let (y, x) = m_a.eval((tensor!([2., 1.]), tensor!([1., 2.])));
+        let (y, x) = m_a.call((tensor!([2., 1.]), tensor!([1., 2.])));
         assert_eq!(x, tensor!([2., 1.]));
         assert_eq!(y, tensor!([1., 2.]));
     }
@@ -254,11 +213,11 @@ mod test {
 
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
-        let m_a = Module::build((), 
+        let m_a = Trainer::compile((), 
         |_| tensor!(2.) - &a
-        ).training(&[&a]);
+        ); // .training(&[&a]);
 
-        let value = m_a.eval(());
+        let value = m_a.call(());
         assert_eq!(value, tensor!([1., 0., -1.]));
 
         let train = m_a.train(());
@@ -273,11 +232,11 @@ mod test {
 
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
-        let m_a = Module::build((), 
+        let m_a = Trainer::compile((), 
         |_| tensor!(2.) * &a
-        ).training(&[&a]);
+        ); // .training(&[&a]);
 
-        let value = m_a.eval(());
+        let value = m_a.call(());
         assert_eq!(value, tensor!([2., 4., 6.]));
 
         let train = m_a.train(());
@@ -290,18 +249,18 @@ mod test {
     fn test_var() {
         let x = Var::new("x", tensor!(0.));
 
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             x.tensor().clone()
-        }).training(&[&x]);
-        let train = module.train(());
+        }); // .training(&[&x]);
+        let train = trainer.train(());
 
         assert_eq!(train.gradient(&x), tensor!(1.));
 
         let x = Var::new("x", tensor!([[0., 2.], [10., 11.]]));
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             x.tensor().clone()
-        }).training(&[&x]);
-        let train = module.train(());
+        }); // .training(&[&x]);
+        let train = trainer.train(());
 
         assert_eq!(train.gradient(&x), tensor!([[1., 1.], [1., 1.]]));
     }
@@ -310,22 +269,22 @@ mod test {
     fn test_l2_loss() {
         let a = Var::new("a", tensor!(2.));
 
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             a.l2_loss()
-        }).training(&[&a]);
-        let train = module.train(());
+        }); // .training(&[&a]);
+        let train = trainer.train(());
         let da = train.gradient(&a);
         assert_eq!(da, tensor!(2.0));
 
         let a = Var::new("a", tensor!(3.));
         let y = Var::new("y", tensor!(0.));
 
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             let loss: Tensor = (&a - &y).l2_loss();
             assert_eq!(loss, tensor!(4.5));
             loss
-        }).training(&[&a, &y]);
-        let train = module.train(());
+        }); // .training(&[&a, &y]);
+        let train = trainer.train(());
 
         let da = train.gradient(&a);
         assert_eq!(da, tensor!(3.0));
@@ -335,14 +294,14 @@ mod test {
 
         let a = Var::new("a", tensor!([1., 2.]));
 
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             let loss: Tensor = a.l2_loss();
 
             assert_eq!(&loss, &tensor!(1.25));
 
             loss
-        }).training(&[&a]);
-        let train = module.train(());
+        }); // .training(&[&a]);
+        let train = trainer.train(());
 
         let da = train.gradient(&a);
         assert_eq!(da, tensor!([1.0, 2.0]));
@@ -353,12 +312,12 @@ mod test {
         let a = Var::new("a", tensor!(1.));
         let x = Var::new("x", tensor!(0.));
 
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             loss
-        }).training(&[&a, &x]);
-        let train = module.train(());
+        }); // .training(&[&a, &x]);
+        let train = trainer.train(());
 
         assert_eq!(train.gradient(&a), tensor!(2.));
         assert_eq!(train.gradient(&x), tensor!(-2.));
@@ -369,12 +328,12 @@ mod test {
         let a = Var::new("a", tensor!([1., 2.]));
         let x = Var::new("x", tensor!([0., 0.]));
 
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             loss
-        }).training(&[&a, &x]);
-        let train = module.train(());
+        }); // .training(&[&a, &x]);
+        let train = trainer.train(());
 
         assert_eq!(train.gradient(&a), tensor!(2.));
         assert_eq!(train.gradient(&x), tensor!(-2.));
@@ -385,20 +344,20 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2.], [3., 4.]]));
         let x = Var::new("x", tensor!([[0., 1.], [0., 2.]]));
 
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             loss
-        }).training(&[&a, &x]);
-        let train = module.train(());
+        }); // .training(&[&a, &x]);
+        let train = trainer.train(());
 
         assert_eq!(train.gradient(&a), tensor!(2.));
         assert_eq!(train.gradient(&x), tensor!(-2.));
 
-        let module = Module::build((), |()| {
+        let trainer = Trainer::compile((), |()| {
             (&a - &x) * (&a - &x)
-        }).training(&[&a, &x]);
-        let train = module.train(());
+        }); // .training(&[&a, &x]);
+        let train = trainer.train(());
 
         assert_eq!(train.gradient(&a), tensor!([[2., 2.], [6., 4.]]));
         assert_eq!(train.gradient(&x), tensor!([[-2., -2.], [-6., -4.]]));

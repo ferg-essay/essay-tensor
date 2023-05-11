@@ -1,10 +1,10 @@
-use std::{time::Instant, ptr};
+use std::{time::Instant};
 
 use essay_tensor::{Tensor, tensor::TensorUninit};
-use ocl::{Platform, Device, Program, Queue, Buffer, flags, Kernel, builders::KernelBuilder, MemMap};
+use ocl::{Platform, Device, Program, Queue, Buffer, flags, Kernel, MemMap};
 
 
-static KERNEL_SRC: &'static str = r#"
+static _KERNEL_SRC: &'static str = r#"
     __kernel void add(
         __global float* buffer, float scalar
     ) {
@@ -13,7 +13,7 @@ static KERNEL_SRC: &'static str = r#"
     }
 "#;
 
-static BI_SRC: &'static str = r#"
+static _BI_SRC: &'static str = r#"
     __kernel void add_bi(
         __global float* out,
         __global float* a,
@@ -138,7 +138,7 @@ impl OclKernel {
     }
 }
 
-fn trivial_exploded(src: &str) {
+pub fn trivial_exploded(src: &str) {
     let context = OclContext::new();
 
     let program = context.program(src);
@@ -168,7 +168,7 @@ fn trivial_exploded(src: &str) {
 
     //let start = Instant::now();
 
-    unsafe {
+    //unsafe {
         //let mut map_a = kernel.map(&context, 0);
         //let mut map_b = kernel.map(&context, 1);
         //let map_c = kernel.map(&context, 2);
@@ -177,10 +177,10 @@ fn trivial_exploded(src: &str) {
     let s1 = Instant::now();
     let s1a = Instant::now();
 
-    unsafe {
+    //unsafe {
         kernel.write(&context, 0, a.data().as_slice());
         kernel.write(&context, 1, b.data().as_slice());
-    }
+    //}
 
     /*
     let ptr_a = map_a.as_mut_ptr();
@@ -226,11 +226,11 @@ fn trivial_exploded(src: &str) {
         kernel.enq();
     }
     */
-}    
+    //}    
     //println!("Value [{}] is {}", 107, a[107]);
 }
 
 #[test]
 fn test() {
-    trivial_exploded(BI_SRC);
+    trivial_exploded(_BI_SRC);
 }

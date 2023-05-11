@@ -1,9 +1,5 @@
 use ocl::{self, ProQue, Platform, Device, Context, Program, Queue, flags, Buffer, Kernel};
 
-const RESULTS_TO_PRINT: usize = 20;
-const WORK_SIZE: usize = 1 << 20;
-const COEFF: f32 = 5432.1;
-
 static KERNEL_SRC: &'static str = r#"
     __kernel void add(
         __global float* buffer, float scalar
@@ -13,7 +9,7 @@ static KERNEL_SRC: &'static str = r#"
     }
 "#;
 
-fn trivial() -> ocl::Result<()> {
+pub fn trivial() -> ocl::Result<()> {
     let pro_que = ProQue::builder().src(KERNEL_SRC).dims(1 << 20).build()?;
     let buffer = pro_que.create_buffer::<f32>()?;
 
@@ -43,7 +39,7 @@ fn trivial() -> ocl::Result<()> {
     Ok(())
 }
 
-fn trivial_exploded() -> ocl::Result<()> {
+pub fn trivial_exploded() -> ocl::Result<()> {
     let platform = Platform::default();
     let device = Device::first(platform)?;
     let context = Context::builder()
@@ -92,5 +88,5 @@ fn trivial_exploded() -> ocl::Result<()> {
 
 #[test]
 fn test() {
-    trivial_exploded();
+    trivial_exploded().unwrap();
 }

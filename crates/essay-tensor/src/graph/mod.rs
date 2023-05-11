@@ -1,6 +1,7 @@
+mod trainer;
 mod bundle;
 mod tape;
-mod module;
+mod function;
 mod backprop;
 mod var;
 pub(crate) mod graph;
@@ -9,8 +10,12 @@ pub use var::{
     Var,
 };
 
-pub use module::{
-    Module,
+pub use function::{
+    Function,
+};
+
+pub use trainer::{
+    Trainer,
 };
 
 pub use bundle::{
@@ -22,7 +27,7 @@ pub(crate) use tape::{
 };
 
 pub use graph::{
-    Graph, NodeOp, EvalOp, ForwardOp, IntoForward, BoxForwardOp,
+    Graph, NodeOp, EvalOp, Operation, IntoForward, BoxForwardOp,
     TensorId,
     // BackOp, BoxBackOp,
     TensorCache,

@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorUninit, module::{EvalOp}};
+use crate::{Tensor, tensor::TensorUninit, graph::{EvalOp}};
 
 
 #[derive(Debug, Clone)]

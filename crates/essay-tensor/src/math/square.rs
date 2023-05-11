@@ -17,7 +17,7 @@ impl Uop<f32> for SquareOp {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, module::{Var, Module}};
+    use crate::{prelude::*, graph::{Var, Trainer}};
 
     #[test]
     fn square() {
@@ -29,9 +29,9 @@ mod test {
     fn square_df() {
         let x = Var::new("x", tensor!([1., 2., 3.]));
 
-        let module = Module::build((), |()| {
+        let module: Trainer<(), Tensor> = Trainer::compile((), |()| {
             x.square()
-        }).training(&[&x]);
+        }); // .training(&[&x]);
         let train = module.train(());
 
         assert_eq!(train.value(), tensor!([1., 4., 9.]));

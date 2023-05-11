@@ -1,6 +1,6 @@
 use std::{any::type_name};
 
-use crate::{tensor::{Tensor, TensorUninit, NodeId}, module::{ForwardOp, Graph, TensorId, graph::BackOp}};
+use crate::{tensor::{Tensor, TensorUninit, NodeId}, graph::{Operation, Graph, TensorId, graph::BackOp}};
 
 use super::matmul::Transpose;
 
@@ -196,12 +196,12 @@ impl TransposeMatvec for Transpose {
     }
 }
 
-impl ForwardOp for Matvec {
+impl Operation for Matvec {
     fn name(&self) -> &str {
         type_name::<Self>()
     }
     
-    fn eval(
+    fn forward(
         &self,
         args: &[&Tensor],
         _node: NodeId,
@@ -209,7 +209,7 @@ impl ForwardOp for Matvec {
         matvec(args[0], args[1])
     }
 
-    fn backprop(
+    fn back(
         &self,
         _forward: &Graph,
         graph: &mut Graph,
@@ -260,7 +260,7 @@ impl BackOp for MatvecBackRightT {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, module::{Var, Module}, linalg::matmul::Transpose};
+    use crate::{tensor, Tensor, graph::{Var, Trainer}, linalg::matmul::Transpose};
 
     #[test]
     fn test_matvec_1_1() {
@@ -313,9 +313,9 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let module = Module::build((), |()| {
+        let module = Trainer::compile((), |()| {
             a.matvec(&x)
-        }).training(&[&a, &x]);
+        }); // .training(&[&a, &x]);
         let train = module.train(());
 
         assert_eq!(train.value(), tensor!([1.]));
@@ -325,9 +325,9 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let module = Module::build((), |()| {
+        let module = Trainer::compile((), |()| {
             a.matvec(&x)
-        }).training(&[&a, &x]);
+        }); // .training(&[&a, &x]);
         let train = module.train(());
 
         assert_eq!(train.value(), tensor!([140., 320.]));
@@ -340,11 +340,11 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let module = Module::build((), |()| {
+        let module = Trainer::compile((), |()| {
             let out: Tensor = a.matvec(&x);
 
             out.l2_loss()
-        }).training(&[&a, &x]);
+        }); // .training(&[&a, &x]);
         let train = module.train(());
 
         assert_eq!(train.value(), tensor!(0.5));
@@ -354,12 +354,12 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let module = Module::build((), |()| {
+        let module = Trainer::compile((), |()| {
             let out = a.matvec(&x);
             assert_eq!(out, tensor!([140., 320.]));
 
             out.l2_loss()
-        }).training(&[&a, &x]);
+        }); // .training(&[&a, &x]);
         let train = module.train(());
     
         let da = train.gradient(&a);

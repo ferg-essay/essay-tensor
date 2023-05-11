@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorUninit, NodeId}, 
-    module::{NodeOp, Tape, ForwardOp, IntoForward, Graph, TensorId, graph::BackOp}
+    graph::{NodeOp, Tape, Operation, IntoForward, Graph, TensorId, graph::BackOp}
 };
 
 pub trait Fold<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -23,7 +23,7 @@ where
 
     let node = NodeOp::new(&[a], fold_op.to_op());
 
-    let tensor = fold_op.eval(&[&a], node);
+    let tensor = fold_op.forward(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
@@ -40,12 +40,12 @@ impl<Op:Fold> FoldCpu<Op> {
     }
 }
 
-impl<Op:Fold> ForwardOp for FoldCpu<Op> {
+impl<Op:Fold> Operation for FoldCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
 
-    fn eval(
+    fn forward(
         &self,
         args: &[&Tensor],
         node: NodeId,
@@ -92,7 +92,7 @@ impl<Op:Fold> ForwardOp for FoldCpu<Op> {
         Tensor::new_op(o_data, o_shape, node)
     }
 
-    fn backprop(
+    fn back(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

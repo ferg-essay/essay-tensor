@@ -1,6 +1,6 @@
 use std::{any::type_name};
 
-use crate::{module::{Graph, TensorId, ForwardOp, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
+use crate::{graph::{Graph, TensorId, Operation, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
     tensor::{Dtype, TensorUninit, NodeId}
 };
 
@@ -25,17 +25,17 @@ pub fn binary_op<Op:Binop<f32>>(a: &Tensor, b: &Tensor, op: Op) -> Tensor {
 
     let node = NodeOp::new(&[a, b], binop.to_op());
 
-    let tensor = binop.eval(&[a, b], node);
+    let tensor = binop.forward(&[a, b], node);
 
     Tape::set_tensor(tensor)
 }
 
-impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
+impl<Op:Binop<f32>> Operation for BinopImpl<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
     
-    fn eval(
+    fn forward(
         &self,
         args: &[&Tensor],
         node: NodeId,
@@ -81,7 +81,7 @@ impl<Op:Binop<f32>> ForwardOp for BinopImpl<Op> {
         }
     }
 
-    fn backprop(
+    fn back(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

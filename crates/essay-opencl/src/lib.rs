@@ -1,5 +1,5 @@
-mod tensor;
-mod examples;
+pub mod tensor;
+pub mod examples;
 #[cfg(test)]
 mod test {
     #[test]

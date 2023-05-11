@@ -12,6 +12,7 @@ pub struct TensorId(pub usize);
 
 pub struct Graph {
     var_map: HashMap<String, TensorId>,
+    tracked_vars: Vec<String>,
 
     nodes: Vec<NodeOp>,
     tensors: TensorCache,
@@ -55,16 +56,16 @@ impl fmt::Debug for NodeOp {
     }
 }
 
-pub trait ForwardOp : Send + Sync + 'static {
+pub trait Operation : Send + Sync + 'static {
     fn name(&self) -> &str;
 
-    fn eval(
+    fn forward(
         &self,
         args: &[&Tensor],
         node: NodeId,
     ) -> Tensor;
 
-    fn backprop(
+    fn back(
         &self,
         forward: &Graph,
         back: &mut Graph,
@@ -85,7 +86,7 @@ pub trait EvalOp : Send + Sync + 'static {
     ) -> Tensor;
 }
 
-pub type BoxForwardOp = Box<dyn ForwardOp>;
+pub type BoxForwardOp = Box<dyn Operation>;
 
 pub trait BackOp : Send + Sync + 'static {
     fn name(&self) -> &str;
@@ -115,6 +116,7 @@ impl Graph {
             debug!("GraphVar {} {:?}", name, op);
             self.nodes.push(op);
             self.tensors.push(Some(tensor.clone()));
+            self.tracked_vars.push(name.to_string());
         }
 
         id
@@ -124,8 +126,12 @@ impl Graph {
         *self.var_map.get(name).unwrap()
     }
 
-    pub(crate) fn get_var(&self, var: &Var) -> TensorId {
+    pub(crate) fn _get_var(&self, var: &Var) -> TensorId {
         *self.var_map.get(var.name()).unwrap()
+    }
+
+    pub(crate) fn tracked_vars(&self) -> &Vec<String> {
+        &self.tracked_vars
     }
 
     pub(crate) fn constant(&mut self, tensor: Tensor) -> TensorId {
@@ -226,6 +232,8 @@ impl Default for Graph {
     fn default() -> Self {
         Self { 
             var_map: Default::default(),
+            tracked_vars: Default::default(),
+
             nodes: Default::default(), 
             tensors: Default::default(), 
         }
@@ -277,7 +285,7 @@ impl NodeOp {
                     .map(|id| tensors.get(*id).unwrap())
                     .collect();
 
-                op.eval(&t_args, NodeId::Id(*id))
+                op.forward(&t_args, NodeId::Id(*id))
             },
 
             NodeOp::BackConst(_, forward_id) => {
@@ -335,10 +343,6 @@ impl TensorCache {
             Some(tensor) => tensor.clone(),
             None => todo!(),
         }
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        self.tensors.len()
     }
 }
 

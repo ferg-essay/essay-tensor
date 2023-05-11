@@ -66,17 +66,6 @@ impl Tape {
         tape
     }
 
-   pub fn len(&self) -> usize {
-        self.tensors.len()
-    }
-
-    pub fn graph_len(&self) -> usize {
-        match &self.graph {
-            Some(graph) => graph.len(),
-            None => panic!(),
-        }
-    }
-
     pub fn is_active() -> bool {
         TAPE.with(|f| match f.borrow().as_ref() {
             Some(_) => true,
@@ -96,10 +85,6 @@ impl Tape {
             Some(graph) => graph.alloc_id(),
             None => panic!(),
         }
-    }
-
-    pub fn node(&self, id: TensorId) -> &NodeOp {
-        &self.graph().node(id) // nodes[id.index()]
     }
 
     pub(crate) fn set_node(id: TensorId, node: NodeOp) {
@@ -170,30 +155,16 @@ impl Tape {
         })
     }
 
-    pub fn var_inner(&mut self, _new_var: &str) -> TensorId {
-        todo!()
-        //self.graph.var(new_var)
-        /*
-        for (var, id) in &self.vars {
-            if var.name() == new_var {
-                return *id
-            }
-        }
-
-        let tensor_id = self.graph.var(new_var, new_var.tensor_raw());
-
-        self.vars.push((new_var.clone(), tensor_id));
-
-        tensor_id
-        */
-    }
-
     pub fn find_var_inner(&mut self, new_var: &str) -> TensorId {
         self.graph().find_var(new_var)
     }
 
     pub fn set_var_inner(&mut self, name: &str, tensor: &Tensor) -> TensorId {
         self.graph_mut().var(name, tensor)
+    }
+
+    pub(crate) fn tracked_vars(&self) -> &Vec<String> {
+        self.graph().tracked_vars()
     }
 
     pub(crate) fn tensors(&self) -> &TensorCache {

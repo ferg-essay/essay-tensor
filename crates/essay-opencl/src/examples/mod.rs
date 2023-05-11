@@ -1,1 +1,1 @@
-mod trivial;
+pub mod trivial;

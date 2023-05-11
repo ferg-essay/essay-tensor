@@ -1,5 +1,3 @@
-use std::{sync::Arc};
-
 use rand::prelude::*;
 
 use crate::{tensor::{TensorUninit}, Tensor};
