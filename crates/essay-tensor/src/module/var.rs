@@ -3,7 +3,7 @@ use std::{ops::{Deref, self}, rc::Rc, cell::RefCell};
 
 use crate::{tensor::{Dtype, IntoTensor}, Tensor};
 
-use super::{module::Tape};
+use super::Tape;
 
 pub struct Var<D:Dtype=f32> {
     name: String,

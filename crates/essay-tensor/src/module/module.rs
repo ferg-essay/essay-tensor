@@ -1,8 +1,6 @@
-use std::{cell::RefCell};
-
 use crate::{Tensor, tensor::NodeId};
 
-use super::{Var, TensorId, NodeOp, backprop::backprop_graph, Graph, TensorCache};
+use super::{Var, TensorId, backprop::backprop_graph, Graph, TensorCache, Tape, Bundle};
 
 pub struct Module<In: Bundle, Out: Bundle> {
     _vars: Vec<(Var, TensorId)>,
@@ -13,17 +11,6 @@ pub struct Module<In: Bundle, Out: Bundle> {
     gradients: Vec<(String, Graph)>,
 }
 
-pub trait Bundle : Clone {
-    type Item;
-
-    fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
-    fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
-    fn make_arg(tensors: &TensorCache, index: &mut usize) -> Self::Item;
-
-    fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item);
-    fn make_out(cache: &TensorCache, out: &Vec<TensorId>, index: &mut usize) -> Self::Item;
-}
-
 pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
     module: &'a Module<In, Out>,
     tensors: TensorCache,
@@ -31,27 +18,12 @@ pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
 
 }
 
-pub struct Tape {
-    _args: Vec<TensorId>,
-    _vars: Vec<(Var, TensorId)>,
-    tensors: TensorCache,
-    _tail: Option<Tensor>,
-
-    graph: Graph,
-}
-
-thread_local! {
-    pub static TAPE: RefCell<Option<Tape>>  = RefCell::new(None);
-}
-
-#[derive(Debug)]
-pub enum TapeError {}
-
 impl<In: Bundle<Item=In>, Out: Bundle<Item=Out>> Module<In, Out> {
     pub fn build<F>(init: In, fun: F) -> Module<In, Out>
     where
         F: FnOnce(In) -> Out,
     {
+        /*
         let mut tape = Tape {
             _args: Default::default(),
             _vars: Default::default(),
@@ -61,14 +33,14 @@ impl<In: Bundle<Item=In>, Out: Bundle<Item=Out>> Module<In, Out> {
             graph: Default::default(),
         };
 
-        let len = In::push_arg(&mut tape.tensors, 0, &init);
+        let len = In::push_arg(&mut tape.tensors(), 0, &init);
 
         // Tensors in args now have their id set.
         let mut index = 0;
-        let args = In::make_arg(&tape.tensors, &mut index);
+        let args = In::make_arg(&tape.tensors(), &mut index);
 
         for id in 0..len {
-            tape.graph.constant(tape.get_tensor(TensorId(id)).unwrap().clone());
+            tape.graph().constant(tape.get_tensor(TensorId(id)).unwrap().clone());
         }
 
         // TODO: add RALL guard?
@@ -83,8 +55,11 @@ impl<In: Bundle<Item=In>, Out: Bundle<Item=Out>> Module<In, Out> {
         Out::out_ids(&mut out_ids, &out);
 
         let tape = TAPE.with(|f| f.borrow_mut().take().unwrap());
+        */
 
-        let graph = tape.graph;
+        let mut tape = Tape::build(init, fun);
+
+        let out_ids = tape.out_ids().clone();
 
         Self {
             _vars: Default::default(),
@@ -101,8 +76,8 @@ impl<In: Bundle<Item=In>, Out: Bundle<Item=Out>> Module<In, Out> {
                 value
             }),
 
-            graph: graph,
-            _tensors: tape.tensors,
+            graph: tape.take_graph().unwrap(),
+            _tensors: tape.tensors().clone(),
             gradients: Default::default(),
         }
     }
@@ -166,253 +141,6 @@ impl<In:Bundle<Item=In>,Out:Bundle<Item=Out>> Train<'_, In, Out> {
     }
 
 }
-
-impl Tape {
-    pub fn len(&self) -> usize {
-        self.tensors.len()
-    }
-
-    pub fn graph_len(&self) -> usize {
-        self.graph.len()
-    }
-
-    pub fn is_active() -> bool {
-        TAPE.with(|f| match f.borrow().as_ref() {
-            Some(_) => true,
-            None => false,
-        })
-    }
-
-    pub fn alloc_id() -> Option<TensorId> {
-        TAPE.with(|f| match f.borrow_mut().as_mut() {
-            Some(tape) => Some(tape.graph.alloc_id()),
-            None => None,
-        })
-    }
-
-    pub fn node(&self, id: TensorId) -> &NodeOp {
-        &self.graph.node(id) // nodes[id.index()]
-    }
-
-    pub(crate) fn set_node(id: TensorId, node: NodeOp) {
-        TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.graph.set_node(id, node);
-                // tape.nodes[id.index()] = node;
-            } else {
-                panic!("call set_graph with no active tape");
-            }
-        })
-    }
-
-    pub fn get_tensor(&self, id: TensorId) -> Option<&Tensor> {
-        match &self.tensors.get(id) {
-            Some(tensor) => Some(tensor),
-            None => None,
-        }
-    }
-
-    pub(crate) fn set_tensor(tensor: Tensor) -> Tensor {
-        if let NodeId::Id(id) = tensor.node() {
-            TAPE.with(|f| {
-                if let Some(tape) = f.borrow_mut().as_mut() {
-                    tape.graph.set_tensor(*id, tensor.clone());
-                }
-            })
-        }
-
-        tensor
-    }
-
-    pub(crate) fn set_tensor_id(id: TensorId, tensor: &Tensor) {
-        TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.graph.set_tensor(id, tensor.clone());
-            }
-        })
-    }
-
-    pub fn var(var: &Var) -> TensorId {
-        TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.set_var_inner(var.name(), var.tensor_raw())
-            } else {
-                panic!("Tape::var without context")
-            }
-        })
-    }
-
-    pub fn find_var(name: &str) -> TensorId {
-        TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.find_var_inner(name)
-            } else {
-                panic!("Tape::var without context")
-            }
-        })
-    }
-
-    pub fn set_var(var: &str, tensor: &Tensor) -> TensorId {
-        TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.set_var_inner(var, tensor)
-            } else {
-                panic!("Tape::set_var without context")
-            }
-        })
-    }
-
-    pub fn var_inner(&mut self, _new_var: &str) -> TensorId {
-        todo!()
-        //self.graph.var(new_var)
-        /*
-        for (var, id) in &self.vars {
-            if var.name() == new_var {
-                return *id
-            }
-        }
-
-        let tensor_id = self.graph.var(new_var, new_var.tensor_raw());
-
-        self.vars.push((new_var.clone(), tensor_id));
-
-        tensor_id
-        */
-    }
-
-    pub fn find_var_inner(&mut self, new_var: &str) -> TensorId {
-        self.graph.find_var(new_var)
-    }
-
-    pub fn set_var_inner(&mut self, name: &str, tensor: &Tensor) -> TensorId {
-        self.graph.var(name, tensor)
-    }
-}
-
-impl Bundle for Tensor {
-    type Item = Tensor;
-
-    fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
-        let id = TensorId(index);
-
-        out.push(Some(item.with_id(id)));
-
-        index + 1
-    }
-
-    fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
-        let id = TensorId(index);
-
-        out.set(id, item.with_id(id));
-
-        index + 1
-    }
-
-    fn make_arg(cache: &TensorCache, index: &mut usize) -> Self::Item {
-        let id = TensorId(*index);
-        *index += 1;
-
-        let tensor = cache.get(id).unwrap().clone();
-
-        tensor
-    }
-
-    fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
-        match &item.op() {
-            NodeId::None => todo!(),
-            NodeId::Var(_) => todo!(),
-            NodeId::Id(id) => out.push(*id)
-        }
-    }
-
-    fn make_out(cache: &TensorCache, ids: &Vec<TensorId>, index: &mut usize) -> Self::Item {
-        let value = cache.get(ids[*index]).unwrap();
-        *index += 1;
-        value.clone()
-    }
-}
-
-impl Bundle for () {
-    type Item = ();
-
-    fn push_arg(_out: &mut TensorCache, index: usize, _item: &Self::Item) -> usize {
-        index
-    }
-
-    fn set_arg(_out: &mut TensorCache, index: usize, _item: &Self::Item) -> usize {
-        index
-    }
-
-    fn make_arg(_cache: &TensorCache, _index: &mut usize) -> Self::Item {
-        ()
-    }
-
-    fn out_ids(_out: &mut Vec<TensorId>, _item: &Self::Item) {
-    }
-
-    fn make_out(_cache: &TensorCache, _ids: &Vec<TensorId>, _index: &mut usize) -> Self::Item {
-        ()
-    }
-}
-
-macro_rules! bundle_tuple {
-    ($( $id:ident ),*) => {
-
-    #[allow(non_snake_case)]
-    impl<$($id: Bundle<Item=$id>,)*> Bundle for ($($id,)*) {
-        type Item = ($($id,)*);
-
-        fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
-            let ($($id,)*) = item;
-
-            $(
-                let index = $id::push_arg(out, index, $id);
-            )*
-
-            index
-        }
-
-        fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
-            let ($($id,)*) = item;
-
-            $(
-                let index = $id::set_arg(out, index, $id);
-            )*
-
-            index
-        }
-
-        fn make_arg(cache: &TensorCache, index: &mut usize) -> Self::Item {
-            (
-                $(
-                    $id::make_arg(cache, index),
-                )*
-            )
-        }
-
-        fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
-            let ($($id,)*) = item;
-
-            $(
-                $id::out_ids(out, $id);
-            )*
-        }
-
-        fn make_out(cache: &TensorCache, ids: &Vec<TensorId>, index: &mut usize) -> Self::Item {
-            (
-                $(
-                    $id::make_out(cache, ids, index),
-                )*
-            )
-        }
-    }
-}
-}
-
-bundle_tuple!(P1, P2);
-bundle_tuple!(P1, P2, P3);
-bundle_tuple!(P1, P2, P3, P4);
-bundle_tuple!(P1, P2, P3, P4, P5);
 
 #[cfg(test)]
 mod test {

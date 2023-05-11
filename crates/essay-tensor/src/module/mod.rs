@@ -1,3 +1,5 @@
+mod bundle;
+mod tape;
 mod module;
 mod backprop;
 mod var;
@@ -8,7 +10,15 @@ pub use var::{
 };
 
 pub use module::{
-    Module, Tape, Bundle,
+    Module,
+};
+
+pub use bundle::{
+    Bundle,
+};
+
+pub(crate) use tape::{
+    Tape
 };
 
 pub use graph::{
