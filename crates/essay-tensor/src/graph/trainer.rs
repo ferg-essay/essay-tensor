@@ -1,6 +1,6 @@
-use crate::Tensor;
+use crate::{Tensor, tensor::TensorId};
 
-use super::{Bundle, TensorCache, Var, TensorId, Graph, Tape, backprop::backprop_graph};
+use super::{Bundle, TensorCache, Var, Graph, Tape, backprop::backprop_graph};
 
 
 pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
@@ -11,7 +11,7 @@ pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
 }
 
 pub struct Trainer<In: Bundle, Out: Bundle> {
-    _vars: Vec<(Var, TensorId)>,
+    _vars: Vec<(String, TensorId)>,
     fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
 
     graph: Graph,
@@ -105,8 +105,9 @@ impl<In:Bundle<Item=In>,Out:Bundle<Item=Out>> Train<'_, In, Out> {
 mod test {
     use log::LevelFilter;
 
-    use crate::graph::{TensorId, Tape};
+    use crate::graph::{Tape};
 
+    use crate::tensor::TensorId;
     use crate::{
         graph::{Trainer, Var},
         tensor, Tensor,

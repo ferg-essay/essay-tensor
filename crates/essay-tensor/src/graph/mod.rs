@@ -28,7 +28,6 @@ pub(crate) use tape::{
 
 pub use graph::{
     Graph, NodeOp, EvalOp, Operation, IntoForward, BoxForwardOp,
-    TensorId,
     // BackOp, BoxBackOp,
     TensorCache,
 };

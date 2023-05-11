@@ -2,8 +2,8 @@ use std::any::type_name;
 
 use crate::{
     Tensor, 
-    tensor::{Dtype, TensorUninit, NodeId}, 
-    graph::{NodeOp, Tape, Operation, IntoForward, Graph, TensorId, graph::BackOp}
+    tensor::{Dtype, TensorUninit, NodeId, TensorId}, 
+    graph::{NodeOp, Tape, Operation, IntoForward, Graph, graph::BackOp}
 };
 
 pub trait Softmax<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {

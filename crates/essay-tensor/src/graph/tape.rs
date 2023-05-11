@@ -1,14 +1,14 @@
 use std::cell::RefCell;
-use crate::{Tensor, tensor::NodeId};
+use crate::{Tensor, tensor::{NodeId, TensorId}};
 
 
-use super::{TensorId, Var, TensorCache, Graph, NodeOp, Bundle};
+use super::{Var, TensorCache, Graph, NodeOp, Bundle};
 
 pub struct Tape {
     _args: Vec<TensorId>,
     _vars: Vec<(Var, TensorId)>,
     tensors: TensorCache,
-    _tail: Option<Tensor>,
+    //_tail: Option<Tensor>,
     out_ids: Vec<TensorId>,
 
     graph: Option<Graph>,
@@ -32,7 +32,6 @@ impl Tape {
             _args: Default::default(),
             _vars: Default::default(),
             tensors: Default::default(),
-            _tail: None,
             out_ids: Default::default(),
 
             graph: Some(Default::default()),

@@ -1,7 +1,7 @@
 use std::{any::type_name};
 
-use crate::{graph::{Graph, TensorId, Operation, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
-    tensor::{Dtype, TensorUninit, NodeId}
+use crate::{graph::{Graph, Operation, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
+    tensor::{Dtype, TensorId, TensorUninit, NodeId}
 };
 
 pub trait Binop<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {

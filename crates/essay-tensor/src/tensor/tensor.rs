@@ -3,11 +3,12 @@ use std::{cmp::{max, self}, any::type_name, sync::Arc};
 
 use num_traits::Float;
 
-use crate::graph::{TensorId};
-
 use super::{data::TensorData, TensorUninit};
 
 pub trait Dtype : Copy + PartialEq + fmt::Debug + Sync + Send + 'static {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TensorId(pub usize);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NodeId {

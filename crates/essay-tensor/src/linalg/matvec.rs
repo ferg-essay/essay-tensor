@@ -1,6 +1,9 @@
 use std::{any::type_name};
 
-use crate::{tensor::{Tensor, TensorUninit, NodeId}, graph::{Operation, Graph, TensorId, graph::BackOp}};
+use crate::{
+    tensor::{Tensor, TensorId, TensorUninit, NodeId}, 
+    graph::{Operation, Graph, graph::BackOp}
+};
 
 use super::matmul::Transpose;
 

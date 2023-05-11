@@ -3,12 +3,9 @@ use std::{collections::{HashMap}, ops::{self}};
 
 use log::debug;
 
-use crate::{Tensor, tensor::{NodeId}};
+use crate::{Tensor, tensor::{NodeId, TensorId}};
 
 use super::{Var, Tape};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TensorId(pub usize);
 
 pub struct Graph {
     var_map: HashMap<String, TensorId>,

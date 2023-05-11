@@ -6,5 +6,5 @@ pub use data::{
 };
 
 pub use tensor::{
-    Dtype, Tensor, IntoTensor, NodeId,
+    Dtype, Tensor, TensorId, IntoTensor, NodeId,
 };

@@ -1,8 +1,8 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{graph::{IntoForward, NodeOp, Tape, Operation, Graph, TensorId, graph::BackOp}, Tensor, 
-    tensor::{Dtype, TensorUninit, NodeId}
+use crate::{graph::{IntoForward, NodeOp, Tape, Operation, Graph, graph::BackOp}, Tensor, 
+    tensor::{Dtype, TensorUninit, TensorId, NodeId}
 };
 
 pub trait Uop<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + Send + 'static

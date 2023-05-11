@@ -1,8 +1,8 @@
 use std::{collections::HashSet, any::type_name};
 
-use crate::{Tensor, tensor::NodeId};
+use crate::{Tensor, tensor::{NodeId, TensorId}};
 
-use super::{Graph, TensorId, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
+use super::{Graph, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
     graph::{IntoBack, BackOp, BoxBackOp}
 };
 

@@ -1,4 +1,5 @@
-use super::{Var, TensorId, Graph, TensorCache, Tape, Bundle};
+use super::{Var, Graph, TensorCache, Tape, Bundle};
+use crate::tensor::TensorId;
 
 pub struct Function<In: Bundle, Out: Bundle> {
     _vars: Vec<(Var, TensorId)>,
@@ -50,11 +51,13 @@ where
 mod test {
     use log::LevelFilter;
 
-    use crate::graph::{TensorId, Tape};
+    use crate::graph::{Tape};
 
     use crate::{
         graph::{function::Function, Var},
-        tensor, Tensor,
+        tensor::{TensorId},
+        tensor,
+        Tensor,
     };
 
     #[test]
