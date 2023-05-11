@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{Dtype, TensorUninit}};
+use crate::{Tensor};
 
 pub fn zeros(shape: &[usize]) -> Tensor {
     Tensor::fill(0., shape)
