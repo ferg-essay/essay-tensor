@@ -1,3 +1,4 @@
+mod sgemm;
 mod vecmul;
 mod matvec;
 mod matmul;

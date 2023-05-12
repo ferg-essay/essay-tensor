@@ -1,3 +1,6 @@
+pub mod data;
+pub mod model;
+pub mod layer;
 pub mod activation;
 pub mod init;
 pub mod linalg;
