@@ -23,4 +23,7 @@ pub mod prelude {
     pub use crate::graph::{
         Trainer, Bundle
     };
+    pub use crate::data::{
+        Dataset,
+    };
 }

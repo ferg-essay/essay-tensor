@@ -6,20 +6,76 @@ use std::{ptr::{NonNull, self}, alloc::Layout, alloc,
 
 use super::tensor::Dtype;
 
-pub struct TensorData<D:Dtype=f32> {
-    data: NonNull<D>,
+pub struct TensorData<T=f32> {
+    data: NonNull<T>,
     len: usize,
 }
 
-pub struct TensorUninit<D:Dtype=f32> {
-    data: NonNull<D>,
+pub struct TensorUninit<T=f32> {
+    data: NonNull<T>,
     len: usize,
 }
 
-impl<D:Dtype> TensorData<D> {
+impl<T> TensorData<T> {
     #[inline]
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    #[inline]
+    pub unsafe fn as_ptr(&self) -> *const T {
+        self.data.as_ptr()
+    }
+
+    // Returns a possibly-wrapped pointer at the offset to support
+    // broadcast
+    #[inline]
+    pub unsafe fn as_wrap_ptr(&self, offset: usize) -> *const T {
+        if offset < self.len {
+            self.data.as_ptr().add(offset)
+        } else {
+            self.data.as_ptr().add(offset % self.len)
+        }
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        unsafe {
+            ptr::slice_from_raw_parts(self.as_ptr(), self.len())
+                .as_ref()
+                .unwrap()
+        }
+    }
+
+    #[inline]
+    pub fn as_wrap_slice(&self, range: impl RangeBounds<usize>) -> &[T] {
+        use ops::Bound::*;
+    
+        match (range.start_bound(), range.end_bound()) {
+            (Included(offset), Unbounded) => {
+                let offset = if *offset < self.len() { 
+                    *offset 
+                } else { 
+                    *offset % self.len() 
+                };
+
+                unsafe {
+                    ptr::slice_from_raw_parts(
+                        self.as_ptr().add(offset), self.len() - offset)
+                        .as_ref()
+                        .unwrap()
+                }
+            }
+            (Unbounded, Unbounded) => self.as_slice(),
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl<D:Copy> TensorData<D> {
+    #[inline]
+    pub unsafe fn get_unchecked(&self, offset: usize) -> D {
+        *self.data.as_ptr().add(offset)
     }
 
     #[inline]
@@ -52,61 +108,7 @@ impl<D:Dtype> TensorData<D> {
             }
         }
     }
-
-    #[inline]
-    pub unsafe fn get_unchecked(&self, offset: usize) -> D {
-        *self.data.as_ptr().add(offset)
-    }
-
-    #[inline]
-    pub unsafe fn as_ptr(&self) -> *const D {
-        self.data.as_ptr()
-    }
-
-    // Returns a possibly-wrapped pointer at the offset to support
-    // broadcast
-    #[inline]
-    pub unsafe fn as_wrap_ptr(&self, offset: usize) -> *const D {
-        if offset < self.len {
-            self.data.as_ptr().add(offset)
-        } else {
-            self.data.as_ptr().add(offset % self.len)
-        }
-    }
-
-    #[inline]
-    pub fn as_slice(&self) -> &[D] {
-        unsafe {
-            ptr::slice_from_raw_parts(self.as_ptr(), self.len())
-                .as_ref()
-                .unwrap()
-        }
-    }
-
-    #[inline]
-    pub fn as_wrap_slice(&self, range: impl RangeBounds<usize>) -> &[D] {
-        use ops::Bound::*;
-    
-        match (range.start_bound(), range.end_bound()) {
-            (Included(offset), Unbounded) => {
-                let offset = if *offset < self.len() { 
-                    *offset 
-                } else { 
-                    *offset % self.len() 
-                };
-
-                unsafe {
-                    ptr::slice_from_raw_parts(
-                        self.as_ptr().add(offset), self.len() - offset)
-                        .as_ref()
-                        .unwrap()
-                }
-            }
-            (Unbounded, Unbounded) => self.as_slice(),
-            _ => unimplemented!(),
-        }
-    }
-    }
+}
 
 impl<D:Dtype, I: SliceIndex<[D]>> Index<I> for TensorData<D> {
     type Output = I::Output;
@@ -131,7 +133,7 @@ impl<D:Dtype> Index<usize> for TensorData<D> {
 }
 */
 
-impl<D:Dtype + PartialEq> PartialEq for TensorData<D> {
+impl<D:PartialEq + Copy> PartialEq for TensorData<D> {
     fn eq(&self, other: &Self) -> bool {
         if self.len != other.len {
             return false;
@@ -139,7 +141,6 @@ impl<D:Dtype + PartialEq> PartialEq for TensorData<D> {
 
         for i in 0..self.len {
             if self.get(i) != other.get(i) {
-                println!("DIFF {:?} {:?}", self.get(i), other.get(i));
                 return false;
             }
         }
@@ -148,7 +149,7 @@ impl<D:Dtype + PartialEq> PartialEq for TensorData<D> {
     }
 }
 
-impl<D:Dtype> fmt::Debug for TensorData<D> {
+impl<D:fmt::Debug + Copy> fmt::Debug for TensorData<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "TensorData[")?;
 
@@ -218,11 +219,6 @@ impl<D:Dtype> TensorUninit<D> {
     }
 
     #[inline]
-    pub unsafe fn get_unchecked(&self, offset: usize) -> D {
-        *self.data.as_ptr().add(offset)
-    }
-
-    #[inline]
     pub unsafe fn set_unchecked(&mut self, offset: usize, value: D) {
         *self.data.as_ptr().add(offset) = value;
     }
@@ -243,6 +239,13 @@ impl<D:Dtype> TensorUninit<D> {
                 .as_mut()
                 .unwrap()
         }
+    }
+}
+
+impl<T:Dtype + Copy> TensorUninit<T> {
+    #[inline]
+    pub unsafe fn get_unchecked(&self, offset: usize) -> T {
+        *self.data.as_ptr().add(offset)
     }
 }
 

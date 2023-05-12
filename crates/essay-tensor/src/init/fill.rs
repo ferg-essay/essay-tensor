@@ -2,7 +2,7 @@ use std::cmp;
 
 use crate::{Tensor, tensor::{Dtype, TensorUninit}};
 
-pub fn fill<D:Dtype>(fill: D, shape: &[usize]) -> Tensor<D> {
+pub fn fill<D:Dtype + Copy>(fill: D, shape: &[usize]) -> Tensor<D> {
     unsafe {
         let len = cmp::max(1, shape.iter().product());
 
@@ -16,7 +16,7 @@ pub fn fill<D:Dtype>(fill: D, shape: &[usize]) -> Tensor<D> {
     }
 }
 
-impl<D:Dtype> Tensor<D> {
+impl<D:Dtype + Copy> Tensor<D> {
     pub fn fill(value: D, shape: &[usize]) -> Tensor<D> {
         fill(value, shape)
     }

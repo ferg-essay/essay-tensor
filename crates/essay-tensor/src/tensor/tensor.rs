@@ -5,7 +5,7 @@ use num_traits::Float;
 
 use super::{data::TensorData, TensorUninit};
 
-pub trait Dtype : Copy + PartialEq + fmt::Debug + Sync + Send + 'static {}
+pub trait Dtype : 'static {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TensorId(pub usize);
@@ -17,9 +17,9 @@ pub enum NodeId {
     Id(TensorId),
 }
 
-pub struct Tensor<D:Dtype=f32> {
+pub struct Tensor<T=f32> {
     shape: Vec<usize>,
-    data: Arc<TensorData<D>>,
+    data: Arc<TensorData<T>>,
 
     node: NodeId,
 }
@@ -131,10 +131,6 @@ impl<D:Dtype> Tensor<D> {
         &self.data
     }
 
-    pub fn get(&self, offset: usize) -> Option<D> {
-        self.data.get(offset)
-    }
-
     pub fn set_node(self, node: NodeId) -> Self {
         Self {
             shape: self.shape,
@@ -168,11 +164,17 @@ impl<D:Dtype> Tensor<D> {
             node,
         }
     }
+    pub fn get(&self, offset: usize) -> Option<&D> {
+        self.data.get(offset)
+    }
 
     #[inline]
     pub fn as_slice(&self) -> &[D] {
         self.data.as_slice()
     }
+}
+
+impl<D:Dtype + Copy> Tensor<D> {
 }
 
 impl<D:Dtype> Clone for Tensor<D> {
@@ -186,13 +188,13 @@ impl<D:Dtype> Clone for Tensor<D> {
     }
 }
 
-impl<D:Dtype> PartialEq for Tensor<D> {
+impl<D:Dtype + PartialEq + Copy> PartialEq for Tensor<D> {
     fn eq(&self, other: &Self) -> bool {
         self.shape == other.shape && self.data == other.data
     }
 }
 
-impl<D:Dtype> fmt::Debug for Tensor<D> {
+impl<D:Dtype + fmt::Debug> fmt::Debug for Tensor<D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Tensor {{")?;
 
@@ -214,7 +216,7 @@ impl<D:Dtype> fmt::Debug for Tensor<D> {
     }
 }
 
-fn fmt_tensor_rec<D:Dtype>(
+fn fmt_tensor_rec<D:Dtype + fmt::Debug>(
     tensor: &Tensor<D>, 
     f: &mut fmt::Formatter<'_>, 
     rank: usize,
@@ -361,7 +363,7 @@ impl<const N: usize, const M: usize, const L: usize>
     }
 }
 
-impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
+impl<D:Dtype + Copy, const N: usize, const M: usize, const L: usize, const K: usize>
     From<[[[[D; N]; M]; L]; K]> for Tensor<D> {
     fn from(value: [[[[D; N]; M]; L]; K]) -> Self {
         unsafe {
@@ -388,9 +390,7 @@ impl<D:Dtype, const N: usize, const M: usize, const L: usize, const K: usize>
 }
 
 // impl Dtype for f32 {}
-impl<T> Dtype for T 
-where
-    T:Float + fmt::Display + fmt::Debug + Sync + Send + 'static
+impl Dtype for f32
 {
 
 }

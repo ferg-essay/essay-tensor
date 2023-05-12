@@ -1,30 +1,42 @@
-pub trait Dataset<T> {
-    /*
-    fn apply<F>(&self, fun: F) -> dyn Dataset
-    where F: Fn(dyn Dataset) -> dyn Dataset;
-    */
-    fn iter(&self) -> dyn Iterator<Item=T>;
+use crate::{Tensor, tensor::Dtype};
 
-    fn get_single_element(&self) -> T;
+use super::{take::Take};
 
-    //fn interleave<S>(&self, map: Fn(T) -> Dataset<S>) -> Dataset<S>;
+pub trait Dataset<T:Dtype> : Clone + Sized {
+    type IntoIter:Iterator<Item=Tensor<T>>;
 
+    fn iter(&self) -> Self::IntoIter;
+
+    fn get_single_element(&self) -> Tensor<T>;
+
+    fn take(self, count: usize) -> Take<T, Self> {
+        Take::new(self, count)
+    }
 }
 
-type BoxDataset<T> = Box<dyn Dataset<T>>;
+impl<T:Dtype> Dataset<T> for Tensor<T> {
+    type IntoIter = TensorIter<T>;
 
-fn list_files<T>(file_pattern: &str) -> Box<dyn Dataset<T>> {
-    todo!()
+    fn iter(&self) -> Self::IntoIter {
+        TensorIter {
+            tensor: Some(self.clone())
+        }
+    }
+
+    fn get_single_element(&self) -> Tensor<T> {
+        self.clone()
+    }
 }
 
-fn random(seed: Option<usize>) -> Box<dyn Dataset<f32>> {
-    todo!()
+pub struct TensorIter<T:Dtype> {
+    tensor: Option<Tensor<T>>,
 }
 
-fn range(args: &[usize]) -> Box<dyn Dataset<f32>> {
-    todo!()
+impl<T:Dtype> Iterator for TensorIter<T> {
+    type Item = Tensor<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.tensor.take()
+    }
 }
 
-fn sample_from_datasets(datasets: Vec<BoxDataset<f32>>) -> BoxDataset<f32> {
-    todo!()
-}
