@@ -13,7 +13,7 @@ pub struct Var<D:Dtype=f32> {
 
 impl<D:Dtype> Var<D> {
     pub fn new(name: &str, tensor: Tensor<D>) -> Self {
-        let tensor = tensor.to_var(name);
+        let tensor = tensor.with_var_node(name);
 
         Self {
             tensor_share: Rc::new(RefCell::new(tensor.clone())),
@@ -27,7 +27,7 @@ impl<D:Dtype> Var<D> {
     }
 
     pub fn set(&mut self, tensor: Tensor<D>) {
-        let tensor = tensor.to_var(&self.name);
+        let tensor = tensor.with_var_node(&self.name);
 
         self.tensor = tensor.clone();
         self.tensor_share.replace(tensor);

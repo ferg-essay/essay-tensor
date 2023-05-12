@@ -1,6 +1,4 @@
-use crate::{Tensor, tensor::{NodeId, TensorId}};
-
-use super::{TensorCache};
+use crate::{Tensor, tensor::{NodeId, TensorId}, graph::TensorCache};
 
 pub trait Bundle : Clone {
     type Item;
@@ -19,7 +17,7 @@ impl Bundle for Tensor {
     fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
         let id = TensorId(index);
 
-        out.push(Some(item.with_id(id)));
+        out.push(Some(item.clone().with_id_node(id)));
 
         index + 1
     }
@@ -27,7 +25,7 @@ impl Bundle for Tensor {
     fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
         let id = TensorId(index);
 
-        out.set(id, item.with_id(id));
+        out.set(id, item.clone().with_id_node(id));
 
         index + 1
     }

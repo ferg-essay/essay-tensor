@@ -1,5 +1,4 @@
 mod trainer;
-mod bundle;
 mod tape;
 mod function;
 mod backprop;
@@ -16,10 +15,6 @@ pub use function::{
 
 pub use trainer::{
     Trainer,
-};
-
-pub use bundle::{
-    Bundle,
 };
 
 pub(crate) use tape::{

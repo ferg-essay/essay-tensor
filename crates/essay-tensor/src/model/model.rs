@@ -1,4 +1,4 @@
-use crate::{graph::Bundle, Tensor, layer::Layer};
+use crate::{Tensor, layer::Layer, tensor::Bundle};
 
 pub trait Model<In:Bundle<Item=In>,Out:Bundle<Item=Out>> {
     fn call(&self, input: In) -> Out;

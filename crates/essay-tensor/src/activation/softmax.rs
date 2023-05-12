@@ -133,7 +133,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
             o_data.init()
         };
     
-        Tensor::new_op(o_data, shape.clone(), node)
+        Tensor::new_node(o_data, shape.clone(), node)
     }
 
     fn back(

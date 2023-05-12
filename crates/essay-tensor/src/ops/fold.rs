@@ -89,7 +89,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
             o_data.init()
         };
     
-        Tensor::new_op(o_data, o_shape, node)
+        Tensor::new_node(o_data, o_shape, node)
     }
 
     fn back(

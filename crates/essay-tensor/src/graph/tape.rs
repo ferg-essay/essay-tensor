@@ -1,8 +1,8 @@
 use std::cell::RefCell;
-use crate::{Tensor, tensor::{NodeId, TensorId}};
+use crate::{Tensor, tensor::{NodeId, TensorId, Bundle}};
 
 
-use super::{Var, TensorCache, Graph, NodeOp, Bundle};
+use super::{Var, TensorCache, Graph, NodeOp};
 
 pub struct Tape {
     _args: Vec<TensorId>,
@@ -105,7 +105,7 @@ impl Tape {
     }
 
     pub(crate) fn set_tensor(tensor: Tensor) -> Tensor {
-        if let NodeId::Id(id) = tensor.node() {
+        if let NodeId::Id(id) = tensor.node_id() {
             TAPE.with(|f| {
                 if let Some(tape) = f.borrow_mut().as_mut() {
                     tape.graph_mut().set_tensor(*id, tensor.clone());

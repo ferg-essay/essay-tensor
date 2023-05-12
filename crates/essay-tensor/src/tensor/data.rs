@@ -70,21 +70,21 @@ impl<T> TensorData<T> {
             _ => unimplemented!(),
         }
     }
+
+    #[inline]
+    pub fn get(&self, offset: usize) -> Option<&T> {
+        if offset < self.len {
+            unsafe { self.data.as_ptr().add(offset).as_ref() }
+        } else {
+            None
+        }
+    }
 }
 
 impl<D:Copy> TensorData<D> {
     #[inline]
     pub unsafe fn get_unchecked(&self, offset: usize) -> D {
         *self.data.as_ptr().add(offset)
-    }
-
-    #[inline]
-    pub fn get(&self, offset: usize) -> Option<D> {
-        if offset < self.len {
-            unsafe { Some(self.get_unchecked(offset)) }
-        } else {
-            None
-        }
     }
 
     #[inline]
@@ -177,13 +177,13 @@ impl<D:Dtype> ops::Deref for TensorData<D> {
 unsafe impl<D:Dtype + Sync> Sync for TensorData<D> {}
 unsafe impl<D:Dtype + Send> Send for TensorData<D> {}
 
-impl<D:Dtype> TensorUninit<D> {
+impl<T> TensorUninit<T> {
     pub unsafe fn new(len: usize) -> Self {
-        let layout = Layout::array::<D>(len).unwrap();
+        let layout = Layout::array::<T>(len).unwrap();
         
         let data =
-            NonNull::<D>::new_unchecked(
-                alloc::alloc(layout).cast::<D>());
+            NonNull::<T>::new_unchecked(
+                alloc::alloc(layout).cast::<T>());
         
         Self {
             data,
@@ -191,7 +191,7 @@ impl<D:Dtype> TensorUninit<D> {
         }
     }
 
-    pub unsafe fn init(self) -> TensorData<D> {
+    pub unsafe fn init(self) -> TensorData<T> {
         TensorData {
             data: self.data,
             len: self.len,
@@ -204,27 +204,27 @@ impl<D:Dtype> TensorUninit<D> {
     }
 
     #[inline]
-    pub unsafe fn as_ptr(&self) -> *mut D {
+    pub unsafe fn as_ptr(&self) -> *mut T {
         self.data.as_ptr()
     }
 
     #[inline]
-    pub unsafe fn as_mut_ptr(&mut self) -> *mut D {
+    pub unsafe fn as_mut_ptr(&mut self) -> *mut T {
         self.data.as_mut()
     }
 
     #[inline]
-    pub unsafe fn as_mut(&mut self) -> &mut D {
+    pub unsafe fn as_mut(&mut self) -> &mut T {
         self.data.as_mut()
     }
 
     #[inline]
-    pub unsafe fn set_unchecked(&mut self, offset: usize, value: D) {
+    pub unsafe fn set_unchecked(&mut self, offset: usize, value: T) {
         *self.data.as_ptr().add(offset) = value;
     }
 
     #[inline]
-    pub fn as_slice(&self) -> &[D] {
+    pub fn as_slice(&self) -> &[T] {
         unsafe {
             ptr::slice_from_raw_parts(self.as_ptr(), self.len())
                 .as_ref()
@@ -233,7 +233,7 @@ impl<D:Dtype> TensorUninit<D> {
     }
 
     #[inline]
-    pub fn as_slice_mut(&mut self) -> &mut [D] {
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
         unsafe {
             ptr::slice_from_raw_parts_mut(self.as_mut_ptr(), self.len())
                 .as_mut()
@@ -242,7 +242,7 @@ impl<D:Dtype> TensorUninit<D> {
     }
 }
 
-impl<T:Dtype + Copy> TensorUninit<T> {
+impl<T:Copy> TensorUninit<T> {
     #[inline]
     pub unsafe fn get_unchecked(&self, offset: usize) -> T {
         *self.data.as_ptr().add(offset)
@@ -275,7 +275,7 @@ impl<D:Dtype, I: SliceIndex<[D]>> Index<I> for TensorUninit<D> {
 }
 */
 
-impl<D:Dtype, I: SliceIndex<[D]>> Index<I> for TensorUninit<D> {
+impl<D, I: SliceIndex<[D]>> Index<I> for TensorUninit<D> {
     type Output = I::Output;
 
     #[inline]
@@ -284,7 +284,7 @@ impl<D:Dtype, I: SliceIndex<[D]>> Index<I> for TensorUninit<D> {
     }
 }
 
-impl<D:Dtype, I: SliceIndex<[D]>> IndexMut<I> for TensorUninit<D> {
+impl<D, I: SliceIndex<[D]>> IndexMut<I> for TensorUninit<D> {
     #[inline]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         IndexMut::index_mut(self.as_slice_mut(), index)

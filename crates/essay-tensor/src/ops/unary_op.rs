@@ -56,7 +56,7 @@ impl<Op:Uop<f32>> Operation for UopCpu<Op> {
         };
         
         let shape = a.shape().clone();
-        Tensor::new_op(data, shape, node)
+        Tensor::new_node(data, shape, node)
     }
 
     fn back(

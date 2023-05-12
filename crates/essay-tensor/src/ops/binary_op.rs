@@ -77,7 +77,7 @@ impl<Op:Binop<f32>> Operation for BinopImpl<Op> {
                 a.shape().clone() 
             };
 
-            Tensor::new_op(data.init(), shape, node)
+            Tensor::new_node(data.init(), shape, node)
         }
     }
 

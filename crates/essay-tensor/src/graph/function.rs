@@ -1,5 +1,5 @@
-use super::{Var, Graph, TensorCache, Tape, Bundle};
-use crate::tensor::TensorId;
+use super::{Var, Graph, TensorCache, Tape};
+use crate::tensor::{TensorId, Bundle};
 
 pub struct Function<In: Bundle, Out: Bundle> {
     _vars: Vec<(Var, TensorId)>,
