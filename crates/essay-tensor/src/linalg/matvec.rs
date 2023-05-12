@@ -2,7 +2,7 @@ use std::{any::type_name};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit, NodeId}, 
-    graph::{Operation, Graph, graph::BackOp}
+    graph::{Operation, Graph, graph::BackOp}, linalg::sgemm::sgemm
 };
 
 use super::matmul::Transpose;
@@ -51,91 +51,46 @@ pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
 
 pub fn matvec_t(
     a: &Tensor<f32>,
-    b: &Tensor<f32>,
-    transpose: impl TransposeMatvec,
+    x: &Tensor<f32>,
+    _transpose: impl TransposeMatvec,
 ) -> Tensor<f32> {
     assert!(a.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", a.rank());
     
-    assert_eq!(a.shape()[2..], b.shape()[1..], "matvec batch shape must match");
+    assert_eq!(a.shape()[2..], x.shape()[1..], "matvec batch shape must match");
+    assert_eq!(x.shape()[0], a.shape()[0]);
 
     let n : usize = a.shape()[2..].iter().product();
 
-    let (a_cols, a_rows) = (a.shape()[0], a.shape()[1]);
-    let b_cols = b.shape()[0];
+    let a_dim = [a.shape()[0], a.shape()[1]];
+    let x_dim = [x.shape()[0], 1];
 
-    let inner_len = transpose.inner_len(b_cols, b_cols);
+    let o_size = a_dim[1];
 
-    let a_inc = transpose.a_inc(a_cols, a_rows);
-    let a_stride = transpose.a_stride(a_cols, a_rows);
-    let a_size = transpose.a_size(a_cols, a_rows);
-
-    let o_size = transpose.out_size(a_cols, a_rows);
+    let a_size = a_dim[0] * a_dim[1];
+    let x_size = x_dim[0] * x_dim[1];
 
     unsafe {
         let mut out = TensorUninit::<f32>::new(o_size * n);
 
         for block in 0..n {
-            naive_matvec_f32(
-                &mut out, 
-                block * o_size,
-                o_size,
-                inner_len,
+            sgemm(
+                1, x_dim[0], o_size,
+                1.,
+                x.data().as_wrap_ptr(block * x_size),
+                x_dim[0], 1,
                 a.data().as_wrap_ptr(block * a_size),
-                a_inc,
-                a_stride,
-                a_size,
-                b.data().as_wrap_ptr(block * b_cols),
-                b_cols,
-            );
+                1, a_dim[0],
+                0.,
+                out.as_mut_ptr().add(block * o_size),
+                o_size, 1,
+            )
         }
 
-        let mut o_shape = b.shape().clone();
+        let mut o_shape = x.shape().clone();
         o_shape[0] = o_size;
         Tensor::new(out.init(), &o_shape)
         //a.next_binop(&b, out.init(), o_shape, Matvec)
         //todo!()
-    }
-}
-
-unsafe fn naive_matvec_f32(
-    out: &mut TensorUninit<f32>, 
-    out_start: usize,
-    o_cols: usize,
-    inner_len: usize,
-    a: *const f32, 
-    a_inc: usize,
-    a_stride: usize,
-    _a_size: usize,
-    b: *const f32,
-    _b_size: usize,
-) {
-    for col in 0..o_cols {
-        let a_ptr = a.add(col * a_stride);
-
-        let mut v = 0.0;
-
-        let mut k = inner_len;
-
-        while k > 4 {
-            k -= 4;
-            let v0 = *a_ptr.add((k + 0) * a_inc)
-                * *b.add(k + 0);
-            let v1 = *a_ptr.add((k + 1) * a_inc)
-                * *b.add(k + 1);
-            let v2 = *a_ptr.add((k + 2) * a_inc)
-                * *b.add(k + 2);
-            let v3 = *a_ptr.add((k + 3) * a_inc)
-                * *b.add(k + 3);
-
-            v += v0 + v1 + v2 + v3;
-        }
-
-        while k > 0 {
-            k -= 1;
-            v += *a_ptr.add(k * a_inc) * *b.add(k);
-        }
-
-        out.set_unchecked(out_start + col, v);
     }
 }
 
