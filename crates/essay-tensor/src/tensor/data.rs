@@ -66,6 +66,23 @@ impl<T> TensorData<T> {
                         .unwrap()
                 }
             }
+            (Included(offset), Excluded(tail)) => {
+                let offset = if *offset < self.len() { 
+                    *offset 
+                } else { 
+                    *offset % self.len() 
+                };
+
+                assert!(offset < *tail);
+                assert!(*tail <= self.len());
+
+                unsafe {
+                    ptr::slice_from_raw_parts(
+                        self.as_ptr().add(offset), *tail - offset)
+                        .as_ref()
+                        .unwrap()
+                }
+            }
             (Unbounded, Unbounded) => self.as_slice(),
             _ => unimplemented!(),
         }
@@ -165,12 +182,27 @@ impl<D:fmt::Debug + Copy> fmt::Debug for TensorData<D> {
     }
 }
 
-impl<D:Dtype> ops::Deref for TensorData<D> {
-    type Target = [D];
+impl<T> ops::Deref for TensorData<T> {
+    type Target = [T];
 
     #[inline]
-    fn deref(&self) -> &[D] {
+    fn deref(&self) -> &[T] {
         unsafe { slice::from_raw_parts(self.as_ptr(), self.len) }
+    }
+}
+
+impl<T:Clone> From<&[T]> for TensorData<T> {
+    fn from(value: &[T]) -> Self {
+        unsafe {
+            let mut data = TensorUninit::<T>::new(value.len());
+            let ptr = data.as_slice_mut();
+
+            for i in 0..value.len() {
+                ptr[i] = value[i].clone();
+            }
+
+            data.init()
+        }
     }
 }
 

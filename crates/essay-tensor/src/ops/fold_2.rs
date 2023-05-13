@@ -17,7 +17,7 @@ impl<D:Dtype + Copy> Tensor<D> {
         let b_data = b.data();
 
         let len = self.broadcast_min(1, b, 1);
-        let inner_size = self.dim_zero();
+        let inner_size = self.dim_tail();
         let batch = len / inner_size;
     
         let o_data = unsafe {

@@ -63,7 +63,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         };
 
         let len = o_shape.iter().product();
-        let inner_len = a.dim_zero();
+        let inner_len = a.dim_tail();
     
         let o_data = unsafe {
             let mut o_data = TensorUninit::<f32>::new(len);

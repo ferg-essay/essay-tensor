@@ -4,7 +4,7 @@ use crate::{Tensor, ops::{fold_op, Fold}};
 pub struct L2Loss(f32);
 
 pub fn l2_loss(a: &Tensor) -> Tensor {
-    let n = a.dim_zero();
+    let n = a.dim_tail();
     let n_inv = 0.5 / n as f32;
     fold_op(a, 0.0.into(), L2Loss(n_inv))
 }

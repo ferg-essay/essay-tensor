@@ -47,7 +47,7 @@ impl<Op:Binop<f32>> Operation for BinopImpl<Op> {
         let inner = a.len().min(b.len());
         let batch = size / inner;
 
-        assert_eq!(a.dim_zero(), b.dim_zero());
+        assert_eq!(a.dim_tail(), b.dim_tail());
     
         let a_data = a.data();
         let b_data = b.data();

@@ -50,10 +50,10 @@ where
 {
     let chunk = match chunk {
         Some(chunk) => chunk,
-        None => a.dim_zero(),
+        None => a.dim_tail(),
     };
 
-    assert!(a.dim_zero() % chunk == 0);
+    assert!(a.dim_tail() % chunk == 0);
 
     let softmax_op = SoftmaxCpu(op.clone(), chunk);
 
@@ -89,7 +89,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
         let shape = a.shape();
 
         let len = a.len();
-        let inner_len = a.dim_zero();
+        let inner_len = a.dim_tail();
         let batch = len / inner_len;
 
         let chunk = self.1;

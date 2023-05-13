@@ -1,3 +1,5 @@
+mod slice;
+mod index;
 mod data;
 mod tensor;
 mod bundle;
