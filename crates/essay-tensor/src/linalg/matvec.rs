@@ -2,7 +2,7 @@ use std::{any::type_name};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit, NodeId}, 
-    graph::{Operation, Graph, graph::BackOp}, linalg::sgemm::sgemm
+    eval::{Operation, Graph, graph::BackOp}, linalg::sgemm::sgemm
 };
 
 use super::matmul::Transpose;
@@ -218,7 +218,7 @@ impl BackOp for MatvecBackRightT {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, graph::{Var, Trainer}, linalg::matmul::Transpose};
+    use crate::{tensor, Tensor, eval::{Var, Trainer}, linalg::matmul::Transpose};
 
     #[test]
     fn test_matvec_1_1() {

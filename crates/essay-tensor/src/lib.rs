@@ -6,7 +6,7 @@ pub mod init;
 pub mod linalg;
 pub mod loss;
 pub mod nn;
-pub mod graph;
+pub mod eval;
 pub mod math;
 pub mod ops;
 pub mod random;
@@ -23,7 +23,7 @@ pub mod prelude {
         Bundle
     };
     pub use crate::Tensor;
-    pub use crate::graph::{
+    pub use crate::eval::{
         Trainer, 
     };
     pub use crate::data::{

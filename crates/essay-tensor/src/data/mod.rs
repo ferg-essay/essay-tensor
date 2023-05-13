@@ -3,4 +3,7 @@ mod range;
 mod dataset;
 
 pub use range::range;
-pub use dataset::{Dataset};
+pub use dataset::{
+    Dataset,
+    from_tensors,
+};

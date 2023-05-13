@@ -191,7 +191,7 @@ impl ArgTrace {
 
 #[cfg(test)]
 mod test {
-    use crate::graph::{Var, Trainer};
+    use crate::eval::{Var, Trainer};
     use crate::{Tensor};
     use crate::prelude::{*};
 

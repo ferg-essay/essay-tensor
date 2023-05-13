@@ -105,11 +105,11 @@ impl<In:Bundle<Item=In>,Out:Bundle<Item=Out>> Train<'_, In, Out> {
 mod test {
     use log::LevelFilter;
 
-    use crate::graph::{Tape};
+    use crate::eval::{Tape};
 
     use crate::tensor::TensorId;
     use crate::{
-        graph::{Trainer, Var},
+        eval::{Trainer, Var},
         tensor, Tensor,
     };
 

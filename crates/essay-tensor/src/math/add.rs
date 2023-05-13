@@ -25,7 +25,7 @@ impl Binop for Add {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, graph::{Var, Trainer}};
+    use crate::{prelude::*, eval::{Var, Trainer}};
 
     #[test]
     fn test_add() {

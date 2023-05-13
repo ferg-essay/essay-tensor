@@ -5,18 +5,18 @@
 
 use std::marker::PhantomData;
 
-use crate::{tensor::Dtype, Tensor};
+use crate::{Tensor};
 
 use super::Dataset;
 
 #[derive(Clone)]
-pub struct Take<T:Dtype, D:Dataset<T>> {
+pub struct Take<T:Clone, D:Dataset<T>> {
     source: D,
     count: usize,
     marker: PhantomData<T>,
 }
 
-impl<T:Dtype, D:Dataset<T>> Take<T, D> {
+impl<T:Clone, D:Dataset<T>> Take<T, D> {
     pub(crate) fn new(source: D, count: usize) -> Self {
         Self {
             source,
@@ -26,7 +26,7 @@ impl<T:Dtype, D:Dataset<T>> Take<T, D> {
     }
 }
 
-impl<T:Dtype + Clone, D:Dataset<T>> Dataset<T> for Take<T, D> {
+impl<T:Clone, D:Dataset<T>> Dataset<T> for Take<T, D> {
     type IntoIter = TakeIter<T, D>;
 
     fn iter(&self) -> Self::IntoIter {
@@ -41,12 +41,12 @@ impl<T:Dtype + Clone, D:Dataset<T>> Dataset<T> for Take<T, D> {
     }
 }
 
-pub struct TakeIter<T:Dtype, D:Dataset<T>> {
+pub struct TakeIter<T:Clone, D:Dataset<T>> {
     source: D::IntoIter,
     count: usize,
 }
 
-impl<T:Dtype, D:Dataset<T>> Iterator for TakeIter<T, D> {
+impl<T:Clone, D:Dataset<T>> Iterator for TakeIter<T, D> {
     type Item = Tensor<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
