@@ -1,10 +1,10 @@
 
-use crate::ops::Binop;
+use crate::ops::BinaryKernel;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Atan2;
 
-impl Binop for Atan2 {
+impl BinaryKernel for Atan2 {
     #[inline]
     fn f(&self, x: f32, y: f32) -> f32 {
         x.atan2(y)

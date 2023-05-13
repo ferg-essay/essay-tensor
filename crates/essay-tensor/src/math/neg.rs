@@ -1,9 +1,9 @@
-use crate::ops::Uop;
+use crate::ops::UnaryKernel;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Neg;
 
-impl Uop<f32> for Neg {
+impl UnaryKernel<f32> for Neg {
     #[inline]
     fn f(&self, value: f32) -> f32 {
         - value

@@ -2,7 +2,7 @@ use std::{any::type_name};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit, NodeId}, 
-    eval::{Operation, Graph, graph::BackOp}, linalg::sgemm::sgemm
+    eval::{Operation, Graph, graph::BackOp}, linalg::blas::sgemm
 };
 
 use super::matmul::Transpose;

@@ -1,12 +1,12 @@
-use crate::{ops::Uop};
+use crate::{ops::UnaryKernel};
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct SquareOp;
 
-impl Uop<f32> for SquareOp {
+impl UnaryKernel<f32> for SquareOp {
     #[inline]
     fn f(&self, value: f32) -> f32 {
-        value * value
+        value.powi(2)
     }
 
     #[inline]

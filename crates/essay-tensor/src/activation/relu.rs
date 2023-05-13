@@ -1,11 +1,11 @@
 use crate::{
-    ops::Uop
+    ops::UnaryKernel
 };
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ReLU;
 
-impl Uop<f32> for ReLU {
+impl UnaryKernel<f32> for ReLU {
     #[inline]
     fn f(&self, value: f32) -> f32 {
         value.max(0.)

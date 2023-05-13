@@ -1,12 +1,12 @@
 use crate::{
-    ops::Binop
+    ops::BinaryKernel
 };
 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Add;
 
-impl Binop for Add {
+impl BinaryKernel for Add {
     #[inline]
     fn f(&self, x: f32, y: f32) -> f32 {
         x + y

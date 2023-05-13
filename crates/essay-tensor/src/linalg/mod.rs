@@ -1,4 +1,5 @@
-mod sgemm;
+mod blas_naive;
+mod blas;
 mod vecmul;
 mod matvec;
 mod matmul;

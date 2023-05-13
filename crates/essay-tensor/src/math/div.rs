@@ -1,9 +1,9 @@
-use crate::ops::Binop;
+use crate::ops::BinaryKernel;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Div;
 
-impl Binop for Div {
+impl BinaryKernel for Div {
     #[inline]
     fn f(&self, x: f32, y: f32) -> f32 {
         x / y
@@ -11,11 +11,11 @@ impl Binop for Div {
 
     #[inline]
     fn df_dx(&self, _x: f32, y: f32) -> f32 {
-        1. / y
+        y.recip()
     }
 
     #[inline]
     fn df_dy(&self, x: f32, y: f32) -> f32 {
-        - x / (y * y)
+        - x / y.powi(2)
     }
 }

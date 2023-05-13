@@ -1,9 +1,9 @@
-use crate::ops::Binop;
+use crate::ops::BinaryKernel;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Powi;
 
-impl Binop for Powi {
+impl BinaryKernel for Powi {
     #[inline]
     fn f(&self, x: f32, y: f32) -> f32 {
         x.powi(y as i32)

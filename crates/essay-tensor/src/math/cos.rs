@@ -1,17 +1,17 @@
-use crate::ops::Uop;
+use crate::ops::UnaryKernel;
 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Cos;
 
-impl Uop<f32> for Cos {
+impl UnaryKernel<f32> for Cos {
     #[inline]
-    fn f(&self, value: f32) -> f32 {
-        value.cos()
+    fn f(&self, x: f32) -> f32 {
+        x.cos()
     }
 
     #[inline]
-    fn df_dx(&self, value: f32) -> f32 {
-        value.sin()
+    fn df_dx(&self, x: f32) -> f32 {
+        - x.sin()
     }
 }

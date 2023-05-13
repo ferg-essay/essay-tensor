@@ -1,9 +1,9 @@
-use crate::ops::Uop;
+use crate::ops::UnaryKernel;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Exp;
 
-impl Uop<f32> for Exp {
+impl UnaryKernel<f32> for Exp {
     #[inline]
     fn f(&self, value: f32) -> f32 {
         value.exp()

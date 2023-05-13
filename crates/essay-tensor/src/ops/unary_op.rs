@@ -5,7 +5,7 @@ use crate::{eval::{IntoForward, NodeOp, Tape, Operation, Graph, graph::BackOp}, 
     tensor::{Dtype, TensorUninit, TensorId, NodeId}
 };
 
-pub trait Uop<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + Send + 'static
+pub trait UnaryKernel<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + Send + 'static
 {
     fn f(&self, value: D) -> D;
 
@@ -13,11 +13,11 @@ pub trait Uop<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + Send + '
 }
 
 #[derive(Clone, PartialEq)]
-pub struct UopCpu<Op:Uop<f32>>(Op);
+pub struct UopCpu<Op:UnaryKernel<f32>>(Op);
 
 pub fn unary_op<Op>(a: &Tensor, op: Op) -> Tensor
 where
-    Op:Uop<f32>
+    Op:UnaryKernel<f32>
 {
     let uop = UopCpu(op.clone());
 
@@ -28,7 +28,7 @@ where
     Tape::set_tensor(tensor)
 }
 
-impl<Op:Uop<f32>> Operation for UopCpu<Op> {
+impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -73,7 +73,7 @@ impl<Op:Uop<f32>> Operation for UopCpu<Op> {
     }
 }
 
-impl<Op:Uop<f32>> BackOp for UopCpu<Op> {
+impl<Op:UnaryKernel<f32>> BackOp for UopCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }

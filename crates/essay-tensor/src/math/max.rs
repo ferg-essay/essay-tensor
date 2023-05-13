@@ -1,9 +1,9 @@
-use crate::ops::Binop;
+use crate::ops::BinaryKernel;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Max;
 
-impl Binop for Max {
+impl BinaryKernel for Max {
     #[inline]
     fn f(&self, x: f32, y: f32) -> f32 {
         x.max(y)

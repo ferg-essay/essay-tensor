@@ -12,9 +12,9 @@ pub use fold::{
 };
 
 pub use unary_op::{
-    unary_op, Uop,
+    unary_op, UnaryKernel,
 };
 
 pub use binary_op::{
-    binary_op, Binop,
+    binary_op, BinaryKernel,
 };

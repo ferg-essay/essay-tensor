@@ -1,17 +1,17 @@
-use crate::ops::Uop;
+use crate::ops::UnaryKernel;
 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Abs;
 
-impl Uop<f32> for Abs {
+impl UnaryKernel<f32> for Abs {
     #[inline]
-    fn f(&self, value: f32) -> f32 {
-        value.abs()
+    fn f(&self, x: f32) -> f32 {
+        x.abs()
     }
 
     #[inline]
-    fn df_dx(&self, value: f32) -> f32 {
-        if value > 0. { 1. } else { -1. }
+    fn df_dx(&self, x: f32) -> f32 {
+        if x > 0. { 1. } else { -1. }
     }
 }

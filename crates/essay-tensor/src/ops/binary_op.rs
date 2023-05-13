@@ -4,7 +4,7 @@ use crate::{eval::{Graph, Operation, IntoForward, NodeOp, Tape, graph::BackOp}, 
     tensor::{Dtype, TensorId, TensorUninit, NodeId}
 };
 
-pub trait Binop<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
+pub trait BinaryKernel<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
     fn f(&self, x: D, y: D) -> D;
 
     fn df_dx(&self, x: D, y: D) -> D;
@@ -12,15 +12,15 @@ pub trait Binop<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
 }
 
 #[derive(Debug, Clone)]
-pub struct BinopImpl<Op:Binop>(Op);
+pub struct BinopImpl<Op:BinaryKernel>(Op);
 
 #[derive(Debug, Clone)]
-pub struct BinopDx<Op:Binop>(Op);
+pub struct BinopDx<Op:BinaryKernel>(Op);
 
 #[derive(Debug, Clone)]
-pub struct BinopDy<Op:Binop>(Op);
+pub struct BinopDy<Op:BinaryKernel>(Op);
 
-pub fn binary_op<Op:Binop<f32>>(a: &Tensor, b: &Tensor, op: Op) -> Tensor {
+pub fn binary_op<Op:BinaryKernel<f32>>(a: &Tensor, b: &Tensor, op: Op) -> Tensor {
     let binop = BinopImpl(op.clone());
 
     let node = NodeOp::new(&[a, b], binop.to_op());
@@ -30,7 +30,7 @@ pub fn binary_op<Op:Binop<f32>>(a: &Tensor, b: &Tensor, op: Op) -> Tensor {
     Tape::set_tensor(tensor)
 }
 
-impl<Op:Binop<f32>> Operation for BinopImpl<Op> {
+impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -97,7 +97,7 @@ impl<Op:Binop<f32>> Operation for BinopImpl<Op> {
     }
 }
 
-impl<Op:Binop<f32>> BackOp for BinopDx<Op> {
+impl<Op:BinaryKernel<f32>> BackOp for BinopDx<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -137,7 +137,7 @@ impl<Op:Binop<f32>> BackOp for BinopDx<Op> {
     }
 }
 
-impl<Op:Binop<f32>> BackOp for BinopDy<Op> {
+impl<Op:BinaryKernel<f32>> BackOp for BinopDy<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -178,7 +178,7 @@ impl<Op:Binop<f32>> BackOp for BinopDy<Op> {
 }
 
 // TODO: debug seems wrong
-impl<F, D:Dtype> Binop<D> for F
+impl<F, D:Dtype> BinaryKernel<D> for F
 where F: Fn(D, D) -> D + Send + Sync + 'static + Clone + Copy {
     fn f(&self, x: D, y: D) -> D {
         (self)(x, y)
