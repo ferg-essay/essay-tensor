@@ -129,7 +129,7 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDx<Op> {
                 *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            Tensor::from_uninit(data, &x.shape())
+            Tensor::from_uninit(data, x.shape())
         }
     }
 }
@@ -169,7 +169,7 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDy<Op> {
                 *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            Tensor::from_uninit(out, &x.shape())
+            Tensor::from_uninit(out, x.shape())
         }
     }
 }

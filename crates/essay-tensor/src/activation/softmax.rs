@@ -129,7 +129,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
                 }
             }
 
-            Tensor::from_uninit_node(o_data, &shape, node)
+            Tensor::from_uninit_node(o_data, shape, node)
         }
     }
 
@@ -178,7 +178,7 @@ impl<Op:Softmax> BackOp for SoftmaxCpu<Op> {
                 out[i] = df_dx * prev_df;
             }
     
-            Tensor::from_uninit(out, &a.shape())
+            Tensor::from_uninit(out, a.shape())
         }
     }
 }

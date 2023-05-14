@@ -1,14 +1,15 @@
 use rand::prelude::*;
 
-use crate::{tensor::{TensorUninit}, Tensor};
+use crate::{tensor::{TensorUninit, Shape, IntoShape}, Tensor};
 
-pub fn uniform<const N:usize>(
-    shape: [usize; N], 
+pub fn uniform(
+    shape: impl IntoShape,
     min: f32, 
     max: f32, 
     seed: Option<u64>,
 ) -> Tensor {
-    let len : usize = shape.iter().product();
+    let shape = IntoShape::into_shape(shape); // Shape::from(shape);
+    let len : usize = shape.len();
 
     unsafe {
         let mut data = TensorUninit::new(len);
@@ -30,27 +31,27 @@ pub fn uniform<const N:usize>(
             }
         };
 
-        Tensor::from_uninit(data, &shape)
+        Tensor::from_uninit(data, shape.clone())
     }
 }
 
-pub fn uniform_b<const N:usize>(
-    shape: [usize; N]
-) -> UniformBuilder<N> {
+pub fn uniform_b(
+    shape: impl IntoShape,
+) -> UniformBuilder {
     UniformBuilder::new(shape)
 }
 
-pub struct UniformBuilder<const N:usize> {
-    shape: [usize; N],
+pub struct UniformBuilder {
+    shape: Shape,
     min: f32,
     max: f32,
     seed: Option<u64>,
 }
 
-impl<const N:usize> UniformBuilder<N> {
-    fn new(shape: [usize; N]) -> Self {
+impl UniformBuilder {
+    fn new(shape: impl IntoShape) -> Self {
         Self {
-            shape: shape,
+            shape: IntoShape::into_shape(shape),
             min: 0.,
             max: 1.,
             seed: None,

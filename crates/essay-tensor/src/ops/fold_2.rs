@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorUninit, eval::{IntoForward}};
+use crate::{Tensor, tensor::{TensorUninit, Shape}, eval::{IntoForward}};
 
 use crate::tensor::{Dtype};
 
@@ -18,10 +18,10 @@ impl<D:Dtype + Copy> Tensor<D> {
         let batch = len / inner_size;
 
         let shape = self.shape();
-        let o_shape: Vec<usize> = if shape.len() > 0 {
-            shape[1..].iter().map(|d| *d).collect()
+        let o_shape: Shape = if shape.len() > 0 {
+            shape.slice(1..)
         } else {
-            Vec::new()
+            Shape::scalar()
         };
     
         unsafe {

@@ -52,7 +52,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
                 *o_ptr.add(i) = op.f(*a_ptr.add(i));
             }
     
-            Tensor::from_uninit_node(out, &a.shape(), node)
+            Tensor::from_uninit_node(out, a.shape(), node)
         }
     }
 
@@ -99,7 +99,7 @@ impl<Op:UnaryKernel<f32>> BackOp for UopCpu<Op> {
                 *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            Tensor::from_uninit(out, &tensor.shape())
+            Tensor::from_uninit(out, tensor.shape())
         }
     }
 }

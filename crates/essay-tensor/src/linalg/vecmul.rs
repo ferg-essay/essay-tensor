@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorUninit, eval::{EvalOp}};
+use crate::{Tensor, tensor::TensorUninit, eval::{EvalOp}, prelude::Shape};
 
 
 #[derive(Debug, Clone)]
@@ -20,9 +20,9 @@ pub fn outer_product(
 ) -> Tensor<f32> {
     assert!(a.rank() >= 1, "vector outer product dim[{}] should be >= 1", a.rank());
     assert_eq!(a.rank(), b.rank(), "vector outer product rank must match");
-    assert_eq!(a.shape()[1..], b.shape()[1..], "outer product shape must match");
+    assert_eq!(a.shape().as_subslice(1..), b.shape().as_subslice(1..), "outer product shape must match");
 
-    let n : usize = a.shape()[1..].iter().product();
+    let n : usize = a.shape().sublen(1..);
 
     let a_cols = a.shape()[0];
     let b_cols = b.shape()[0];
@@ -48,13 +48,14 @@ pub fn outer_product(
         }
 
         let mut o_shape = vec![o_cols, o_rows];
-        for size in &a.shape()[1..] {
+        //o_shape.append(a.shape().as_subslice(1..));
+        for size in a.shape().as_subslice(1..) {
             o_shape.push(*size);
         }
 
         //.next_binop(&b, out.init(), o_shape, OuterProduct)
         //todo!()
-        Tensor::from_uninit(out, &o_shape)
+        Tensor::from_uninit(out, Shape::from(o_shape))
     }
 }
 

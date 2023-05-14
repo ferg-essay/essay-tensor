@@ -48,14 +48,14 @@ pub fn matmul(a: &Tensor, b: &Tensor) -> Tensor {
 pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Tensor {
     //assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
     assert!(a.rank() > 1, "matrix multiplication requires rank >= 2");
-    assert_eq!(&a.shape()[2..], &b.shape()[2..], "matmul batch shape must match");
+    assert_eq!(&a.shape().as_subslice(2..), &b.shape().as_subslice(2..), "matmul batch shape must match");
 
     let a_dim = [a.shape()[0], a.shape()[1]];
     let b_dim = [b.shape()[0], b.shape()[1]];
 
     let (m, _, n) = transpose.mkn(a_dim, b_dim);
 
-    let batch_len : usize = a.shape()[2..].iter().product();
+    let batch_len : usize = a.shape().sublen(2..);
     let a_size = a_dim[0] * a_dim[1];
     let b_size = b_dim[0] * b_dim[1];
     let o_size = m * n;
@@ -71,11 +71,11 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
             transpose.sgemm(a_dim, b_dim, a_ptr, b_ptr, c_ptr);
         }
 
-        let mut o_shape = b.shape().clone();
+        let mut o_shape = Vec::from(b.shape().as_slice());
         o_shape[0] = m;
         o_shape[1] = n;
 
-        Tensor::from_uninit(out, &o_shape)
+        Tensor::from_uninit(out, o_shape)
     }
 }
 

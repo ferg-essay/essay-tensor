@@ -121,7 +121,7 @@ mod test {
     #[test]
     fn index_rank_2() {
         let t = tf32!([[1., 2.], [3., 4.], [5., 6.]]);
-        assert_eq!(t.shape(), &[3, 2]);
+        assert_eq!(t.shape().as_slice(), &[3, 2]);
 
         assert_eq!(t[0], 1.);
         assert_eq!(t[1], 2.);

@@ -13,5 +13,5 @@ pub use bundle::{
 };
 
 pub use tensor::{
-    Dtype, Tensor, TensorId, IntoTensor, NodeId,
+    Dtype, Tensor, TensorId, IntoTensor, Shape, IntoShape, NodeId,
 };

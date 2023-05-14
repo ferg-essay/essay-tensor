@@ -1,7 +1,11 @@
 use core::{slice};
-use std::{ptr::{NonNull, self}, alloc::Layout, alloc, 
+use std::{
+    ptr::{NonNull, self}, 
+    alloc::Layout, alloc, 
     ops::{Index, self, IndexMut, RangeBounds}, 
-    slice::SliceIndex, any::TypeId, marker::PhantomData
+    slice::SliceIndex, 
+    any::TypeId, 
+    marker::PhantomData
 };
 
 pub(crate) struct TensorData {
@@ -298,14 +302,14 @@ impl<T, I: SliceIndex<[T]>> IndexMut<I> for TensorUninit<T> {
 mod test {
     use std::{rc::Rc, cell::RefCell};
 
-    use crate::{prelude::*};
+    use crate::{prelude::*, tensor::{Dtype, tensor::Shape}};
 
     #[test]
     fn test_drop() {
         let ptr = {
-            let slice = [Test::new(2)];
-            let ptr = slice[0].ptr.clone();
-            let _tensor = Tensor::from_slice(&slice);
+            let test = Test::new(2);
+            let ptr = test.ptr.clone();
+            let _tensor = Tensor::from(test);
 
             ptr
         };
@@ -315,7 +319,7 @@ mod test {
         let ptr = {
             let vec = vec![Test::new(2)];
             let ptr = vec[0].ptr.clone();
-            let _tensor = Tensor::from_vec(vec, &[1]);
+            let _tensor = Tensor::from_vec(vec, Shape::from(1));
 
             ptr
         };
@@ -328,7 +332,7 @@ mod test {
         let ptr = {
             let vec = vec![Test::new(2)];
             let ptr = vec[0].ptr.clone();
-            let _tensor = Tensor::from_vec(vec, &[1]);
+            let _tensor = Tensor::from_vec(vec, Shape::from(1));
             let _tensor2 = _tensor.clone();
 
             ptr
@@ -357,6 +361,8 @@ mod test {
             }
         }
     }
+
+    impl Dtype for Test {}
 
     impl Drop for Test {
         fn drop(&mut self) {

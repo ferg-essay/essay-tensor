@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit, NodeId}, 
-    eval::{NodeOp, Tape, Operation, IntoForward, Graph, graph::BackOp}
+    eval::{NodeOp, Tape, Operation, IntoForward, Graph, graph::BackOp}, prelude::Shape
 };
 
 pub trait Fold<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -55,13 +55,13 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         let a = args[0];
 
         let shape = a.shape();
-        let o_shape: Vec<usize> = if shape.len() > 1 {
-            shape[1..].iter().map(|d| *d).collect()
+        let o_shape = if shape.len() > 1 {
+            shape.slice(1..)
         } else {
-            Vec::new()
+            Shape::scalar()
         };
 
-        let len = o_shape.iter().product();
+        let len = o_shape.len();
         let inner_len = a.dim_tail();
     
         unsafe {
@@ -85,7 +85,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
                 *o_ptr.add(i) = v;
             }
 
-            Tensor::from_uninit_node(o_data, &o_shape, node)
+            Tensor::from_uninit_node(o_data, o_shape, node)
         }
     
     }
@@ -136,7 +136,7 @@ impl<Op:Fold> BackOp for FoldCpu<Op> {
                 *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            Tensor::from_uninit(out, &a.shape())
+            Tensor::from_uninit(out, a.shape())
         }
     }
 }

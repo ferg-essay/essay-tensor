@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{cmp::{max, self}, any::type_name, sync::Arc, ops::{Deref}, marker::PhantomData};
+use std::{cmp::{max, self}, any::type_name, sync::Arc, ops::{Deref, Index, Range, RangeBounds}, marker::PhantomData, slice::SliceIndex};
 
 use super::{data::TensorData, TensorUninit, slice::TensorSlice};
 
@@ -8,15 +8,8 @@ pub trait Dtype : Clone + 'static {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TensorId(pub usize);
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum NodeId {
-    None,
-    Var(String),
-    Id(TensorId),
-}
-
 pub struct Tensor<T=f32> {
-    shape: Vec<usize>,
+    shape: Shape,
     offset: usize,
     len: usize,
 
@@ -27,8 +20,20 @@ pub struct Tensor<T=f32> {
     marker: PhantomData<T>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Shape {
+    dims: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NodeId {
+    None,
+    Var(String),
+    Id(TensorId),
+}
+
 pub struct RawTensor {
-    shape: Vec<usize>,
+    shape: Shape,
     offset: usize,
     len: usize,
 
@@ -39,8 +44,12 @@ pub trait IntoTensor<T> {
     fn into_tensor(&self) -> Tensor<T>;
 }
 
+pub trait IntoShape {
+    fn into_shape(self) -> Shape;
+}
+
 impl<T: 'static> Tensor<T> {
-    pub fn from_vec(vec: Vec<T>, shape: &[usize]) -> Self {
+    pub fn from_vec(vec: Vec<T>, shape: Shape) -> Self {
         let len = vec.len();
 
         assert!(len > 0);
@@ -52,17 +61,17 @@ impl<T: 'static> Tensor<T> {
 
     pub(crate) unsafe fn from_data(
         data: TensorData, 
-        shape: &[usize], 
+        shape: Shape, 
         node: NodeId
     ) -> Self {
-        let len: usize = max(1, shape.iter().product());
+        let len: usize = shape.len();
         
         data.checkcast::<T>(len);
 
         Self {
-            shape: Vec::from(shape),
+            shape,
             offset: 0,
-            len: len,
+            len,
 
             data: Arc::new(data),
 
@@ -77,7 +86,7 @@ impl<T: Clone + 'static> Tensor<T> {
         assert!(data.len() > 0);
 
         Self {
-            shape: vec![data.len()],
+            shape: Shape::from(data.len()),
             offset: 0,
             len: data.len(),
 
@@ -90,21 +99,22 @@ impl<T: Clone + 'static> Tensor<T> {
 }
 
 impl<T: Copy + 'static> Tensor<T> {
-    pub fn from_uninit(data: TensorUninit<T>, shape: &[usize]) -> Self {
+    pub fn from_uninit(data: TensorUninit<T>, shape: impl IntoShape) -> Self {
         Self::from_uninit_node(data, shape, NodeId::None)
     }
 
     pub fn from_uninit_node(
         data: TensorUninit<T>, 
-        shape: &[usize],
+        shape: impl IntoShape,
         node: NodeId,
     ) -> Self {
-        let len: usize = max(1, shape.iter().product());
+        let shape = IntoShape::into_shape(shape);
+        let len: usize = max(1, shape.len());
         
         //data.checkcast::<T>(len);
 
         Self {
-            shape: Vec::from(shape),
+            shape,
             offset: 0,
             len,
 
@@ -152,74 +162,43 @@ impl<T> Tensor<T> {
     }
 
     #[inline]
-    pub fn shape(&self) -> &Vec<usize> {
+    pub fn shape(&self) -> &Shape {
         &self.shape
     }
 
     #[inline]
     pub fn rank(&self) -> usize {
-        self.shape.len()
+        self.shape.rank()
     }
 
     #[inline]
     pub fn dim(&self, i: usize) -> usize {
-        self.shape[i]
+        self.shape.dim(i)
     }
 
     #[inline]
     pub fn dim_tail(&self) -> usize {
-        let len = self.shape.len();
-
-        if len > 0 {
-            self.shape[len - 1]
-        } else {
-            1
-        }
+        self.shape.dim_tail()
     }
 
     #[inline]
     pub fn cols(&self) -> usize {
-        let len = self.shape.len();
-
-        if len > 0 {
-            self.shape[len - 1]
-        } else {
-            1
-        }
+        self.shape.cols()
     }
 
     #[inline]
     pub fn rows(&self) -> usize {
-        let len = self.shape.len();
-
-        if len > 1 {
-            self.shape[len - 2]
-        } else {
-            0
-        }
+        self.shape.rows()
     }
 
     #[inline]
     pub fn batch_len(&self, base_rank: usize) -> usize {
-        let len = self.shape.len();
-
-        if len > base_rank {
-            self.shape[0..len - base_rank].iter().product()
-        } else {
-            1
-        }
+        self.shape.batch_len(base_rank)
     }
 
     #[inline]
     pub fn broadcast(&self, b: &Self) -> usize {
-        let a_shape = self.shape();
-        let b_shape = b.shape();
-        let min_rank = cmp::min(a_shape.len(), b.shape.len());
-        for i in 0..min_rank {
-            assert_eq!(a_shape[i], b_shape[i], "broadcast ranks must match");
-        }
-
-        if a_shape.len() < b_shape.len() { b.len() } else { self.len() }
+        self.shape.broadcast(b.shape())
     }
 
     #[inline]
@@ -229,22 +208,7 @@ impl<T> Tensor<T> {
         b: &Self, 
         b_min: usize
     ) -> usize {
-        let a_shape = self.shape();
-        let b_shape = b.shape();
-        let min_rank = cmp::min(
-            a_shape.len() - a_min, 
-            b.shape.len() - b_min
-        );
-
-        for i in 0..min_rank {
-            assert_eq!(a_shape[i + a_min], b_shape[i + b_min], "broadcast ranks must match");
-        }
-
-        if a_shape.len() - a_min < b_shape.len() - b_min { 
-            b_shape.iter().skip(b_min).product()
-        } else { 
-            a_shape.iter().skip(a_min).product()
-        }
+        self.shape.broadcast_min(a_min, b.shape(), b_min)
     }
 
     /*
@@ -275,12 +239,14 @@ impl<T> Tensor<T> {
     // Returns a possibly-wrapped pointer at the offset to support
     // broadcast
     #[inline]
-    pub unsafe fn as_wrap_slice(&self, offset: usize) -> *const T {
-        if offset < self.len {
-            self.data.as_ptr::<T>().add(self.offset + offset)
+    pub unsafe fn as_wrap_slice(&self, offset: usize) -> &[T] {
+        let offset = if offset < self.len {
+            offset
         } else {
-            self.data.as_ptr::<T>().add(self.offset + offset % self.len)
-        }
+            offset % self.len
+        };
+
+        self.data.as_sub_slice(self.offset + offset, self.len - offset)
     }
 
     #[inline]
@@ -299,15 +265,15 @@ impl<T> Tensor<T> {
         }
     }
 
-    pub fn subslice(&self, offset: usize, len: usize, shape: &[usize]) -> Self {
+    pub fn subslice(&self, offset: usize, len: usize, shape: Shape) -> Self {
         assert!(offset < self.len);
         assert!(offset + len < self.len);
 
-        let shape_len : usize = shape.iter().product();
+        let shape_len : usize = shape.len();
         assert!(shape_len == len || shape.len() == 0 && len == 1);
 
         Self {
-            shape: Vec::from(shape),
+            shape,
             offset: self.offset + offset,
             len,
             data: self.data.clone(),
@@ -416,7 +382,7 @@ fn fmt_tensor_rec<T:fmt::Debug>(
 
             let shape = tensor.shape();
             // TODO:
-            let stride : usize = shape[0..rank - 1].iter().product();
+            let stride : usize = shape.sublen(0..rank - 1);
             for j in 0..shape[rank - 1] {
                 if j > 0 {
                     write!(f, ",\n\n  ")?;
@@ -430,108 +396,85 @@ fn fmt_tensor_rec<T:fmt::Debug>(
     }
 }
 
-impl<S:Dtype + Copy> From<S> for Tensor<S> {
-    fn from(value: S) -> Self {
-        unsafe {
-            let mut data = TensorUninit::<S>::new(1);
-            data[0] = value;
-
-            Tensor::from_data(data.init(), &Vec::new(), NodeId::None)
-        }
+impl<T:Dtype> From<T> for Tensor<T> {
+    fn from(value: T) -> Self {
+        Tensor::from_vec(vec![value], Shape::scalar())
     }
 }
 
-impl From<Tensor<f32>> for f32 {
-    fn from(value: Tensor) -> Self {
-        value[0]
-    }
-}
-
-impl<D:Dtype> From<&Tensor<D>> for Tensor<D> {
-    fn from(value: &Tensor<D>) -> Self {
-        value.clone()
-    }
-}
-
-impl<T: 'static> From<Vec<T>> for Tensor<T> {
+impl<T:Dtype> From<Vec<T>> for Tensor<T> {
     fn from(value: Vec<T>) -> Self {
         let len = value.len();
 
-        Tensor::<T>::from_vec(value, &vec![len])
+        Tensor::<T>::from_vec(value, Shape::from(len))
     }
 }
 
-impl<T:Dtype + 'static, const N:usize> From<[T; N]> for Tensor<T> {
+impl<T:Dtype, const N:usize> From<[T; N]> for Tensor<T> {
     fn from(value: [T; N]) -> Self {
         let vec = Vec::<T>::from(value);
         let len = vec.len();
 
-        Tensor::from_vec(vec, &vec![len])
+        Tensor::from_vec(vec, Shape::from(len))
     }
 }
 
 impl<T, const N: usize, const M: usize> From<[[T; N]; M]> for Tensor<T>
 where
-    T: Dtype + Copy + 'static,
+    T: Dtype,
 {
     fn from(value: [[T; N]; M]) -> Self {
-        unsafe {
-            let mut data = TensorUninit::<T>::new(N * M);
+        let mut vec = Vec::<T>::new();
 
-            for (j, value) in value.iter().enumerate() {
-                for (i, value) in value.iter().enumerate() {
-                    data[j * N + i] = value.clone();
-                }
+        for value in value.iter() {
+            for value in value.iter() {
+                vec.push(value.clone());
             }
-
-            Tensor::from_data(data.init(), &vec!(M, N), NodeId::None)
         }
+
+        Tensor::from_vec(vec, Shape::from([M, N]))
     }
 }
 
 impl<T, const N: usize, const M: usize, const L: usize>
     From<[[[T; N]; M]; L]> for Tensor<T>
 where
-    T: Dtype + Copy + 'static
+    T: Dtype
 {
     fn from(value: [[[T; N]; M]; L]) -> Self {
-        unsafe {
-            let mut data = TensorUninit::<T>::new(L * M * N);
+        let mut vec = Vec::<T>::new();
 
-            for (l, value) in value.iter().enumerate() {
-                for (m, value) in value.iter().enumerate() {
-                    for (n, value) in value.iter().enumerate() {
-                      data[l * M * N + m * N + n] = value.clone();
-                    }
+        for value in value.iter() {
+            for value in value.iter() {
+                for value in value.iter() {
+                    vec.push(value.clone());
                 }
             }
-
-            Tensor::from_data(data.init(), &vec!(L, M, N), NodeId::None)
         }
+
+        Tensor::from_vec(vec, Shape::from([L, M, N]))
     }
 }
 
 impl<T, const N: usize, const M: usize, const L: usize, const K: usize>
     From<[[[[T; N]; M]; L]; K]> for Tensor<T>
 where
-    T:Dtype + Copy
+    T:Dtype
 {
     fn from(value: [[[[T; N]; M]; L]; K]) -> Self {
-        unsafe {
-            let mut data = TensorUninit::<T>::new(K * L * M * N);
+        let mut vec = Vec::<T>::new();
 
-            for (k, value) in value.iter().enumerate() {
-                for (l, value) in value.iter().enumerate() {
-                    for (m, value) in value.iter().enumerate() {
-                        for (n, value) in value.iter().enumerate() {
-                            data[k * L * M * N + l * N * M + m * N + n] = *value;
-                        }
+        for value in value {
+            for value in value {
+                for value in value {
+                    for value in value {
+                        vec.push(value.clone())
                     }
                 }
             }
-
-            Tensor::from_data(data.init(), &vec!(N, M, L, K), NodeId::None)
         }
+
+        Tensor::from_vec(vec, Shape::from([K, L, M, N]))
     }
 }
 
@@ -541,7 +484,7 @@ impl<T:Dtype> FromIterator<T> for Tensor<T> {
         let len = vec.len();
         assert!(len > 0);
 
-        Tensor::from_vec(vec, &vec![len])
+        Tensor::from_vec(vec, Shape::from(len))
     }
 }
 
@@ -576,10 +519,7 @@ impl<T:Dtype + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
                 }
             }
 
-            let mut shape = shape.clone();
-            shape.push(n);
-
-            Tensor::from_uninit(data, &shape)
+            Tensor::from_uninit(data, shape.push(n))
         }
     }
 }
@@ -621,6 +561,256 @@ impl<T: 'static> From<&Tensor<T>> for RawTensor {
     }
 }
 
+impl Shape {
+    pub fn scalar() -> Self {
+        Self {
+            dims: Vec::new()
+        }
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.dims.iter().product()
+    }
+
+    #[inline]
+    pub fn rank(&self) -> usize {
+        self.dims.len()
+    }
+
+    #[inline]
+    pub fn dim(&self, i: usize) -> usize {
+        self.dims[i]
+    }
+
+    #[inline]
+    pub fn dim_tail(&self) -> usize {
+        let len = self.dims.len();
+
+        if len > 0 {
+            self.dims[len - 1]
+        } else {
+            1
+        }
+    }
+
+    #[inline]
+    pub fn cols(&self) -> usize {
+        let len = self.dims.len();
+
+        if len > 0 {
+            self.dims[len - 1]
+        } else {
+            1
+        }
+    }
+
+    #[inline]
+    pub fn rows(&self) -> usize {
+        let len = self.dims.len();
+
+        if len > 1 {
+            self.dims[len - 2]
+        } else {
+            0
+        }
+    }
+
+    #[inline]
+    pub fn batch_len(&self, base_rank: usize) -> usize {
+        let len = self.dims.len();
+
+        if len > base_rank {
+            self.dims[0..len - base_rank].iter().product()
+        } else {
+            1
+        }
+    }
+
+    pub fn broadcast(&self, b: &Shape) -> usize {
+        let min_rank = cmp::min(self.len(), b.len());
+        for i in 0..min_rank {
+            assert_eq!(self.dims[i], b.dims[i], "broadcast ranks must match");
+        }
+
+        if self.len() < b.len() { b.len() } else { self.len() }
+    }
+
+    pub fn broadcast_min(
+        &self, 
+        a_min: usize, 
+        b: &Shape, 
+        b_min: usize
+    ) -> usize {
+        let min_rank = cmp::min(
+            self.len() - a_min, 
+            b.len() - b_min
+        );
+
+        for i in 0..min_rank {
+            assert_eq!(self.dims[i + a_min], b.dims[i + b_min], "broadcast ranks must match");
+        }
+
+        if self.len() - a_min < b.len() - b_min { 
+            b.dims.iter().skip(b_min).product()
+        } else { 
+            self.dims.iter().skip(a_min).product()
+        }
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[usize] {
+        self.dims.as_slice()
+    }
+
+    pub fn push(&self, dim: usize) -> Self {
+        let mut dims = self.dims.clone();
+
+        dims.push(dim);
+
+        Self {
+            dims
+        }
+    }
+
+    pub fn insert(&self, dim: usize) -> Self {
+        let mut dims = self.dims.clone();
+
+        dims.insert(0, dim);
+
+        Self {
+            dims
+        }
+    }
+
+    #[inline]
+    pub fn sublen<I>(&self, range: I) -> usize
+    where
+        I: SliceIndex<[usize], Output=[usize]>
+     {
+        self.dims[range].iter().product()
+    }
+
+    #[inline]
+    pub fn as_subslice<I>(&self, range: I) -> &[usize]
+    where
+        I: SliceIndex<[usize], Output=[usize]>
+    {
+        &self.dims[range]
+    }
+
+    #[inline]
+    pub fn slice<I>(&self, range: I) -> Self
+    where
+        I: SliceIndex<[usize], Output=[usize]>
+    {
+        Self {
+            dims: Vec::from(&self.dims[range])
+        }
+    }
+}
+
+impl From<usize> for Shape {
+    fn from(value: usize) -> Self {
+        Shape {
+            dims: vec![value]
+        }
+    }
+}
+
+impl From<&[usize]> for Shape {
+    fn from(dims: &[usize]) -> Self {
+        Shape {
+            dims: dims.to_vec(),
+        }
+    }
+}
+
+impl<const N: usize> From<[usize; N]> for Shape {
+    fn from(dims: [usize; N]) -> Self {
+        Shape {
+            dims: dims.to_vec(),
+        }
+    }
+}
+
+impl From<Vec<usize>> for Shape {
+    fn from(dims: Vec<usize>) -> Self {
+        Shape {
+            dims: dims,
+        }
+    }
+}
+
+impl Index<usize> for Shape {
+    type Output = usize;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.dims[index]
+    }
+}
+
+impl IntoShape for Shape {
+    fn into_shape(self) -> Shape {
+        self
+    }
+}
+
+impl IntoShape for &Shape {
+    fn into_shape(self) -> Shape {
+        self.clone()
+    }
+}
+
+impl IntoShape for usize {
+    fn into_shape(self) -> Shape {
+        Shape::from(self)
+    }
+}
+
+impl<const N: usize> IntoShape for [usize; N] {
+    fn into_shape(self) -> Shape {
+        Shape::from(self)
+    }
+}
+
+impl<const N: usize> IntoShape for &[usize; N] {
+    fn into_shape(self) -> Shape {
+        Shape::from(self.clone())
+    }
+}
+
+impl IntoShape for &[usize] {
+    fn into_shape(self) -> Shape {
+        Shape::from(self)
+    }
+}
+
+impl IntoShape for Vec<usize> {
+    fn into_shape(self) -> Shape {
+        Shape::from(self)
+    }
+}
+
+impl IntoShape for &Vec<usize> {
+    fn into_shape(self) -> Shape {
+        Shape::from(self.clone())
+    }
+}
+
+/*
+impl<I> Index<I> for Shape 
+where
+    I:SliceIndex<[usize], Output=Vec<usize>>
+{
+    type Output = usize;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.dim(index)
+    }
+}
+*/
+
 //trait Dtype : Copy {}
 impl Dtype for f32 {}
 impl Dtype for i32 {}
@@ -629,7 +819,8 @@ impl Dtype for String {}
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor};
+    use crate::{tensor::{tensor::Shape}};
+    use crate::tensor;
 
     use super::{Tensor};
 
@@ -720,7 +911,7 @@ mod test {
         let t0 : Tensor = 0.25.into();
 
         assert_eq!(t0.len(), 1);
-        assert_eq!(t0.shape(), &[]);
+        assert_eq!(t0.shape(), &Shape::scalar());
         assert_eq!(t0.get(0), Some(&0.25));
     }
 
@@ -730,14 +921,14 @@ mod test {
         assert_eq!(t.len(), 1);
         assert_eq!(t[0], 10.5);
         assert_eq!(t.as_slice(), &[10.5]);
-        assert_eq!(t.shape(), &[]);
+        assert_eq!(t.shape(), &Shape::scalar());
     }
 
     #[test]
     fn tensor_from_scalar_iterator() {
         let t0 = Tensor::from_iter(0..6);
         assert_eq!(t0.len(), 6);
-        assert_eq!(t0.shape(), &[6]);
+        assert_eq!(t0.shape().as_slice(), &[6]);
         for i in 0..6 {
             assert_eq!(t0.get(i), Some(&i));
         }
@@ -747,7 +938,7 @@ mod test {
     fn tensor_from_tensor_slice() {
         let t0 = Tensor::from([tensor!(2.), tensor!(1.), tensor!(3.)]);
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape(), &[3]);
+        assert_eq!(t0.shape().as_slice(), &[3]);
         assert_eq!(t0.get(0), Some(&2.));
         assert_eq!(t0.get(1), Some(&1.));
         assert_eq!(t0.get(2), Some(&3.));
@@ -758,7 +949,7 @@ mod test {
             tensor!([3., 4.])]
         );
         assert_eq!(t1.len(), 6);
-        assert_eq!(t1.shape(), &[2, 3]);
+        assert_eq!(t1.shape().as_slice(), &[2, 3]);
         assert_eq!(t1[0], 1.);
         assert_eq!(t1[1], 2.);
         assert_eq!(t1[2], 2.);
@@ -773,7 +964,7 @@ mod test {
 
         let t0 = Tensor::from(vec.as_slice());
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape(), &[3]);
+        assert_eq!(t0.shape().as_slice(), &[3]);
         assert_eq!(t0.get(0), Some(&2.));
         assert_eq!(t0.get(1), Some(&1.));
         assert_eq!(t0.get(2), Some(&3.));
@@ -788,7 +979,7 @@ mod test {
         let t1 = Tensor::from(ptr);
 
         assert_eq!(t1.len(), 6);
-        assert_eq!(t1.shape(), &[2, 3]);
+        assert_eq!(t1.shape().as_slice(), &[2, 3]);
         assert_eq!(t1[0], 1.);
         assert_eq!(t1[1], 2.);
         assert_eq!(t1[2], 2.);
@@ -799,7 +990,7 @@ mod test {
         let t1 = Tensor::from(&vec);
 
         assert_eq!(t1.len(), 6);
-        assert_eq!(t1.shape(), &[2, 3]);
+        assert_eq!(t1.shape().as_slice(), &[2, 3]);
         assert_eq!(t1[0], 1.);
         assert_eq!(t1[1], 2.);
         assert_eq!(t1[2], 2.);
@@ -811,7 +1002,7 @@ mod test {
     #[test]
     fn shape_from_zeros() {
         let t = Tensor::zeros(&[3, 2, 4, 5]);
-        assert_eq!(t.shape(), &[3, 2, 4, 5]);
+        assert_eq!(t.shape().as_slice(), &[3, 2, 4, 5]);
         assert_eq!(t.rank(), 4);
         assert_eq!(t.cols(), 5);
         assert_eq!(t.rows(), 4);
