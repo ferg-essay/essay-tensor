@@ -94,7 +94,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
         let chunk = self.1;
         let n_chunks = inner_len / chunk;
     
-        let o_data = unsafe {
+        unsafe {
             let mut o_data = TensorUninit::<f32>::new(len);
 
             let op = self.op();
@@ -129,10 +129,8 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
                 }
             }
 
-            o_data.init()
-        };
-    
-        Tensor::new_node(o_data, shape.clone(), node)
+            Tensor::from_uninit_node(o_data, &shape, node)
+        }
     }
 
     fn back(
@@ -165,7 +163,7 @@ impl<Op:Softmax> BackOp for SoftmaxCpu<Op> {
         
         let len = a.len();
         
-        let data = unsafe {
+        unsafe {
             let mut out = TensorUninit::<f32>::new(len);
 
             let op = &self.0;
@@ -180,11 +178,8 @@ impl<Op:Softmax> BackOp for SoftmaxCpu<Op> {
                 out[i] = df_dx * prev_df;
             }
     
-            out.init()
-        };
-        
-        let shape = a.shape().clone();
-        Tensor::new(data, &shape)
+            Tensor::from_uninit(out, &a.shape())
+        }
     }
 }
 

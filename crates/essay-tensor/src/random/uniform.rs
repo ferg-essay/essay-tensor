@@ -30,7 +30,7 @@ pub fn uniform<const N:usize>(
             }
         };
 
-        Tensor::new(data.init(), &shape)
+        Tensor::from_uninit(data, &shape)
     }
 }
 

@@ -16,8 +16,15 @@ impl<D:Dtype + Copy> Tensor<D> {
         let len = self.broadcast_min(1, b, 1);
         let inner_size = self.dim_tail();
         let batch = len / inner_size;
+
+        let shape = self.shape();
+        let o_shape: Vec<usize> = if shape.len() > 0 {
+            shape[1..].iter().map(|d| *d).collect()
+        } else {
+            Vec::new()
+        };
     
-        let o_data = unsafe {
+        unsafe {
             let mut o_data = TensorUninit::<D>::new(len);
 
             let o_ptr = o_data.as_mut_ptr();
@@ -39,16 +46,7 @@ impl<D:Dtype + Copy> Tensor<D> {
                 *o_ptr.add(i) = acc;
             }
 
-            o_data.init()
-        };
-    
-        let shape = self.shape();
-        let o_shape: Vec<usize> = if shape.len() > 0 {
-            shape[1..].iter().map(|d| *d).collect()
-        } else {
-            Vec::new()
-        };
-
-        Tensor::new(o_data, &o_shape)
+            Tensor::from_uninit(o_data, &o_shape)
+        }
     }
 }

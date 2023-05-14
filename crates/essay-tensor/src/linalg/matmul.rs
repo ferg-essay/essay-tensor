@@ -75,7 +75,7 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
         o_shape[0] = m;
         o_shape[1] = n;
 
-        Tensor::new(out.init(), &o_shape)
+        Tensor::from_uninit(out, &o_shape)
     }
 }
 

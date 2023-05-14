@@ -54,7 +54,7 @@ pub fn outer_product(
 
         //.next_binop(&b, out.init(), o_shape, OuterProduct)
         //todo!()
-        Tensor::new(out.init(), &o_shape)
+        Tensor::from_uninit(out, &o_shape)
     }
 }
 

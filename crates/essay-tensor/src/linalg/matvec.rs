@@ -88,7 +88,7 @@ pub fn matvec_t(
 
         let mut o_shape = x.shape().clone();
         o_shape[0] = o_size;
-        Tensor::new(out.init(), &o_shape)
+        Tensor::from_uninit(out, &o_shape)
         //a.next_binop(&b, out.init(), o_shape, Matvec)
         //todo!()
     }

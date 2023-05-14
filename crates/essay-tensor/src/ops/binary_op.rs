@@ -74,7 +74,7 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
                 a.shape().clone() 
             };
 
-            Tensor::new_node(out.init(), shape, node)
+            Tensor::from_uninit_node(out, &shape, node)
         }
     }
 
@@ -108,7 +108,7 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDx<Op> {
         let y = &args[1];
         let len = x.len();
         
-        let data = unsafe {
+        unsafe {
             let mut data = TensorUninit::<f32>::new(len);
 
             let x_ptr = x.as_ptr();
@@ -129,11 +129,8 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDx<Op> {
                 *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            data.init()
-        };
-        
-        let shape = x.shape().clone();
-        Tensor::new(data, &shape)
+            Tensor::from_uninit(data, &x.shape())
+        }
     }
 }
 
@@ -151,7 +148,7 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDy<Op> {
         let y = &args[1];
         let len = x.len();
         
-        let data = unsafe {
+        unsafe {
             let mut out = TensorUninit::<f32>::new(len);
 
             let x_ptr = x.as_ptr();
@@ -172,11 +169,8 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDy<Op> {
                 *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            out.init()
-        };
-        
-        let shape = x.shape().clone();
-        Tensor::new(data, &shape)
+            Tensor::from_uninit(out, &x.shape())
+        }
     }
 }
 

@@ -5,7 +5,7 @@ mod tensor;
 mod bundle;
 
 pub use data::{
-    TensorData, TensorUninit,
+    TensorUninit,
 };
 
 pub use bundle::{

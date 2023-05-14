@@ -4,7 +4,7 @@ use std::{ptr::{NonNull, self}, alloc::Layout, alloc,
     slice::SliceIndex, any::TypeId, marker::PhantomData
 };
 
-pub struct TensorData {
+pub(crate) struct TensorData {
     type_id: TypeId,
     len: usize,
     // item_size: usize,
@@ -205,7 +205,7 @@ impl<T:'static + Copy> TensorUninit<T> {
         }
     }
 
-    pub unsafe fn init(self) -> TensorData {
+    pub(crate) unsafe fn init(self) -> TensorData {
         TensorData {
             type_id: self.type_id,
             len: self.len,
@@ -315,7 +315,7 @@ mod test {
         let ptr = {
             let vec = vec![Test::new(2)];
             let ptr = vec[0].ptr.clone();
-            let _tensor = Tensor::from_vec(vec);
+            let _tensor = Tensor::from_vec(vec, &[1]);
 
             ptr
         };
@@ -328,7 +328,7 @@ mod test {
         let ptr = {
             let vec = vec![Test::new(2)];
             let ptr = vec[0].ptr.clone();
-            let _tensor = Tensor::from_vec(vec);
+            let _tensor = Tensor::from_vec(vec, &[1]);
             let _tensor2 = _tensor.clone();
 
             ptr

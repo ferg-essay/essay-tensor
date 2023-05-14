@@ -40,7 +40,21 @@ pub trait IntoTensor<T> {
 }
 
 impl<T: 'static> Tensor<T> {
-    pub fn new(data: TensorData, shape: &[usize]) -> Self {
+    pub fn from_vec(vec: Vec<T>, shape: &[usize]) -> Self {
+        let len = vec.len();
+
+        assert!(len > 0);
+
+        unsafe {
+            Tensor::from_data(TensorData::from_vec(vec), shape, NodeId::None)
+        }
+    }
+
+    pub(crate) unsafe fn from_data(
+        data: TensorData, 
+        shape: &[usize], 
+        node: NodeId
+    ) -> Self {
         let len: usize = max(1, shape.iter().product());
         
         data.checkcast::<T>(len);
@@ -52,38 +66,9 @@ impl<T: 'static> Tensor<T> {
 
             data: Arc::new(data),
 
-            node_id: NodeId::None,
-            marker: PhantomData,
-        }
-    }
-
-    pub fn new_node(
-        data: TensorData, 
-        shape: Vec<usize>,
-        node: NodeId,
-    ) -> Self {
-        let len: usize = max(1, shape.iter().product());
-        
-        data.checkcast::<T>(len);
-
-        Self {
-            shape,
-            offset: 0,
-            len,
-
-            data: Arc::new(data),
-
             node_id: node,
             marker: PhantomData,
         }
-    }
-
-    pub fn from_vec(vec: Vec<T>) -> Self {
-        let len = vec.len();
-
-        assert!(len > 0);
-
-        Tensor::new(TensorData::from_vec(vec), &vec![len])
     }
 }
 
@@ -99,6 +84,33 @@ impl<T: Clone + 'static> Tensor<T> {
             data: Arc::new(TensorData::from_slice(data)),
 
             node_id: NodeId::None,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<T: Copy + 'static> Tensor<T> {
+    pub fn from_uninit(data: TensorUninit<T>, shape: &[usize]) -> Self {
+        Self::from_uninit_node(data, shape, NodeId::None)
+    }
+
+    pub fn from_uninit_node(
+        data: TensorUninit<T>, 
+        shape: &[usize],
+        node: NodeId,
+    ) -> Self {
+        let len: usize = max(1, shape.iter().product());
+        
+        //data.checkcast::<T>(len);
+
+        Self {
+            shape: Vec::from(shape),
+            offset: 0,
+            len,
+
+            data: Arc::new(unsafe { data.init() }),
+
+            node_id: node,
             marker: PhantomData,
         }
     }
@@ -424,7 +436,7 @@ impl<S:Dtype + Copy> From<S> for Tensor<S> {
             let mut data = TensorUninit::<S>::new(1);
             data[0] = value;
 
-            Tensor::new(data.init(), &Vec::new())
+            Tensor::from_data(data.init(), &Vec::new(), NodeId::None)
         }
     }
 }
@@ -443,15 +455,18 @@ impl<D:Dtype> From<&Tensor<D>> for Tensor<D> {
 
 impl<T: 'static> From<Vec<T>> for Tensor<T> {
     fn from(value: Vec<T>) -> Self {
-        Tensor::<T>::from_vec(value)
+        let len = value.len();
+
+        Tensor::<T>::from_vec(value, &vec![len])
     }
 }
 
 impl<T:Dtype + 'static, const N:usize> From<[T; N]> for Tensor<T> {
     fn from(value: [T; N]) -> Self {
         let vec = Vec::<T>::from(value);
+        let len = vec.len();
 
-        Tensor::from_vec(vec)
+        Tensor::from_vec(vec, &vec![len])
     }
 }
 
@@ -469,7 +484,7 @@ where
                 }
             }
 
-            Tensor::new(data.init(), &vec!(M, N))
+            Tensor::from_data(data.init(), &vec!(M, N), NodeId::None)
         }
     }
 }
@@ -491,7 +506,7 @@ where
                 }
             }
 
-            Tensor::new(data.init(), &vec!(L, M, N))
+            Tensor::from_data(data.init(), &vec!(L, M, N), NodeId::None)
         }
     }
 }
@@ -515,7 +530,7 @@ where
                 }
             }
 
-            Tensor::new(data.init(), &vec!(N, M, L, K))
+            Tensor::from_data(data.init(), &vec!(N, M, L, K), NodeId::None)
         }
     }
 }
@@ -523,9 +538,10 @@ where
 impl<T:Dtype> FromIterator<T> for Tensor<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let vec : Vec<T> = Vec::from_iter(iter);
-        assert!(vec.len() > 0);
+        let len = vec.len();
+        assert!(len > 0);
 
-        Tensor::from_vec(vec)
+        Tensor::from_vec(vec, &vec![len])
     }
 }
 
@@ -549,7 +565,7 @@ impl<T:Dtype + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
             assert_eq!(shape, value.shape(), "tensor shapes must match");
         }
 
-        let data = unsafe {
+        unsafe {
             let mut data = TensorUninit::<T>::new(sublen * n);
 
             for j in 0..n {
@@ -560,13 +576,11 @@ impl<T:Dtype + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
                 }
             }
 
-            data.init()
-        };
+            let mut shape = shape.clone();
+            shape.push(n);
 
-        let mut shape = shape.clone();
-        shape.push(n);
-
-        Tensor::new(data, &shape)
+            Tensor::from_uninit(data, &shape)
+        }
     }
 }
 

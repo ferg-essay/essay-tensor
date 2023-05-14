@@ -64,7 +64,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         let len = o_shape.iter().product();
         let inner_len = a.dim_tail();
     
-        let o_data = unsafe {
+        unsafe {
             let mut o_data = TensorUninit::<f32>::new(len);
 
             let a_ptr = a.as_ptr();
@@ -85,10 +85,9 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
                 *o_ptr.add(i) = v;
             }
 
-            o_data.init()
-        };
+            Tensor::from_uninit_node(o_data, &o_shape, node)
+        }
     
-        Tensor::new_node(o_data, o_shape, node)
     }
 
     fn back(
@@ -121,7 +120,7 @@ impl<Op:Fold> BackOp for FoldCpu<Op> {
         
         let len = a.len();
         
-        let data = unsafe {
+        unsafe {
             let out = TensorUninit::<f32>::new(len);
 
             let op = &self.0;
@@ -137,10 +136,7 @@ impl<Op:Fold> BackOp for FoldCpu<Op> {
                 *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            out.init()
-        };
-        
-        let shape = a.shape().clone();
-        Tensor::new(data, &shape)
+            Tensor::from_uninit(out, &a.shape())
+        }
     }
 }

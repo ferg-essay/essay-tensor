@@ -12,7 +12,7 @@ pub fn fill<D:Dtype + Copy>(fill: D, shape: &[usize]) -> Tensor<D> {
             data[i] = fill;
         }
 
-        Tensor::new(data.init(), shape)
+        Tensor::from_uninit(data, shape)
     }
 }
 

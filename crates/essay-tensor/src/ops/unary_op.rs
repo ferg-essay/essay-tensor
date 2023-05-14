@@ -41,7 +41,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
         let a = args[0];
         let len = a.len();
     
-        let data = unsafe {
+        unsafe {
             let mut out = TensorUninit::<f32>::new(len);
     
             let op = &self.0;
@@ -52,11 +52,8 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
                 *o_ptr.add(i) = op.f(*a_ptr.add(i));
             }
     
-            out.init()
-        };
-        
-        let shape = a.shape().clone();
-        Tensor::new_node(data, shape, node)
+            Tensor::from_uninit_node(out, &a.shape(), node)
+        }
     }
 
     fn back(
@@ -86,7 +83,7 @@ impl<Op:UnaryKernel<f32>> BackOp for UopCpu<Op> {
         let tensor = &args[0];
         let len = tensor.len();
         
-        let data = unsafe {
+        unsafe {
             let mut out = TensorUninit::<f32>::new(len);
 
             let ptr = tensor.as_ptr();
@@ -102,10 +99,7 @@ impl<Op:UnaryKernel<f32>> BackOp for UopCpu<Op> {
                 *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            out.init()
-        };
-        
-        let shape = tensor.shape().clone();
-        Tensor::new(data, &shape)
+            Tensor::from_uninit(out, &tensor.shape())
+        }
     }
 }

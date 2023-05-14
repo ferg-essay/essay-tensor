@@ -178,8 +178,8 @@ pub fn trivial_exploded(src: &str) {
     let s1a = Instant::now();
 
     //unsafe {
-        kernel.write(&context, 0, a.data().as_slice());
-        kernel.write(&context, 1, b.data().as_slice());
+        kernel.write(&context, 0, a.as_slice());
+        kernel.write(&context, 1, b.as_slice());
     //}
 
     /*
@@ -209,7 +209,7 @@ pub fn trivial_exploded(src: &str) {
     let out = unsafe {
         let mut c = TensorUninit::<f32>::new(len);
         kernel.read(&context, 2, c.as_mut_slice());
-        c.init()
+        Tensor::from_uninit(c, &vec![len])
     };
 
     let t1 = s1.elapsed();
