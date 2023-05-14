@@ -208,7 +208,7 @@ pub fn trivial_exploded(src: &str) {
 
     let out = unsafe {
         let mut c = TensorUninit::<f32>::new(len);
-        kernel.read(&context, 2, c.as_slice_mut());
+        kernel.read(&context, 2, c.as_mut_slice());
         c.init()
     };
 

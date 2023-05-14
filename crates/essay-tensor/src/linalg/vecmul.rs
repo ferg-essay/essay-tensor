@@ -68,13 +68,13 @@ unsafe fn naive_outer_product_f32(
     b: &Tensor<f32>,
     b_start: usize,
 ) {
-    let a_data = a.data();
-    let b_data = b.data();
+    let a_ptr = a.as_ptr();
+    let b_ptr = b.as_ptr();
 
     for row in 0..o_rows {
         for col in 0..o_cols {
-            let v = a_data.get_unchecked(a_start + col)
-                    * b_data.get_unchecked(b_start + row);
+            let v = *a_ptr.add(a_start + col)
+                    * *b_ptr.add(b_start + row);
 
             out.set_unchecked(out_start + row * o_cols + col, v);
         }

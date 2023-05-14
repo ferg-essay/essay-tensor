@@ -45,7 +45,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
             let mut out = TensorUninit::<f32>::new(len);
     
             let op = &self.0;
-            let a_ptr = a.data().as_ptr();
+            let a_ptr = a.as_ptr();
             let o_ptr = out.as_mut_ptr();
         
             for i in 0..len {
@@ -84,23 +84,25 @@ impl<Op:UnaryKernel<f32>> BackOp for UopCpu<Op> {
         prev: &Tensor,
     ) -> Tensor {
         let tensor = &args[0];
-        let buffer = tensor.data();
-        let prev = prev.data();
-        let len = buffer.len();
+        let len = tensor.len();
         
         let data = unsafe {
-            let mut data = TensorUninit::<f32>::new(len);
+            let mut out = TensorUninit::<f32>::new(len);
 
+            let ptr = tensor.as_ptr();
+            let prev = prev.as_ptr();
+            let o_ptr = out.as_mut_ptr();
+    
             let op = &self.0;
         
             for i in 0..len {
-                let df_dx = op.df_dx(buffer.get_unchecked(i));
-                let prev_df = prev.get_unchecked(i);
+                let df_dx = op.df_dx(*ptr.add(i));
+                let prev_df = *prev.add(i);
 
-                data.set_unchecked(i, df_dx * prev_df);
+                *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            data.init()
+            out.init()
         };
         
         let shape = tensor.shape().clone();

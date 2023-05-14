@@ -84,7 +84,6 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
         assert!(args.len() == 1);
 
         let a = args[0];
-        let a_data = a.data();
 
         let shape = a.shape();
 
@@ -102,7 +101,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
     
             for batch in 0..batch {
                 for n in 0..n_chunks {
-                    let a_ptr = a_data.as_ptr().add(batch * inner_len + n * chunk);
+                    let a_ptr = a.as_ptr().add(batch * inner_len + n * chunk);
                     let o_ptr = o_data.as_mut_ptr().add(batch * inner_len + n * chunk);
         
                     let mut sum = 0.;
@@ -161,12 +160,10 @@ impl<Op:Softmax> BackOp for SoftmaxCpu<Op> {
         prev: &Tensor,
     ) -> Tensor {
         let a = &args[0];
-        let a_data = a.data();
-        let prev = prev.data();
 
-        assert_eq!(a_data.len(), prev.len());
+        assert_eq!(a.len(), prev.len());
         
-        let len = a_data.len();
+        let len = a.len();
         
         let data = unsafe {
             let mut out = TensorUninit::<f32>::new(len);

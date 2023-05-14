@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorData};
+use crate::{Tensor};
 
 
 pub trait TensorSlice {
@@ -10,12 +10,16 @@ impl TensorSlice for usize {
         assert!(tensor.rank() > 0);
         assert!(self < tensor.dim(0));
 
-        let size : usize = tensor.shape()[1..].iter().product();
-        let slice = tensor.data().as_wrap_slice(self * size .. (self + 1) * size);
+        let len : usize = tensor.shape()[1..].iter().product();
+        /* 
+        let slice = tensor.as_wrap_slice(self * size .. (self + 1) * size);
 
         let data = TensorData::<T>::from(slice);
+        */
 
-        Tensor::<T>::new(data, &tensor.shape()[1..])
+        tensor.subslice(self * len, len, &tensor.shape()[1..])
+
+        //Tensor::<T>::new(data, &tensor.shape()[1..])
     }
 }
 
@@ -28,11 +32,14 @@ impl TensorSlice for (usize, usize) {
         let size : usize = tensor.shape()[2..].iter().product();
         let offset = (self.0 * tensor.dim(1) + self.1) * size;
 
+        /*
         let slice = tensor.data().as_wrap_slice(offset .. offset + size);
 
         let data = TensorData::<T>::from(slice);
 
         Tensor::<T>::new(data, &tensor.shape()[2..])
+        */
+        tensor.subslice(offset, size, &tensor.shape()[2..])
     }
 }
 

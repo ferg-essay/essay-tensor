@@ -64,8 +64,8 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
         let out = TensorUninit::<f32>::new(o_size * batch_len);
 
         for batch in 0..batch_len {
-            let a_ptr = a.data().as_ptr().add(a_size * batch);
-            let b_ptr = b.data().as_ptr().add(b_size * batch);
+            let a_ptr = a.as_ptr().add(a_size * batch);
+            let b_ptr = b.as_ptr().add(b_size * batch);
             let c_ptr = out.as_ptr().add(o_size * batch);
         
             transpose.sgemm(a_dim, b_dim, a_ptr, b_ptr, c_ptr);

@@ -7,7 +7,7 @@ macro_rules! tensor {
         Tensor::<f32>::from([$([$($x),*]),*])
     };
     ([ $( $x:expr),* $(,)?]) => {
-        Tensor::<f32>::from(&[$($x),*])
+        Tensor::<f32>::from([$($x),*])
     };
     ( $x:expr ) => {
         Tensor::<f32>::from($x)
@@ -23,7 +23,7 @@ macro_rules! tf32 {
         Tensor::<f32>::from([$([$($x),*]),*])
     };
     ([ $( $x:expr),* $(,)?]) => {
-        Tensor::<f32>::from(&[$($x),*])
+        Tensor::<f32>::from([$($x),*])
     };
     ( $x:expr ) => {
         Tensor::<f32>::from($x)

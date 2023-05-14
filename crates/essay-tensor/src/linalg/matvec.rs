@@ -76,9 +76,9 @@ pub fn matvec_t(
             sgemm(
                 1, x_dim[0], o_size,
                 1.,
-                x.data().as_wrap_ptr(block * x_size),
+                x.as_wrap_ptr(block * x_size),
                 x_dim[0], 1,
-                a.data().as_wrap_ptr(block * a_size),
+                a.as_wrap_ptr(block * a_size),
                 1, a_dim[0],
                 0.,
                 out.as_mut_ptr().add(block * o_size),

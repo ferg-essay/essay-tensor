@@ -49,19 +49,16 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
 
         assert_eq!(a.dim_tail(), b.dim_tail());
     
-        let a_data = a.data();
-        let b_data = b.data();
-    
         unsafe {
-            let mut data = TensorUninit::<f32>::new(size);
+            let mut out = TensorUninit::<f32>::new(size);
 
             let op = self.0;
 
-            let o_ptr = data.as_mut_ptr();
+            let o_ptr = out.as_mut_ptr();
 
             for n in 0..batch {
-                let a_ptr = a_data.as_wrap_ptr(n * inner);
-                let b_ptr = b_data.as_wrap_ptr(n * inner);
+                let a_ptr = a.as_wrap_ptr(n * inner);
+                let b_ptr = b.as_wrap_ptr(n * inner);
 
                 for i in 0..inner {
                     *o_ptr.add(i) = op.f(
@@ -77,7 +74,7 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
                 a.shape().clone() 
             };
 
-            Tensor::new_node(data.init(), shape, node)
+            Tensor::new_node(out.init(), shape, node)
         }
     }
 
@@ -108,25 +105,28 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDx<Op> {
         prev: &Tensor,
     ) -> Tensor {
         let x = &args[0];
-        let x_ptr = x.data();
         let y = &args[1];
-        let y_ptr = y.data();
-        let prev = prev.data();
-        let len = x_ptr.len();
+        let len = x.len();
         
         let data = unsafe {
             let mut data = TensorUninit::<f32>::new(len);
 
+            let x_ptr = x.as_ptr();
+            let y_ptr = y.as_ptr();
+            let prev = prev.as_ptr();
+
+            let o_ptr = data.as_mut_ptr();
+
             let op = &self.0;
         
             for i in 0..len {
-                let x = x_ptr.get_unchecked(i);
-                let y = y_ptr.get_unchecked(i);
+                let x = *x_ptr.add(i);
+                let y = *y_ptr.add(i);
 
                 let df_dx = op.df_dx(x, y);
-                let prev_df = prev.get_unchecked(i);
+                let prev_df = *prev.add(i);
 
-                data.set_unchecked(i, df_dx * prev_df);
+                *o_ptr.add(i) = df_dx * prev_df;
             }
     
             data.init()
@@ -148,28 +148,31 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDy<Op> {
         prev: &Tensor,
     ) -> Tensor {
         let x = &args[0];
-        let x_ptr = x.data();
         let y = &args[1];
-        let y_ptr = y.data();
-        let prev = prev.data();
-        let len = x_ptr.len();
+        let len = x.len();
         
         let data = unsafe {
-            let mut data = TensorUninit::<f32>::new(len);
+            let mut out = TensorUninit::<f32>::new(len);
 
+            let x_ptr = x.as_ptr();
+            let y_ptr = y.as_ptr();
+            let prev = prev.as_ptr();
+
+            let o_ptr = out.as_mut_ptr();
+    
             let op = &self.0;
         
             for i in 0..len {
-                let x = x_ptr.get_unchecked(i);
-                let y = y_ptr.get_unchecked(i);
+                let x = *x_ptr.add(i);
+                let y = *y_ptr.add(i);
 
                 let df_dx = op.df_dy(x, y);
-                let prev_df = prev.get_unchecked(i);
+                let prev_df = *prev.add(i);
 
-                data.set_unchecked(i, df_dx * prev_df);
+                *o_ptr.add(i) = df_dx * prev_df;
             }
     
-            data.init()
+            out.init()
         };
         
         let shape = x.shape().clone();

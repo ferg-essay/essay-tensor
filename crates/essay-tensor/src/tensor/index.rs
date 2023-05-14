@@ -9,7 +9,9 @@ impl<T> Index<usize> for Tensor<T> {
     fn index(&self, index: usize) -> &Self::Output {
         assert!(index < self.len());
 
-        &self.data()[index]
+        unsafe {
+            self.as_ptr().add(self.offset() + index).as_ref().unwrap()
+        }
     }
 }
 
@@ -27,9 +29,9 @@ impl<T> Index<(usize, usize)> for Tensor<T> {
         let offset =
             index.1 + shape[len - 1] * index.0;
 
-        assert!(offset < self.data().len());
+        assert!(offset < self.len());
 
-        &self.data()[offset]
+        &self[offset]
     }
 }
 
@@ -50,9 +52,9 @@ impl<T> Index<(usize, usize, usize)> for Tensor<T> {
                 index.1 + shape[len - 2] * index.0
             );
 
-        assert!(offset < self.data().len());
+        // assert!(offset < self.len());
 
-        &self.data()[offset]
+        &self[offset]
     }
 }
 
@@ -76,9 +78,9 @@ impl<T> Index<(usize, usize, usize, usize)> for Tensor<T> {
                 )
             );
 
-        assert!(offset < self.data().len());
+        // assert!(offset < self.len());
 
-        &self.data()[offset]
+        &self[offset]
     }
 }
 
@@ -105,9 +107,9 @@ impl<T> Index<(usize, usize, usize, usize, usize)> for Tensor<T> {
                 )
             );
 
-        assert!(offset < self.data().len());
+        // assert!(offset < self.len());
 
-        &self.data()[offset]
+        &self[offset]
     }
 }
 

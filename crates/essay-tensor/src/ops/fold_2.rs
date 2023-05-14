@@ -13,9 +13,6 @@ impl<D:Dtype + Copy> Tensor<D> {
         op: Op,
         b: &Self
     ) -> Tensor<D> {
-        let a_data = self.data();
-        let b_data = b.data();
-
         let len = self.broadcast_min(1, b, 1);
         let inner_size = self.dim_tail();
         let batch = len / inner_size;
@@ -26,8 +23,8 @@ impl<D:Dtype + Copy> Tensor<D> {
             let o_ptr = o_data.as_mut_ptr();
 
             for i in 0..batch {
-                let a_ptr = a_data.as_wrap_ptr(i * inner_size);
-                let b_ptr = b_data.as_wrap_ptr(i * inner_size);
+                let a_ptr = self.as_wrap_ptr(i * inner_size);
+                let b_ptr = b.as_wrap_ptr(i * inner_size);
 
                 let mut acc = init;
 

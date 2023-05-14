@@ -53,7 +53,6 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         assert!(args.len() == 1);
 
         let a = args[0];
-        let a_data = a.data();
 
         let shape = a.shape();
         let o_shape: Vec<usize> = if shape.len() > 1 {
@@ -68,7 +67,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         let o_data = unsafe {
             let mut o_data = TensorUninit::<f32>::new(len);
 
-            let a_ptr = a_data.as_ptr();
+            let a_ptr = a.as_ptr();
             let o_ptr = o_data.as_mut_ptr();
 
             let op = self.op();
@@ -117,23 +116,25 @@ impl<Op:Fold> BackOp for FoldCpu<Op> {
         prev: &Tensor,
     ) -> Tensor {
         let a = &args[0];
-        let a_data = a.data();
-        let prev = prev.data();
 
-        assert_eq!(a_data.len(), prev.len());
+        assert_eq!(a.len(), prev.len());
         
-        let len = a_data.len();
+        let len = a.len();
         
         let data = unsafe {
-            let mut out = TensorUninit::<f32>::new(len);
+            let out = TensorUninit::<f32>::new(len);
 
             let op = &self.0;
+
+            let a_ptr = a.as_ptr();
+            let prev = prev.as_ptr();
+            let o_ptr = out.as_ptr();
         
             for i in 0..len {
-                let df_dx = op.df_dx(a_data.get_unchecked(i));
-                let prev_df = prev.get_unchecked(i);
+                let df_dx = op.df_dx(*a_ptr.add(i));
+                let prev_df = *prev.add(i);
 
-                out.set_unchecked(i, df_dx * prev_df);
+                *o_ptr.add(i) = df_dx * prev_df;
             }
     
             out.init()
