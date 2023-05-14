@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{cmp::{max, self}, any::type_name, sync::Arc, ops::{Deref, Index, Range, RangeBounds}, marker::PhantomData, slice::SliceIndex};
+use std::{cmp::{max, self}, any::type_name, sync::Arc, ops::{Deref, Index}, marker::PhantomData, slice::SliceIndex};
 
 use super::{data::TensorData, TensorUninit, slice::TensorSlice};
 
@@ -40,16 +40,9 @@ pub struct RawTensor {
     data: Arc<TensorData>,
 }
 
-pub trait IntoTensor<T> {
-    fn into_tensor(&self) -> Tensor<T>;
-}
-
-pub trait IntoShape {
-    fn into_shape(self) -> Shape;
-}
-
 impl<T: 'static> Tensor<T> {
-    pub fn from_vec(vec: Vec<T>, shape: Shape) -> Self {
+    pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
+        let shape = Into::into(shape);
         let len = vec.len();
 
         assert!(len > 0);
@@ -61,9 +54,10 @@ impl<T: 'static> Tensor<T> {
 
     pub(crate) unsafe fn from_data(
         data: TensorData, 
-        shape: Shape, 
+        shape: impl Into<Shape>, 
         node: NodeId
     ) -> Self {
+        let shape = Into::into(shape);
         let len: usize = shape.len();
         
         data.checkcast::<T>(len);
@@ -99,16 +93,16 @@ impl<T: Clone + 'static> Tensor<T> {
 }
 
 impl<T: Copy + 'static> Tensor<T> {
-    pub fn from_uninit(data: TensorUninit<T>, shape: impl IntoShape) -> Self {
+    pub fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
         Self::from_uninit_node(data, shape, NodeId::None)
     }
 
     pub fn from_uninit_node(
         data: TensorUninit<T>, 
-        shape: impl IntoShape,
+        shape: impl Into<Shape>,
         node: NodeId,
     ) -> Self {
-        let shape = IntoShape::into_shape(shape);
+        let shape = Into::into(shape);
         let len: usize = max(1, shape.len());
         
         //data.checkcast::<T>(len);
@@ -710,6 +704,12 @@ impl Shape {
     }
 }
 
+impl From<&Shape> for Shape {
+    fn from(value: &Shape) -> Self {
+        value.clone()
+    }
+}
+
 impl From<usize> for Shape {
     fn from(value: usize) -> Self {
         Shape {
@@ -747,54 +747,6 @@ impl Index<usize> for Shape {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.dims[index]
-    }
-}
-
-impl IntoShape for Shape {
-    fn into_shape(self) -> Shape {
-        self
-    }
-}
-
-impl IntoShape for &Shape {
-    fn into_shape(self) -> Shape {
-        self.clone()
-    }
-}
-
-impl IntoShape for usize {
-    fn into_shape(self) -> Shape {
-        Shape::from(self)
-    }
-}
-
-impl<const N: usize> IntoShape for [usize; N] {
-    fn into_shape(self) -> Shape {
-        Shape::from(self)
-    }
-}
-
-impl<const N: usize> IntoShape for &[usize; N] {
-    fn into_shape(self) -> Shape {
-        Shape::from(self.clone())
-    }
-}
-
-impl IntoShape for &[usize] {
-    fn into_shape(self) -> Shape {
-        Shape::from(self)
-    }
-}
-
-impl IntoShape for Vec<usize> {
-    fn into_shape(self) -> Shape {
-        Shape::from(self)
-    }
-}
-
-impl IntoShape for &Vec<usize> {
-    fn into_shape(self) -> Shape {
-        Shape::from(self.clone())
     }
 }
 
@@ -1001,7 +953,7 @@ mod test {
 
     #[test]
     fn shape_from_zeros() {
-        let t = Tensor::zeros(&[3, 2, 4, 5]);
+        let t = Tensor::zeros([3, 2, 4, 5]);
         assert_eq!(t.shape().as_slice(), &[3, 2, 4, 5]);
         assert_eq!(t.rank(), 4);
         assert_eq!(t.cols(), 5);

@@ -1,9 +1,9 @@
 use std::cmp;
 
-use crate::{Tensor, tensor::{Dtype, TensorUninit}, prelude::IntoShape};
+use crate::{Tensor, tensor::{Dtype, TensorUninit}, prelude::Shape};
 
-pub fn fill<D:Dtype + Copy>(fill: D, shape: impl IntoShape) -> Tensor<D> {
-    let shape = IntoShape::into_shape(shape);
+pub fn fill<D:Dtype + Copy>(fill: D, shape: impl Into<Shape>) -> Tensor<D> {
+    let shape = Into::into(shape);
     let len = cmp::max(1, shape.len());
     
     unsafe {
@@ -18,7 +18,7 @@ pub fn fill<D:Dtype + Copy>(fill: D, shape: impl IntoShape) -> Tensor<D> {
 }
 
 impl<D:Dtype + Copy> Tensor<D> {
-    pub fn fill(value: D, shape: impl IntoShape) -> Tensor<D> {
+    pub fn fill(value: D, shape: impl Into<Shape>) -> Tensor<D> {
         fill(value, shape)
     }
 }

@@ -34,6 +34,12 @@ mod test {
     }
 
     #[test]
+    fn test_add_into() {
+        assert_eq!(tensor!(2.) + tensor!(3.), tensor!(5.));
+        assert_eq!(tensor!([3., 4.]) + tensor!([1., 2.]), tensor!([4., 6.]));
+    }
+
+    #[test]
     fn test_add_df() {
         let x = Var::new("x", tensor!([1., 2.]));
         let y = Var::new("y", tensor!([3., 4.]));

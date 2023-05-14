@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{ops::{Deref, self}, rc::Rc, cell::RefCell};
 
-use crate::{tensor::{Dtype, IntoTensor}, Tensor};
+use crate::{tensor::{Dtype}, Tensor};
 
 use super::Tape;
 
@@ -12,8 +12,8 @@ pub struct Var<D:Dtype=f32> {
 }
 
 impl<D:Dtype> Var<D> {
-    pub fn new(name: &str, tensor: Tensor<D>) -> Self {
-        let tensor = tensor.with_var_node(name);
+    pub fn new(name: &str, tensor: impl Into<Tensor<D>>) -> Self {
+        let tensor = Into::into(tensor).with_var_node(name);
 
         Self {
             tensor_share: Rc::new(RefCell::new(tensor.clone())),
@@ -26,8 +26,8 @@ impl<D:Dtype> Var<D> {
         &self.name
     }
 
-    pub fn set(&mut self, tensor: Tensor<D>) {
-        let tensor = tensor.with_var_node(&self.name);
+    pub fn set(&mut self, tensor: impl Into<Tensor<D>>) {
+        let tensor = Into::into(tensor).with_var_node(&self.name);
 
         self.tensor = tensor.clone();
         self.tensor_share.replace(tensor);
@@ -80,14 +80,6 @@ impl Clone for Var {
             tensor_share: self.tensor_share.clone(),
             tensor: self.tensor.clone(),
         }
-    }
-}
-
-impl IntoTensor<f32> for Var {
-    fn into_tensor(&self) -> Tensor {
-        Tape::set_var(&self.name(), &self.tensor);
-
-        self.tensor.clone()
     }
 }
 

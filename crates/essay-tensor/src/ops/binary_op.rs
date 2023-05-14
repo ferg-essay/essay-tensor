@@ -20,7 +20,7 @@ pub struct BinopDx<Op:BinaryKernel>(Op);
 #[derive(Debug, Clone)]
 pub struct BinopDy<Op:BinaryKernel>(Op);
 
-pub fn binary_op<Op:BinaryKernel<f32>>(a: &Tensor, b: &Tensor, op: Op) -> Tensor {
+pub fn binary_op<Op:BinaryKernel<f32>>(a: &Tensor, b: &Tensor<f32>, op: Op) -> Tensor {
     let binop = BinopImpl(op.clone());
 
     let node = NodeOp::new(&[a, b], binop.to_op());

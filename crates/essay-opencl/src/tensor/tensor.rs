@@ -145,8 +145,8 @@ pub fn trivial_exploded(src: &str) {
 
     let len = 64 * 1024;
 
-    let a = Tensor::ones(&[len]);
-    let b = Tensor::ones(&[len]);
+    let a = Tensor::ones([len]);
+    let b = Tensor::ones([len]);
 
     let dims = a.len() * 4;
 
@@ -209,7 +209,7 @@ pub fn trivial_exploded(src: &str) {
     let out = unsafe {
         let mut c = TensorUninit::<f32>::new(len);
         kernel.read(&context, 2, c.as_mut_slice());
-        Tensor::from_uninit(c, &vec![len])
+        Tensor::from_uninit(c, vec![len])
     };
 
     let t1 = s1.elapsed();
