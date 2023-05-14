@@ -114,8 +114,8 @@ impl TensorData {
 
     #[inline]
     pub unsafe fn as_sub_slice<T>(&self, offset: usize, len: usize) -> &[T] {
-        assert!(offset < self.len());
-        assert!(offset + len < self.len());
+        assert!(offset <= self.len());
+        assert!(offset + len <= self.len());
 
         ptr::slice_from_raw_parts(self.as_ptr::<T>().add(offset), len)
             .as_ref()

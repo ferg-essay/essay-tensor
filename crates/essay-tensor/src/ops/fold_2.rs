@@ -18,7 +18,7 @@ impl<D:Dtype + Copy> Tensor<D> {
         let batch = len / inner_size;
 
         let shape = self.shape();
-        let o_shape: Shape = if shape.len() > 0 {
+        let o_shape: Shape = if shape.size() > 0 {
             shape.slice(1..)
         } else {
             Shape::scalar()

@@ -4,7 +4,7 @@ use crate::{Tensor, tensor::{Dtype, TensorUninit}, prelude::Shape};
 
 pub fn fill<D:Dtype + Copy>(fill: D, shape: impl Into<Shape>) -> Tensor<D> {
     let shape = Into::into(shape);
-    let len = cmp::max(1, shape.len());
+    let len = cmp::max(1, shape.size());
     
     unsafe {
         let mut data = TensorUninit::<D>::new(len);

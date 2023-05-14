@@ -11,7 +11,7 @@ impl TensorSlice for usize {
         assert!(self < tensor.dim(0));
 
         let shape = tensor.shape().slice(1..);
-        let len : usize = shape.len();
+        let len : usize = shape.size();
 
         tensor.subslice(self * len, len, shape)
     }
@@ -24,7 +24,7 @@ impl TensorSlice for (usize, usize) {
         assert!(self.1 < tensor.dim(1));
 
         let shape = tensor.shape().slice(2..);
-        let len : usize = shape.len();
+        let len : usize = shape.size();
         let offset = (self.0 * tensor.dim(1) + self.1) * len;
 
         tensor.subslice(offset, len, shape)

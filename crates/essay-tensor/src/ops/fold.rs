@@ -55,13 +55,13 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         let a = args[0];
 
         let shape = a.shape();
-        let o_shape = if shape.len() > 1 {
+        let o_shape = if shape.size() > 1 {
             shape.slice(1..)
         } else {
             Shape::scalar()
         };
 
-        let len = o_shape.len();
+        let len = o_shape.size();
         let inner_len = a.dim_tail();
     
         unsafe {

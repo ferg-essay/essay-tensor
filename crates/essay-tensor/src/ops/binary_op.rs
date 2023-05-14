@@ -47,8 +47,12 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
         let inner = a.len().min(b.len());
         let batch = size / inner;
 
-        assert_eq!(a.dim_tail(), b.dim_tail());
-    
+        let shape = if a.rank() < b.rank() { 
+            b.shape().clone() 
+        } else { 
+            a.shape().clone() 
+        };
+
         unsafe {
             let mut out = TensorUninit::<f32>::new(size);
 
@@ -61,20 +65,14 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
                 let b_ptr = b.as_wrap_ptr(n * inner);
 
                 for i in 0..inner {
-                    *o_ptr.add(i) = op.f(
+                    *o_ptr.add(n * inner + i) = op.f(
                         *a_ptr.add(i), 
                         *b_ptr.add(i)
                     );
                 }
             }
-    
-            let shape = if a.rank() < b.rank() { 
-                b.shape().clone() 
-            } else { 
-                a.shape().clone() 
-            };
 
-            Tensor::from_uninit_node(out, &shape, node)
+            Tensor::from_uninit_node(out, shape, node)
         }
     }
 

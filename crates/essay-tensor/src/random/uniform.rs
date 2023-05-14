@@ -8,8 +8,8 @@ pub fn uniform(
     max: f32, 
     seed: Option<u64>,
 ) -> Tensor {
-    let shape = Into::into(shape); // Shape::from(shape);
-    let len : usize = shape.len();
+    let shape = shape.into(); // Shape::from(shape);
+    let len : usize = shape.size();
 
     unsafe {
         let mut data = TensorUninit::new(len);

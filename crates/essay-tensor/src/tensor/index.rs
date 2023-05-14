@@ -20,7 +20,7 @@ impl<T> Index<(usize, usize)> for Tensor<T> {
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
         let shape = self.shape();
-        let len = shape.len();
+        let len = shape.size();
 
         assert!(len > 1);
         assert!(index.0 < shape[len - 2]);
@@ -40,7 +40,7 @@ impl<T> Index<(usize, usize, usize)> for Tensor<T> {
 
     fn index(&self, index: (usize, usize, usize)) -> &Self::Output {
         let shape = self.shape();
-        let len = shape.len();
+        let len = shape.size();
 
         assert!(len > 2);
         assert!(index.0 < shape[len - 3]);
@@ -63,7 +63,7 @@ impl<T> Index<(usize, usize, usize, usize)> for Tensor<T> {
 
     fn index(&self, index: (usize, usize, usize, usize)) -> &Self::Output {
         let shape = self.shape();
-        let len = shape.len();
+        let len = shape.size();
 
         assert!(len > 3);
         assert!(index.0 < shape[len - 4]);
@@ -89,7 +89,7 @@ impl<T> Index<(usize, usize, usize, usize, usize)> for Tensor<T> {
 
     fn index(&self, index: (usize, usize, usize, usize, usize)) -> &Self::Output {
         let shape = self.shape();
-        let len = shape.len();
+        let len = shape.size();
 
         assert!(len > 4);
         assert!(index.0 < shape[len - 5]);

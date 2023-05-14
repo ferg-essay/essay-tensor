@@ -72,8 +72,9 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
         }
 
         let mut o_shape = Vec::from(b.shape().as_slice());
-        o_shape[0] = m;
-        o_shape[1] = n;
+        let len = o_shape.len();
+        o_shape[len - 1] = m;
+        o_shape[len - 2] = n;
 
         Tensor::from_uninit(out, o_shape)
     }

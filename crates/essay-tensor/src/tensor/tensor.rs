@@ -42,7 +42,7 @@ pub struct RawTensor {
 
 impl<T: 'static> Tensor<T> {
     pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
-        let shape = Into::into(shape);
+        let shape = shape.into();
         let len = vec.len();
 
         assert!(len > 0);
@@ -57,8 +57,8 @@ impl<T: 'static> Tensor<T> {
         shape: impl Into<Shape>, 
         node: NodeId
     ) -> Self {
-        let shape = Into::into(shape);
-        let len: usize = shape.len();
+        let shape = shape.into();
+        let len: usize = shape.size();
         
         data.checkcast::<T>(len);
 
@@ -102,8 +102,8 @@ impl<T: Copy + 'static> Tensor<T> {
         shape: impl Into<Shape>,
         node: NodeId,
     ) -> Self {
-        let shape = Into::into(shape);
-        let len: usize = max(1, shape.len());
+        let shape = shape.into();
+        let len: usize = max(1, shape.size());
         
         //data.checkcast::<T>(len);
 
@@ -263,8 +263,8 @@ impl<T> Tensor<T> {
         assert!(offset < self.len);
         assert!(offset + len < self.len);
 
-        let shape_len : usize = shape.len();
-        assert!(shape_len == len || shape.len() == 0 && len == 1);
+        let shape_len : usize = shape.size();
+        assert!(shape_len == len || shape.size() == 0 && len == 1);
 
         Self {
             shape,
@@ -308,7 +308,7 @@ impl<T:Clone> Clone for Tensor<T> {
 
 impl<T:PartialEq> PartialEq for Tensor<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.shape != other.shape && self.as_slice() == other.as_slice()
+        self.shape == other.shape && self.as_slice() == other.as_slice()
     }
 }
 
@@ -316,7 +316,7 @@ impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Tensor {{")?;
 
-        if self.shape.len() > 1 {
+        if self.shape.size() > 1 {
             write!(f, "\n")?;
         }
 
@@ -341,7 +341,7 @@ fn fmt_tensor_rec<T:fmt::Debug>(
     offset: usize
 ) -> fmt::Result {
     match rank {
-        0 => write!(f, "{:?}", tensor.get(offset).unwrap()),
+        0 => write!(f, "{:?}", tensor[offset]),
         1 => {
             write!(f, "[")?;
 
@@ -413,6 +413,31 @@ impl<T:Dtype, const N:usize> From<[T; N]> for Tensor<T> {
     }
 }
 
+impl From<&str> for Tensor<String> {
+    fn from(value: &str) -> Self {
+        Tensor::from_vec(vec![value.to_string()], Shape::scalar())
+    }
+}
+
+impl From<Vec<&str>> for Tensor<String> {
+    fn from(value: Vec<&str>) -> Self {
+        let len = value.len();
+
+        let vec = value.iter().map(|s| s.to_string()).collect();
+
+        Tensor::<String>::from_vec(vec, Shape::from(len))
+    }
+}
+
+impl<const N:usize> From<[&str; N]> for Tensor<String> {
+    fn from(value: [&str; N]) -> Self {
+        let vec : Vec<String> = value.iter().map(|s| s.to_string()).collect();
+        let len = vec.len();
+
+        Tensor::from_vec(vec, Shape::from(len))
+    }
+}
+
 impl<T, const N: usize, const M: usize> From<[[T; N]; M]> for Tensor<T>
 where
     T: Dtype,
@@ -426,7 +451,7 @@ where
             }
         }
 
-        Tensor::from_vec(vec, Shape::from([M, N]))
+        Tensor::from_vec(vec, [M, N])
     }
 }
 
@@ -446,7 +471,7 @@ where
             }
         }
 
-        Tensor::from_vec(vec, Shape::from([L, M, N]))
+        Tensor::from_vec(vec, [L, M, N])
     }
 }
 
@@ -468,7 +493,7 @@ where
             }
         }
 
-        Tensor::from_vec(vec, Shape::from([K, L, M, N]))
+        Tensor::from_vec(vec, [K, L, M, N])
     }
 }
 
@@ -478,7 +503,7 @@ impl<T:Dtype> FromIterator<T> for Tensor<T> {
         let len = vec.len();
         assert!(len > 0);
 
-        Tensor::from_vec(vec, Shape::from(len))
+        Tensor::from_vec(vec, len)
     }
 }
 
@@ -563,7 +588,7 @@ impl Shape {
     }
 
     #[inline]
-    pub fn len(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.dims.iter().product()
     }
 
@@ -579,10 +604,10 @@ impl Shape {
 
     #[inline]
     pub fn dim_tail(&self) -> usize {
-        let len = self.dims.len();
+        let rank = self.rank();
 
-        if len > 0 {
-            self.dims[len - 1]
+        if rank > 0 {
+            self.dims[rank - 1]
         } else {
             1
         }
@@ -590,10 +615,10 @@ impl Shape {
 
     #[inline]
     pub fn cols(&self) -> usize {
-        let len = self.dims.len();
+        let rank = self.rank();
 
-        if len > 0 {
-            self.dims[len - 1]
+        if rank > 0 {
+            self.dims[rank - 1]
         } else {
             1
         }
@@ -601,10 +626,10 @@ impl Shape {
 
     #[inline]
     pub fn rows(&self) -> usize {
-        let len = self.dims.len();
+        let rank = self.rank();
 
-        if len > 1 {
-            self.dims[len - 2]
+        if rank > 1 {
+            self.dims[rank - 2]
         } else {
             0
         }
@@ -612,22 +637,22 @@ impl Shape {
 
     #[inline]
     pub fn batch_len(&self, base_rank: usize) -> usize {
-        let len = self.dims.len();
+        let rank = self.rank();
 
-        if len > base_rank {
-            self.dims[0..len - base_rank].iter().product()
+        if rank > base_rank {
+            self.dims[0..rank - base_rank].iter().product()
         } else {
             1
         }
     }
 
     pub fn broadcast(&self, b: &Shape) -> usize {
-        let min_rank = cmp::min(self.len(), b.len());
+        let min_rank = cmp::min(self.rank(), b.rank());
         for i in 0..min_rank {
             assert_eq!(self.dims[i], b.dims[i], "broadcast ranks must match");
         }
 
-        if self.len() < b.len() { b.len() } else { self.len() }
+        if self.rank() < b.rank() { b.size() } else { self.size() }
     }
 
     pub fn broadcast_min(
@@ -637,15 +662,15 @@ impl Shape {
         b_min: usize
     ) -> usize {
         let min_rank = cmp::min(
-            self.len() - a_min, 
-            b.len() - b_min
+            self.rank() - a_min, 
+            b.rank() - b_min
         );
 
         for i in 0..min_rank {
             assert_eq!(self.dims[i + a_min], b.dims[i + b_min], "broadcast ranks must match");
         }
 
-        if self.len() - a_min < b.len() - b_min { 
+        if self.rank() - a_min < b.rank() - b_min { 
             b.dims.iter().skip(b_min).product()
         } else { 
             self.dims.iter().skip(a_min).product()
@@ -661,6 +686,18 @@ impl Shape {
         let mut dims = self.dims.clone();
 
         dims.push(dim);
+
+        Self {
+            dims
+        }
+    }
+
+    pub fn append(&self, tail: &[usize]) -> Self {
+        let mut dims = self.dims.clone();
+
+        for dim in tail {
+            dims.push(*dim);
+        }
 
         Self {
             dims
@@ -960,5 +997,20 @@ mod test {
         assert_eq!(t.rows(), 4);
         assert_eq!(t.batch_len(2), 6);
         assert_eq!(t.len(), 3 * 2 * 4 * 5);
+    }
+
+    #[test]
+    fn string_tensor_from_macro() {
+        let t = tensor!("test");
+        assert_eq!(t.shape().as_slice(), &[]);
+
+        assert_eq!(&t[0], "test");
+
+        let t = tensor!(["t1", "t2", "t3"]);
+        assert_eq!(t.shape().as_slice(), &[3]);
+
+        assert_eq!(&t[0], "t1");
+        assert_eq!(&t[1], "t2");
+        assert_eq!(&t[2], "t3");
     }
 }

@@ -59,7 +59,7 @@ pub fn matvec_t(
     assert_eq!(a.shape().as_subslice(2..), x.shape().as_subslice(1..), "matvec batch shape must match");
     assert_eq!(x.shape()[0], a.shape()[0]);
 
-    let n : usize = a.shape().sublen(2..);
+    let n : usize = a.broadcast_min(2, &x, 1);
 
     let a_dim = [a.shape()[0], a.shape()[1]];
     let x_dim = [x.shape()[0], 1];
@@ -87,7 +87,8 @@ pub fn matvec_t(
         }
 
         let mut o_shape = Vec::from(x.shape().as_slice());
-        o_shape[0] = o_size;
+        let len = o_shape.len();
+        o_shape[len - 1] = o_size;
         Tensor::from_uninit(out, o_shape)
         //a.next_binop(&b, out.init(), o_shape, Matvec)
         //todo!()
