@@ -6,12 +6,6 @@ use crate::Tensor;
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct NodeId(usize);
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub struct ArrowId(usize);
-
-type NodeFun<In, Out> = dyn FnMut(In) -> Option<Out>;
-type BoxFun<In, Out> = Box<NodeFun<In, Out>>;
-
 #[derive(Copy, Debug, PartialEq)]
 pub struct TypedNodeId<T> {
     id: NodeId,
@@ -35,17 +29,7 @@ pub trait FlowData {
     fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self::Item) -> bool;
 }
 
-pub struct FlowContext<'a> {
-    vec: &'a Vec<NodeId>,
-    index: usize,
-}
-
 trait Scalar {}
-
-pub struct Nodes<T: FlowData> {
-    nodes: Vec<NodeId>,
-    marker: PhantomData<T>,
-}
 
 trait Node {
     fn add_output_arrow(&mut self, id: NodeId);
@@ -85,37 +69,16 @@ pub struct GraphData {
     nodes: Vec<RawData>,
 }
 
-trait FlowIn : Clone {}
-
 struct TaskNode<In: FlowData<Item=In>, Out>
 {
     id: TypedNodeId<Out>,
 
     state: NodeState,
 
-    //arrows_in: BoxArrow<In>,
-    arrows_in: In::Nodes, // BoxArrow<In>,
+    arrows_in: In::Nodes,
     arrows_out: Vec<NodeId>,
 
-    output: VecDeque<Out>,
-
     inner: Mutex<TaskNodeInner<In, Out>>,
-}
-
-pub trait ArrowData : 'static {
-    type Value;
-
-    fn input(&self, graph: &mut GraphData) -> Option<Self::Value>;
-}
-
-type BoxArrow<I> = Box<dyn ArrowData<Value=I>>;
-
-pub trait IntoArrow<K, V> {
-    fn into_arrow(
-        self, 
-        node: NodeId, 
-        graph: &mut Graph
-    ) -> Box<dyn ArrowData<Value=V>>;
 }
 
 struct TaskNodeInner<In, Out>
@@ -123,12 +86,6 @@ struct TaskNodeInner<In, Out>
     task: BoxTask<In, Out>,
     input: Option<In>,
     output: Option<Out>,
-}
-
-struct ArrowsIn<In> {
-    nodes: Vec<NodeId>,
-
-    marker: PhantomData<In>,
 }
 
 pub struct Flow<In> {
@@ -159,31 +116,6 @@ enum NodeState {
     Complete,
 }
 
-enum NodeAction {
-    None,
-    Start,
-}
-
-struct ArrowsOut<Out> {
-    nodes: Vec<NodeId>,
-
-    marker: PhantomData<Out>,
-}
-
-
-struct Arrows {
-    // fn pop(&self, graph: &mut Graph) -> T;
-}
-
-pub struct Arrow<T> {
-    id: ArrowId,
-
-    src: NodeId,
-    dst: NodeId,
-
-    queue: VecDeque<T>,
-}
-
 trait Dispatcher {
     fn spawn(&mut self, node: NodeId);
 }
@@ -192,29 +124,8 @@ pub struct Waker {
     nodes: Vec<NodeId>,
 }
 
-impl<In> FlowBuilder<In> {
-    pub fn node2<K, I, O>(
-        &mut self, 
-        task: impl Task<I, O>,
-        inputs: impl IntoArrow<K, I>,
-    ) -> TypedNodeId<O>
-    where
-        K: Clone + 'static,
-        I: 'static, // ArrowData<K, Value=I>,
-        O: 'static,
-    {
-        let id = NodeId(self.graph.nodes.len());
-        /*
-        let input = inputs.into_arrow(id, &mut self.graph);
-        let node: TaskNode<I, O> = TaskNode::new(id, task, input);
-
-        self.graph.nodes.push(Box::new(node));
-        */
-
-        TypedNodeId::new(id)
-    }
-
-    pub fn input(&mut self) -> TypedNodeId<In> {
+impl<In: FlowData<Item=In>> FlowBuilder<In> {
+    pub fn input(&mut self) -> In::Nodes {
         todo!();
     }
 
@@ -241,20 +152,6 @@ impl<In> FlowBuilder<In> {
 
         typed_id
     }
-
-    /*
-    pub fn t_node<I, O>(
-        &mut self, 
-        task: impl Task<I, O>,
-        inputs: Key<I>,
-    ) -> TypedNodeId<O>
-    where
-        I: 'static, // ArrowData<K, Value=I>,
-        O: 'static,
-    {
-        todo!()
-    }
-    */
 
     pub fn build(self) -> Flow<In> {
         Flow {
@@ -387,7 +284,6 @@ where
             state: NodeState::WaitingIn,
             arrows_in: input,
             arrows_out: Default::default(),
-            output: Default::default(),
             inner: Mutex::new(inner),
         }
     }
@@ -481,23 +377,6 @@ where
         self.task.execute(input)
     }
 } 
-
-impl ArrowsIn<()> {
-    fn empty() -> ArrowsIn<()> {
-        Self {
-            nodes: Default::default(),
-            marker: PhantomData,
-        }
-    }
-
-    fn input(&self, graph: &mut Graph) -> Option<()> {
-        if self.nodes.len() == 0 {
-            Some(())
-        } else {
-            None
-        }
-    }
-}
 
 impl NodeId {
     fn index(&self) -> usize {
@@ -685,94 +564,16 @@ impl Waker {
         println!("Complete");
     }
 }
-/*
-impl ArrowData<NodeId> for () {
-    type Value = ();
-
-    fn input(graph: &mut GraphData, nodes: &NodeId) -> Option<Self::Value> {
-        Some(())
-    }
-}
-*/
-
-struct NilArrows;
-
-impl ArrowData for NilArrows {
-    type Value = ();
-
-    fn input(&self, _graph: &mut GraphData) -> Option<Self::Value> {
-        Some(())
-    }
-}
-
-impl IntoArrow<(), ()> for () {
-    fn into_arrow(self, _id: NodeId, _graph: &mut Graph) -> BoxArrow<()> {
-        Box::new(NilArrows)
-    }
-}
-/*
-impl IntoArrow<NodeId, ()> for () {
-    fn into_arrow(self) -> Box<dyn ArrowData<Value=()>> {
-        todo!()
-    }
-}
-*/
-/*
-impl IntoArrow<NodeId, String> for NodeId {
-    fn into_arrow(self) -> Box<dyn ArrowData<Value=String>> {
-        todo!()
-    }
-}
-*/
-struct SingleArrow<T> {
-    node: TypedNodeId<T>,
-}
-
-impl<T> SingleArrow<T> {
-    fn new(node: TypedNodeId<T>) -> Self {
-        Self {
-            node,
-        }
-    }
-}
-
-impl<T> ArrowData for SingleArrow<T> 
-where
-    T: 'static
-{
-    type Value = T;
-
-    fn input(&self, graph: &mut GraphData) -> Option<Self::Value> {
-        graph.read(&self.node)
-    }
-}
-/*
-impl<T:FlowData> IntoArrow<TypedNodeId<T>, T> for TypedNodeId<T> {
-    fn into_arrow(self, id: NodeId, graph: &mut Graph) -> BoxArrow<T> {
-        graph.add_arrow(self.id(), id);
-
-        Box::new(SingleArrow::new(self))
-    }
-}
-*/
-
-impl FlowContext<'_> {
-    fn next(&mut self) -> NodeId {
-        let id = self.vec[self.index];
-        self.index += 1;
-        id
-    }
-}
 
 impl FlowData for () {
     type Item = ();
     type Nodes = ();
 
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<Self::Item> {
+    fn read(_nodes: &Self::Nodes, _data: &mut GraphData) -> Option<Self::Item> {
         Some(())
     }
 
-    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self::Item) -> bool {
+    fn write(_nodes: &Self::Nodes, _data: &mut GraphData, _value: Self::Item) -> bool {
         false
     }
 }
@@ -807,43 +608,11 @@ where
     }
 }
 
-struct TestKey<T> {
-    nodes: Vec<NodeId>,
-    marker: PhantomData<T>,
-}
-
-trait Param {}
-
-impl<T> TestKey<T> {
-    fn combine<Param>(keys: Param) -> TestKey<Param> {
-        todo!();
-    }
-}
-
-impl Param for () {
-}
-
-impl<T> Param for TypedNodeId<T> {
-}
-
-impl<S, T> Param for (TypedNodeId<T>, TypedNodeId<S>) {
-}
-
-/*
-impl ArrowData<NodeId> for String {
-    type Value = String;
-
-    fn input(graph: &mut GraphData, arrows: &NodeId) -> Option<Self::Value> {
-        todo!()
-    }
-}
-*/
-
 #[cfg(test)]
 mod test {
     use std::{sync::{Arc, Mutex}};
 
-    use crate::flow::node::{NodeId, TypedNodeId};
+    use crate::flow::node::{NodeId};
 
     use super::{Flow};
 
