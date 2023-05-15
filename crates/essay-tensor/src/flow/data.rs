@@ -4,12 +4,12 @@ use super::{node::{Node}, flow::TypedTaskId};
 
 pub trait Scalar {}
 
-pub trait FlowData : Clone + 'static {
-    type Item;
+pub trait FlowData<T> : Clone + 'static {
+    // type Item;
     type Nodes : Clone;
 
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<Self::Item>;
-    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self::Item) -> bool;
+    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<T>;
+    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: T) -> bool;
 }
 
 pub struct GraphData {
@@ -100,28 +100,28 @@ impl RawData {
     }
 }
 
-impl FlowData for () {
-    type Item = ();
+impl FlowData<()> for () {
+    // type Item = ();
     type Nodes = ();
 
-    fn read(_nodes: &Self::Nodes, _data: &mut GraphData) -> Option<Self::Item> {
+    fn read(_nodes: &Self::Nodes, _data: &mut GraphData) -> Option<()> {
         Some(())
     }
 
-    fn write(_nodes: &Self::Nodes, _data: &mut GraphData, _value: Self::Item) -> bool {
+    fn write(_nodes: &Self::Nodes, _data: &mut GraphData, _value: ()) -> bool {
         false
     }
 }
 
-impl<T:Scalar + Clone + 'static> FlowData for T {
-    type Item = T;
+impl<T:Scalar + Clone + 'static> FlowData<T> for T {
+    // type Item = T;
     type Nodes = TypedTaskId<T>;
 
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<Self::Item> {
+    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<T> {
         data.read(nodes)
     }
 
-    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self::Item) -> bool {
+    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: T) -> bool {
         data.write(nodes, value)
     }
 }

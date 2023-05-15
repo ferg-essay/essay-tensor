@@ -51,7 +51,7 @@ pub struct Waker {
     nodes: Vec<NodeId>,
 }
 
-impl<In: FlowData<Item=In>> FlowBuilder<In> {
+impl<In: FlowData<In>> FlowBuilder<In> {
     pub fn input(&mut self) -> In::Nodes {
         todo!();
     }
@@ -60,7 +60,7 @@ impl<In: FlowData<Item=In>> FlowBuilder<In> {
         todo!();
     }
 
-    pub fn node<I: FlowData<Item=I>, O: FlowData<Item=O>>(
+    pub fn node<I: FlowData<I>, O: FlowData<O>>(
         &mut self, 
         task: impl Task<I, O>,
         input: &I::Nodes,

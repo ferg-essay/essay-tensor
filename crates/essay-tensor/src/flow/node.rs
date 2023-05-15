@@ -34,7 +34,7 @@ where
 
 type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
 
-pub struct TaskNode<In: FlowData<Item=In>, Out>
+pub struct TaskNode<In: FlowData<In>, Out>
 {
     id: TypedTaskId<Out>,
 
@@ -65,7 +65,7 @@ enum NodeState {
 
 impl<In, Out> TaskNode<In, Out>
 where
-    In: FlowData<Item=In> + 'static, // ArrowData<Key, Value=In> + 'static,
+    In: FlowData<In> + 'static, // ArrowData<Key, Value=In> + 'static,
     Out: 'static
 {
     pub fn new(
@@ -87,8 +87,8 @@ where
 
 impl<In, Out> Node for TaskNode<In, Out>
 where
-    In: FlowData<Item=In> + 'static, // ArrowData<Value=In>,
-    Out: FlowData<Item=Out> + 'static
+    In: FlowData<In> + 'static, // ArrowData<Value=In>,
+    Out: FlowData<Out> + 'static
 {
     fn add_output_arrow(&mut self, id: NodeId) {
         self.arrows_out.push(id);
