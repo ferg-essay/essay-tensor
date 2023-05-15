@@ -43,14 +43,13 @@ pub struct TaskNode<In: FlowData<In>, Out>
     arrows_in: In::Nodes,
     arrows_out: Vec<NodeId>,
 
-    inner: Mutex<TaskNodeInner<In, Out>>,
+    inner: Mutex<TaskInner<In, Out>>,
 }
 
-struct TaskNodeInner<In, Out>
+struct TaskInner<In, Out>
 {
     task: BoxTask<In, Out>,
     input: Option<In>,
-    output: Option<Out>,
 }
 
 enum NodeState {
@@ -73,7 +72,7 @@ where
         task: impl Task<In, Out>,
         input: In::Nodes, // BoxArrow<In>,
     ) -> Self {
-        let inner : TaskNodeInner<In, Out> = TaskNodeInner::new(Box::new(task));
+        let inner : TaskInner<In, Out> = TaskInner::new(Box::new(task));
 
         Self {
             id: id,
@@ -158,7 +157,7 @@ where
     }
 }
 
-impl<In, Out> TaskNodeInner<In, Out>
+impl<In, Out> TaskInner<In, Out>
 where
     In: 'static,
     Out: 'static
@@ -167,7 +166,6 @@ where
         Self {
             task: task,
             input: None,
-            output: None,
         }
     }
 

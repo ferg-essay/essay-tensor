@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use super::{node::{Node, Task, TaskNode}, data::{GraphData, FlowData}};
+use super::{task::{Node, Task, TaskNode}, data::{GraphData, FlowData}};
 
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]

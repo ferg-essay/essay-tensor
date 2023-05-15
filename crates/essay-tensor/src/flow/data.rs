@@ -1,6 +1,6 @@
 use std::{any::TypeId, mem::{self, ManuallyDrop}, ptr::NonNull, alloc::Layout};
 
-use super::{node::{Node}, flow::TypedTaskId};
+use super::{task::{Node}, flow::TypedTaskId};
 
 pub trait Scalar {}
 
