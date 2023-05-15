@@ -3,6 +3,8 @@ use futures::prelude::*;
 
 use crate::Tensor;
 
+use super::data::{FlowData, GraphData, RawData};
+
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct NodeId(usize);
 
@@ -21,18 +23,10 @@ impl<T> Clone for TypedNodeId<T> {
     }
 }
 
-pub trait FlowData {
-    type Item;
-    type Nodes : Clone;
-
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<Self::Item>;
-    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self::Item) -> bool;
-}
-
-trait Scalar {}
-
-trait Node {
+pub trait Node {
     fn add_output_arrow(&mut self, id: NodeId);
+
+    fn new_data(&self) -> RawData;
 
     fn init(&mut self, data: &mut GraphData, dispatcher: &mut dyn Dispatcher);
 
@@ -63,10 +57,6 @@ type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
 
 pub struct Graph {
     nodes: Vec<Box<dyn Node>>,
-}
-
-pub struct GraphData {
-    nodes: Vec<RawData>,
 }
 
 struct TaskNode<In: FlowData<Item=In>, Out>
@@ -116,7 +106,7 @@ enum NodeState {
     Complete,
 }
 
-trait Dispatcher {
+pub trait Dispatcher {
     fn spawn(&mut self, node: NodeId);
 }
 
@@ -133,7 +123,7 @@ impl<In: FlowData<Item=In>> FlowBuilder<In> {
         todo!();
     }
 
-    pub fn node<I: FlowData<Item=I>, O>(
+    pub fn node<I: FlowData<Item=I>, O: FlowData<Item=O>>(
         &mut self, 
         task: impl Task<I, O>,
         input: &I::Nodes,
@@ -192,7 +182,7 @@ impl Graph {
 
     pub fn apply(&mut self) {
         let mut dispatcher = BasicDispatcher::new();
-        let mut data = GraphData::new(self.nodes.len());
+        let mut data = GraphData::new(&self.nodes);
 
         for node in &mut self.nodes {
             node.init(&mut data, &mut dispatcher);
@@ -289,13 +279,17 @@ where
     }
 }
 
-impl<In: FlowData<Item=In>, Out> Node for TaskNode<In, Out>
+impl<In, Out> Node for TaskNode<In, Out>
 where
-    In: 'static, // ArrowData<Value=In>,
-    Out: 'static
+    In: FlowData<Item=In> + 'static, // ArrowData<Value=In>,
+    Out: FlowData<Item=Out> + 'static
 {
     fn add_output_arrow(&mut self, id: NodeId) {
         self.arrows_out.push(id);
+    }
+
+    fn new_data(&self) -> RawData {
+        RawData::new::<Out>()
     }
 
     fn init(&mut self, data: &mut GraphData, dispatcher: &mut dyn Dispatcher) {
@@ -393,152 +387,14 @@ impl<T: 'static> TypedNodeId<T> {
     }
 
     #[inline]
-    fn id(&self) -> NodeId {
+    pub fn id(&self) -> NodeId {
         self.id
     }
 
     #[inline]
-    fn index(&self) -> usize {
+    pub fn index(&self) -> usize {
         self.id.index()
     }
-}
-
-trait GraphDataTrait {
-    fn read<T: 'static>(&mut self) -> Option<T>;
-    fn write<T: 'static>(&mut self, value: T) -> bool;
-}
-
-struct SingleGraphData<T> {
-    type_id: TypeId,
-    value: Option<T>,
-}
-
-impl<T: 'static> SingleGraphData<T> {
-    fn new() -> Self {
-        Self {
-            type_id: TypeId::of::<T>(),
-            value: None,
-        }
-    }
-}
-
-impl<T> GraphDataTrait for SingleGraphData<T> {
-    fn read<T1: 'static>(&mut self) -> Option<T1> {
-        assert!(self.type_id == TypeId::of::<T1>());
-
-        match self.value.take() {
-            Some(value) => {
-                unsafe {
-                    Some(UnsafeCell::new(value).get().cast::<T1>().read())
-                }
-            }
-            None => None,
-        }
-    }
-
-    fn write<T1: 'static>(&mut self, value: T1) -> bool {
-        assert!(self.type_id == TypeId::of::<T1>());
-        assert!(self.value.is_none());
-
-        let value = unsafe {
-            UnsafeCell::new(value).get().cast::<T>().read()
-        };
-
-        self.value.replace(value);
-
-        false
-    }
-}
-
-impl GraphData {
-    fn new(n: usize) -> Self {
-        let mut vec = Vec::new();
-
-        for _ in 0..n {
-            vec.push(RawData::default());
-        }
-
-        Self {
-            nodes: vec,
-        }
-    }
-
-    fn read<T: 'static>(&mut self, node: &TypedNodeId<T>) -> Option<T> {
-        println!("Read {:?}", node.id());
-        self.nodes[node.index()].read()
-    }
-    
-    fn write<T: 'static>(&mut self, node: &TypedNodeId<T>, data: T) -> bool {
-        println!("Write {:?}", node.id());
-        self.nodes[node.index()].write(data)
-    }
-}
-
-pub struct RawData {
-    item: Option<RawItem>,
-}
-
-impl Default for RawData {
-    fn default() -> Self {
-        Self {
-            item: None,
-        }
-    }
-}
-
-struct RawItem {
-    type_id: TypeId,
-    data: NonNull<u8>,
-}
-
-impl RawItem {
-    fn new<T: 'static>(item: T) -> RawItem {
-        let layout = Layout::new::<T>();
-
-        unsafe {
-            let data = std::alloc::alloc(layout);
-            let data = NonNull::new(data).unwrap();
-
-            let mut value = ManuallyDrop::new(item);
-            let source = NonNull::from(&mut *value).cast();
-
-            std::ptr::copy_nonoverlapping::<u8>(
-                source.as_ptr(), 
-                data.as_ptr(),
-                mem::size_of::<T>(),
-            );
-
-            Self {
-                type_id: TypeId::of::<T>(),
-                data: data,
-            }
-        }
-    }
-
-    fn read<T: 'static>(self) -> T {
-        assert!(self.type_id == TypeId::of::<T>());
-
-        unsafe { self.data.as_ptr().cast::<T>().read() }
-    }
-}
-
-impl RawData {
-    fn read<T: 'static>(&mut self) -> Option<T> {
-        match self.item.take() {
-            Some(raw) => Some(raw.read::<T>()),
-            None => None,
-        }
-    }
-
-    fn write<T: 'static>(&mut self, data: T) -> bool {
-        assert!(self.item.is_none());
-        self.item.replace(RawItem::new::<T>(data));
-
-        false
-    }
-}
-
-impl GraphData {
 }
 
 impl Waker {
@@ -564,38 +420,6 @@ impl Waker {
         println!("Complete");
     }
 }
-
-impl FlowData for () {
-    type Item = ();
-    type Nodes = ();
-
-    fn read(_nodes: &Self::Nodes, _data: &mut GraphData) -> Option<Self::Item> {
-        Some(())
-    }
-
-    fn write(_nodes: &Self::Nodes, _data: &mut GraphData, _value: Self::Item) -> bool {
-        false
-    }
-}
-
-impl<T:Scalar + Clone + 'static> FlowData for T {
-    type Item = T;
-    type Nodes = TypedNodeId<T>;
-
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<Self::Item> {
-        data.read(nodes)
-    }
-
-    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self::Item) -> bool {
-        data.write(nodes, value)
-    }
-}
-
-// pub trait FlowData : Send + 'static {}
-
-//impl Scalar for () {}
-impl Scalar for String {}
-impl Scalar for usize {}
 
 impl<In, Out, F> Task<In, Out> for F
 where
