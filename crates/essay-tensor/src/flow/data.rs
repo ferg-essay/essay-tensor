@@ -1,6 +1,6 @@
 use std::{any::TypeId, mem::{self, ManuallyDrop}, ptr::NonNull, alloc::Layout};
 
-use super::node::{TypedNodeId, Node};
+use super::{node::{Node}, flow::TypedTaskId};
 
 pub trait Scalar {}
 
@@ -36,12 +36,12 @@ impl GraphData {
         }
     }
 
-    pub fn read<T: 'static>(&mut self, node: &TypedNodeId<T>) -> Option<T> {
+    pub fn read<T: 'static>(&mut self, node: &TypedTaskId<T>) -> Option<T> {
         println!("Read {:?}", node.id());
         self.nodes[node.index()].read()
     }
     
-    pub fn write<T: 'static>(&mut self, node: &TypedNodeId<T>, data: T) -> bool {
+    pub fn write<T: 'static>(&mut self, node: &TypedTaskId<T>, data: T) -> bool {
         println!("Write {:?}", node.id());
         self.nodes[node.index()].write(data)
     }
@@ -115,7 +115,7 @@ impl FlowData for () {
 
 impl<T:Scalar + Clone + 'static> FlowData for T {
     type Item = T;
-    type Nodes = TypedNodeId<T>;
+    type Nodes = TypedTaskId<T>;
 
     fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<Self::Item> {
         data.read(nodes)
