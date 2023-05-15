@@ -1,4 +1,4 @@
-pub(crate) mod flow;
+pub mod flow;
 pub mod data;
 pub mod model;
 pub mod layer;

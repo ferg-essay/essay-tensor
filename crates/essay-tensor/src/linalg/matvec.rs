@@ -56,15 +56,15 @@ pub fn matvec_t(
 ) -> Tensor<f32> {
     assert!(a.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", a.rank());
     
-    assert_eq!(a.shape().as_subslice(2..), x.shape().as_subslice(1..), "matvec batch shape must match");
-    assert_eq!(x.shape()[0], a.shape()[0]);
+    //assert_eq!(a.shape().as_subslice(2..), x.shape().as_subslice(1..), "matvec batch shape must match");
+    assert_eq!(x.cols(), a.cols());
 
-    let n : usize = a.broadcast_min(2, &x, 1);
+    let n : usize = a.broadcast_min(2, &x, 2);
 
-    let a_dim = [a.shape()[0], a.shape()[1]];
-    let x_dim = [x.shape()[0], 1];
+    let a_dim = [a.cols(), a.rows()];
+    let x_dim = [x.cols(), x.rows()];
 
-    let o_size = a_dim[1];
+    let o_size = a_dim[1] * x_dim[1];
 
     let a_size = a_dim[0] * a_dim[1];
     let x_size = x_dim[0] * x_dim[1];
@@ -74,7 +74,7 @@ pub fn matvec_t(
 
         for block in 0..n {
             sgemm(
-                1, x_dim[0], o_size,
+                x.rows(), x_dim[0], o_size,
                 1.,
                 x.as_wrap_ptr(block * x_size),
                 x_dim[0], 1,

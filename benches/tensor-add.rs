@@ -34,11 +34,15 @@ fn main() {
         let _c = &a.matmul(&b);
         let time_matmul = start.elapsed();
 
-        let a = Tensor::zeros([8192, 256]);
-        let b = Tensor::ones([8192]);
+        let a = Tensor::zeros([256, 8192]);
+        let b = Tensor::ones([4, 8192]);
+        //let a = Tensor::zeros([1, 1]);
+        //let b = Tensor::ones([1, 1]);
 
         let start = Instant::now();
-        let _c = &a.matvec(&b);
+        for _ in 0..1000 {
+            let _c = &a.matvec(&b);
+        }
         let time_matvec = start.elapsed();
 
         let a = Tensor::zeros([1024]);
