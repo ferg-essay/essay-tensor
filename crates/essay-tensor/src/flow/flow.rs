@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use super::{
     task::{FlowNode, Task, TaskNode, InputNode}, 
-    data::{GraphData, FlowData, Scalar}, 
+    data::{GraphData, FlowIn, FlowData}, 
     dispatch::{Waker, BasicDispatcher}
 };
 
@@ -24,7 +24,7 @@ impl<T> Clone for TypedTaskId<T> {
     }
 }
 
-pub struct Flow<In: FlowData<In>, Out: FlowData<Out>> {
+pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
     graph: Graph,
     input: In::Nodes,
     output: Out::Nodes,
@@ -39,7 +39,7 @@ pub struct Graph {
     nodes: Vec<Box<dyn FlowNode>>,
 }
 
-pub struct FlowBuilder<In: FlowData<In>, Out: FlowData<Out>> {
+pub struct FlowBuilder<In: FlowIn<In>, Out: FlowIn<Out>> {
     graph: Graph,
     input: In::Nodes,
     marker: PhantomData<(In, Out)>,
@@ -47,8 +47,8 @@ pub struct FlowBuilder<In: FlowData<In>, Out: FlowData<Out>> {
 
 impl<In, Out> Flow<In, Out>
 where
-    In: FlowData<In>,
-    Out: FlowData<Out>
+    In: FlowIn<In>,
+    Out: FlowIn<Out>
 {
     pub fn builder() -> FlowBuilder<In, Out> {
         FlowBuilder::new()
@@ -69,7 +69,7 @@ where
     }
 }
 
-impl<In: FlowData<In>, Out: FlowData<Out>> FlowBuilder<In, Out> {
+impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
     fn new() -> Self {
         let mut graph = Graph::default();
 
@@ -98,7 +98,7 @@ impl<In: FlowData<In>, Out: FlowData<Out>> FlowBuilder<In, Out> {
         input: &I::Nodes,
     ) -> TypedTaskId<O>
     where
-        I: FlowData<I>,
+        I: FlowIn<I>,
         O: Clone + 'static,
     {
         let id = TaskId(self.graph.nodes.len());

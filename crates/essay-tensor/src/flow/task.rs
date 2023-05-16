@@ -1,15 +1,24 @@
 use std::{sync::Mutex};
 
-use super::{data::{FlowData, GraphData, Scalar}, flow::{TaskId, TypedTaskId}, dispatch::{Dispatcher, Waker}};
+use super::{data::{FlowIn, GraphData}, flow::{TaskId, TypedTaskId}, dispatch::{Dispatcher, Waker}};
 
-pub trait Task<In, Out> : Send + 'static
+pub struct TaskErr;
+pub type Result<T> = std::result::Result<T, TaskErr>;
+
+pub enum Out<T> {
+    None,
+    Some(T),
+    Pending,
+}
+
+pub trait Task<I, O> : Send + 'static
 where
-    In: 'static,
-    Out: 'static,
+    I: 'static,
+    O: 'static,
 {
     fn init(&mut self) {}
     
-    fn execute(&mut self, input: In) -> Option<Out>;
+    fn execute(&mut self, input: I) -> Result<Out<O>>;
 }
 
 pub trait FlowNode {
@@ -32,7 +41,7 @@ pub trait FlowNode {
 
     fn complete(&mut self, dispatcher: &dyn Dispatcher) -> bool;
 
-    fn execute(&mut self, data: &mut GraphData, waker: &mut Waker);
+    fn execute(&mut self, data: &mut GraphData, waker: &mut Waker) -> Result<()>;
 }
 
 trait NodeInner {
@@ -41,7 +50,7 @@ trait NodeInner {
 
 type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
 
-pub struct TaskNode<In: FlowData<In>, Out> {
+pub struct TaskNode<In: FlowIn<In>, Out> {
     id: TypedTaskId<Out>,
 
     state: NodeState,
@@ -69,7 +78,7 @@ enum NodeState {
 
 impl<In, Out> TaskNode<In, Out>
 where
-    In: FlowData<In> + 'static, // ArrowData<Key, Value=In> + 'static,
+    In: FlowIn<In> + 'static, // ArrowData<Key, Value=In> + 'static,
     Out: 'static
 {
     pub fn new(
@@ -89,17 +98,17 @@ where
     }
 }
 
-impl<In, Out> FlowNode for TaskNode<In, Out>
+impl<I, O> FlowNode for TaskNode<I, O>
 where
-    In: FlowData<In> + 'static, // ArrowData<Value=In>,
-    Out: Clone + 'static
+    I: FlowIn<I> + 'static, // ArrowData<Value=In>,
+    O: Clone + 'static
 {
     fn add_output_arrow(&mut self, id: TaskId) {
         self.arrows_out.push(id);
     }
 
     fn new_data(&self, data: &mut GraphData) {
-        data.push::<Out>(self.arrows_out.len())
+        data.push::<O>(self.arrows_out.len())
     }
 
     fn init(
@@ -110,8 +119,8 @@ where
     ) {
         self.state = NodeState::WaitingIn;
 
-        if In::is_available(&self.arrows_in, data) {
-            let input = In::read(&self.arrows_in, data);
+        if I::is_available(&self.arrows_in, data) {
+            let input = I::read(&self.arrows_in, data);
             self.state = NodeState::Active;
             self.inner.lock().unwrap().input.replace(input);
 
@@ -127,8 +136,8 @@ where
         match self.state {
             NodeState::Active => {},
             NodeState::WaitingIn => {
-                if In::is_available(&self.arrows_in, data) {
-                    let input = In::read(&self.arrows_in, data);
+                if I::is_available(&self.arrows_in, data) {
+                    let input = I::read(&self.arrows_in, data);
                     self.state = NodeState::Active;
                     self.inner.lock().unwrap().input.replace(input);
         
@@ -145,9 +154,9 @@ where
         todo!()
     }
 
-    fn execute(&mut self, data: &mut GraphData, waker: &mut Waker) {
-        match self.inner.lock().unwrap().execute() {
-            Some(out) => {
+    fn execute(&mut self, data: &mut GraphData, waker: &mut Waker) -> Result<()> {
+        match self.inner.lock().unwrap().execute()? {
+            Out::Some(out) => {
                 // self.output.push_back(out);
                 data.write(&self.id, out);
 
@@ -158,39 +167,44 @@ where
                     waker.complete(*node, data);
                 }
             }
-            None => {
+            Out::None => {
                 self.state = NodeState::Complete;
             }
+            Out::Pending => {
+                todo!()
+            }
         }
+
+        Ok(())
     }
 }
 
-impl<In, Out> TaskInner<In, Out>
+impl<I, O> TaskInner<I, O>
 where
-    In: 'static,
-    Out: 'static
+    I: 'static,
+    O: 'static
 {
-    fn new(task: BoxTask<In, Out>) -> Self {
+    fn new(task: BoxTask<I, O>) -> Self {
         Self {
             task: task,
             input: None,
         }
     }
 
-    fn execute(&mut self) -> Option<Out> {
+    fn execute(&mut self) -> Result<Out<O>> {
         let input = self.input.take().unwrap();
 
         self.task.execute(input)
     }
 } 
 
-pub struct InputNode<In: FlowData<In>> {
+pub struct InputNode<In: FlowIn<In>> {
     _id: In::Nodes,
 
     arrows_out: Vec<TaskId>,
 }
 
-impl<In: FlowData<In>> InputNode<In> {
+impl<In: FlowIn<In>> InputNode<In> {
     pub fn new(id: In::Nodes) -> Self {
         Self {
             _id: id,
@@ -201,7 +215,7 @@ impl<In: FlowData<In>> InputNode<In> {
 
 impl<In> FlowNode for InputNode<In>
 where
-    In: FlowData<In> + 'static,
+    In: FlowIn<In> + 'static,
 {
     fn add_output_arrow(&mut self, id: TaskId) {
         self.arrows_out.push(id);
@@ -233,17 +247,21 @@ where
         todo!()
     }
 
-    fn execute(&mut self, _data: &mut GraphData, _waker: &mut Waker) {
+    fn execute(&mut self, _data: &mut GraphData, _waker: &mut Waker) -> Result<()> {
+        Ok(())
     }
 }
 
-impl<In, Out, F> Task<In, Out> for F
+impl<I, O, F> Task<I, O> for F
 where
-    In: 'static,
-    Out: 'static,
-    F: FnMut(In) -> Option<Out> + Send + 'static
+    I: 'static,
+    O: 'static,
+    F: FnMut(I) -> Option<O> + Send + 'static
 {
-    fn execute(&mut self, input: In) -> Option<Out> {
-        self(input)    
+    fn execute(&mut self, input: I) -> Result<Out<O>> {
+        match self(input) {
+            Some(out) => Ok(Out::Some(out)),
+            None => Ok(Out::None),
+        }
     }
 }

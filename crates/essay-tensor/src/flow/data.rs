@@ -2,9 +2,9 @@ use std::{any::TypeId, mem::{self, ManuallyDrop}, ptr::NonNull, alloc::Layout};
 
 use super::{task::{InputNode}, flow::{TypedTaskId, FlowNodes, Graph}};
 
-pub trait Scalar {}
+pub trait FlowData {}
 
-pub trait FlowData<T> : Clone + 'static {
+pub trait FlowIn<T> : Clone + 'static {
     // type Item;
     type Nodes : FlowNodes;
 
@@ -123,7 +123,7 @@ impl RawData {
     }
 }
 
-impl FlowData<()> for () {
+impl FlowIn<()> for () {
     type Nodes = ();
 
     fn is_available(_nodes: &Self::Nodes, _data: &GraphData) -> bool {
@@ -143,7 +143,7 @@ impl FlowData<()> for () {
     }
 }
 
-impl<T:Scalar + Clone + 'static> FlowData<T> for T {
+impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
     type Nodes = TypedTaskId<T>;
 
     fn new_input(graph: &mut Graph) -> Self::Nodes {
@@ -172,9 +172,9 @@ impl<T:Scalar + Clone + 'static> FlowData<T> for T {
 macro_rules! flow_tuple {
     ($(($t:ident, $v:ident)),*) => {
 
-        impl<$($t),*> FlowData<($($t),*)> for ($($t),*)
+        impl<$($t),*> FlowIn<($($t),*)> for ($($t),*)
         where $(
-            $t: FlowData<$t>,
+            $t: FlowIn<$t>,
         )*
         {
             type Nodes = ($($t::Nodes),*);
@@ -230,7 +230,7 @@ flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6));
 flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7));
 flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7), (T8, v8));
 
-impl<T: FlowData<T>> FlowData<Vec<T>> for Vec<T> {
+impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
     type Nodes = Vec<T::Nodes>;
 
     fn new_input(graph: &mut Graph) -> Self::Nodes {
@@ -276,7 +276,7 @@ impl<T: FlowData<T>> FlowData<Vec<T>> for Vec<T> {
 }
 
 //impl Scalar for () {}
-impl Scalar for String {}
-impl Scalar for usize {}
-impl Scalar for i32 {}
-impl Scalar for f32 {}
+impl FlowData for String {}
+impl FlowData for usize {}
+impl FlowData for i32 {}
+impl FlowData for f32 {}
