@@ -1,20 +1,35 @@
 use std::{any::TypeId, mem::{self, ManuallyDrop}, ptr::NonNull, alloc::Layout};
 
 use super::{
-    task::{InputTask}, 
-    flow::{TaskId, FlowNodes, Graph, TaskIdBare}
+    task::{InputTask, Source, self}, 
+    flow::{TaskId, Graph, TaskIdBare}
 };
+
+pub enum Out<T> {
+    None,
+    Some(T),
+    Pending,
+}
 
 pub trait FlowData {}
 
 pub trait FlowIn<T> : Clone + 'static {
     type Nodes : FlowNodes;
+    type Source : FlowSource;
 
     fn new_input(graph: &mut Graph) -> Self::Nodes;
 
     fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool;
     fn read(nodes: &Self::Nodes, data: &mut GraphData) -> T;
     fn write(nodes: &Self::Nodes, data: &mut GraphData, value: T) -> bool;
+}
+
+pub trait FlowNodes : Clone + 'static {
+    fn add_arrows(&self, node: TaskIdBare, graph: &mut Graph);
+}
+
+pub trait FlowSource : 'static {
+    type Item;
 }
 
 pub struct GraphData {
@@ -127,6 +142,7 @@ impl RawData {
 
 impl FlowIn<()> for () {
     type Nodes = ();
+    type Source = ();
 
     fn is_available(_nodes: &Self::Nodes, _data: &GraphData) -> bool {
         true
@@ -147,6 +163,7 @@ impl FlowIn<()> for () {
 
 impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
     type Nodes = TaskId<T>;
+    type Source = task::Source<T>;
 
     fn new_input(graph: &mut Graph) -> Self::Nodes {
         let id = graph.alloc_id::<T>();
@@ -171,7 +188,53 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
     }
 }
 
-macro_rules! flow_tuple {
+impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
+    type Nodes = Vec<T::Nodes>;
+    type Source = Vec<T::Source>;
+
+    fn new_input(_graph: &mut Graph) -> Self::Nodes {
+        todo!();
+        /*
+        let id = graph.alloc_id::<Vec<T>>();
+        let node = InputNode::<Vec<T>>::new(id.clone());
+
+        graph.push_node(Box::new(node));
+
+        id
+        */
+    }
+
+    fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
+        for node in nodes {
+            if ! T::is_available(node, data) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Self {
+        let mut vec = Vec::new();
+
+        for node in nodes {
+            vec.push(T::read(node, data));
+        }
+
+        vec
+    }
+
+    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self) -> bool {
+        let mut value = value;
+        for (value, node) in value.drain(..).zip(nodes) {
+            T::write(node, data, value);
+        }
+
+        false
+    }
+}
+
+macro_rules! tuple_flow {
     ($(($t:ident, $v:ident)),*) => {
 
         impl<$($t),*> FlowIn<($($t),*)> for ($($t),*)
@@ -180,6 +243,7 @@ macro_rules! flow_tuple {
         )*
         {
             type Nodes = ($($t::Nodes),*);
+            type Source = ($($t::Source),*);
 
             fn new_input(graph: &mut Graph) -> Self::Nodes {
                 let key = ($(
@@ -224,58 +288,13 @@ macro_rules! flow_tuple {
     }
 }
 
-flow_tuple!((T1, v1), (T2, v2));
-flow_tuple!((T1, v1), (T2, v2), (T3, v3));
-flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4));
-flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5));
-flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6));
-flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7));
-flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7), (T8, v8));
-
-impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
-    type Nodes = Vec<T::Nodes>;
-
-    fn new_input(_graph: &mut Graph) -> Self::Nodes {
-        todo!();
-        /*
-        let id = graph.alloc_id::<Vec<T>>();
-        let node = InputNode::<Vec<T>>::new(id.clone());
-
-        graph.push_node(Box::new(node));
-
-        id
-        */
-    }
-
-    fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
-        for node in nodes {
-            if ! T::is_available(node, data) {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Self {
-        let mut vec = Vec::new();
-
-        for node in nodes {
-            vec.push(T::read(node, data));
-        }
-
-        vec
-    }
-
-    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self) -> bool {
-        let mut value = value;
-        for (value, node) in value.drain(..).zip(nodes) {
-            T::write(node, data, value);
-        }
-
-        false
-    }
-}
+tuple_flow!((T1, v1), (T2, v2));
+tuple_flow!((T1, v1), (T2, v2), (T3, v3));
+tuple_flow!((T1, v1), (T2, v2), (T3, v3), (T4, v4));
+tuple_flow!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5));
+tuple_flow!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6));
+tuple_flow!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7));
+tuple_flow!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7), (T8, v8));
 
 impl FlowNodes for () {
     fn add_arrows(&self, _node: TaskIdBare, _graph: &mut Graph) {
@@ -288,7 +307,15 @@ impl<T: 'static> FlowNodes for TaskId<T> {
     }
 }
 
-macro_rules! flow_tuple {
+impl<T: FlowNodes> FlowNodes for Vec<T> {
+    fn add_arrows(&self, node: TaskIdBare, graph: &mut Graph) {
+        for id in self {
+            id.add_arrows(node, graph);
+        }
+    }
+}
+
+macro_rules! tuple_nodes {
     ($($id:ident),*) => {
         #[allow(non_snake_case)]
         impl<$($id),*> FlowNodes for ($($id),*)
@@ -304,22 +331,51 @@ macro_rules! flow_tuple {
     }
 }
 
-flow_tuple!(T1, T2);
-flow_tuple!(T1, T2, T3);
-flow_tuple!(T1, T2, T3, T4);
-flow_tuple!(T1, T2, T3, T4, T5);
-flow_tuple!(T1, T2, T3, T4, T5, T6);
-flow_tuple!(T1, T2, T3, T4, T5, T6, T7);
-flow_tuple!(T1, T2, T3, T4, T5, T6, T7, T8);
+tuple_nodes!(T1, T2);
+tuple_nodes!(T1, T2, T3);
+tuple_nodes!(T1, T2, T3, T4);
+tuple_nodes!(T1, T2, T3, T4, T5);
+tuple_nodes!(T1, T2, T3, T4, T5, T6);
+tuple_nodes!(T1, T2, T3, T4, T5, T6, T7);
+tuple_nodes!(T1, T2, T3, T4, T5, T6, T7, T8);
 
+impl FlowSource for () {
+    type Item = ();
+}
 
-impl<T: FlowNodes> FlowNodes for Vec<T> {
-    fn add_arrows(&self, node: TaskIdBare, graph: &mut Graph) {
-        for id in self {
-            id.add_arrows(node, graph);
+impl<T> FlowSource for Source<T>
+where
+    T: FlowData + Clone + 'static,
+{
+    type Item = T;
+}
+
+impl<T> FlowSource for Vec<T>
+where
+    T: FlowSource,
+{
+    type Item = Vec<T::Item>;
+}
+
+macro_rules! tuple_source {
+    ($($t:ident),*) => {
+        #[allow(non_snake_case)]
+        impl<$($t),*> FlowSource for ($($t),*)
+        where
+            $($t: FlowSource),*,
+        {
+            type Item = ($($t::Item),*);
         }
     }
 }
+
+tuple_source!(T1, T2);
+tuple_source!(T1, T2, T3);
+tuple_source!(T1, T2, T3, T4);
+tuple_source!(T1, T2, T3, T4, T5);
+tuple_source!(T1, T2, T3, T4, T5, T6);
+tuple_source!(T1, T2, T3, T4, T5, T6, T7);
+tuple_source!(T1, T2, T3, T4, T5, T6, T7, T8);
 
 //impl Scalar for () {}
 impl FlowData for String {}

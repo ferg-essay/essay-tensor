@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use super::{
     task::{FlowNode, Task, TaskNode, InputTask}, 
-    data::{GraphData, FlowIn}, dispatch::Dispatcher, 
+    data::{GraphData, FlowIn, FlowNodes}, dispatch::Dispatcher, 
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
@@ -14,24 +14,11 @@ pub struct TaskId<T> {
     marker: PhantomData<T>,
 }
 
-impl<T> Clone for TaskId<T> {
-    fn clone(&self) -> Self {
-        Self { 
-            id: self.id.clone(), 
-            marker: self.marker.clone() 
-        }
-    }
-}
-
 pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
     graph: Graph,
     input: In::Nodes,
     output: Out::Nodes,
     //marker: PhantomData<In>,
-}
-
-pub trait FlowNodes : Clone + 'static {
-    fn add_arrows(&self, node: TaskIdBare, graph: &mut Graph);
 }
 
 pub struct Graph {
@@ -176,6 +163,15 @@ impl Graph {
 impl Default for Graph {
     fn default() -> Self {
         Self { nodes: Default::default() }
+    }
+}
+
+impl<T> Clone for TaskId<T> {
+    fn clone(&self) -> Self {
+        Self { 
+            id: self.id.clone(), 
+            marker: self.marker.clone() 
+        }
     }
 }
 

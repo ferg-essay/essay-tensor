@@ -1,25 +1,13 @@
 use std::{sync::Mutex, mem};
 
-use super::{data::{FlowIn, GraphData}, flow::{TaskIdBare, TaskId}, dispatch::{Dispatcher}};
+use super::{data::{FlowIn, GraphData, Out}, flow::{TaskIdBare, TaskId}, dispatch::{Dispatcher}};
 
 #[derive(Debug)]
 pub struct TaskErr;
 
 pub type Result<T> = std::result::Result<T, TaskErr>;
 
-pub enum Out<T> {
-    None,
-    Some(T),
-    Pending,
-}
-
-pub trait Source<T> : Sized {
-    fn next(&mut self) -> Out<T>;
-
-    fn push(&mut self, value: T);
-}
-
-pub struct SourceImpl<T> {
+pub struct Source<T> {
     item: Out<T>,
 }
 
@@ -299,14 +287,14 @@ impl<T> Default for Out<T> {
     }
 }
 
-impl<T> Default for SourceImpl<T> {
+impl<T> Default for Source<T> {
     fn default() -> Self {
         Self { 
             item: Default::default() 
         }
     }
 }
-impl<T> Source<T> for SourceImpl<T> {
+impl<T> Source<T> {
     fn next(&mut self) -> Out<T> {
         self.item.take()        
     }
