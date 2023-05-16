@@ -99,7 +99,7 @@ where
     }
 
     fn new_data(&self, data: &mut GraphData) {
-        data.push::<Out>()
+        data.push::<Out>(self.arrows_out.len())
     }
 
     fn init(
@@ -110,7 +110,8 @@ where
     ) {
         self.state = NodeState::WaitingIn;
 
-        if let Some(input) = In::read(&self.arrows_in, data) {
+        if In::is_available(&self.arrows_in, data) {
+            let input = In::read(&self.arrows_in, data);
             self.state = NodeState::Active;
             self.inner.lock().unwrap().input.replace(input);
 
@@ -126,7 +127,8 @@ where
         match self.state {
             NodeState::Active => {},
             NodeState::WaitingIn => {
-                if let Some(input) = In::read(&self.arrows_in, data) {
+                if In::is_available(&self.arrows_in, data) {
+                    let input = In::read(&self.arrows_in, data);
                     self.state = NodeState::Active;
                     self.inner.lock().unwrap().input.replace(input);
         
@@ -206,7 +208,7 @@ where
     }
 
     fn new_data(&self, data: &mut GraphData) {
-        data.push::<In>()
+        data.push::<In>(self.arrows_out.len())
     }
 
     fn init(

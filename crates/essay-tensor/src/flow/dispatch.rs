@@ -42,7 +42,6 @@ impl BasicDispatcher {
 impl Dispatcher for BasicDispatcher {
     fn spawn(&mut self, node: TaskId) {
         self.ready.push(node);
-        println!("Spawn: {:?}", node);
     }
 }
 
@@ -66,6 +65,5 @@ impl Waker {
 
     pub fn complete(&mut self, node: TaskId, _data: &mut GraphData) {
         self.nodes.push(node);
-        println!("Complete");
     }
 }

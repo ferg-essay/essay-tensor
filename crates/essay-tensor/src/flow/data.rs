@@ -10,7 +10,8 @@ pub trait FlowData<T> : Clone + 'static {
 
     fn new_input(graph: &mut Graph) -> Self::Nodes;
 
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<T>;
+    fn is_available(nodes: &Self::Nodes, data: &mut GraphData) -> bool;
+    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> T;
     fn write(nodes: &Self::Nodes, data: &mut GraphData, value: T) -> bool;
 }
 
@@ -23,6 +24,7 @@ pub struct RawData {
     layout: Layout,
 
     item: Option<NonNull<u8>>,
+    n_arrows: usize,
 }
 
 impl GraphData {
@@ -32,11 +34,15 @@ impl GraphData {
         }
     }
 
-    pub fn push<T: Clone + 'static>(&mut self) {
-        self.nodes.push(RawData::new::<T>());
+    pub fn push<T: Clone + 'static>(&mut self, n_arrows: usize) {
+        self.nodes.push(RawData::new::<T>(n_arrows));
     }
 
-    pub fn read<T: 'static>(&mut self, node: &TypedTaskId<T>) -> Option<T> {
+    pub fn is_available<T: 'static>(&mut self, node: &TypedTaskId<T>) -> bool {
+        self.nodes[node.index()].is_available()
+    }
+
+    pub fn read<T: Clone + 'static>(&mut self, node: &TypedTaskId<T>) -> T {
         self.nodes[node.index()].read()
     }
     
@@ -46,25 +52,50 @@ impl GraphData {
 }
 
 impl RawData {
-    pub fn new<T: Clone + 'static>() -> Self {
+    pub fn new<T: Clone + 'static>(n_arrows: usize) -> Self {
         Self {
             type_id: TypeId::of::<T>(),
             layout: Layout::new::<T>(),
+            n_arrows: n_arrows,
             item: None,
         }
     }
 
-    fn read<T: 'static>(&mut self) -> Option<T> {
-        match self.item.take() {
-            Some(data) => Some(self.unwrap(data)),
-            None => None,
+    #[inline]
+    fn is_available(&mut self) -> bool {
+        self.item.is_some()
+    }
+
+    fn read<T: Clone + 'static>(&mut self) -> T {
+        if self.n_arrows > 1 {
+            self.n_arrows -= 1;
+
+            match self.item {
+                Some(data) => unsafe {
+                    data.cast::<T>().as_ref().clone()
+                },
+                None => panic!("expected value"),
+            }
+        } else if self.n_arrows == 1 {
+            self.n_arrows -= 1;
+
+            match self.item.take() {
+                Some(data) => unsafe {
+                    data.as_ptr().cast::<T>().read()
+                },
+                None => panic!("expected value"),
+            }
+        } else {
+            panic!("unexpected number of arrows")
         }
     }
 
     fn write<T: 'static>(&mut self, data: T) -> bool {
         assert!(self.item.is_none());
 
-        self.item.replace(self.wrap(data));
+        if self.n_arrows > 0 {
+            self.item.replace(self.wrap(data));
+        }
 
         false
     }
@@ -90,20 +121,17 @@ impl RawData {
             data
         }
     }
-
-    fn unwrap<T: 'static>(&self, data: NonNull<u8>) -> T {
-        assert!(self.type_id == TypeId::of::<T>());
-
-        unsafe { data.as_ptr().cast::<T>().read() }
-    }
 }
 
 impl FlowData<()> for () {
-    // type Item = ();
     type Nodes = ();
 
-    fn read(_nodes: &Self::Nodes, _data: &mut GraphData) -> Option<()> {
-        Some(())
+    fn is_available(_nodes: &Self::Nodes, _data: &mut GraphData) -> bool {
+        true
+    }
+
+    fn read(_nodes: &Self::Nodes, _data: &mut GraphData) -> () {
+        ()
     }
 
     fn write(_nodes: &Self::Nodes, _data: &mut GraphData, _value: ()) -> bool {
@@ -116,7 +144,6 @@ impl FlowData<()> for () {
 }
 
 impl<T:Scalar + Clone + 'static> FlowData<T> for T {
-    // type Item = T;
     type Nodes = TypedTaskId<T>;
 
     fn new_input(graph: &mut Graph) -> Self::Nodes {
@@ -129,7 +156,11 @@ impl<T:Scalar + Clone + 'static> FlowData<T> for T {
         id
     }
 
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<T> {
+    fn is_available(nodes: &Self::Nodes, data: &mut GraphData) -> bool {
+        data.is_available(nodes)
+    }
+
+    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> T {
         data.read(nodes)
     }
 
@@ -138,7 +169,66 @@ impl<T:Scalar + Clone + 'static> FlowData<T> for T {
     }
 }
 
-// pub trait FlowData : Send + 'static {}
+macro_rules! flow_tuple {
+    ($(($t:ident, $v:ident)),*) => {
+
+        impl<$($t),*> FlowData<($($t),*)> for ($($t),*)
+        where $(
+            $t: FlowData<$t>,
+        )*
+        {
+            type Nodes = ($($t::Nodes),*);
+
+            fn new_input(graph: &mut Graph) -> Self::Nodes {
+                let key = ($(
+                    $t::new_input(graph)
+                ),*);
+
+                let node = InputNode::<($($t),*)>::new(key.clone());
+
+                graph.push_node(Box::new(node));
+
+                key
+            }
+
+            fn is_available(nodes: &Self::Nodes, data: &mut GraphData) -> bool {
+                let ($($v),*) = nodes;
+
+                $(
+                    $t::is_available($v, data)
+                )&&*
+            }
+
+            fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Self {
+                let ($($v),*) = nodes;
+
+                ($(
+                    $t::read($v, data)
+                ),*)
+            }
+
+            fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self) -> bool {
+                #[allow(non_snake_case)]
+                let ($($t),*) = nodes;
+                let ($($v),*) = value;
+
+                $(
+                    $t::write($t, data, $v);
+                )*
+
+                true
+            }
+        }
+    }
+}
+
+flow_tuple!((T1, v1), (T2, v2));
+flow_tuple!((T1, v1), (T2, v2), (T3, v3));
+flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4));
+flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5));
+flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6));
+flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7));
+flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7), (T8, v8));
 
 //impl Scalar for () {}
 impl Scalar for String {}
