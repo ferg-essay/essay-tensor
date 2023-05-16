@@ -1,13 +1,28 @@
 use std::{sync::Mutex};
 
-use super::{data::{FlowData, GraphData, RawData}, flow::{Waker, Dispatcher, NodeId, TypedTaskId}};
+use super::{data::{FlowData, GraphData}, flow::{TaskId, TypedTaskId}, dispatch::{Dispatcher, Waker}};
 
-pub trait Node {
-    fn add_output_arrow(&mut self, id: NodeId);
+pub trait Task<In, Out> : Send + 'static
+where
+    In: 'static,
+    Out: 'static,
+{
+    fn init(&mut self) {}
+    
+    fn execute(&mut self, input: In) -> Option<Out>;
+}
 
-    fn new_data(&self) -> RawData;
+pub trait FlowNode {
+    fn add_output_arrow(&mut self, id: TaskId);
 
-    fn init(&mut self, data: &mut GraphData, dispatcher: &mut dyn Dispatcher);
+    fn new_data(&self, data: &mut GraphData);
+
+    fn init(
+        &mut self, 
+        data: &mut GraphData, 
+        dispatcher: &mut dyn Dispatcher,
+        waker: &mut Waker,
+    );
 
     fn update(
         &mut self, 
@@ -24,30 +39,20 @@ trait NodeInner {
     fn execute(&mut self, waker: &Waker);
 }
 
-pub trait Task<In, Out> : Send + 'static
-where
-    In: 'static,
-    Out: 'static,
-{
-    fn execute(&mut self, input: In) -> Option<Out>;
-}
-
 type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
 
-pub struct TaskNode<In: FlowData<In>, Out>
-{
+pub struct TaskNode<In: FlowData<In>, Out> {
     id: TypedTaskId<Out>,
 
     state: NodeState,
 
     arrows_in: In::Nodes,
-    arrows_out: Vec<NodeId>,
+    arrows_out: Vec<TaskId>,
 
     inner: Mutex<TaskInner<In, Out>>,
 }
 
-struct TaskInner<In, Out>
-{
+struct TaskInner<In, Out> {
     task: BoxTask<In, Out>,
     input: Option<In>,
 }
@@ -84,20 +89,25 @@ where
     }
 }
 
-impl<In, Out> Node for TaskNode<In, Out>
+impl<In, Out> FlowNode for TaskNode<In, Out>
 where
     In: FlowData<In> + 'static, // ArrowData<Value=In>,
     Out: FlowData<Out> + 'static
 {
-    fn add_output_arrow(&mut self, id: NodeId) {
+    fn add_output_arrow(&mut self, id: TaskId) {
         self.arrows_out.push(id);
     }
 
-    fn new_data(&self) -> RawData {
-        RawData::new::<Out>()
+    fn new_data(&self, data: &mut GraphData) {
+        data.push::<Out>()
     }
 
-    fn init(&mut self, data: &mut GraphData, dispatcher: &mut dyn Dispatcher) {
+    fn init(
+        &mut self, 
+        data: &mut GraphData, 
+        dispatcher: &mut dyn Dispatcher,
+        waker: &mut Waker,
+    ) {
         self.state = NodeState::WaitingIn;
 
         if let Some(input) = In::read(&self.arrows_in, data) {
@@ -146,6 +156,8 @@ where
                 self.state = NodeState::WaitingOut;
 
                 for node in &self.arrows_out {
+                    println!("  ArrowOut {:?}", *node);
+
                     waker.complete(*node, data);
                 }
             }
@@ -175,6 +187,59 @@ where
         self.task.execute(input)
     }
 } 
+
+pub struct InputNode<In: FlowData<In>> {
+    id: In::Nodes,
+
+    arrows_out: Vec<TaskId>,
+}
+
+impl<In: FlowData<In>> InputNode<In> {
+    pub fn new(id: In::Nodes) -> Self {
+        Self {
+            id: id,
+            arrows_out: Vec::new(),
+        }
+    }
+}
+
+impl<In> FlowNode for InputNode<In>
+where
+    In: FlowData<In> + 'static,
+{
+    fn add_output_arrow(&mut self, id: TaskId) {
+        self.arrows_out.push(id);
+    }
+
+    fn new_data(&self, data: &mut GraphData) {
+        data.push::<In>()
+    }
+
+    fn init(
+        &mut self, 
+        data: &mut GraphData, 
+        dispatcher: &mut dyn Dispatcher,
+        waker: &mut Waker,
+    ) {
+        for node in &self.arrows_out {
+            waker.complete(*node, data);
+        }
+    }
+
+    fn update(
+        &mut self, 
+        data: &mut GraphData, 
+        dispatcher: &mut dyn Dispatcher
+    ) {
+    }
+
+    fn complete(&mut self, _dispatcher: &dyn Dispatcher) -> bool {
+        todo!()
+    }
+
+    fn execute(&mut self, data: &mut GraphData, waker: &mut Waker) {
+    }
+}
 
 impl<In, Out, F> Task<In, Out> for F
 where

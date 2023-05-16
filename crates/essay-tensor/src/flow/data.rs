@@ -1,12 +1,14 @@
 use std::{any::TypeId, mem::{self, ManuallyDrop}, ptr::NonNull, alloc::Layout};
 
-use super::{task::{Node}, flow::TypedTaskId};
+use super::{task::{FlowNode, InputNode}, flow::{TypedTaskId, TaskId, FlowNodes, Graph}};
 
 pub trait Scalar {}
 
 pub trait FlowData<T> : Clone + 'static {
     // type Item;
-    type Nodes : Clone;
+    type Nodes : FlowNodes;
+
+    fn new_input(graph: &mut Graph) -> Self::Nodes;
 
     fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<T>;
     fn write(nodes: &Self::Nodes, data: &mut GraphData, value: T) -> bool;
@@ -24,16 +26,14 @@ pub struct RawData {
 }
 
 impl GraphData {
-    pub fn new(nodes: &[Box<dyn Node>]) -> Self {
-        let mut vec = Vec::new();
-
-        for node in nodes {
-            vec.push(node.new_data());
-        }
-
+    pub fn new() -> Self {
         Self {
-            nodes: vec,
+            nodes: Vec::new(),
         }
+    }
+
+    pub fn push<T: Clone + 'static>(&mut self) {
+        self.nodes.push(RawData::new::<T>());
     }
 
     pub fn read<T: 'static>(&mut self, node: &TypedTaskId<T>) -> Option<T> {
@@ -111,11 +111,25 @@ impl FlowData<()> for () {
     fn write(_nodes: &Self::Nodes, _data: &mut GraphData, _value: ()) -> bool {
         false
     }
+
+    fn new_input(graph: &mut Graph) -> Self::Nodes {
+        ()
+    }
 }
 
 impl<T:Scalar + Clone + 'static> FlowData<T> for T {
     // type Item = T;
     type Nodes = TypedTaskId<T>;
+
+    fn new_input(graph: &mut Graph) -> Self::Nodes {
+        let id = graph.alloc_id::<T>();
+
+        let node = InputNode::<T>::new(id.clone());
+
+        graph.push_node(Box::new(node));
+
+        id
+    }
 
     fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Option<T> {
         data.read(nodes)
@@ -131,3 +145,4 @@ impl<T:Scalar + Clone + 'static> FlowData<T> for T {
 //impl Scalar for () {}
 impl Scalar for String {}
 impl Scalar for usize {}
+impl Scalar for i32 {}
