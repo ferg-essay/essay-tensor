@@ -204,6 +204,8 @@ impl<T: 'static> TaskId<T> {
 mod test {
     use std::{sync::{Arc, Mutex}};
 
+    use crate::flow::{data::Out, task::Source};
+
     use super::{Flow, TaskIdBare};
 
     #[test]
@@ -221,9 +223,9 @@ mod test {
         let mut builder = Flow::<(), ()>::builder();
         let ptr = vec.clone();
 
-        let node_id = builder.task::<(), ()>(move |_: ()| {
+        let node_id = builder.task::<(), ()>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node[]"));
-            None
+            Ok(Out::None)
         }, &());
 
         assert_eq!(node_id.id(), TaskIdBare(1));
@@ -246,17 +248,20 @@ mod test {
         let ptr = vec.clone();
         let mut data = vec!["a".to_string(), "b".to_string()];
 
-        let n_0 = builder.task::<(), String>(move |_| {
+        let n_0 = builder.task::<(), String>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node0[]"));
-            data.pop()
+            match data.pop() {
+                Some(v) => Ok(Out::Some(v)),
+                None => Ok(Out::None)
+            }
         }, &());
 
         assert_eq!(n_0.id(), TaskIdBare(1));
 
         let ptr = vec.clone();
-        let n_1 = builder.task::<String, ()>(move |s| {
-            ptr.lock().unwrap().push(format!("Node1[{s}]"));
-            None
+        let n_1 = builder.task::<String, ()>(move |s: &mut Source<String>| {
+            ptr.lock().unwrap().push(format!("Node1[{}]", s.next().unwrap()));
+            Ok(Out::None)
         }, &n_0);
 
         assert_eq!(n_1.id(), TaskIdBare(2));
@@ -282,9 +287,9 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input();
-        let _n_0 = builder.task::<usize, ()>(move |x| {
-            ptr.lock().unwrap().push(format!("Task[{:?}]", x));
-            None
+        let _n_0 = builder.task::<usize, ()>(move |x: &mut Source<usize>| {
+            ptr.lock().unwrap().push(format!("Task[{:?}]", x.next().unwrap()));
+            Ok(Out::None)
         }, &input);
 
         let mut flow = builder.output(&());
@@ -305,9 +310,10 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input();
-        let n_0 = builder.task::<usize, usize>(move |x| {
-            ptr.lock().unwrap().push(format!("Task[{:?}]", x));
-            Some(x + 10)
+        let n_0 = builder.task::<usize, usize>(move |x: &mut Source<usize>| {
+            let x_v = x.next().unwrap();
+            ptr.lock().unwrap().push(format!("Task[{:?}]", x_v));
+            Ok(Out::Some(x_v + 10))
         }, &input);
 
         let mut flow = builder.output(&n_0);
@@ -326,21 +332,21 @@ mod test {
         let mut builder = Flow::<(), ()>::builder();
 
         let ptr = vec.clone();
-        let n_0 = builder.task::<(), usize>(move |_| {
+        let n_0 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-0[]"));
-            Some(1)
+            Ok(Out::Some(1))
         }, &());
 
         let ptr = vec.clone();
-        let _n_1 = builder.task::<usize, ()>(move |x| {
-            ptr.lock().unwrap().push(format!("N-1[{}]", x));
-            None
+        let _n_1 = builder.task::<usize, ()>(move |x: &mut Source<usize>| {
+            ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
+            Ok(Out::None)
         }, &n_0);
 
         let ptr = vec.clone();
-        let _n_2 = builder.task::<usize, ()>(move |x| {
-            ptr.lock().unwrap().push(format!("N-1[{}]", x));
-            None
+        let _n_2 = builder.task::<usize, ()>(move |x: &mut Source<usize>| {
+            ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
+            Ok(Out::None)
         }, &n_0);
 
         let mut flow = builder.output(&());
@@ -356,21 +362,21 @@ mod test {
         let mut builder = Flow::<(), ()>::builder();
 
         let ptr = vec.clone();
-        let n_1 = builder.task::<(), usize>(move |_| {
+        let n_1 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
-            Some(1)
+            Ok(Out::Some(1))
         }, &());
 
         let ptr = vec.clone();
-        let n_2 = builder.task::<(), f32>(move |_| {
+        let n_2 = builder.task::<(), f32>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
-            Some(10.5)
+            Ok(Out::Some(10.5))
         }, &());
 
         let ptr = vec.clone();
-        let _n_2 = builder.task::<(usize, f32), ()>(move |(x, y)| {
-            ptr.lock().unwrap().push(format!("N-2[{}, {}]", x, y));
-            None
+        let _n_2 = builder.task::<(usize, f32), ()>(move |v: &mut (Source<usize>, Source<f32>)| {
+            ptr.lock().unwrap().push(format!("N-2[{}, {}]", v.0.next().unwrap(), v.1.next().unwrap()));
+            Ok(Out::None)
         }, &(n_1, n_2));
 
         let mut flow = builder.output(&());
@@ -386,27 +392,27 @@ mod test {
         let mut builder = Flow::<(), ()>::builder();
 
         let ptr = vec.clone();
-        let n_1 = builder.task::<(), usize>(move |_| {
+        let n_1 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
-            Some(1)
+            Ok(Out::Some(1))
         }, &());
 
         let ptr = vec.clone();
-        let n_2 = builder.task::<(), usize>(move |_| {
+        let n_2 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
-            Some(10)
+            Ok(Out::Some(10))
         }, &());
 
         let ptr = vec.clone();
-        let n_3 = builder.task::<(), usize>(move |_| {
+        let n_3 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
-            Some(100)
+            Ok(Out::Some(100))
         }, &());
 
         let ptr = vec.clone();
-        let _n_2 = builder.task::<Vec<usize>, ()>(move |x| {
-            ptr.lock().unwrap().push(format!("N-2[{:?}]", &x));
-            None
+        let _n_2 = builder.task::<Vec<usize>, ()>(move |x: &mut Vec<Source<usize>>| {
+            ptr.lock().unwrap().push(format!("N-2[{:?}]", x[0].next().unwrap()));
+            Ok(Out::None)
         }, &vec![n_1, n_2, n_3]);
 
         let mut flow = builder.output(&());
@@ -424,9 +430,9 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input();
-        let n_0 = builder.task::<usize, usize>(move |x| {
-            ptr.lock().unwrap().push(format!("Task[{:?}]", x));
-            None
+        let n_0 = builder.task::<usize, usize>(move |x: &mut Source<usize>| {
+            ptr.lock().unwrap().push(format!("Task[{:?}]", x.next().unwrap()));
+            Ok(Out::None)
         }, &input);
 
         let mut flow = builder.output(&n_0);

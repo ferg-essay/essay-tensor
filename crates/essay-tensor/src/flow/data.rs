@@ -15,12 +15,15 @@ pub trait FlowData {}
 
 pub trait FlowIn<T> : Clone + 'static {
     type Nodes : FlowNodes;
-    type Source : FlowSource;
+    type Source; // : FlowSource;
 
     fn new_input(graph: &mut Graph) -> Self::Nodes;
+    fn new_source(nodes: &Self::Nodes) -> Self::Source;
 
     fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool;
     fn read(nodes: &Self::Nodes, data: &mut GraphData) -> T;
+    fn fill_input(source: &mut Self::Source, nodes: &Self::Nodes, data: &mut GraphData) -> bool;
+
     fn write(nodes: &Self::Nodes, data: &mut GraphData, value: T) -> bool;
 }
 
@@ -140,6 +143,64 @@ impl RawData {
     }
 }
 
+impl<T> Out<T> {
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        match self {
+            Out::None => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_pending(&self) -> bool {
+        match self {
+            Out::Pending => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_some(&self) -> bool {
+        match self {
+            Out::Some(_) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn take(&mut self) -> Self {
+        match self {
+            Out::None => Out::None,
+            Out::Some(_) => mem::replace(self, Out::Pending),
+            Out::Pending => Out::Pending,
+        }
+    }
+
+    #[inline]
+    pub fn replace(&mut self, value: Self) -> Self {
+        mem::replace(self, value)
+    }
+
+    #[inline]
+    pub fn unwrap(&mut self) -> T {
+        if let Out::Some(_) = self {
+            let v = mem::replace(self, Out::Pending);
+            if let Out::Some(v) = v {
+                return v
+            }
+        }
+
+        panic!("Unwrap with invalid value")
+    }
+}
+
+impl<T> Default for Out<T> {
+    fn default() -> Self {
+        Out::None
+    }
+}
+
 impl FlowIn<()> for () {
     type Nodes = ();
     type Source = ();
@@ -152,11 +213,19 @@ impl FlowIn<()> for () {
         ()
     }
 
+    fn fill_input(_source: &mut Self::Source, _nodes: &Self::Nodes, _data: &mut GraphData) -> bool {
+        true
+    }
+
     fn write(_nodes: &Self::Nodes, _data: &mut GraphData, _value: ()) -> bool {
         false
     }
 
     fn new_input(_graph: &mut Graph) -> Self::Nodes {
+        ()
+    }
+
+    fn new_source(_nodes: &Self::Nodes) -> Self::Source {
         ()
     }
 }
@@ -175,12 +244,34 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         id
     }
 
+    fn new_source(_nodes: &Self::Nodes) -> Self::Source {
+        task::Source::new()
+    }
+
     fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
         data.is_available(nodes)
     }
 
     fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Self {
         data.read(nodes)
+    }
+
+    fn fill_input(
+        source: &mut Self::Source, 
+        nodes: &Self::Nodes, 
+        data: &mut GraphData
+    ) -> bool {
+        if source.is_some() {
+            true
+        } else if source.is_none() {
+            false
+        } else if data.is_available(nodes) {
+            source.push(data.read(nodes));
+
+            true
+        } else {
+            false
+        }
     }
 
     fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self) -> bool {
@@ -204,6 +295,16 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         */
     }
 
+    fn new_source(nodes: &Self::Nodes) -> Self::Source {
+        let mut vec = Vec::<T::Source>::new();
+
+        for node in nodes {
+            vec.push(T::new_source(node))
+        }
+
+        vec
+    }
+
     fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
         for node in nodes {
             if ! T::is_available(node, data) {
@@ -224,6 +325,20 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         vec
     }
 
+    fn fill_input(
+        source: &mut Self::Source, 
+        nodes: &Self::Nodes, 
+        data: &mut GraphData
+    ) -> bool {
+        for (source, node) in source.iter_mut().zip(nodes) {
+            if ! T::fill_input(source, node, data) {
+                return false
+            }
+        }
+
+        true
+    }
+
     fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self) -> bool {
         let mut value = value;
         for (value, node) in value.drain(..).zip(nodes) {
@@ -236,7 +351,7 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
 
 macro_rules! tuple_flow {
     ($(($t:ident, $v:ident)),*) => {
-
+        #[allow(non_snake_case)]
         impl<$($t),*> FlowIn<($($t),*)> for ($($t),*)
         where $(
             $t: FlowIn<$t>,
@@ -257,6 +372,14 @@ macro_rules! tuple_flow {
                 key
             }
 
+            fn new_source(nodes: &Self::Nodes) -> Self::Source {
+                let ($($t),*) = nodes;
+
+                ($(
+                    $t::new_source($t)
+                ),*)
+            }
+
             fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
                 let ($($v),*) = nodes;
 
@@ -273,6 +396,23 @@ macro_rules! tuple_flow {
                 ),*)
             }
 
+            fn fill_input(
+                source: &mut Self::Source, 
+                nodes: &Self::Nodes, 
+                data: &mut GraphData
+            ) -> bool {
+                let ($($t),*) = nodes;
+                let ($($v),*) = source;
+        
+                $(
+                    if ! $t::fill_input($v, $t, data) {
+                        return false
+                    }
+                )*
+
+                true
+            }
+        
             fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self) -> bool {
                 #[allow(non_snake_case)]
                 let ($($t),*) = nodes;
