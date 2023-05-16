@@ -1,8 +1,8 @@
-use super::{flow::{Graph, TaskId}, data::GraphData};
+use super::{flow::{Graph, TaskIdBare}, data::GraphData};
 
 pub struct Dispatcher {
-    ready: Vec<TaskId>,
-    wake: Vec<TaskId>,
+    ready: Vec<TaskIdBare>,
+    wake: Vec<TaskIdBare>,
 }
 
 impl Dispatcher {
@@ -13,7 +13,7 @@ impl Dispatcher {
         }
     }
 
-    pub fn spawn(&mut self, node: TaskId) {
+    pub fn spawn(&mut self, node: TaskIdBare) {
         self.ready.push(node);
     }
 
@@ -40,14 +40,14 @@ impl Dispatcher {
         graph: &mut Graph, 
         data: &mut GraphData, 
     ) {
-        let wake : Vec<TaskId> = self.wake.drain(..).collect();
+        let wake : Vec<TaskIdBare> = self.wake.drain(..).collect();
 
         for id in wake {
             graph.node_mut(id).update(data, self);
         }
     }
 
-    pub fn complete(&mut self, node: TaskId, _data: &mut GraphData) {
+    pub fn complete(&mut self, node: TaskIdBare, _data: &mut GraphData) {
         self.wake.push(node);
     }
 }

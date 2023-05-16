@@ -1,11 +1,13 @@
 use std::{any::TypeId, mem::{self, ManuallyDrop}, ptr::NonNull, alloc::Layout};
 
-use super::{task::{InputNode}, flow::{TypedTaskId, FlowNodes, Graph}};
+use super::{
+    task::{InputTask}, 
+    flow::{TaskId, FlowNodes, Graph, TaskIdBare}
+};
 
 pub trait FlowData {}
 
 pub trait FlowIn<T> : Clone + 'static {
-    // type Item;
     type Nodes : FlowNodes;
 
     fn new_input(graph: &mut Graph) -> Self::Nodes;
@@ -16,7 +18,7 @@ pub trait FlowIn<T> : Clone + 'static {
 }
 
 pub struct GraphData {
-    nodes: Vec<RawData>,
+    tasks: Vec<RawData>,
 }
 
 pub struct RawData {
@@ -30,24 +32,24 @@ pub struct RawData {
 impl GraphData {
     pub fn new() -> Self {
         Self {
-            nodes: Vec::new(),
+            tasks: Vec::new(),
         }
     }
 
     pub fn push<T: Clone + 'static>(&mut self, n_arrows: usize) {
-        self.nodes.push(RawData::new::<T>(n_arrows));
+        self.tasks.push(RawData::new::<T>(n_arrows));
     }
 
-    pub fn is_available<T: 'static>(&self, node: &TypedTaskId<T>) -> bool {
-        self.nodes[node.index()].is_available()
+    pub fn is_available<T: 'static>(&self, task: &TaskId<T>) -> bool {
+        self.tasks[task.index()].is_available()
     }
 
-    pub fn read<T: Clone + 'static>(&mut self, node: &TypedTaskId<T>) -> T {
-        self.nodes[node.index()].read()
+    pub fn read<T: Clone + 'static>(&mut self, task: &TaskId<T>) -> T {
+        self.tasks[task.index()].read()
     }
     
-    pub fn write<T: 'static>(&mut self, node: &TypedTaskId<T>, data: T) -> bool {
-        self.nodes[node.index()].write(data)
+    pub fn write<T: 'static>(&mut self, task: &TaskId<T>, data: T) -> bool {
+        self.tasks[task.index()].write(data)
     }
 }
 
@@ -144,12 +146,12 @@ impl FlowIn<()> for () {
 }
 
 impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
-    type Nodes = TypedTaskId<T>;
+    type Nodes = TaskId<T>;
 
     fn new_input(graph: &mut Graph) -> Self::Nodes {
         let id = graph.alloc_id::<T>();
 
-        let node = InputNode::<T>::new(id.clone());
+        let node = InputTask::<T>::new(id.clone());
 
         graph.push_node(Box::new(node));
 
@@ -184,7 +186,7 @@ macro_rules! flow_tuple {
                     $t::new_input(graph)
                 ),*);
 
-                let node = InputNode::<($($t),*)>::new(key.clone());
+                let node = InputTask::<($($t),*)>::new(key.clone());
 
                 graph.push_node(Box::new(node));
 
@@ -272,6 +274,50 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         }
 
         false
+    }
+}
+
+impl FlowNodes for () {
+    fn add_arrows(&self, _node: TaskIdBare, _graph: &mut Graph) {
+    }
+}
+
+impl<T: 'static> FlowNodes for TaskId<T> {
+    fn add_arrows(&self, node: TaskIdBare, graph: &mut Graph) {
+        graph.add_arrow(self.id(), node);
+    }
+}
+
+macro_rules! flow_tuple {
+    ($($id:ident),*) => {
+        #[allow(non_snake_case)]
+        impl<$($id),*> FlowNodes for ($($id),*)
+        where
+            $($id: FlowNodes),*
+        {
+            fn add_arrows(&self, node: TaskIdBare, graph: &mut Graph) {
+                let ($($id),*) = &self;
+
+                $($id.add_arrows(node, graph));*
+            }
+        }
+    }
+}
+
+flow_tuple!(T1, T2);
+flow_tuple!(T1, T2, T3);
+flow_tuple!(T1, T2, T3, T4);
+flow_tuple!(T1, T2, T3, T4, T5);
+flow_tuple!(T1, T2, T3, T4, T5, T6);
+flow_tuple!(T1, T2, T3, T4, T5, T6, T7);
+flow_tuple!(T1, T2, T3, T4, T5, T6, T7, T8);
+
+
+impl<T: FlowNodes> FlowNodes for Vec<T> {
+    fn add_arrows(&self, node: TaskIdBare, graph: &mut Graph) {
+        for id in self {
+            id.add_arrows(node, graph);
+        }
     }
 }
 

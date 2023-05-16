@@ -1,20 +1,20 @@
 use std::marker::PhantomData;
 
 use super::{
-    task::{FlowNode, Task, TaskNode, InputNode}, 
+    task::{FlowNode, Task, TaskNode, InputTask}, 
     data::{GraphData, FlowIn}, dispatch::Dispatcher, 
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub struct TaskId(usize);
+pub struct TaskIdBare(usize);
 
 #[derive(Copy, Debug, PartialEq)]
-pub struct TypedTaskId<T> {
-    id: TaskId,
+pub struct TaskId<T> {
+    id: TaskIdBare,
     marker: PhantomData<T>,
 }
 
-impl<T> Clone for TypedTaskId<T> {
+impl<T> Clone for TaskId<T> {
     fn clone(&self) -> Self {
         Self { 
             id: self.id.clone(), 
@@ -31,7 +31,7 @@ pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
 }
 
 pub trait FlowNodes : Clone + 'static {
-    fn add_arrows(&self, node: TaskId, graph: &mut Graph);
+    fn add_arrows(&self, node: TaskIdBare, graph: &mut Graph);
 }
 
 pub struct Graph {
@@ -74,7 +74,7 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
 
         let input_id = In::new_input(&mut graph);
 
-        let node: InputNode<In> = InputNode::new(input_id.clone());
+        let node: InputTask<In> = InputTask::new(input_id.clone());
 
         graph.nodes.push(Box::new(node));
 
@@ -95,13 +95,13 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
         &mut self, 
         task: impl Task<I, O>,
         input: &I::Nodes,
-    ) -> TypedTaskId<O>
+    ) -> TaskId<O>
     where
         I: FlowIn<I>,
         O: Clone + 'static,
     {
-        let id = TaskId(self.graph.nodes.len());
-        let typed_id = TypedTaskId::new(id);
+        let id = TaskIdBare(self.graph.nodes.len());
+        let typed_id = TaskId::new(id);
 
         input.add_arrows(id, &mut self.graph);
         let node: TaskNode<I, O> = TaskNode::new(typed_id.clone(), task, input.clone());
@@ -126,10 +126,10 @@ impl Graph {
         Self::default()
     }
 
-    pub fn alloc_id<T: 'static>(&self) -> TypedTaskId<T> {
-        let id = TaskId(self.nodes.len());
+    pub fn alloc_id<T: 'static>(&self) -> TaskId<T> {
+        let id = TaskIdBare(self.nodes.len());
 
-        TypedTaskId::new(id)
+        TaskId::new(id)
     }
 
     pub fn push_node(&mut self, node: Box<dyn FlowNode>) {
@@ -158,15 +158,15 @@ impl Graph {
         }
     }
 
-    pub fn node(&self, id: TaskId) -> &Box<dyn FlowNode> {
+    pub fn node(&self, id: TaskIdBare) -> &Box<dyn FlowNode> {
         &self.nodes[id.index()]
     }
 
-    pub fn node_mut(&mut self, id: TaskId) -> &mut Box<dyn FlowNode> {
+    pub fn node_mut(&mut self, id: TaskIdBare) -> &mut Box<dyn FlowNode> {
         &mut self.nodes[id.index()]
     }
 
-    fn add_arrow(&mut self, src_id: TaskId, dst_id: TaskId) {
+    pub fn add_arrow(&mut self, src_id: TaskIdBare, dst_id: TaskIdBare) {
         let node = &mut self.nodes[src_id.index()];
 
         node.add_output_arrow(dst_id);
@@ -179,14 +179,14 @@ impl Default for Graph {
     }
 }
 
-impl TaskId {
+impl TaskIdBare {
     fn index(&self) -> usize {
         self.0
     }
 }
 
-impl<T: 'static> TypedTaskId<T> {
-    fn new(id: TaskId) -> Self {
+impl<T: 'static> TaskId<T> {
+    fn new(id: TaskIdBare) -> Self {
         Self {
             id,
             marker: PhantomData,
@@ -194,7 +194,7 @@ impl<T: 'static> TypedTaskId<T> {
     }
 
     #[inline]
-    pub fn id(&self) -> TaskId {
+    pub fn id(&self) -> TaskIdBare {
         self.id
     }
 
@@ -204,55 +204,11 @@ impl<T: 'static> TypedTaskId<T> {
     }
 }
 
-impl FlowNodes for () {
-    fn add_arrows(&self, _node: TaskId, _graph: &mut Graph) {
-    }
-}
-
-impl<T: 'static> FlowNodes for TypedTaskId<T> {
-    fn add_arrows(&self, node: TaskId, graph: &mut Graph) {
-        graph.add_arrow(self.id, node);
-    }
-}
-
-macro_rules! flow_tuple {
-    ($($id:ident),*) => {
-        #[allow(non_snake_case)]
-        impl<$($id),*> FlowNodes for ($($id),*)
-        where
-            $($id: FlowNodes),*
-        {
-            fn add_arrows(&self, node: TaskId, graph: &mut Graph) {
-                let ($($id),*) = &self;
-
-                $($id.add_arrows(node, graph));*
-            }
-        }
-    }
-}
-
-flow_tuple!(T1, T2);
-flow_tuple!(T1, T2, T3);
-flow_tuple!(T1, T2, T3, T4);
-flow_tuple!(T1, T2, T3, T4, T5);
-flow_tuple!(T1, T2, T3, T4, T5, T6);
-flow_tuple!(T1, T2, T3, T4, T5, T6, T7);
-flow_tuple!(T1, T2, T3, T4, T5, T6, T7, T8);
-
-
-impl<T: FlowNodes> FlowNodes for Vec<T> {
-    fn add_arrows(&self, node: TaskId, graph: &mut Graph) {
-        for id in self {
-            id.add_arrows(node, graph);
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use std::{sync::{Arc, Mutex}};
 
-    use super::{Flow, TaskId};
+    use super::{Flow, TaskIdBare};
 
     #[test]
     fn test_graph_nil() {
@@ -274,7 +230,7 @@ mod test {
             None
         }, &());
 
-        assert_eq!(node_id.id(), TaskId(1));
+        assert_eq!(node_id.id(), TaskIdBare(1));
 
         let mut flow = builder.output(&());
 
@@ -299,7 +255,7 @@ mod test {
             data.pop()
         }, &());
 
-        assert_eq!(n_0.id(), TaskId(1));
+        assert_eq!(n_0.id(), TaskIdBare(1));
 
         let ptr = vec.clone();
         let n_1 = builder.task::<String, ()>(move |s| {
@@ -307,7 +263,7 @@ mod test {
             None
         }, &n_0);
 
-        assert_eq!(n_1.id(), TaskId(2));
+        assert_eq!(n_1.id(), TaskIdBare(2));
 
         let mut flow = builder.output(&());
 

@@ -1,6 +1,6 @@
-use std::{sync::Mutex};
+use std::{sync::Mutex, mem};
 
-use super::{data::{FlowIn, GraphData}, flow::{TaskId, TypedTaskId}, dispatch::{Dispatcher}};
+use super::{data::{FlowIn, GraphData}, flow::{TaskIdBare, TaskId}, dispatch::{Dispatcher}};
 
 #[derive(Debug)]
 pub struct TaskErr;
@@ -11,6 +11,16 @@ pub enum Out<T> {
     None,
     Some(T),
     Pending,
+}
+
+pub trait Source<T> : Sized {
+    fn next(&mut self) -> Out<T>;
+
+    fn push(&mut self, value: T);
+}
+
+pub struct SourceImpl<T> {
+    item: Out<T>,
 }
 
 pub trait Task<I, O> : Send + 'static
@@ -24,7 +34,7 @@ where
 }
 
 pub trait FlowNode {
-    fn add_output_arrow(&mut self, id: TaskId);
+    fn add_output_arrow(&mut self, id: TaskIdBare);
 
     fn new_data(&self, data: &mut GraphData);
 
@@ -48,12 +58,12 @@ pub trait FlowNode {
 type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
 
 pub struct TaskNode<In: FlowIn<In>, Out> {
-    id: TypedTaskId<Out>,
+    id: TaskId<Out>,
 
     state: NodeState,
 
     arrows_in: In::Nodes,
-    arrows_out: Vec<TaskId>,
+    arrows_out: Vec<TaskIdBare>,
 
     inner: Mutex<TaskInner<In, Out>>,
 }
@@ -79,7 +89,7 @@ where
     Out: 'static
 {
     pub fn new(
-        id: TypedTaskId<Out>,
+        id: TaskId<Out>,
         task: impl Task<In, Out>,
         input: In::Nodes, // BoxArrow<In>,
     ) -> Self {
@@ -100,7 +110,7 @@ where
     I: FlowIn<I> + 'static, // ArrowData<Value=In>,
     O: Clone + 'static
 {
-    fn add_output_arrow(&mut self, id: TaskId) {
+    fn add_output_arrow(&mut self, id: TaskIdBare) {
         self.arrows_out.push(id);
     }
 
@@ -194,13 +204,13 @@ where
     }
 } 
 
-pub struct InputNode<In: FlowIn<In>> {
+pub struct InputTask<In: FlowIn<In>> {
     _id: In::Nodes,
 
-    arrows_out: Vec<TaskId>,
+    arrows_out: Vec<TaskIdBare>,
 }
 
-impl<In: FlowIn<In>> InputNode<In> {
+impl<In: FlowIn<In>> InputTask<In> {
     pub fn new(id: In::Nodes) -> Self {
         Self {
             _id: id,
@@ -209,11 +219,11 @@ impl<In: FlowIn<In>> InputNode<In> {
     }
 }
 
-impl<In> FlowNode for InputNode<In>
+impl<In> FlowNode for InputTask<In>
 where
     In: FlowIn<In> + 'static,
 {
-    fn add_output_arrow(&mut self, id: TaskId) {
+    fn add_output_arrow(&mut self, id: TaskIdBare) {
         self.arrows_out.push(id);
     }
 
@@ -244,6 +254,67 @@ where
 
     fn execute(&mut self, _data: &mut GraphData, _waker: &mut Dispatcher) -> Result<()> {
         Ok(())
+    }
+}
+
+impl<T> Out<T> {
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        match self {
+            Out::None => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_pending(&self) -> bool {
+        match self {
+            Out::Pending => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_some(&self) -> bool {
+        match self {
+            Out::Some(_) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn take(&mut self) -> Self {
+        mem::replace(self, Out::Pending)
+    }
+
+    #[inline]
+    pub fn replace(&mut self, value: Self) -> Self {
+        mem::replace(self, value)
+    }
+}
+
+impl<T> Default for Out<T> {
+    fn default() -> Self {
+        Out::None
+    }
+}
+
+impl<T> Default for SourceImpl<T> {
+    fn default() -> Self {
+        Self { 
+            item: Default::default() 
+        }
+    }
+}
+impl<T> Source<T> for SourceImpl<T> {
+    fn next(&mut self) -> Out<T> {
+        self.item.take()        
+    }
+
+    fn push(&mut self, value: T) {
+        assert!(self.item.is_none());
+
+        self.item.replace(Out::Some(value));
     }
 }
 
