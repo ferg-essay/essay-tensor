@@ -6,7 +6,6 @@ use super::{
     dispatch::{Waker, BasicDispatcher}
 };
 
-
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct TaskId(usize);
 
@@ -25,10 +24,11 @@ impl<T> Clone for TypedTaskId<T> {
     }
 }
 
-pub struct Flow<In:FlowData<In>> {
+pub struct Flow<In: FlowData<In>, Out: FlowData<Out>> {
     graph: Graph,
     input: In::Nodes,
-    marker: PhantomData<In>,
+    output: Out::Nodes,
+    //marker: PhantomData<In>,
 }
 
 pub trait FlowNodes : Clone + 'static {
@@ -39,27 +39,33 @@ pub struct Graph {
     nodes: Vec<Box<dyn FlowNode>>,
 }
 
-pub struct FlowBuilder<In: FlowData<In>> {
+pub struct FlowBuilder<In: FlowData<In>, Out: FlowData<Out>> {
     graph: Graph,
     input: In::Nodes,
-    marker: PhantomData<In>,
+    marker: PhantomData<(In, Out)>,
 }
 
-impl<In: FlowData<In>> Flow<In> {
-    pub fn builder() -> FlowBuilder<In> {
+impl<In, Out> Flow<In, Out>
+where
+    In: FlowData<In>,
+    Out: FlowData<Out>
+{
+    pub fn builder() -> FlowBuilder<In, Out> {
         FlowBuilder::new()
     }
 
-    pub fn apply(&mut self, input: In) {
+    pub fn apply(&mut self, input: In) -> Option<Out> {
         let mut data = self.graph.new_data();
 
         In::write(&self.input, &mut data, input);
 
-        self.graph.apply(&mut data)
+        self.graph.apply(&mut data);
+
+        Out::read(&self.output, &mut data)
     }
 }
 
-impl<In: FlowData<In>> FlowBuilder<In> {
+impl<In: FlowData<In>, Out: FlowData<Out>> FlowBuilder<In, Out> {
     fn new() -> Self {
         let mut graph = Graph::default();
 
@@ -82,10 +88,6 @@ impl<In: FlowData<In>> FlowBuilder<In> {
         self.input.clone()
     }
 
-    pub fn output<Out>(self, node: TypedTaskId<Out>) -> Flow<In> { // Flow<In, Out>
-        todo!();
-    }
-
     pub fn task<I, O>(
         &mut self, 
         task: impl Task<I, O>,
@@ -106,11 +108,12 @@ impl<In: FlowData<In>> FlowBuilder<In> {
         typed_id
     }
 
-    pub fn build(self) -> Flow<In> {
+    pub fn output(self, output: &Out::Nodes) -> Flow<In, Out> {
         Flow {
-            input: self.input,
             graph: self.graph,
-            marker: PhantomData,
+
+            input: self.input,
+            output: output.clone(),
         }
     }
 }
@@ -219,8 +222,8 @@ mod test {
 
     #[test]
     fn test_graph_nil() {
-        let builder = Flow::<()>::builder();
-        let mut flow = builder.build();
+        let builder = Flow::<(), ()>::builder();
+        let mut flow = builder.output(&());
 
         flow.apply(());
     }
@@ -229,7 +232,7 @@ mod test {
     fn test_graph_node() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
-        let mut builder = Flow::<()>::builder();
+        let mut builder = Flow::<(), ()>::builder();
         let ptr = vec.clone();
 
         let node_id = builder.task::<(), ()>(move |_: ()| {
@@ -237,14 +240,14 @@ mod test {
             None
         }, &());
 
-        assert_eq!(node_id.id(), TaskId(0));
+        assert_eq!(node_id.id(), TaskId(1));
 
-        let mut flow = builder.build();
+        let mut flow = builder.output(&());
 
-        flow.apply(());
+        assert_eq!(flow.apply(()), Some(()));
         assert_eq!(take(&vec), "Node[]");
 
-        flow.apply(());
+        assert_eq!(flow.apply(()), Some(()));
         assert_eq!(take(&vec), "Node[]");
     }
 
@@ -252,7 +255,7 @@ mod test {
     fn test_graph_node_pair() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
-        let mut builder = Flow::<()>::builder();
+        let mut builder = Flow::<(), ()>::builder();
 
         let ptr = vec.clone();
         let mut data = vec!["a".to_string(), "b".to_string()];
@@ -262,26 +265,25 @@ mod test {
             data.pop()
         }, &());
 
-        assert_eq!(n_0.id(), TaskId(0));
+        assert_eq!(n_0.id(), TaskId(1));
 
         let ptr = vec.clone();
         let n_1 = builder.task::<String, ()>(move |s| {
-            println!("Execute n_1");
             ptr.lock().unwrap().push(format!("Node1[{s}]"));
             None
         }, &n_0);
 
-        assert_eq!(n_1.id(), TaskId(1));
+        assert_eq!(n_1.id(), TaskId(2));
 
-        let mut flow = builder.build();
+        let mut flow = builder.output(&());
 
-        flow.apply(());
+        assert_eq!(flow.apply(()), Some(()));
         assert_eq!(take(&vec), "Node0[], Node1[b]");
 
-        flow.apply(());
+        assert_eq!(flow.apply(()), Some(()));
         assert_eq!(take(&vec), "Node0[], Node1[a]");
 
-        flow.apply(());
+        assert_eq!(flow.apply(()), Some(()));
         assert_eq!(take(&vec), "Node0[]");
     }
 
@@ -289,7 +291,7 @@ mod test {
     fn test_graph_input() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
-        let mut builder = Flow::<usize>::builder();
+        let mut builder = Flow::<usize, ()>::builder();
 
         let ptr = vec.clone();
 
@@ -299,12 +301,35 @@ mod test {
             None
         }, &input);
 
-        let mut flow = builder.build();
+        let mut flow = builder.output(&());
 
-        flow.apply(1);
+        assert_eq!(flow.apply(1), Some(()));
         assert_eq!(take(&vec), "Task[1]");
 
-        flow.apply(2);
+        assert_eq!(flow.apply(2), Some(()));
+        assert_eq!(take(&vec), "Task[2]");
+    }
+
+    #[test]
+    fn test_graph_output() {
+        let vec = Arc::new(Mutex::new(Vec::<String>::default()));
+        
+        let mut builder = Flow::<usize, usize>::builder();
+
+        let ptr = vec.clone();
+
+        let input = builder.input();
+        let n_0 = builder.task::<usize, usize>(move |x| {
+            ptr.lock().unwrap().push(format!("Task[{:?}]", x));
+            Some(x + 10)
+        }, &input);
+
+        let mut flow = builder.output(&n_0);
+
+        assert_eq!(flow.apply(1), Some(11));
+        assert_eq!(take(&vec), "Task[1]");
+
+        assert_eq!(flow.apply(2), Some(12));
         assert_eq!(take(&vec), "Task[2]");
     }
 

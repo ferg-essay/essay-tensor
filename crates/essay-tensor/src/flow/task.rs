@@ -106,7 +106,7 @@ where
         &mut self, 
         data: &mut GraphData, 
         dispatcher: &mut dyn Dispatcher,
-        waker: &mut Waker,
+        _waker: &mut Waker,
     ) {
         self.state = NodeState::WaitingIn;
 
@@ -126,9 +126,7 @@ where
         match self.state {
             NodeState::Active => {},
             NodeState::WaitingIn => {
-                println!("Update-WaitingIn {:?}", self.id.id());
                 if let Some(input) = In::read(&self.arrows_in, data) {
-                    println!("  Some {:?}", self.id.id());
                     self.state = NodeState::Active;
                     self.inner.lock().unwrap().input.replace(input);
         
@@ -148,7 +146,6 @@ where
     fn execute(&mut self, data: &mut GraphData, waker: &mut Waker) {
         match self.inner.lock().unwrap().execute() {
             Some(out) => {
-                println!("Task -> Some");
                 // self.output.push_back(out);
                 data.write(&self.id, out);
 
@@ -156,13 +153,10 @@ where
                 self.state = NodeState::WaitingOut;
 
                 for node in &self.arrows_out {
-                    println!("  ArrowOut {:?}", *node);
-
                     waker.complete(*node, data);
                 }
             }
             None => {
-                println!("Task -> None");
                 self.state = NodeState::Complete;
             }
         }
@@ -189,7 +183,7 @@ where
 } 
 
 pub struct InputNode<In: FlowData<In>> {
-    id: In::Nodes,
+    _id: In::Nodes,
 
     arrows_out: Vec<TaskId>,
 }
@@ -197,7 +191,7 @@ pub struct InputNode<In: FlowData<In>> {
 impl<In: FlowData<In>> InputNode<In> {
     pub fn new(id: In::Nodes) -> Self {
         Self {
-            id: id,
+            _id: id,
             arrows_out: Vec::new(),
         }
     }
@@ -218,7 +212,7 @@ where
     fn init(
         &mut self, 
         data: &mut GraphData, 
-        dispatcher: &mut dyn Dispatcher,
+        _dispatcher: &mut dyn Dispatcher,
         waker: &mut Waker,
     ) {
         for node in &self.arrows_out {
@@ -228,8 +222,8 @@ where
 
     fn update(
         &mut self, 
-        data: &mut GraphData, 
-        dispatcher: &mut dyn Dispatcher
+        _data: &mut GraphData, 
+        _dispatcher: &mut dyn Dispatcher
     ) {
     }
 
@@ -237,7 +231,7 @@ where
         todo!()
     }
 
-    fn execute(&mut self, data: &mut GraphData, waker: &mut Waker) {
+    fn execute(&mut self, _data: &mut GraphData, _waker: &mut Waker) {
     }
 }
 

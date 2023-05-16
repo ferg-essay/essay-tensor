@@ -1,6 +1,6 @@
 use std::{any::TypeId, mem::{self, ManuallyDrop}, ptr::NonNull, alloc::Layout};
 
-use super::{task::{FlowNode, InputNode}, flow::{TypedTaskId, TaskId, FlowNodes, Graph}};
+use super::{task::{InputNode}, flow::{TypedTaskId, FlowNodes, Graph}};
 
 pub trait Scalar {}
 
@@ -37,12 +37,10 @@ impl GraphData {
     }
 
     pub fn read<T: 'static>(&mut self, node: &TypedTaskId<T>) -> Option<T> {
-        println!("Read {:?}", node.id());
         self.nodes[node.index()].read()
     }
     
     pub fn write<T: 'static>(&mut self, node: &TypedTaskId<T>, data: T) -> bool {
-        println!("Write {:?}", node.id());
         self.nodes[node.index()].write(data)
     }
 }
@@ -112,7 +110,7 @@ impl FlowData<()> for () {
         false
     }
 
-    fn new_input(graph: &mut Graph) -> Self::Nodes {
+    fn new_input(_graph: &mut Graph) -> Self::Nodes {
         ()
     }
 }
