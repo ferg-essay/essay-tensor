@@ -1,8 +1,10 @@
 use std::{sync::Mutex};
 
-use super::{data::{FlowIn, GraphData}, flow::{TaskId, TypedTaskId}, dispatch::{Dispatcher, Waker}};
+use super::{data::{FlowIn, GraphData}, flow::{TaskId, TypedTaskId}, dispatch::{Dispatcher}};
 
+#[derive(Debug)]
 pub struct TaskErr;
+
 pub type Result<T> = std::result::Result<T, TaskErr>;
 
 pub enum Out<T> {
@@ -29,23 +31,18 @@ pub trait FlowNode {
     fn init(
         &mut self, 
         data: &mut GraphData, 
-        dispatcher: &mut dyn Dispatcher,
-        waker: &mut Waker,
+        dispatcher: &mut Dispatcher,
     );
 
     fn update(
         &mut self, 
         data: &mut GraphData, 
-        dispatcher: &mut dyn Dispatcher
+        dispatcher: &mut Dispatcher
     );
 
-    fn complete(&mut self, dispatcher: &dyn Dispatcher) -> bool;
+    fn complete(&mut self, dispatcher: &Dispatcher) -> bool;
 
-    fn execute(&mut self, data: &mut GraphData, waker: &mut Waker) -> Result<()>;
-}
-
-trait NodeInner {
-    fn execute(&mut self, waker: &Waker);
+    fn execute(&mut self, data: &mut GraphData, waker: &mut Dispatcher) -> Result<()>;
 }
 
 type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
@@ -114,8 +111,7 @@ where
     fn init(
         &mut self, 
         data: &mut GraphData, 
-        dispatcher: &mut dyn Dispatcher,
-        _waker: &mut Waker,
+        dispatcher: &mut Dispatcher,
     ) {
         self.state = NodeState::WaitingIn;
 
@@ -131,7 +127,7 @@ where
     fn update(
         &mut self, 
         data: &mut GraphData, 
-        dispatcher: &mut dyn Dispatcher
+        dispatcher: &mut Dispatcher
     ) {
         match self.state {
             NodeState::Active => {},
@@ -150,11 +146,11 @@ where
         }
     }
 
-    fn complete(&mut self, _dispatcher: &dyn Dispatcher) -> bool {
+    fn complete(&mut self, _dispatcher: &Dispatcher) -> bool {
         todo!()
     }
 
-    fn execute(&mut self, data: &mut GraphData, waker: &mut Waker) -> Result<()> {
+    fn execute(&mut self, data: &mut GraphData, dispatcher: &mut Dispatcher) -> Result<()> {
         match self.inner.lock().unwrap().execute()? {
             Out::Some(out) => {
                 // self.output.push_back(out);
@@ -164,7 +160,7 @@ where
                 self.state = NodeState::WaitingOut;
 
                 for node in &self.arrows_out {
-                    waker.complete(*node, data);
+                    dispatcher.complete(*node, data);
                 }
             }
             Out::None => {
@@ -228,8 +224,7 @@ where
     fn init(
         &mut self, 
         data: &mut GraphData, 
-        _dispatcher: &mut dyn Dispatcher,
-        waker: &mut Waker,
+        waker: &mut Dispatcher,
     ) {
         for node in &self.arrows_out {
             waker.complete(*node, data);
@@ -239,15 +234,15 @@ where
     fn update(
         &mut self, 
         _data: &mut GraphData, 
-        _dispatcher: &mut dyn Dispatcher
+        _dispatcher: &mut Dispatcher
     ) {
     }
 
-    fn complete(&mut self, _dispatcher: &dyn Dispatcher) -> bool {
+    fn complete(&mut self, _dispatcher: &Dispatcher) -> bool {
         todo!()
     }
 
-    fn execute(&mut self, _data: &mut GraphData, _waker: &mut Waker) -> Result<()> {
+    fn execute(&mut self, _data: &mut GraphData, _waker: &mut Dispatcher) -> Result<()> {
         Ok(())
     }
 }

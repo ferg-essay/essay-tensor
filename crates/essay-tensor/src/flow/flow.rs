@@ -2,8 +2,7 @@ use std::marker::PhantomData;
 
 use super::{
     task::{FlowNode, Task, TaskNode, InputNode}, 
-    data::{GraphData, FlowIn, FlowData}, 
-    dispatch::{Waker, BasicDispatcher}
+    data::{GraphData, FlowIn}, dispatch::Dispatcher, 
 };
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
@@ -148,15 +147,14 @@ impl Graph {
     }
 
     pub fn call(&mut self, data: &mut GraphData) {
-        let mut dispatcher = BasicDispatcher::new();
-        let mut waker = Waker::new();
+        let mut dispatcher = Dispatcher::new();
 
         for node in &mut self.nodes {
-            node.init(data, &mut dispatcher, &mut waker);
+            node.init(data, &mut dispatcher);
         }
 
-        while dispatcher.dispatch(self, &mut waker, data) {
-            waker.wake(self, data, &mut dispatcher);
+        while dispatcher.dispatch(self, data) {
+            dispatcher.wake(self, data);
         }
     }
 

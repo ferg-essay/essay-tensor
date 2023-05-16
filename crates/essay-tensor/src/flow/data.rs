@@ -233,7 +233,7 @@ flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7)
 impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
     type Nodes = Vec<T::Nodes>;
 
-    fn new_input(graph: &mut Graph) -> Self::Nodes {
+    fn new_input(_graph: &mut Graph) -> Self::Nodes {
         todo!();
         /*
         let id = graph.alloc_id::<Vec<T>>();
