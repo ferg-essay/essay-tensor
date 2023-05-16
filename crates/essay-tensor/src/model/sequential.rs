@@ -1,7 +1,7 @@
 use crate::layer::{BoxLayer, Layer};
 
 pub struct Sequential {
-    name: Option<String>,
+    _name: Option<String>,
     layers: Vec<BoxLayer>,
 }
 

@@ -10,7 +10,7 @@ pub trait FlowData<T> : Clone + 'static {
 
     fn new_input(graph: &mut Graph) -> Self::Nodes;
 
-    fn is_available(nodes: &Self::Nodes, data: &mut GraphData) -> bool;
+    fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool;
     fn read(nodes: &Self::Nodes, data: &mut GraphData) -> T;
     fn write(nodes: &Self::Nodes, data: &mut GraphData, value: T) -> bool;
 }
@@ -38,7 +38,7 @@ impl GraphData {
         self.nodes.push(RawData::new::<T>(n_arrows));
     }
 
-    pub fn is_available<T: 'static>(&mut self, node: &TypedTaskId<T>) -> bool {
+    pub fn is_available<T: 'static>(&self, node: &TypedTaskId<T>) -> bool {
         self.nodes[node.index()].is_available()
     }
 
@@ -62,7 +62,7 @@ impl RawData {
     }
 
     #[inline]
-    fn is_available(&mut self) -> bool {
+    fn is_available(&self) -> bool {
         self.item.is_some()
     }
 
@@ -126,7 +126,7 @@ impl RawData {
 impl FlowData<()> for () {
     type Nodes = ();
 
-    fn is_available(_nodes: &Self::Nodes, _data: &mut GraphData) -> bool {
+    fn is_available(_nodes: &Self::Nodes, _data: &GraphData) -> bool {
         true
     }
 
@@ -156,15 +156,15 @@ impl<T:Scalar + Clone + 'static> FlowData<T> for T {
         id
     }
 
-    fn is_available(nodes: &Self::Nodes, data: &mut GraphData) -> bool {
+    fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
         data.is_available(nodes)
     }
 
-    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> T {
+    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Self {
         data.read(nodes)
     }
 
-    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: T) -> bool {
+    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self) -> bool {
         data.write(nodes, value)
     }
 }
@@ -191,7 +191,7 @@ macro_rules! flow_tuple {
                 key
             }
 
-            fn is_available(nodes: &Self::Nodes, data: &mut GraphData) -> bool {
+            fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
                 let ($($v),*) = nodes;
 
                 $(
@@ -230,7 +230,53 @@ flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6));
 flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7));
 flow_tuple!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7), (T8, v8));
 
+impl<T: FlowData<T>> FlowData<Vec<T>> for Vec<T> {
+    type Nodes = Vec<T::Nodes>;
+
+    fn new_input(graph: &mut Graph) -> Self::Nodes {
+        todo!();
+        /*
+        let id = graph.alloc_id::<Vec<T>>();
+        let node = InputNode::<Vec<T>>::new(id.clone());
+
+        graph.push_node(Box::new(node));
+
+        id
+        */
+    }
+
+    fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
+        for node in nodes {
+            if ! T::is_available(node, data) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn read(nodes: &Self::Nodes, data: &mut GraphData) -> Self {
+        let mut vec = Vec::new();
+
+        for node in nodes {
+            vec.push(T::read(node, data));
+        }
+
+        vec
+    }
+
+    fn write(nodes: &Self::Nodes, data: &mut GraphData, value: Self) -> bool {
+        let mut value = value;
+        for (value, node) in value.drain(..).zip(nodes) {
+            T::write(node, data, value);
+        }
+
+        false
+    }
+}
+
 //impl Scalar for () {}
 impl Scalar for String {}
 impl Scalar for usize {}
 impl Scalar for i32 {}
+impl Scalar for f32 {}

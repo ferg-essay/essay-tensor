@@ -1,6 +1,6 @@
 use std::{sync::Mutex};
 
-use super::{data::{FlowData, GraphData}, flow::{TaskId, TypedTaskId}, dispatch::{Dispatcher, Waker}};
+use super::{data::{FlowData, GraphData, Scalar}, flow::{TaskId, TypedTaskId}, dispatch::{Dispatcher, Waker}};
 
 pub trait Task<In, Out> : Send + 'static
 where
@@ -92,7 +92,7 @@ where
 impl<In, Out> FlowNode for TaskNode<In, Out>
 where
     In: FlowData<In> + 'static, // ArrowData<Value=In>,
-    Out: FlowData<Out> + 'static
+    Out: Clone + 'static
 {
     fn add_output_arrow(&mut self, id: TaskId) {
         self.arrows_out.push(id);

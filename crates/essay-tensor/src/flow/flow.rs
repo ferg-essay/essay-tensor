@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use super::{
     task::{FlowNode, Task, TaskNode, InputNode}, 
-    data::{GraphData, FlowData}, 
+    data::{GraphData, FlowData, Scalar}, 
     dispatch::{Waker, BasicDispatcher}
 };
 
@@ -61,7 +61,11 @@ where
 
         self.graph.call(&mut data);
 
-        Some(Out::read(&self.output, &mut data))
+        if Out::is_available(&self.output, &data) {
+            Some(Out::read(&self.output, &mut data))
+        } else {
+            None
+        }
     }
 }
 
@@ -95,7 +99,7 @@ impl<In: FlowData<In>, Out: FlowData<Out>> FlowBuilder<In, Out> {
     ) -> TypedTaskId<O>
     where
         I: FlowData<I>,
-        O: FlowData<O>,
+        O: Clone + 'static,
     {
         let id = TaskId(self.graph.nodes.len());
         let typed_id = TypedTaskId::new(id);
@@ -238,6 +242,14 @@ flow_tuple!(T1, T2, T3, T4, T5, T6, T7);
 flow_tuple!(T1, T2, T3, T4, T5, T6, T7, T8);
 
 
+impl<T: FlowNodes> FlowNodes for Vec<T> {
+    fn add_arrows(&self, node: TaskId, graph: &mut Graph) {
+        for id in self {
+            id.add_arrows(node, graph);
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::{sync::{Arc, Mutex}};
@@ -335,7 +347,7 @@ mod test {
     }
 
     #[test]
-    fn test_graph_output() {
+    fn graph_output() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
         let mut builder = Flow::<usize, usize>::builder();
@@ -388,7 +400,37 @@ mod test {
     }
 
     #[test]
-    fn node_output_join() {
+    fn node_tuple_input() {
+        let vec = Arc::new(Mutex::new(Vec::<String>::default()));
+        
+        let mut builder = Flow::<(), ()>::builder();
+
+        let ptr = vec.clone();
+        let n_1 = builder.task::<(), usize>(move |_| {
+            ptr.lock().unwrap().push(format!("N-1[]"));
+            Some(1)
+        }, &());
+
+        let ptr = vec.clone();
+        let n_2 = builder.task::<(), f32>(move |_| {
+            ptr.lock().unwrap().push(format!("N-1[]"));
+            Some(10.5)
+        }, &());
+
+        let ptr = vec.clone();
+        let _n_2 = builder.task::<(usize, f32), ()>(move |(x, y)| {
+            ptr.lock().unwrap().push(format!("N-2[{}, {}]", x, y));
+            None
+        }, &(n_1, n_2));
+
+        let mut flow = builder.output(&());
+
+        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(take(&vec), "N-1[], N-1[], N-2[1, 10.5]");
+    }
+
+    #[test]
+    fn node_vec_input() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
         let mut builder = Flow::<(), ()>::builder();
@@ -406,15 +448,44 @@ mod test {
         }, &());
 
         let ptr = vec.clone();
-        let _n_2 = builder.task::<(usize, usize), ()>(move |(x, y)| {
-            ptr.lock().unwrap().push(format!("N-2[{}, {}]", x, y));
+        let n_3 = builder.task::<(), usize>(move |_| {
+            ptr.lock().unwrap().push(format!("N-1[]"));
+            Some(100)
+        }, &());
+
+        let ptr = vec.clone();
+        let _n_2 = builder.task::<Vec<usize>, ()>(move |x| {
+            ptr.lock().unwrap().push(format!("N-2[{:?}]", &x));
             None
-        }, &(n_1, n_2));
+        }, &vec![n_1, n_2, n_3]);
 
         let mut flow = builder.output(&());
 
         assert_eq!(flow.call(()), Some(()));
-        assert_eq!(take(&vec), "N-1[], N-1[], N-2[1, 10]");
+        assert_eq!(take(&vec), "N-1[], N-1[], N-1[], N-2[[1, 10, 100]]");
+    }
+
+    #[test]
+    fn output_with_incomplete_data() {
+        let vec = Arc::new(Mutex::new(Vec::<String>::default()));
+        
+        let mut builder = Flow::<usize, usize>::builder();
+
+        let ptr = vec.clone();
+
+        let input = builder.input();
+        let n_0 = builder.task::<usize, usize>(move |x| {
+            ptr.lock().unwrap().push(format!("Task[{:?}]", x));
+            None
+        }, &input);
+
+        let mut flow = builder.output(&n_0);
+
+        assert_eq!(flow.call(1), None);
+        assert_eq!(take(&vec), "Task[1]");
+
+        assert_eq!(flow.call(2), None);
+        assert_eq!(take(&vec), "Task[2]");
     }
 
     fn take(ptr: &Arc<Mutex<Vec<String>>>) -> String {
