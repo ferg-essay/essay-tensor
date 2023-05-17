@@ -1,4 +1,4 @@
-use super::{flow::{Graph, TaskIdBare}, data::GraphData};
+use super::{flow::{TaskGraph}, data::GraphData, graph::TaskIdBare};
 
 pub struct Dispatcher {
     ready: Vec<TaskIdBare>,
@@ -19,7 +19,7 @@ impl Dispatcher {
 
     pub fn dispatch(
         &mut self, 
-        graph: &mut Graph, 
+        graph: &mut TaskGraph, 
         data: &mut GraphData
     ) -> bool {
         let mut is_active = false;
@@ -37,7 +37,7 @@ impl Dispatcher {
 
     pub fn wake(
         &mut self, 
-        graph: &mut Graph, 
+        graph: &mut TaskGraph, 
         data: &mut GraphData, 
     ) {
         let wake : Vec<TaskIdBare> = self.wake.drain(..).collect();

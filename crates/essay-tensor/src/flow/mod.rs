@@ -1,3 +1,4 @@
+mod graph;
 mod flow;
 mod data;
 mod dispatch;

@@ -1,3 +1,4 @@
+mod tasks;
 mod take;
 mod range;
 mod dataset;

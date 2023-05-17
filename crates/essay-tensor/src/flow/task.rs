@@ -2,8 +2,8 @@ use std::{sync::Mutex};
 
 use super::{
     data::{FlowIn, GraphData, Out},
-    flow::{TaskIdBare, TaskId}, 
-    dispatch::{Dispatcher}
+    flow::{TaskGraph}, 
+    dispatch::{Dispatcher}, graph::{TaskIdBare, TaskId}
 };
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ where
     fn execute(&mut self, source: &mut I::Source) -> Result<Out<O>>;
 }
 
-pub trait FlowNode {
+pub trait TaskOuter {
     fn add_output_arrow(&mut self, id: TaskIdBare);
 
     fn new_data(&self, data: &mut GraphData);
@@ -35,6 +35,13 @@ pub trait FlowNode {
         data: &mut GraphData, 
         dispatcher: &mut Dispatcher,
     );
+
+    fn wake(
+        &mut self, 
+        graph: &mut TaskGraph,
+        dispatcher: &mut Dispatcher,
+        data: &mut GraphData,
+    ) -> bool;
 
     fn update(
         &mut self, 
@@ -57,10 +64,10 @@ pub struct TaskNode<In: FlowIn<In>, Out> {
     arrows_in: In::Nodes,
     arrows_out: Vec<TaskIdBare>,
 
-    inner: Mutex<TaskInner<In, Out>>,
+    inner: Mutex<TaskInnerNode<In, Out>>,
 }
 
-struct TaskInner<I, Out>
+struct TaskInnerNode<I, Out>
 where
     I: FlowIn<I>
 {
@@ -69,6 +76,8 @@ where
 }
 
 enum NodeState {
+    Idle,
+
     Active, // currently dispatched
 
     WaitingIn, // waiting for input
@@ -89,7 +98,7 @@ where
         input: I::Nodes, // BoxArrow<In>,
     ) -> Self {
         let source = I::new_source(&input);
-        let inner : TaskInner<I, O> = TaskInner::new(
+        let inner : TaskInnerNode<I, O> = TaskInnerNode::new(
             Box::new(task),
             source
         );
@@ -104,7 +113,7 @@ where
     }
 }
 
-impl<I, O> FlowNode for TaskNode<I, O>
+impl<I, O> TaskOuter for TaskNode<I, O>
 where
     I: FlowIn<I> + 'static, // ArrowData<Value=In>,
     O: Clone + 'static
@@ -122,11 +131,46 @@ where
         data: &mut GraphData, 
         dispatcher: &mut Dispatcher,
     ) {
-        self.state = NodeState::WaitingIn;
+        self.state = NodeState::Idle;
 
+        self.inner.lock().unwrap().init();
+
+        /*
         if self.inner.lock().unwrap().fill_input(&self.arrows_in, data) {
             self.state = NodeState::Active;
             dispatcher.spawn(self.id.id());
+        }
+        */
+    }
+
+    fn wake(
+        &mut self, 
+        graph: &mut TaskGraph, 
+        dispatcher: &mut Dispatcher,
+        data: &mut GraphData,
+    ) -> bool {
+        match self.state {
+            NodeState::Idle => {
+                self.state = NodeState::WaitingIn;
+
+                if self.inner.lock().unwrap().fill_input(&self.arrows_in, data) {
+                    self.state = NodeState::Active;
+                    dispatcher.spawn(self.id.id());
+
+                    true
+                } else {
+                    false // I::wake(&self.arrows_in, graph, dispatcher, data);
+                }
+            },
+            NodeState::Active => {
+                true
+            },
+            NodeState::WaitingIn => {
+                true
+            },
+            NodeState::WaitingOut => true,
+            NodeState::WaitingInOut => todo!(),
+            NodeState::Complete => false,
         }
     }
 
@@ -136,6 +180,7 @@ where
         dispatcher: &mut Dispatcher
     ) {
         match self.state {
+            NodeState::Idle => {},
             NodeState::Active => {},
             NodeState::WaitingIn => {
                 if self.inner.lock().unwrap().fill_input(&self.arrows_in, data) {
@@ -178,7 +223,7 @@ where
     }
 }
 
-impl<I, O> TaskInner<I, O>
+impl<I, O> TaskInnerNode<I, O>
 where
     I: FlowIn<I>,
     O: 'static
@@ -191,6 +236,10 @@ where
             task: task,
             source,
         }
+    }
+
+    fn init(&mut self) {
+        // task.init()
     }
 
     fn fill_input(&mut self, arrows_in: &I::Nodes, data: &mut GraphData) -> bool {
@@ -217,7 +266,7 @@ impl<In: FlowIn<In>> InputTask<In> {
     }
 }
 
-impl<In> FlowNode for InputTask<In>
+impl<In> TaskOuter for InputTask<In>
 where
     In: FlowIn<In> + 'static,
 {
@@ -252,6 +301,65 @@ where
 
     fn execute(&mut self, _data: &mut GraphData, _waker: &mut Dispatcher) -> Result<()> {
         Ok(())
+    }
+
+    fn wake(
+        &mut self, 
+        graph: &mut TaskGraph,
+        dispatcher: &mut Dispatcher,
+        data: &mut GraphData,
+    ) -> bool {
+        todo!()
+    }
+}
+
+pub struct NilTask {
+}
+
+impl NilTask {
+    pub fn new() -> Self {
+        Self {
+        }
+    }
+}
+
+impl TaskOuter for NilTask {
+    fn add_output_arrow(&mut self, _id: TaskIdBare) {
+    }
+
+    fn new_data(&self, data: &mut GraphData) {
+        data.push::<()>(0);
+    }
+
+    fn init(
+        &mut self, 
+        _data: &mut GraphData, 
+        _waker: &mut Dispatcher,
+    ) {
+    }
+
+    fn update(
+        &mut self, 
+        _data: &mut GraphData, 
+        _dispatcher: &mut Dispatcher
+    ) {
+    }
+
+    fn complete(&mut self, _dispatcher: &Dispatcher) -> bool {
+        todo!()
+    }
+
+    fn execute(&mut self, _data: &mut GraphData, _waker: &mut Dispatcher) -> Result<()> {
+        Ok(())
+    }
+
+    fn wake(
+        &mut self, 
+        graph: &mut TaskGraph,
+        dispatcher: &mut Dispatcher,
+        data: &mut GraphData,
+    ) -> bool {
+        todo!()
     }
 }
 
