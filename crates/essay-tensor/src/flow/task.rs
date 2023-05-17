@@ -2,7 +2,6 @@ use std::{sync::Mutex};
 
 use super::{
     data::{FlowIn, GraphData, Out},
-    flow::{TaskGraph}, 
     dispatch::{Dispatcher}, graph::{TaskIdBare, TaskId}
 };
 
@@ -38,10 +37,10 @@ pub trait TaskOuter {
 
     fn wake(
         &mut self, 
-        graph: &mut TaskGraph,
+        // graph: &mut TaskGraph,
         dispatcher: &mut Dispatcher,
         data: &mut GraphData,
-    ) -> bool;
+    ) -> Out<()>;
 
     fn update(
         &mut self, 
@@ -75,6 +74,7 @@ where
     source: I::Source,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum NodeState {
     Idle,
 
@@ -128,8 +128,8 @@ where
 
     fn init(
         &mut self, 
-        data: &mut GraphData, 
-        dispatcher: &mut Dispatcher,
+        _data: &mut GraphData, 
+        _dispatcher: &mut Dispatcher,
     ) {
         self.state = NodeState::Idle;
 
@@ -145,10 +145,10 @@ where
 
     fn wake(
         &mut self, 
-        graph: &mut TaskGraph, 
+        // graph: &mut TaskGraph, 
         dispatcher: &mut Dispatcher,
         data: &mut GraphData,
-    ) -> bool {
+    ) -> Out<()> {
         match self.state {
             NodeState::Idle => {
                 self.state = NodeState::WaitingIn;
@@ -157,20 +157,20 @@ where
                     self.state = NodeState::Active;
                     dispatcher.spawn(self.id.id());
 
-                    true
+                    Out::Some(())
                 } else {
-                    false // I::wake(&self.arrows_in, graph, dispatcher, data);
+                    Out::Pending // I::wake(&self.arrows_in, graph, dispatcher, data);
                 }
             },
             NodeState::Active => {
-                true
+                Out::Some(())
             },
             NodeState::WaitingIn => {
-                true
+                Out::Pending
             },
-            NodeState::WaitingOut => true,
-            NodeState::WaitingInOut => todo!(),
-            NodeState::Complete => false,
+            NodeState::WaitingOut => Out::Some(()),
+            NodeState::WaitingInOut => Out::Some(()),
+            NodeState::Complete => Out::None,
         }
     }
 
@@ -305,11 +305,11 @@ where
 
     fn wake(
         &mut self, 
-        graph: &mut TaskGraph,
-        dispatcher: &mut Dispatcher,
-        data: &mut GraphData,
-    ) -> bool {
-        todo!()
+        // graph: &mut TaskGraph,
+        _dispatcher: &mut Dispatcher,
+        _data: &mut GraphData,
+    ) -> Out<()> {
+        Out::Some(())
     }
 }
 
@@ -355,11 +355,11 @@ impl TaskOuter for NilTask {
 
     fn wake(
         &mut self, 
-        graph: &mut TaskGraph,
-        dispatcher: &mut Dispatcher,
-        data: &mut GraphData,
-    ) -> bool {
-        todo!()
+        // graph: &mut TaskGraph,
+        _dispatcher: &mut Dispatcher,
+        _data: &mut GraphData,
+    ) -> Out<()> {
+        Out::Some(())
     }
 }
 

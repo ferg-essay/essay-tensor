@@ -1,7 +1,7 @@
 use std::{any::TypeId, mem::{self, ManuallyDrop}, ptr::NonNull, alloc::Layout};
 
 use super::{
-    task::{InputTask, Source, self}, 
+    task::{InputTask, self}, 
     flow::{TaskGraph}, dispatch::Dispatcher, graph::{TaskIdBare, TaskId, Graph}
 };
 
@@ -24,6 +24,8 @@ pub trait FlowIn<T> : Clone + 'static {
         graph: &mut Graph
     );
 
+    fn node_ids(nodes: &Self::Nodes, ids: &mut Vec<TaskIdBare>);
+
     fn new_input(graph: &mut Graph, tasks: &mut TaskGraph) -> Self::Nodes;
     fn new_source(nodes: &Self::Nodes) -> Self::Source;
 
@@ -33,7 +35,7 @@ pub trait FlowIn<T> : Clone + 'static {
         tasks: &mut TaskGraph,
         dispatcher: &mut Dispatcher,
         data: &mut GraphData,
-    ) -> bool;
+    ) -> Out<()>;
 
     fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool;
     fn read(nodes: &Self::Nodes, data: &mut GraphData) -> T;
@@ -234,6 +236,13 @@ impl FlowIn<()> for () {
         graph.add_arrow_out(node_in.id(), id);
     }
 
+    fn node_ids(
+        nodes: &Self::Nodes,
+        ids: &mut Vec<TaskIdBare>, 
+    ) {
+        ids.push(nodes.id());
+    }
+
     fn is_available(_nodes: &Self::Nodes, _data: &GraphData) -> bool {
         true
     }
@@ -265,19 +274,26 @@ impl FlowIn<()> for () {
     }
 
     fn wake(
-        nodes: &Self::Nodes, 
-        graph: &Graph,
-        tasks: &mut TaskGraph,
-        dispatcher: &mut Dispatcher,
-        data: &mut GraphData,
-    ) -> bool {
-        true
+        _nodes: &Self::Nodes, 
+        _graph: &Graph,
+        _tasks: &mut TaskGraph,
+        _dispatcher: &mut Dispatcher,
+        _data: &mut GraphData,
+    ) -> Out<()> {
+        Out::Some(())
     }
 }
 
 impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
     type Nodes = TaskId<T>;
     type Source = task::Source<T>;
+
+    fn node_ids(
+        nodes: &Self::Nodes,
+        ids: &mut Vec<TaskIdBare>, 
+    ) {
+        ids.push(nodes.id());
+    }
 
     fn add_arrows(
         id: TaskIdBare,
@@ -310,8 +326,8 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         tasks: &mut TaskGraph,
         dispatcher: &mut Dispatcher,
         data: &mut GraphData,
-    ) -> bool {
-        graph.wake::<T>(nodes.clone(), tasks, dispatcher, data)
+    ) -> Out<()> {
+        graph.wake(&nodes.id(), tasks, dispatcher, data)
     }
 
     fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
@@ -348,6 +364,15 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
 impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
     type Nodes = Vec<T::Nodes>;
     type Source = Vec<T::Source>;
+
+    fn node_ids(
+        nodes: &Self::Nodes,
+        ids: &mut Vec<TaskIdBare>, 
+    ) {
+        for node_in in nodes {
+            T::node_ids(node_in, ids);
+        }
+    }
 
     fn add_arrows(
         id: TaskIdBare,
@@ -388,14 +413,18 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         tasks: &mut TaskGraph,
         dispatcher: &mut Dispatcher,
         data: &mut GraphData,
-    ) -> bool {
+    ) -> Out<()> {
+        let mut out = Out::Some(());
+
         for node in nodes {
-            if ! T::wake(node, graph, tasks, dispatcher, data) {
-                return false;
+            match T::wake(node, graph, tasks, dispatcher, data) {
+                Out::None => return Out::None,
+                Out::Pending => out = Out::Pending,
+                Out::Some(_) => {},
             }
         }
 
-        true
+        out
     }
 
     fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {
@@ -453,6 +482,17 @@ macro_rules! tuple_flow {
             type Nodes = ($($t::Nodes),*);
             type Source = ($($t::Source),*);
 
+            fn node_ids(
+                nodes: &Self::Nodes,
+                ids: &mut Vec<TaskIdBare>, 
+            ) {
+                let ($($t),*) = nodes;
+
+                $(
+                    $t::node_ids($t, ids);
+                )*
+            }
+        
             fn add_arrows(
                 id: TaskIdBare,
                 nodes_in: Self::Nodes, 
@@ -492,16 +532,20 @@ macro_rules! tuple_flow {
                 tasks: &mut TaskGraph,
                 dispatcher: &mut Dispatcher,
                 data: &mut GraphData,
-            ) -> bool {
+            ) -> Out<()> {
                 let ($($t),*) = nodes;
+
+                let mut out = Out::Some(());
         
                 $(
-                    if ! $t::wake($t, graph, tasks, dispatcher, data) {
-                        return false
-                    }
+                    match $t::wake($t, graph, tasks, dispatcher, data) {
+                        Out::None => return Out::None,
+                        Out::Pending => out = Out::Pending,
+                        Out::Some(_) => {},
+                    };
                 )*
         
-                true
+                out
             }
         
             fn is_available(nodes: &Self::Nodes, data: &GraphData) -> bool {

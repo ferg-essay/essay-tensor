@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use super::{
-    task::{TaskOuter, Task, TaskNode, InputTask, NilTask}, 
+    task::{TaskOuter, Task, TaskNode, NilTask}, 
     data::{GraphData, FlowIn}, dispatch::Dispatcher, graph::{TaskId, TaskIdBare, Graph}, 
 };
 
@@ -11,6 +11,7 @@ pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
 
     input: In::Nodes,
     output: Out::Nodes,
+    output_ids: Vec<TaskIdBare>,
     //marker: PhantomData<In>,
 }
 
@@ -71,7 +72,9 @@ where
     }
 
     pub fn next(&mut self, dispatcher: &mut Dispatcher, data: &mut GraphData) -> Option<Out> {
-        self.graph.wake::<Out>(self.output.clone(), &mut self.tasks, dispatcher, data);
+        for id in &self.output_ids {
+            self.graph.wake(id, &mut self.tasks, dispatcher, data);
+        }
         // self.graph.node_mut(self.output.id()).require_output();
 
         while dispatcher.dispatch(&mut self.tasks, data) {
@@ -105,11 +108,13 @@ where
         dispatcher
     }
 
+    /*
     fn call_inner(&mut self, dispatcher: &mut Dispatcher, data: &mut GraphData) {
         while dispatcher.dispatch(&mut self.tasks, data) {
             dispatcher.wake(&mut self.tasks, data);
         }
     }
+    */
     /*
     pub fn node(&self, id: TaskIdBare) -> &Box<dyn TaskOuter> {
         &self.task_outer[id.index()]
@@ -146,8 +151,8 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
 
         let input_id = In::new_input(&mut graph, &mut tasks);
 
-        let node: InputTask<In> = InputTask::new(input_id.clone());
-        tasks.task_outer.push(Box::new(node));
+        //let node: InputTask<In> = InputTask::new(input_id.clone());
+        //tasks.task_outer.push(Box::new(node));
 
         let builder = FlowBuilder {
             graph,
@@ -187,12 +192,17 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
     }
 
     pub fn output(self, output: &Out::Nodes) -> Flow<In, Out> {
+        let mut output_ids = Vec::new();
+
+        Out::node_ids(output, &mut output_ids);
+
         Flow {
             graph: self.graph,
             tasks: self.tasks,
 
             input: self.input,
             output: output.clone(),
+            output_ids: output_ids,
         }
     }
 }
@@ -206,6 +216,7 @@ impl TaskGraph {
         self.task_outer.push(node);
     }
 
+    /*
     fn wake(
         &mut self,
         id: TaskIdBare,
@@ -217,6 +228,7 @@ impl TaskGraph {
 
         todo!()
     }
+    */
 
     /*
     pub fn new_data(&self) -> GraphData {
@@ -304,7 +316,7 @@ mod test {
             Ok(Out::None)
         }, &builder.nil());
 
-        assert_eq!(node_id.index(), 3);
+        assert_eq!(node_id.index(), 2);
 
         let mut flow = builder.output(&node_id);
 
