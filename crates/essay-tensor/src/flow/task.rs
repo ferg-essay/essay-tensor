@@ -1,18 +1,14 @@
 use std::{sync::Mutex};
 
 use super::{
-    data::{FlowIn, GraphData, Out},
-    dispatch::{Dispatcher}, graph::{TaskIdBare, TaskId}
+    data::{FlowIn, GraphData},
+    dispatch::{Dispatcher}, graph::{TaskIdBare, TaskId}, source::Out
 };
 
 #[derive(Debug)]
 pub struct TaskErr;
 
 pub type Result<T> = std::result::Result<T, TaskErr>;
-
-pub struct Source<T> {
-    item: Out<T>,
-}
 
 pub trait Task<I, O> : Send + 'static
 where
@@ -64,14 +60,17 @@ pub struct TaskNode<In: FlowIn<In>, Out> {
     arrows_out: Vec<TaskIdBare>,
 
     inner: Mutex<TaskInnerNode<In, Out>>,
+
+    source: In::Source,
 }
 
-struct TaskInnerNode<I, Out>
+struct TaskInnerNode<I, O>
 where
     I: FlowIn<I>
 {
-    task: BoxTask<I, Out>,
+    task: BoxTask<I, O>,
     source: I::Source,
+    output: Out<O>
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -95,20 +94,23 @@ where
     pub fn new(
         id: TaskId<O>,
         task: impl Task<I, O>,
-        input: I::Nodes, // BoxArrow<In>,
+        arrows_in: I::Nodes, // BoxArrow<In>,
     ) -> Self {
-        let source = I::new_source(&input);
+        let inner_source = I::new_source(&arrows_in);
         let inner : TaskInnerNode<I, O> = TaskInnerNode::new(
             Box::new(task),
-            source
+            inner_source
         );
 
+        let outer_source = I::new_source(&arrows_in);
         Self {
             id: id,
             state: NodeState::WaitingIn,
-            arrows_in: input,
+            arrows_in,
             arrows_out: Default::default(),
             inner: Mutex::new(inner),
+
+            source: outer_source,
         }
     }
 }
@@ -134,18 +136,10 @@ where
         self.state = NodeState::Idle;
 
         self.inner.lock().unwrap().init();
-
-        /*
-        if self.inner.lock().unwrap().fill_input(&self.arrows_in, data) {
-            self.state = NodeState::Active;
-            dispatcher.spawn(self.id.id());
-        }
-        */
     }
 
     fn wake(
         &mut self, 
-        // graph: &mut TaskGraph, 
         dispatcher: &mut Dispatcher,
         data: &mut GraphData,
     ) -> Out<()> {
@@ -159,7 +153,7 @@ where
 
                     Out::Some(())
                 } else {
-                    Out::Pending // I::wake(&self.arrows_in, graph, dispatcher, data);
+                    Out::Pending
                 }
             },
             NodeState::Active => {
@@ -235,6 +229,7 @@ where
         Self {
             task: task,
             source,
+            output: Out::Pending,
         }
     }
 
@@ -360,41 +355,6 @@ impl TaskOuter for NilTask {
         _data: &mut GraphData,
     ) -> Out<()> {
         Out::Some(())
-    }
-}
-
-impl<T> Default for Source<T> {
-    fn default() -> Self {
-        Self { 
-            item: Default::default() 
-        }
-    }
-}
-impl<T> Source<T> {
-    pub(crate) fn new() -> Self {
-        Self {
-            item: Out::Pending,
-        }
-    }
-
-    pub fn next(&mut self) -> Out<T> {
-        self.item.take()        
-    }
-
-    pub fn push(&mut self, value: T) {
-        assert!(self.item.is_none());
-
-        self.item.replace(Out::Some(value));
-    }
-
-    #[inline]
-    pub(crate) fn is_some(&self) -> bool {
-        self.item.is_some()
-    }
-
-    #[inline]
-    pub(crate) fn is_none(&self) -> bool {
-        self.item.is_none()
     }
 }
 

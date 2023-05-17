@@ -291,7 +291,9 @@ impl Default for TaskGraph {
 mod test {
     use std::{sync::{Arc, Mutex}};
 
-    use crate::flow::{data::Out, task::Source};
+    use crate::flow::{
+        source::{Out, Source}
+    };
 
     use super::{Flow};
 
@@ -328,6 +330,30 @@ mod test {
     }
 
     #[test]
+    fn test_graph_detached_node() {
+        let vec = Arc::new(Mutex::new(Vec::<String>::default()));
+        
+        let mut builder = Flow::<(), ()>::builder();
+        let ptr = vec.clone();
+
+        let node_id = builder.task::<(), ()>(move |_: &mut ()| {
+            ptr.lock().unwrap().push(format!("Node[]"));
+            Ok(Out::None)
+        }, &builder.nil());
+
+        assert_eq!(node_id.index(), 2);
+
+        let nil = builder.nil();
+        let mut flow = builder.output(&nil);
+
+        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(take(&vec), "");
+
+        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(take(&vec), "");
+    }
+
+    #[test]
     fn test_graph_node_pair() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
@@ -344,7 +370,7 @@ mod test {
             }
         }, &builder.nil());
 
-        assert_eq!(n_0.index(), 1);
+        assert_eq!(n_0.index(), 2);
 
         let ptr = vec.clone();
         let n_1 = builder.task::<String, ()>(move |s: &mut Source<String>| {
@@ -352,7 +378,7 @@ mod test {
             Ok(Out::None)
         }, &n_0);
 
-        assert_eq!(n_1.index(), 2);
+        assert_eq!(n_1.index(), 3);
 
         let mut flow = builder.output(&n_1);
 

@@ -1,7 +1,7 @@
 use core::fmt;
 use std::marker::PhantomData;
 
-use super::{data::{FlowIn, Out}, flow::TaskGraph};
+use super::{data::{FlowIn}, flow::TaskGraph, source::Out};
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct TaskIdBare(usize);
