@@ -1,8 +1,8 @@
-use super::{flow::{TaskGraph}, data::GraphData, graph::TaskIdBare};
+use super::{graph::NodeId, task::Tasks};
 
 pub struct Dispatcher {
-    ready: Vec<TaskIdBare>,
-    wake: Vec<TaskIdBare>,
+    ready: Vec<NodeId>,
+    wake: Vec<NodeId>,
 }
 
 impl Dispatcher {
@@ -13,23 +13,27 @@ impl Dispatcher {
         }
     }
 
-    pub fn spawn(&mut self, node: TaskIdBare) {
+    pub fn spawn(&mut self, node: NodeId) {
         self.ready.push(node);
     }
 
     pub fn dispatch(
         &mut self, 
-        graph: &mut TaskGraph, 
-        data: &mut GraphData
+        tasks: &mut Tasks, 
+        // data: &mut GraphData
     ) -> bool {
         let mut is_active = false;
 
         while let Some(id) = self.ready.pop() {
             is_active = true;
 
-            let node = graph.node_mut(id);
+            tasks.execute(id, self);
+
+            /*
+            let node = tasks.node_mut(id);
             
-            node.execute(data, self).unwrap();
+            node.execute(self).unwrap();
+            */
         }
 
         is_active
@@ -37,17 +41,17 @@ impl Dispatcher {
 
     pub fn wake(
         &mut self, 
-        graph: &mut TaskGraph, 
-        data: &mut GraphData, 
+        tasks: &mut Tasks, 
+        // data: &mut GraphData, 
     ) {
-        let wake : Vec<TaskIdBare> = self.wake.drain(..).collect();
+        let wake : Vec<NodeId> = self.wake.drain(..).collect();
 
         for id in wake {
-            graph.node_mut(id).update(data, self);
+            tasks.update(id, self);
         }
     }
 
-    pub fn complete(&mut self, node: TaskIdBare, _data: &mut GraphData) {
+    pub fn complete(&mut self, node: NodeId) { // , _data: &mut GraphData) {
         self.wake.push(node);
     }
 }

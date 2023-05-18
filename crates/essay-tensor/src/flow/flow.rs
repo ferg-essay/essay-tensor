@@ -1,29 +1,25 @@
 use std::marker::PhantomData;
 
 use super::{
-    task::{TaskOuter, Task, TaskNode, NilTask}, 
-    data::{GraphData, FlowIn}, dispatch::Dispatcher, graph::{TaskId, TaskIdBare, Graph}, 
+    task::{Task, Tasks, TasksBuilder}, 
+    data::{FlowIn}, dispatch::Dispatcher, graph::{TaskId, NodeId, Graph}, 
 };
 
 pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
     graph: Graph,
-    tasks: TaskGraph,
+    tasks: Tasks,
 
     input: In::Nodes,
     output: Out::Nodes,
-    output_ids: Vec<TaskIdBare>,
+    output_ids: Vec<NodeId>,
     //marker: PhantomData<In>,
-}
-
-pub struct TaskGraph {
-    task_outer: Vec<Box<dyn TaskOuter>>,
 }
 
 pub struct FlowBuilder<In: FlowIn<In>, Out: FlowIn<Out>> {
     graph: Graph,
-    tasks: TaskGraph,
+    tasks: TasksBuilder,
     nil_id: TaskId<()>,
-    input: In::Nodes,
+    in_nodes: In::Nodes,
     marker: PhantomData<(In, Out)>,
 }
 
@@ -57,37 +53,41 @@ where
         */
     }
 
-    pub fn iter(&mut self, input: In) -> FlowIter<In, Out> {
-        let mut data = self.new_data();
+    pub fn iter(&mut self, _input: In) -> FlowIter<In, Out> {
+        // let mut data = self.new_data();
 
-        In::write(&self.input, &mut data, input);
+        // In::write(&self.input, &mut data, input);
 
-        let dispatcher = self.init(&mut data);
+        let dispatcher = self.init(); // &mut data);
 
         FlowIter {
             flow: self,
-            data: data,
+            // data: data,
             dispatcher: dispatcher,
         }
     }
 
-    pub fn next(&mut self, dispatcher: &mut Dispatcher, data: &mut GraphData) -> Option<Out> {
+    pub fn next(&mut self, dispatcher: &mut Dispatcher) -> Option<Out> {
         for id in &self.output_ids {
-            self.graph.wake(id, &mut self.tasks, dispatcher, data);
+            self.graph.wake(id, &mut self.tasks, dispatcher);
         }
         // self.graph.node_mut(self.output.id()).require_output();
 
-        while dispatcher.dispatch(&mut self.tasks, data) {
-            dispatcher.wake(&mut self.tasks, data);
+        while dispatcher.dispatch(&mut self.tasks) {
+            dispatcher.wake(&mut self.tasks);
         }
 
-        if Out::is_available(&self.output, data) {
-            Some(Out::read(&self.output, data))
+        todo!();
+        /*
+        if Out::is_available(&self.output) {
+            Some(Out::read(&self.output))
         } else {
             None
         }
+        */
     }
 
+    /*
     fn new_data(&self) -> GraphData {
         let mut data = GraphData::new();
         
@@ -97,13 +97,19 @@ where
 
         data
     }
+    */
 
-    fn init(&mut self, data: &mut GraphData) -> Dispatcher {
-        let mut dispatcher = Dispatcher::new();
+    //fn init(&mut self, data: &mut GraphData) -> Dispatcher {
+    fn init(&mut self) -> Dispatcher {
+        let dispatcher = Dispatcher::new();
 
+        self.tasks.init();
+        /*
         for node in self.tasks.tasks_mut() {
-            node.init(data, &mut dispatcher);
+            // node.init(data, &mut dispatcher);
+            node.init(&mut dispatcher);
         }
+        */
 
         dispatcher
     }
@@ -128,7 +134,7 @@ where
 
 pub struct FlowIter<'a, In: FlowIn<In>, Out: FlowIn<Out>> {
     flow: &'a mut Flow<In, Out>,
-    data: GraphData,
+    // data: GraphData,
     dispatcher: Dispatcher,
 }
 
@@ -136,23 +142,26 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> Iterator for FlowIter<'_, In, Out> {
     type Item = Out;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.flow.next(&mut self.dispatcher, &mut self.data)
+        self.flow.next(&mut self.dispatcher)
     }
 }
 
+//
+// Flow builder
+//
+
 impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
     fn new() -> Self {
+        todo!();
+        /*
         let mut graph = Graph::new();
-        let mut tasks = TaskGraph::default();
+        let mut tasks = Tasks::default();
 
         let nil_id = graph.push_input::<()>();
-        let node = NilTask::new(); // nil_id.clone());
-        tasks.task_outer.push(Box::new(node));
+        let node = NilTask::new();
+        tasks.push_node(Box::new(node));
 
         let input_id = In::new_input(&mut graph, &mut tasks);
-
-        //let node: InputTask<In> = InputTask::new(input_id.clone());
-        //tasks.task_outer.push(Box::new(node));
 
         let builder = FlowBuilder {
             graph,
@@ -163,10 +172,11 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
         };
 
         builder
+        */
     }
 
     pub fn input(&self) -> In::Nodes {
-        self.input.clone()
+        self.in_nodes.clone()
     }
 
     pub fn nil(&self) -> TaskId<()> {
@@ -176,17 +186,26 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
     pub fn task<I, O>(
         &mut self, 
         task: impl Task<I, O>,
-        input: &I::Nodes,
+        in_nodes: &I::Nodes,
     ) -> TaskId<O>
     where
         I: FlowIn<I>,
         O: Clone + 'static,
     {
-        let id = self.graph.push::<I, O>(input.clone());
+        let id = self.graph.push::<I, O>(in_nodes.clone());
 
-        let task: TaskNode<I, O> = TaskNode::new(id.clone(), task, input.clone());
+        self.tasks.push_task(id.clone(), Box::new(task), in_nodes, &mut self.graph);
+        /*
+        let task: TaskOuterNode<I, O> = TaskOuterNode::new(
+            id.clone(), 
+            task, 
+            in_nodes, 
+            &mut self.graph, 
+            &mut self.tasks
+        );
 
         self.tasks.task_outer.push(Box::new(task));
+        */
 
         id
     }
@@ -198,92 +217,12 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
 
         Flow {
             graph: self.graph,
-            tasks: self.tasks,
+            tasks: self.tasks.build(),
 
-            input: self.input,
+            input: self.in_nodes,
             output: output.clone(),
             output_ids: output_ids,
         }
-    }
-}
-
-impl TaskGraph {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn push_node(&mut self, node: Box<dyn TaskOuter>) {
-        self.task_outer.push(node);
-    }
-
-    /*
-    fn wake(
-        &mut self,
-        id: TaskIdBare,
-        graph: &mut TaskGraph,
-        dispatcher: &mut Dispatcher,
-        data: &mut GraphData,
-    ) -> bool {
-        let task = &mut self.task_outer[id.index()];
-
-        todo!()
-    }
-    */
-
-    /*
-    pub fn new_data(&self) -> GraphData {
-        let mut data = GraphData::new();
-        
-        for node in &self.task_outer {
-            node.new_data(&mut data);
-        }
-
-        data
-    }
-
-    pub fn init(&mut self, data: &mut GraphData) -> Dispatcher {
-        let mut dispatcher = Dispatcher::new();
-
-        for node in &mut self.task_outer {
-            node.init(data, &mut dispatcher);
-        }
-
-        dispatcher
-    }
-
-    pub fn call(&mut self, dispatcher: &mut Dispatcher, data: &mut GraphData) {
-        while dispatcher.dispatch(self, data) {
-            dispatcher.wake(self, data);
-        }
-    }
-    */
-
-    pub fn node(&self, id: TaskIdBare) -> &Box<dyn TaskOuter> {
-        &self.task_outer[id.index()]
-    }
-
-    pub fn tasks(&self) -> &Vec<Box<dyn TaskOuter>> {
-        &self.task_outer
-    }
-
-    pub fn tasks_mut(&mut self) -> &mut Vec<Box<dyn TaskOuter>> {
-        &mut self.task_outer
-    }
-
-    pub fn node_mut(&mut self, id: TaskIdBare) -> &mut Box<dyn TaskOuter> {
-        &mut self.task_outer[id.index()]
-    }
-
-    pub fn add_arrow(&mut self, src_id: TaskIdBare, dst_id: TaskIdBare) {
-        let node = &mut self.task_outer[src_id.index()];
-
-        node.add_output_arrow(dst_id);
-    }
-}
-
-impl Default for TaskGraph {
-    fn default() -> Self {
-        Self { task_outer: Default::default() }
     }
 }
 
@@ -292,7 +231,7 @@ mod test {
     use std::{sync::{Arc, Mutex}};
 
     use crate::flow::{
-        source::{Out, Source}
+        source::{Out, SourceImpl, Source}
     };
 
     use super::{Flow};

@@ -1,10 +1,10 @@
 use core::fmt;
 use std::marker::PhantomData;
 
-use super::{data::{FlowIn}, flow::TaskGraph, source::Out};
+use super::{data::{FlowIn}, source::Out, task::Tasks};
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-pub struct TaskIdBare(usize);
+pub struct NodeId(usize);
 
 #[derive(Copy, PartialEq)]
 pub struct TaskId<T> {
@@ -18,14 +18,14 @@ pub struct Graph {
 
 #[derive(Debug)]
 struct Node {
-    _id: TaskIdBare,
+    _id: NodeId,
 
-    arrows_in: Vec<TaskIdBare>,
-    arrows_out: Vec<TaskIdBare>,
+    arrows_in: Vec<NodeId>,
+    arrows_out: Vec<NodeId>,
 }
 
 impl Node {
-    fn new(id: TaskIdBare, in_arrows: Vec<TaskIdBare>) -> Self {
+    fn new(id: NodeId, in_arrows: Vec<NodeId>) -> Self {
         Self {
             _id: id,
             arrows_in: in_arrows,
@@ -33,7 +33,7 @@ impl Node {
         }
     }
 
-    fn add_output_arrow(&mut self, id: TaskIdBare) {
+    fn add_output_arrow(&mut self, id: NodeId) {
         self.arrows_out.push(id);
     }
 }
@@ -49,7 +49,7 @@ impl Graph {
     {
         let id = TaskId::<I>::new(self.nodes.len());
 
-        let arrows_in = Vec::<TaskIdBare>::new();
+        let arrows_in = Vec::<NodeId>::new();
 
         let node = Node::new(id.id(), arrows_in);
 
@@ -65,9 +65,9 @@ impl Graph {
     {
         let id = TaskId::<O>::new(self.nodes.len());
 
-        let mut arrows_in = Vec::<TaskIdBare>::new();
+        let mut arrows_in = Vec::<NodeId>::new();
 
-        I::add_arrows(id.id(), nodes_in, &mut arrows_in, self);
+        I::add_arrows(id.id(), nodes_in, &mut arrows_in);
 
         let node = Node::new(id.id(), arrows_in);
 
@@ -78,26 +78,27 @@ impl Graph {
         id
     }
 
-    pub fn add_arrow_out(&mut self, src: TaskIdBare, dst: TaskIdBare)
+    pub fn add_arrow_out(&mut self, src: NodeId, dst: NodeId)
     {
         self.nodes[src.index()].add_output_arrow(dst);
     }
 
     pub(crate) fn wake(
         &self, 
-        id: &TaskIdBare,
-        tasks: &mut TaskGraph, 
+        id: &NodeId,
+        tasks: &mut Tasks, 
         dispatcher: &mut super::dispatch::Dispatcher, 
-        data: &mut super::data::GraphData
+        // data: &mut super::data::GraphData
     ) -> Out<()> {
-        let task = tasks.node_mut(*id);
+        // let task = tasks.node_mut(*id);
 
-        match task.wake(dispatcher, data) {
+        match tasks.wake(*id, dispatcher) {
             Out::None => Out::None,
             Out::Some(_) => Out::Some(()),
             Out::Pending => {
                 for node_id in &self.nodes[id.index()].arrows_in {
-                    if self.wake(node_id, tasks, dispatcher, data).is_none() {
+                    // if self.wake(node_id, tasks, dispatcher, data).is_none() {
+                    if self.wake(node_id, tasks, dispatcher).is_none() {
                         return Out::None;
                     }
                 }
@@ -129,7 +130,7 @@ impl<T> Clone for TaskId<T> {
     }
 }
 
-impl TaskIdBare {
+impl NodeId {
     pub fn index(&self) -> usize {
         self.0
     }
@@ -144,8 +145,8 @@ impl<T: 'static> TaskId<T> {
     }
 
     #[inline]
-    pub fn id(&self) -> TaskIdBare {
-        TaskIdBare(self.index)
+    pub fn id(&self) -> NodeId {
+        NodeId(self.index)
     }
 
     #[inline]
