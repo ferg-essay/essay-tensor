@@ -26,9 +26,9 @@ pub struct Tasks {
     tasks: Vec<TaskNode>,
 }
 
-struct TaskNode {
+pub(crate) struct TaskNode {
     source_info: Arc<Mutex<Vec<SourceInfo>>>,
-    sink_info: Arc<Mutex<SinkInfo>>,
+    sink_info: Arc<Mutex<Vec<SinkInfo>>>,
 
     outer: Mutex<Box<dyn TaskOuter>>,
     inner: Mutex<Box<dyn TaskInner>>,
@@ -37,17 +37,10 @@ struct TaskNode {
 trait TaskPtr {}
 
 trait TaskOuter {
-    fn add_output_arrow(&mut self, dst_id: NodeId);
-
-    // fn new_data(&self, data: &mut GraphData);
-
     fn init(&mut self);
 
     fn wake(
         &mut self, 
-        // graph: &mut TaskGraph,
-        dispatcher: &mut Dispatcher,
-        // data: &mut GraphData,
     ) -> Out<()>;
 
     fn update(
@@ -55,14 +48,17 @@ trait TaskOuter {
         // data: &mut GraphData, 
         dispatcher: &mut Dispatcher
     );
-
-    fn complete(&mut self, dispatcher: &Dispatcher) -> bool;
 }
 
 trait TaskInner {
     // unsafe fn source(&mut self, dst: NodeId, type_id: TypeId) -> Ptr;
 
     fn init(&mut self);
+
+    fn wake(
+        &mut self, 
+        dispatcher: &mut Dispatcher,
+    ) -> Out<()>;
 
     fn execute(&mut self, waker: &mut Dispatcher) -> Result<Out<()>>;
 }
@@ -82,18 +78,18 @@ struct SinkInfo {
 
 type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
 
-struct TaskOuterNode<In: FlowIn<In>, Out> {
-    id: TaskId<Out>,
+struct TaskOuterNode<O> {
+    id: TaskId<O>,
 
     state: NodeState,
 
-    arrows_in: In::Nodes,
-    arrows_out: Vec<NodeId>,
+    // in_nodes: I::Nodes,
+    // arrows_out: Vec<NodeId>,
 
-    inner: Mutex<TaskInnerNode<In, Out>>,
+    // inner: Mutex<TaskInnerNode<In, Out>>,
 
     source_info: Arc<Mutex<Vec<SourceInfo>>>,
-    sink_info: Arc<Mutex<SinkInfo>>,
+    sink_info: Arc<Mutex<Vec<SinkInfo>>>,
 }
 
 struct TaskInnerNode<I, O>
@@ -109,7 +105,7 @@ where
     sink_index: u32,
 
     source_info: Arc<Mutex<Vec<SourceInfo>>>,
-    sink_info: Arc<Mutex<SinkInfo>>,
+    sink_info: Arc<Mutex<Vec<SinkInfo>>>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -125,23 +121,29 @@ enum NodeState {
     Complete,
 }
 
+//
+// Task builder structs
+//
+
 pub struct TasksBuilder {
     tasks: Vec<Box<dyn TaskNodeBuilderTrait>>,
 }
 
 pub(crate) trait TaskNodeBuilderTrait {
     unsafe fn add_sink(&mut self, dst_id: NodeId) -> Ptr;
+
+    fn build(&mut self) -> TaskNode;
 }
 
 pub(crate) struct TaskNodeBuilder<I, O>
 where
     I: FlowIn<I>,
-    O: 'static
+    O: Clone + 'static
 {
     id: TaskId<O>,
-    task: BoxTask<I, O>,
+    task: Option<BoxTask<I, O>>,
 
-    source: I::Source,
+    source: Option<I::Source>,
     source_info: Vec<SourceInfo>,
 
     sinks: Vec<Box<dyn SinkTrait<O>>>,
@@ -198,23 +200,45 @@ impl Default for Tasks {
 //
 
 impl TaskNode {
-    fn from_task<I: FlowIn<I>, O>(
-        id: TaskId<O>,
-        task: BoxTask<I, O>,
-        source: I::Source,
-    ) -> Self {
-        todo!();
+    fn new<I, O>(builder: &mut TaskNodeBuilder<I, O>) -> Self
+    where
+        I: FlowIn<I>,
+        O: Clone + 'static
+    {
+        let source_info = builder.source_info.drain(..).collect();
+        let source_info = Arc::new(Mutex::new(source_info));
+
+        let sink_info = builder.sink_info.drain(..).collect();
+        let sink_info = Arc::new(Mutex::new(sink_info));
+
+        let outer = TaskOuterNode::new(builder, &source_info, &sink_info);
+        let inner = TaskInnerNode::new(builder, &source_info, &sink_info);
+
+        Self {
+            source_info,
+            sink_info,
+            outer: Mutex::new(Box::new(outer)),
+            inner: Mutex::new(Box::new(inner)),
+        }
     }
 
     fn init(&self) {
-        todo!();
+        self.outer.lock().unwrap().init();
+        self.inner.lock().unwrap().init();
     }
 
     fn wake(
         &self, 
         dispatcher: &mut Dispatcher,
     ) -> Out<()> {
-        todo!();
+        match self.outer.lock().unwrap().wake() {
+            Out::None => Out::None,
+            Out::Some(_) => Out::Some(()), // task is active
+            Out::Pending => {
+                // since task is inactive, can lock inner
+                self.inner.lock().unwrap().wake(dispatcher)
+            }
+        }
     }
 
     fn update(
@@ -228,7 +252,11 @@ impl TaskNode {
         &mut self, 
         dispatcher: &mut Dispatcher, 
     ) {
-        todo!();
+        match self.inner.lock().unwrap().execute(dispatcher) {
+            Ok(_) => {
+            },
+            Err(_) => todo!(),
+        }
     }
 }
 
@@ -236,19 +264,34 @@ impl TaskNode {
 // TaskOuter
 //
 
-impl<I, O> TaskOuterNode<I, O>
+impl<O> TaskOuterNode<O>
 where
-    I: FlowIn<I> + 'static, // ArrowData<Key, Value=In> + 'static,
-    O: 'static
+    O: Clone + 'static
 {
-    pub fn new(
+    fn new<I>(
+        builder: &mut TaskNodeBuilder<I, O>,
+        source_info: &Arc<Mutex<Vec<SourceInfo>>>,
+        sink_info: &Arc<Mutex<Vec<SinkInfo>>>,
+    ) -> Self
+    where
+        I: FlowIn<I>
+    {
+        Self {
+            id: builder.id.clone(),
+            state: NodeState::Idle,
+            // in_nodes: builder.in_nodes.clone(),
+            // arrows_out: Vec::default(),
+            source_info: source_info.clone(),
+            sink_info: sink_info.clone(),
+        }
+    /*
         id: TaskId<O>,
         task: impl Task<I, O>,
         arrows_in: I::Nodes, // BoxArrow<In>,
         graph: &mut Graph,
         tasks: &mut Tasks,
     ) -> Self {
-        todo!();
+        */
 
         /*
         let source = I::add_source(
@@ -278,11 +321,38 @@ where
         }
         */
     }
+
+    fn execute(&mut self, dispatcher: &mut Dispatcher) -> Result<()> {
+        todo!();
+        /*
+        match self.inner.lock().unwrap().execute()? {
+            Out::Some(out) => {
+                    // data.write(&self.id, out);
+    
+                    // TODO: allow multi-buffer
+                self.state = NodeState::WaitingOut;
+                todo!();
+    
+                    for node in &self.arrows_out {
+                        dispatcher.complete(*node, data);
+                    }
+            }
+            Out::None => {
+                self.state = NodeState::Complete;
+            }
+            Out::Pending => {
+                todo!()
+            }
+        }
+        */
+    
+        Ok(())
+    
+    }
 }
 
-impl<I, O> TaskOuter for TaskOuterNode<I, O>
+impl<O> TaskOuter for TaskOuterNode<O>
 where
-    I: FlowIn<I> + 'static, // ArrowData<Value=In>,
     O: Clone + 'static
 {
 
@@ -297,19 +367,17 @@ where
     ) {
         self.state = NodeState::Idle;
 
-        self.inner.lock().unwrap().init();
+        // self.inner.lock().unwrap().init();
     }
 
     fn wake(
         &mut self, 
-        dispatcher: &mut Dispatcher,
-        // data: &mut GraphData,
     ) -> Out<()> {
         match self.state {
             NodeState::Idle => {
                 self.state = NodeState::WaitingIn;
-
-                if self.inner.lock().unwrap().fill_input(&self.arrows_in) {
+                /*
+                if self.inner.lock().unwrap().fill_input(&self.in_nodes) {
                     self.state = NodeState::Active;
                     dispatcher.spawn(self.id.id());
 
@@ -317,6 +385,8 @@ where
                 } else {
                     Out::Pending
                 }
+                */
+                Out::Pending
             },
             NodeState::Active => {
                 Out::Some(())
@@ -351,47 +421,6 @@ where
             NodeState::Complete => {},
         }
     }
-
-    fn complete(&mut self, _dispatcher: &Dispatcher) -> bool {
-        todo!()
-    }
-
-    fn add_output_arrow(&mut self, dst_id: NodeId) {
-        todo!()
-    }
-}
-
-impl<I, O> TaskOuterNode<I, O> 
-where
-    I: FlowIn<I>,
-    O: 'static
-{
-    fn execute(&mut self, dispatcher: &mut Dispatcher) -> Result<()> {
-        match self.inner.lock().unwrap().execute()? {
-            Out::Some(out) => {
-                todo!();
-                // data.write(&self.id, out);
-
-                // TODO: allow multi-buffer
-                self.state = NodeState::WaitingOut;
-
-                /*
-                for node in &self.arrows_out {
-                    dispatcher.complete(*node, data);
-                }
-                */
-            }
-            Out::None => {
-                self.state = NodeState::Complete;
-            }
-            Out::Pending => {
-                todo!()
-            }
-        }
-
-        Ok(())
-    }
-
 }
 
 //
@@ -401,60 +430,23 @@ where
 impl<I, O> TaskInnerNode<I, O>
 where
     I: FlowIn<I>,
-    O: 'static
+    O: Clone + 'static
 {
     fn new(
-        id: TaskId<O>,
-        task: BoxTask<I, O>,
-        source: I::Source,
+        builder: &mut TaskNodeBuilder<I, O>,
+        source_info: &Arc<Mutex<Vec<SourceInfo>>>,
+        sink_info: &Arc<Mutex<Vec<SinkInfo>>>,
     ) -> Self {
-        todo!();
-        /*
         Self {
-            id, 
-            task: task,
-            source,
+            id: builder.id.clone(), 
+            task: builder.task.take().unwrap(),
+            source: builder.source.take().unwrap(),
             sinks: Default::default(),
+
+            sink_index: 0,
+            source_info: source_info.clone(),
+            sink_info: sink_info.clone(),
         }
-        */
-    }
-
-    fn init(&mut self) {
-        // task.init()
-    }
-
-    unsafe fn add_sink(&mut self, dst_id: NodeId) -> Ptr {
-        let (source, sink) = task_channel(self.id.clone(), dst_id);
-
-        self.sinks.push(sink);
-
-        Ptr::wrap(source)
-    }
-
-    fn fill_input(&mut self, arrows_in: &I::Nodes) -> bool {
-        todo!();
-        // I::fill_input(&mut self.source, arrows_in, data)
-    }
-
-    fn execute(&mut self) -> Result<Out<O>> {
-        while I::fill_source(&mut self.source) {
-            match self.task.call(&mut self.source) {
-                Ok(Out::Some(value)) => self.send(Some(value)),
-                Ok(Out::None) => {
-                    self.send_all(None);
-                    return Ok(Out::None);
-                },
-                Ok(Out::Pending) => {
-                    todo!();
-                },
-                Err(err) => {
-                    panic!("Error from task");
-                    // return Ok(Out::Pending); // Err(SourceErr::Pending)
-                },
-            }
-        }
-
-        Ok(Out::Pending)
     }
 
     fn send(&mut self, value: Option<O>) {
@@ -466,26 +458,65 @@ where
     }
 } 
 
+impl<I, O> TaskInner for TaskInnerNode<I, O>
+where
+    I: FlowIn<I>,
+    O: Clone + 'static
+{
+    fn init(&mut self) {
+        self.task.init();
+    }
+
+    fn wake(&mut self, dispatcher: &mut Dispatcher) -> Out<()> {
+        dispatcher.spawn(self.id.id());
+
+        Out::Some(())
+    }
+
+    fn execute(&mut self, waker: &mut Dispatcher) -> Result<Out<()>> {
+        while I::fill_source(&mut self.source) {
+            match self.task.call(&mut self.source) {
+                Ok(Out::Some(value)) => self.send(Some(value)),
+                Ok(Out::None) => {
+                    self.send_all(None);
+                    return Ok(Out::None);
+                },
+                Ok(Out::Pending) => {
+                    return Ok(Out::Pending);
+                },
+                Err(err) => {
+                    panic!("Error from task");
+                    // return Ok(Out::Pending); // Err(SourceErr::Pending)
+                },
+            }
+        }
+
+        Ok(Out::Pending)
+    }
+}
+
 //
 // Tasks builder
 //
 
 impl TasksBuilder {
     pub(crate) fn new() -> Self {
-        todo!()
+        Self {
+            tasks: Vec::default(),
+        }
     }
 
     pub(crate) fn push_task<I, O>(
         &mut self, 
-        id: TaskId<O>, 
         task: BoxTask<I, O>,
         src_nodes: &I::Nodes,
         graph: &mut Graph,
-    )
+    ) -> TaskId<O>
     where
         I: FlowIn<I>,
-        O: 'static
+        O: Clone + 'static
     {
+        let id = graph.push_input::<O>();
         let task_item = TaskNodeBuilder::new(id.clone(), task, src_nodes, graph, self);
 
         // Box::new(TaskInnerNode(id, task),
@@ -494,6 +525,8 @@ impl TasksBuilder {
         assert_eq!(id.index(), self.tasks.len());
 
         self.tasks.push(Box::new(task_item));
+
+        id
     }
 
     pub(crate) fn add_sink<O: 'static>(
@@ -508,8 +541,16 @@ impl TasksBuilder {
         }
     }
 
-    pub(crate) fn build(&self) -> Tasks {
-        todo!()
+    pub(crate) fn build(mut self) -> Tasks {
+        let mut tasks = Vec::new();
+
+        for mut task in self.tasks.drain(..) {
+            tasks.push(task.build());
+        }
+
+        Tasks {
+            tasks
+        }
     }
 }
 
@@ -520,7 +561,7 @@ impl TasksBuilder {
 impl<I, O> TaskNodeBuilder<I, O>
 where
     I: FlowIn<I>,
-    O: 'static
+    O: Clone + 'static
 {
     fn new(
         id: TaskId<O>,
@@ -529,11 +570,13 @@ where
         graph: &mut Graph,
         tasks: &mut TasksBuilder,
     ) -> Self {
+        let source = I::add_source(id.id(), src_nodes, graph, tasks);
+
         Self {
             id: id.clone(),
-            task,
+            task: Some(task),
 
-            source: I::add_source(id.id(), src_nodes, graph, tasks),
+            source: Some(source),
             source_info: Vec::default(),
 
             sinks: Vec::default(),
@@ -545,7 +588,7 @@ where
 impl<I, O> TaskNodeBuilderTrait for TaskNodeBuilder<I, O>
 where
     I: FlowIn<I>,
-    O: 'static
+    O: Clone + 'static
 {
     unsafe fn add_sink(&mut self, dst_id: NodeId) -> Ptr {
         // self.arrows_out.push(dst_id);
@@ -557,11 +600,23 @@ where
 
         Ptr::wrap(source)
     }
+
+    fn build(&mut self) -> TaskNode {
+        TaskNode::new(self)
+    }
 }
 
 //
 // task implementations
 //
+
+pub struct NilTask;
+
+impl Task<(), ()> for NilTask {
+    fn call(&mut self, source: &mut ()) -> Result<Out<()>> {
+        todo!()
+    }
+}
 
 impl<I, O, F> Task<I, O> for F
 where

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use super::{
-    task::{Task, Tasks, TasksBuilder}, 
+    task::{Task, Tasks, TasksBuilder, NilTask}, 
     data::{FlowIn}, dispatch::Dispatcher, graph::{TaskId, NodeId, Graph}, 
 };
 
@@ -77,7 +77,6 @@ where
             dispatcher.wake(&mut self.tasks);
         }
 
-        todo!();
         /*
         if Out::is_available(&self.output) {
             Some(Out::read(&self.output))
@@ -85,6 +84,8 @@ where
             None
         }
         */
+
+        None
     }
 
     /*
@@ -152,14 +153,10 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> Iterator for FlowIter<'_, In, Out> {
 
 impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
     fn new() -> Self {
-        todo!();
-        /*
         let mut graph = Graph::new();
-        let mut tasks = Tasks::default();
+        let mut tasks = TasksBuilder::new();
 
-        let nil_id = graph.push_input::<()>();
-        let node = NilTask::new();
-        tasks.push_node(Box::new(node));
+        let nil_id = tasks.push_task(Box::new(NilTask), &(), &mut graph);
 
         let input_id = In::new_input(&mut graph, &mut tasks);
 
@@ -167,16 +164,16 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
             graph,
             tasks,
             nil_id: nil_id,
-            input: input_id,
+            in_nodes: input_id,
             marker: Default::default(),
         };
 
         builder
-        */
     }
 
     pub fn input(&self) -> In::Nodes {
-        self.in_nodes.clone()
+        //self.in_nodes.clone()
+        todo!();
     }
 
     pub fn nil(&self) -> TaskId<()> {
@@ -192,9 +189,7 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
         I: FlowIn<I>,
         O: Clone + 'static,
     {
-        let id = self.graph.push::<I, O>(in_nodes.clone());
-
-        self.tasks.push_task(id.clone(), Box::new(task), in_nodes, &mut self.graph);
+        self.tasks.push_task(Box::new(task), in_nodes, &mut self.graph)
         /*
         let task: TaskOuterNode<I, O> = TaskOuterNode::new(
             id.clone(), 
@@ -206,8 +201,6 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
 
         self.tasks.task_outer.push(Box::new(task));
         */
-
-        id
     }
 
     pub fn output(self, output: &Out::Nodes) -> Flow<In, Out> {
@@ -240,7 +233,7 @@ mod test {
     fn test_graph_nil() {
         let builder = Flow::<(), ()>::builder();
         let nil = builder.nil();
-        let mut flow = builder.output(&nil);
+        let mut flow = builder.output(&());
 
         assert_eq!(flow.call(()), None);
     }
@@ -249,22 +242,22 @@ mod test {
     fn test_graph_node() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
-        let mut builder = Flow::<(), ()>::builder();
+        let mut builder = Flow::<(), usize>::builder();
         let ptr = vec.clone();
 
-        let node_id = builder.task::<(), ()>(move |_: &mut ()| {
+        let node_id = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node[]"));
             Ok(Out::None)
-        }, &builder.nil());
+        }, &());
 
-        assert_eq!(node_id.index(), 2);
+        assert_eq!(node_id.index(), 1);
 
         let mut flow = builder.output(&node_id);
 
-        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "Node[]");
 
-        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "Node[]");
     }
 
@@ -278,17 +271,17 @@ mod test {
         let node_id = builder.task::<(), ()>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node[]"));
             Ok(Out::None)
-        }, &builder.nil());
+        }, &());
 
-        assert_eq!(node_id.index(), 2);
+        assert_eq!(node_id.index(), 1);
 
-        let nil = builder.nil();
-        let mut flow = builder.output(&nil);
+        // let nil = builder.nil();
+        let mut flow = builder.output(&());
 
-        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "");
 
-        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "");
     }
 
@@ -296,7 +289,7 @@ mod test {
     fn test_graph_node_pair() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
-        let mut builder = Flow::<(), ()>::builder();
+        let mut builder = Flow::<(), usize>::builder();
 
         let ptr = vec.clone();
         let mut data = vec!["a".to_string(), "b".to_string()];
@@ -307,27 +300,27 @@ mod test {
                 Some(v) => Ok(Out::Some(v)),
                 None => Ok(Out::None)
             }
-        }, &builder.nil());
+        }, &());
 
-        assert_eq!(n_0.index(), 2);
+        assert_eq!(n_0.index(), 1);
 
         let ptr = vec.clone();
-        let n_1 = builder.task::<String, ()>(move |s: &mut Source<String>| {
+        let n_1 = builder.task::<String, usize>(move |s: &mut Source<String>| {
             ptr.lock().unwrap().push(format!("Node1[{}]", s.next().unwrap()));
             Ok(Out::None)
         }, &n_0);
 
-        assert_eq!(n_1.index(), 3);
+        assert_eq!(n_1.index(), 2);
 
-        let mut flow = builder.output(&n_1);
+        let mut flow = builder.output(&n_1); // n_1);
 
-        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "Node0[], Node1[b]");
 
-        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "Node0[], Node1[a]");
 
-        assert_eq!(flow.call(()), Some(()));
+        assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "Node0[]");
     }
 
@@ -345,7 +338,7 @@ mod test {
             Ok(Out::None)
         }, &input);
 
-        let mut flow = builder.output(&n_0);
+        let mut flow = builder.output(&()); // n_0);
 
         assert_eq!(flow.call(1), Some(()));
         assert_eq!(take(&vec), "Task[1]");
@@ -388,7 +381,7 @@ mod test {
         let n_0 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-0[]"));
             Ok(Out::Some(1))
-        }, &builder.nil());
+        }, &()); // builder.nil());
 
         let ptr = vec.clone();
         let _n_1 = builder.task::<usize, ()>(move |x: &mut Source<usize>| {
@@ -402,7 +395,7 @@ mod test {
             Ok(Out::None)
         }, &n_0);
 
-        let mut flow = builder.output(&n_2);
+        let mut flow = builder.output(&()); // n_2);
 
         assert_eq!(flow.call(()), Some(()));
         assert_eq!(take(&vec), "N-0[], N-1[1], N-1[1]");
@@ -418,13 +411,13 @@ mod test {
         let n_1 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(1))
-        }, &builder.nil());
+        }, &()); // builder.nil());
 
         let ptr = vec.clone();
         let n_2 = builder.task::<(), f32>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(10.5))
-        }, &builder.nil());
+        }, &()); // builder.nil());
 
         let ptr = vec.clone();
         let n_2 = builder.task::<(usize, f32), ()>(move |v: &mut (Source<usize>, Source<f32>)| {
@@ -432,7 +425,7 @@ mod test {
             Ok(Out::None)
         }, &(n_1, n_2));
 
-        let mut flow = builder.output(&n_2);
+        let mut flow = builder.output(&()); // n_2);
 
         assert_eq!(flow.call(()), Some(()));
         assert_eq!(take(&vec), "N-1[], N-1[], N-2[1, 10.5]");
@@ -448,19 +441,19 @@ mod test {
         let n_1 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(1))
-        }, &builder.nil());
+        }, &()); // builder.nil());
 
         let ptr = vec.clone();
         let n_2 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(10))
-        }, &builder.nil());
+        }, &()); // builder.nil());
 
         let ptr = vec.clone();
         let n_3 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(100))
-        }, &builder.nil());
+        }, &()); // builder.nil());
 
         let ptr = vec.clone();
         let n_4 = builder.task::<Vec<usize>, ()>(move |x: &mut Vec<Source<usize>>| {
@@ -468,7 +461,7 @@ mod test {
             Ok(Out::None)
         }, &vec![n_1, n_2, n_3]);
 
-        let mut flow = builder.output(&n_4);
+        let mut flow = builder.output(&()); // n_4);
 
         assert_eq!(flow.call(()), Some(()));
         assert_eq!(take(&vec), "N-1[], N-1[], N-1[], N-2[[1, 10, 100]]");
@@ -507,7 +500,7 @@ mod test {
         let n_0 = builder.task::<(), usize>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node[]"));
             Ok(Out::Some(1))
-        }, &builder.nil());
+        }, &()); // builder.nil());
 
         assert_eq!(n_0.index(), 1);
 
