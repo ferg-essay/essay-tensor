@@ -92,6 +92,9 @@ impl Graph {
     ) -> Out<()> {
         // let task = tasks.node_mut(*id);
 
+        todo!();
+
+        /*
         match tasks.wake(*id, dispatcher) {
             Out::None => Out::None,
             Out::Some(_) => Out::Some(()),
@@ -106,6 +109,7 @@ impl Graph {
                 Out::Some(())
             }
         }
+        */
     }
 }
 
@@ -133,6 +137,10 @@ impl<T> Clone for TaskId<T> {
 impl NodeId {
     pub fn index(&self) -> usize {
         self.0
+    }
+
+    pub(crate) fn new(index: usize) -> NodeId {
+        NodeId(index)
     }
 }
 

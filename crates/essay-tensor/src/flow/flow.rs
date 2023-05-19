@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::mpsc::{Receiver, self}};
 
 use super::{
-    task::{Task, Tasks, TasksBuilder, NilTask}, 
-    data::{FlowIn}, dispatch::Dispatcher, graph::{TaskId, NodeId, Graph}, 
+    task::{Task, Tasks, TasksBuilder, NilTask, self}, 
+    data::{FlowIn, FlowData}, dispatch::Dispatcher, graph::{TaskId, NodeId, Graph}, source::{Source, Out}, 
 };
 
 pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
@@ -10,9 +10,9 @@ pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
     tasks: Tasks,
 
     input: In::Nodes,
-    output: Out::Nodes,
-    output_ids: Vec<NodeId>,
-    //marker: PhantomData<In>,
+
+    output_id: NodeId,
+    output: Source<OutputData<Out>>,
 }
 
 pub struct FlowBuilder<In: FlowIn<In>, Out: FlowIn<Out>> {
@@ -23,37 +23,35 @@ pub struct FlowBuilder<In: FlowIn<In>, Out: FlowIn<Out>> {
     marker: PhantomData<(In, Out)>,
 }
 
-impl<In, Out> Flow<In, Out>
+pub struct FlowIter<'a, In: FlowIn<In>, Out: FlowIn<Out>> {
+    flow: &'a mut Flow<In, Out>,
+    dispatcher: Dispatcher,
+    count: usize,
+}
+
+#[derive(Clone)]
+pub struct OutputData<T: Clone + Send + 'static>(T);
+
+struct OutputTask<O: FlowIn<O>> {
+    marker: PhantomData<O>,
+}
+
+impl<I, O> Flow<I, O>
 where
-    In: FlowIn<In>,
-    Out: FlowIn<Out>
+    I: FlowIn<I>,
+    O: FlowIn<O>
 {
-    pub fn builder() -> FlowBuilder<In, Out> {
+    pub fn builder() -> FlowBuilder<I, O> {
         FlowBuilder::new()
     }
 
-    pub fn call(&mut self, input: In) -> Option<Out> {
+    pub fn call(&mut self, input: I) -> Option<O> {
         let mut iter = self.iter(input);
 
         iter.next()
-        /*
-        let mut data = self.new_data();
-
-        In::write(&self.input, &mut data, input);
-
-        let mut dispatcher = self.init(&mut data);
-
-        self.call_inner(&mut dispatcher, &mut data);
-
-        if Out::is_available(&self.output, &data) {
-            Some(Out::read(&self.output, &mut data))
-        } else {
-            None
-        }
-        */
     }
 
-    pub fn iter(&mut self, _input: In) -> FlowIter<In, Out> {
+    pub fn iter(&mut self, _input: I) -> FlowIter<I, O> {
         // let mut data = self.new_data();
 
         // In::write(&self.input, &mut data, input);
@@ -64,79 +62,34 @@ where
             flow: self,
             // data: data,
             dispatcher: dispatcher,
+            count: 0,
         }
     }
 
-    pub fn next(&mut self, dispatcher: &mut Dispatcher) -> Option<Out> {
-        for id in &self.output_ids {
-            self.graph.wake(id, &mut self.tasks, dispatcher);
-        }
-        // self.graph.node_mut(self.output.id()).require_output();
+    pub fn next(&mut self, waker: &mut Dispatcher) -> Option<O> {
+        //self.graph.wake(&self.output_id, &mut self.tasks, dispatcher);
+        self.output.fill(waker);
 
-        while dispatcher.dispatch(&mut self.tasks) {
-            dispatcher.wake(&mut self.tasks);
+        // self.tasks.request(self.output_id, 0, 1, waker);
+
+        while waker.update(&mut self.tasks) {
         }
 
-        /*
-        if Out::is_available(&self.output) {
-            Some(Out::read(&self.output))
-        } else {
-            None
-        }
-        */
+        assert!(self.output.fill(waker));
 
-        None
+        match self.output.next() {
+            Some(OutputData(value)) => Some(value),
+            None => None,
+        }
     }
 
-    /*
-    fn new_data(&self) -> GraphData {
-        let mut data = GraphData::new();
-        
-        for node in self.tasks.tasks() {
-            node.new_data(&mut data);
-        }
-
-        data
-    }
-    */
-
-    //fn init(&mut self, data: &mut GraphData) -> Dispatcher {
     fn init(&mut self) -> Dispatcher {
         let dispatcher = Dispatcher::new();
 
         self.tasks.init();
-        /*
-        for node in self.tasks.tasks_mut() {
-            // node.init(data, &mut dispatcher);
-            node.init(&mut dispatcher);
-        }
-        */
 
         dispatcher
     }
-
-    /*
-    fn call_inner(&mut self, dispatcher: &mut Dispatcher, data: &mut GraphData) {
-        while dispatcher.dispatch(&mut self.tasks, data) {
-            dispatcher.wake(&mut self.tasks, data);
-        }
-    }
-    */
-    /*
-    pub fn node(&self, id: TaskIdBare) -> &Box<dyn TaskOuter> {
-        &self.task_outer[id.index()]
-    }
-
-    pub fn node_mut(&mut self, id: TaskIdBare) -> &mut Box<dyn TaskOuter> {
-        &mut self.task_outer[id.index()]
-    }
-    */
-}
-
-pub struct FlowIter<'a, In: FlowIn<In>, Out: FlowIn<Out>> {
-    flow: &'a mut Flow<In, Out>,
-    // data: GraphData,
-    dispatcher: Dispatcher,
 }
 
 impl<In: FlowIn<In>, Out: FlowIn<Out>> Iterator for FlowIter<'_, In, Out> {
@@ -146,6 +99,14 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> Iterator for FlowIter<'_, In, Out> {
         self.flow.next(&mut self.dispatcher)
     }
 }
+
+impl<T: Clone + Send + 'static> OutputData<T> {
+    fn unwrap(self) -> T {
+        self.0
+    }
+}
+
+impl<T: Clone + Send + 'static> FlowData for OutputData<T> {}
 
 //
 // Flow builder
@@ -190,32 +151,70 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
         O: Clone + 'static,
     {
         self.tasks.push_task(Box::new(task), in_nodes, &mut self.graph)
-        /*
-        let task: TaskOuterNode<I, O> = TaskOuterNode::new(
-            id.clone(), 
-            task, 
-            in_nodes, 
-            &mut self.graph, 
-            &mut self.tasks
-        );
-
-        self.tasks.task_outer.push(Box::new(task));
-        */
     }
 
-    pub fn output(self, output: &Out::Nodes) -> Flow<In, Out> {
+    pub fn output(mut self, src_nodes: &Out::Nodes) -> Flow<In, Out> {
         let mut output_ids = Vec::new();
 
-        Out::node_ids(output, &mut output_ids);
+        Out::node_ids(src_nodes, &mut output_ids);
+
+        let output_task = OutputTask::<Out>::new();
+
+        let id = self.tasks.push_task(Box::new(output_task), src_nodes, &mut self.graph);
+        let tail = self.tasks.push_task(Box::new(TailTask), &(), &mut self.graph);
+
+        let source = self.tasks.add_sink(id.clone(), tail.id(), 0);
 
         Flow {
             graph: self.graph,
             tasks: self.tasks.build(),
 
             input: self.in_nodes,
-            output: output.clone(),
-            output_ids: output_ids,
+            output: Source::new(source),
+            output_id: id.id(),
         }
+    }
+}
+
+//
+// Output task
+//
+
+impl<O: FlowIn<O>> OutputTask<O> {
+    pub(crate) fn new() -> Self {
+        Self {
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<O: FlowIn<O>> Task<O, OutputData<O>> for OutputTask<O> {
+    fn call(&mut self, source: &mut O::Source) -> task::Result<Out<OutputData<O>>> {
+        let value = O::next(source);
+
+        match value {
+            Out::Some(value) => {
+                Ok(Out::Some(OutputData(value)))
+            },
+            Out::None => {
+                Ok(Out::None)
+            },
+            Out::Pending => {
+                Ok(Out::Pending)
+            }
+        }
+    }
+}
+
+//
+// Output task
+//
+
+struct TailTask;
+
+impl Task<(), ()> for TailTask {
+    fn call(&mut self, _source: &mut ()) -> task::Result<Out<()>> {
+        todo!();
     }
 }
 
@@ -224,7 +223,7 @@ mod test {
     use std::{sync::{Arc, Mutex}};
 
     use crate::flow::{
-        source::{Out, SourceImpl, Source}
+        source::{Out, Source}
     };
 
     use super::{Flow};
@@ -286,10 +285,10 @@ mod test {
     }
 
     #[test]
-    fn test_graph_node_pair() {
+    fn graph_sequence() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
-        let mut builder = Flow::<(), usize>::builder();
+        let mut builder = Flow::<(), bool>::builder();
 
         let ptr = vec.clone();
         let mut data = vec!["a".to_string(), "b".to_string()];
@@ -297,16 +296,22 @@ mod test {
         let n_0 = builder.task::<(), String>(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node0[]"));
             match data.pop() {
-                Some(v) => Ok(Out::Some(v)),
-                None => Ok(Out::None)
+                Some(v) => {
+                    println!("N_0 {:?}", v);
+                    Ok(Out::Some(v))
+                },
+                None => {
+                    println!("N_0 None");
+                    Ok(Out::None)
+                }
             }
         }, &());
 
         assert_eq!(n_0.index(), 1);
 
         let ptr = vec.clone();
-        let n_1 = builder.task::<String, usize>(move |s: &mut Source<String>| {
-            ptr.lock().unwrap().push(format!("Node1[{}]", s.next().unwrap()));
+        let n_1 = builder.task::<String, bool>(move |s: &mut Source<String>| {
+            ptr.lock().unwrap().push(format!("Node1[{:?}]", s.next()));
             Ok(Out::None)
         }, &n_0);
 
@@ -348,7 +353,43 @@ mod test {
     }
 
     #[test]
-    fn graph_output() {
+    fn flow_output() {
+        let vec = Arc::new(Mutex::new(Vec::<String>::default()));
+        
+        let mut builder = Flow::<(), usize>::builder();
+
+        let ptr = vec.clone();
+
+        let mut count = 2;
+        let n_0 = builder.task::<(), usize>(move |_: &mut ()| {
+            ptr.lock().unwrap().push(format!("Task[{}]", count));
+            if count > 0 {
+                count -= 1;
+                Ok(Out::Some(count))
+            } else {
+                Ok(Out::None)
+            }
+        }, &());
+
+        let mut flow = builder.output(&n_0);
+
+        assert_eq!(flow.call(()), Some(1));
+        assert_eq!(take(&vec), "Task[2]");
+
+        // assert_eq!(flow.call(()), Some(0));
+        // assert_eq!(take(&vec), "Task[2]");
+
+        /*
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "Task[2]");
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "Task[2]");
+        */
+    }
+
+    #[test]
+    fn graph_input_output() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
         let mut builder = Flow::<usize, usize>::builder();

@@ -1,10 +1,10 @@
-use std::{sync::{Mutex, MutexGuard, Arc}, any::TypeId, ops::Deref, cell::UnsafeCell};
+use std::{sync::{Mutex, MutexGuard, Arc, mpsc::Sender}, any::TypeId, ops::Deref, cell::UnsafeCell, marker::PhantomData};
 
 use super::{
     data::{FlowIn},
     dispatch::{Dispatcher}, graph::{NodeId, TaskId, Graph}, 
     source::{Out, SinkTrait, SourceTrait, task_channel, SourceErr, Source}, 
-    ptr::Ptr
+    ptr::Ptr, flow::OutputData
 };
 
 #[derive(Debug)]
@@ -27,8 +27,10 @@ pub struct Tasks {
 }
 
 pub(crate) struct TaskNode {
-    source_info: Arc<Mutex<Vec<SourceInfo>>>,
-    sink_info: Arc<Mutex<Vec<SinkInfo>>>,
+    id: NodeId,
+
+    source_info: Arc<Mutex<SourceInfos>>,
+    sink_info: Arc<Mutex<SinkInfos>>,
 
     outer: Mutex<Box<dyn TaskOuter>>,
     inner: Mutex<Box<dyn TaskInner>>,
@@ -38,6 +40,18 @@ trait TaskPtr {}
 
 trait TaskOuter {
     fn init(&mut self);
+
+    fn request(
+        &mut self, 
+        src_index: usize,
+        n_request: u64,
+        waker: &mut Dispatcher,
+    );
+
+    fn complete(
+        &mut self, 
+        waker: &mut Dispatcher,
+    );
 
     fn wake(
         &mut self, 
@@ -63,18 +77,27 @@ trait TaskInner {
     fn execute(&mut self, waker: &mut Dispatcher) -> Result<Out<()>>;
 }
 
-struct SourceInfo {
+pub struct SourceInfo {
+    src_id: NodeId,
+    src_index: usize,
+
     request_window: u32,
 
-    read: u64,
-    requested: u64,
+    n_read: u64,
+    n_request: u64,
 }
 
+struct SourceInfos(Vec<SourceInfo>);
+
 struct SinkInfo {
-    requested: Vec<u64>,
+    _dst_id: NodeId,
+    n_request: u64,
+    sent: u64,
 
     update_ticks: u64,
 }
+
+struct SinkInfos(Vec<SinkInfo>);
 
 type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
 
@@ -88,8 +111,8 @@ struct TaskOuterNode<O> {
 
     // inner: Mutex<TaskInnerNode<In, Out>>,
 
-    source_info: Arc<Mutex<Vec<SourceInfo>>>,
-    sink_info: Arc<Mutex<Vec<SinkInfo>>>,
+    source_info: Arc<Mutex<SourceInfos>>,
+    sink_info: Arc<Mutex<SinkInfos>>,
 }
 
 struct TaskInnerNode<I, O>
@@ -104,8 +127,8 @@ where
     sinks: Vec<Box<dyn SinkTrait<O>>>,
     sink_index: u32,
 
-    source_info: Arc<Mutex<Vec<SourceInfo>>>,
-    sink_info: Arc<Mutex<Vec<SinkInfo>>>,
+    source_info: Arc<Mutex<SourceInfos>>,
+    sink_info: Arc<Mutex<SinkInfos>>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -130,7 +153,7 @@ pub struct TasksBuilder {
 }
 
 pub(crate) trait TaskNodeBuilderTrait {
-    unsafe fn add_sink(&mut self, dst_id: NodeId) -> Ptr;
+    unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> Ptr;
 
     fn build(&mut self) -> TaskNode;
 }
@@ -166,8 +189,27 @@ impl Tasks {
         id: NodeId,
         // graph: &mut TaskGraph,
         dispatcher: &mut Dispatcher,
-    ) -> Out<()> {
-        self.tasks[id.index()].wake(dispatcher)
+    ) {
+        todo!();
+        self.tasks[id.index()].wake(dispatcher);
+    }
+
+    pub(crate) fn request(
+        &self, 
+        id: NodeId,
+        src_index: usize,
+        n_request: u64,
+        dispatcher: &mut Dispatcher,
+    ) {
+        self.tasks[id.index()].request(src_index, n_request, dispatcher)
+    }
+
+    pub(crate) fn complete(
+        &self, 
+        id: NodeId,
+        waker: &mut Dispatcher,
+    ) {
+        self.tasks[id.index()].complete(waker);
     }
 
     pub(crate) fn update(
@@ -205,16 +247,17 @@ impl TaskNode {
         I: FlowIn<I>,
         O: Clone + 'static
     {
-        let source_info = builder.source_info.drain(..).collect();
+        let source_info = SourceInfos(builder.source_info.drain(..).collect());
         let source_info = Arc::new(Mutex::new(source_info));
 
-        let sink_info = builder.sink_info.drain(..).collect();
+        let sink_info = SinkInfos(builder.sink_info.drain(..).collect());
         let sink_info = Arc::new(Mutex::new(sink_info));
 
         let outer = TaskOuterNode::new(builder, &source_info, &sink_info);
         let inner = TaskInnerNode::new(builder, &source_info, &sink_info);
 
         Self {
+            id: builder.id.id(),
             source_info,
             sink_info,
             outer: Mutex::new(Box::new(outer)),
@@ -227,25 +270,34 @@ impl TaskNode {
         self.inner.lock().unwrap().init();
     }
 
+    pub(crate) fn request(
+        &self, 
+        src_index: usize,
+        n_request: u64,
+        waker: &mut Dispatcher,
+    ) {
+        self.outer.lock().unwrap().request(src_index, n_request, waker);
+    }
+
+    pub(crate) fn complete(
+        &self, 
+        waker: &mut Dispatcher,
+    ) {
+        self.outer.lock().unwrap().complete(waker);
+    }
+
     fn wake(
         &self, 
         dispatcher: &mut Dispatcher,
-    ) -> Out<()> {
-        match self.outer.lock().unwrap().wake() {
-            Out::None => Out::None,
-            Out::Some(_) => Out::Some(()), // task is active
-            Out::Pending => {
-                // since task is inactive, can lock inner
-                self.inner.lock().unwrap().wake(dispatcher)
-            }
-        }
+    ) {
+        self.outer.lock().unwrap().wake();
     }
 
     fn update(
         &mut self, 
-        dispatcher: &mut Dispatcher, 
+        waker: &mut Dispatcher, 
     ) {
-        todo!();
+        self.outer.lock().unwrap().update(waker);
     }
 
     fn execute(
@@ -270,8 +322,8 @@ where
 {
     fn new<I>(
         builder: &mut TaskNodeBuilder<I, O>,
-        source_info: &Arc<Mutex<Vec<SourceInfo>>>,
-        sink_info: &Arc<Mutex<Vec<SinkInfo>>>,
+        source_info: &Arc<Mutex<SourceInfos>>,
+        sink_info: &Arc<Mutex<SinkInfos>>,
     ) -> Self
     where
         I: FlowIn<I>
@@ -284,42 +336,6 @@ where
             source_info: source_info.clone(),
             sink_info: sink_info.clone(),
         }
-    /*
-        id: TaskId<O>,
-        task: impl Task<I, O>,
-        arrows_in: I::Nodes, // BoxArrow<In>,
-        graph: &mut Graph,
-        tasks: &mut Tasks,
-    ) -> Self {
-        */
-
-        /*
-        let source = I::add_source(
-            id.id(), 
-            &arrows_in,
-            graph,
-            tasks
-        );
-
-        let inner : TaskInnerNode<I, O> = TaskInnerNode::new(
-            id,
-            Box::new(task),
-            source
-        );
-        */
-
-        /*
-        //let outer_source = I::new_source(&arrows_in);
-        Self {
-            id: id,
-            state: NodeState::WaitingIn,
-            arrows_in,
-            arrows_out: Default::default(),
-            inner: Mutex::new(inner),
-
-            // source: outer_source,
-        }
-        */
     }
 
     fn execute(&mut self, dispatcher: &mut Dispatcher) -> Result<()> {
@@ -370,6 +386,48 @@ where
         // self.inner.lock().unwrap().init();
     }
 
+    fn request(
+        &mut self, 
+        sink_index: usize,
+        n_request: u64,
+        waker: &mut Dispatcher,
+    ) {
+        if ! self.sink_info.lock().unwrap().request(sink_index, n_request) {
+            return;
+        }
+
+        match self.state {
+            NodeState::Idle => {
+                self.state = NodeState::WaitingIn;
+
+                if self.source_info.lock().unwrap().request(waker) {
+                    self.state = NodeState::Active;
+                    waker.spawn(self.id.id());
+                }
+                /*
+                if self.inner.lock().unwrap().fill_input(&self.in_nodes) {
+                    self.state = NodeState::Active;
+                    dispatcher.spawn(self.id.id());
+
+                    Out::Some(())
+                } else {
+                    Out::Pending
+                }
+                */
+            },
+            NodeState::Active => {
+            },
+            NodeState::WaitingIn => {
+            },
+            NodeState::WaitingOut => {
+            },
+            NodeState::WaitingInOut => {
+            },
+            NodeState::Complete => {
+            },
+        }
+    }
+
     fn wake(
         &mut self, 
     ) -> Out<()> {
@@ -402,23 +460,35 @@ where
 
     fn update(
         &mut self, 
-        dispatcher: &mut Dispatcher
+        waker: &mut Dispatcher
     ) {
         match self.state {
-            NodeState::Idle => {},
+            NodeState::Idle => { 
+                // self.state = NodeState::Active; // WaitingIn;
+                // dispatcher.spawn(self.id.id());
+            },
             NodeState::Active => {},
             NodeState::WaitingIn => {
-                todo!();
-                /*
-                if self.inner.lock().unwrap().fill_input(&self.arrows_in, data) {
+                if self.source_info.lock().unwrap().request(waker) {
                     self.state = NodeState::Active;
-                    dispatcher.spawn(self.id.id());
+                    waker.spawn(self.id.id());
                 }
-                */
             },
-            NodeState::WaitingOut => {},
+            NodeState::WaitingOut => todo!(),
             NodeState::WaitingInOut => todo!(),
-            NodeState::Complete => {},
+            NodeState::Complete => todo!(),
+        }
+    }
+
+    fn complete(
+        &mut self, 
+        waker: &mut Dispatcher,
+    ) {
+        match self.state {
+            NodeState::Active => {
+                self.state = NodeState::WaitingOut;
+            },
+            _ => { panic!("unexpected state {:?}", self.state) }
         }
     }
 }
@@ -434,14 +504,15 @@ where
 {
     fn new(
         builder: &mut TaskNodeBuilder<I, O>,
-        source_info: &Arc<Mutex<Vec<SourceInfo>>>,
-        sink_info: &Arc<Mutex<Vec<SinkInfo>>>,
+        source_info: &Arc<Mutex<SourceInfos>>,
+        sink_info: &Arc<Mutex<SinkInfos>>,
     ) -> Self {
         Self {
             id: builder.id.clone(), 
             task: builder.task.take().unwrap(),
             source: builder.source.take().unwrap(),
-            sinks: Default::default(),
+
+            sinks: builder.sinks.drain(..).collect(),
 
             sink_index: 0,
             source_info: source_info.clone(),
@@ -449,12 +520,48 @@ where
         }
     }
 
-    fn send(&mut self, value: Option<O>) {
-        println!("Send {:?}", value.is_some());
+    fn next_index(&mut self) -> usize {
+        self.sink_index = (self.sink_index + 1) % self.sinks.len() as u32;
+
+        self.sink_index as usize
     }
 
-    fn send_all(&mut self, value: Option<O>) {
-        println!("Send-All {:?}", value.is_some());
+    fn send(&mut self, value: Option<O>, waker: &mut Dispatcher) -> bool {
+        if self.sinks.len() == 0 {
+            return false;
+        }
+
+        let index = self.sink_index as usize;
+
+        self.send_index(index, value, waker);
+
+        let next_index = self.next_index();
+        self.sink_info.lock().unwrap().is_sink_available(next_index)
+    }
+
+    fn send_all(&mut self, value: Option<O>, waker: &mut Dispatcher) {
+        let len = self.sinks.len();
+
+        if len == 0 {
+            return;
+        }
+
+        for i in 0..len - 1 {
+            self.send_index(i, value.clone(), waker);
+        }
+
+        self.send_index(len - 1, value, waker);
+    }
+
+    fn send_index(
+        &mut self, 
+        index: usize,
+        value: Option<O>,
+        waker: &mut Dispatcher,
+    ) {
+        self.sinks[index].send(value.clone());
+        self.sink_info.lock().unwrap().send(index);
+        waker.add_update(self.sinks[index].id());
     }
 } 
 
@@ -467,31 +574,132 @@ where
         self.task.init();
     }
 
-    fn wake(&mut self, dispatcher: &mut Dispatcher) -> Out<()> {
-        dispatcher.spawn(self.id.id());
+    fn wake(&mut self, waker: &mut Dispatcher) -> Out<()> {
+        if I::fill_source(&mut self.source, waker) {
+            waker.spawn(self.id.id());
 
-        Out::Some(())
+            Out::Some(())
+        } else {
+            println!("Wake Pending {:?}", self.id);
+            Out::Pending
+        }
     }
 
     fn execute(&mut self, waker: &mut Dispatcher) -> Result<Out<()>> {
-        while I::fill_source(&mut self.source) {
+
+        while I::fill_source(&mut self.source, waker) {
             match self.task.call(&mut self.source) {
-                Ok(Out::Some(value)) => self.send(Some(value)),
+                Ok(Out::Some(value)) => {
+                    if ! self.send(Some(value), waker) {
+                        return Ok(Out::Some(()))
+                    }
+                },
                 Ok(Out::None) => {
-                    self.send_all(None);
+                    self.send_all(None, waker);
                     return Ok(Out::None);
                 },
                 Ok(Out::Pending) => {
                     return Ok(Out::Pending);
                 },
                 Err(err) => {
-                    panic!("Error from task");
+                    panic!("Error from task {:?}", err);
                     // return Ok(Out::Pending); // Err(SourceErr::Pending)
                 },
             }
         }
 
         Ok(Out::Pending)
+    }
+}
+
+//
+// SourceInfo
+//
+
+impl SourceInfos {
+    fn request(&mut self, waker: &mut Dispatcher) -> bool {
+        let mut is_ready = true;
+
+        for info in &mut self.0 {
+            if ! info.request(waker) {
+                is_ready = false;
+            }
+        }
+
+        is_ready
+    }
+}
+
+impl SourceInfo {
+    pub(crate) fn new(src_id: NodeId, src_index: usize) -> Self {
+        Self {
+            src_id,
+            src_index,
+
+            request_window: 1,
+            n_read: 0,
+            n_request: 0,
+        }
+    }
+
+    fn request(&mut self, waker: &mut Dispatcher) -> bool {
+        let mut is_ready = true;
+
+        let n_request = self.n_read + self.request_window as u64;
+
+        if self.n_request < n_request {
+            self.n_request = n_request;
+            waker.request(self.src_id, self.src_index, n_request);
+            is_ready = false;
+        }
+
+        is_ready
+    }
+}
+
+//
+// SinkInfo
+//
+
+impl SinkInfos {
+    fn is_sink_available(&mut self, index: usize) -> bool {
+        self.0[index].is_available()
+    }
+
+    fn send(&mut self, index: usize) {
+        self.0[index].send();
+    }
+
+    fn request(&mut self, index: usize, n_request: u64) -> bool {
+        self.0[index].request(n_request)
+    }
+}
+
+impl SinkInfo {
+    pub(crate) fn new(dst_id: NodeId) -> Self {
+        Self {
+            _dst_id: dst_id,
+            n_request: 0,
+            sent: 0,
+            update_ticks: 0,
+        }
+    }
+
+    fn is_available(&self) -> bool {
+        self.sent < self.n_request
+    }
+
+    fn send(&mut self) {
+        self.sent += 1;
+    }
+
+    fn request(&mut self, n_request: u64) -> bool {
+        if self.n_request < n_request {
+            self.n_request = n_request;
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -532,12 +740,13 @@ impl TasksBuilder {
     pub(crate) fn add_sink<O: 'static>(
         &mut self,
         src_id: TaskId<O>,
-        dst_id: NodeId
+        dst_id: NodeId,
+        dst_index: usize,
     ) -> Box<dyn SourceTrait<O>> {
         let task = &mut self.tasks[src_id.index()];
 
         unsafe { 
-            task.add_sink(dst_id).unwrap::<Box<dyn SourceTrait<O>>>()
+            task.add_sink(dst_id, dst_index).unwrap::<Box<dyn SourceTrait<O>>>()
         }
     }
 
@@ -570,14 +779,24 @@ where
         graph: &mut Graph,
         tasks: &mut TasksBuilder,
     ) -> Self {
-        let source = I::add_source(id.id(), src_nodes, graph, tasks);
+        let mut source_infos = Vec::new();
+        let source = I::new_source(
+            id.id(), 
+            src_nodes, 
+            &mut source_infos, 
+            graph, 
+            tasks,
+        );
+
+        let mut in_arrows = Vec::new();
+        I::node_ids(src_nodes, &mut in_arrows);
 
         Self {
             id: id.clone(),
             task: Some(task),
 
             source: Some(source),
-            source_info: Vec::default(),
+            source_info: source_infos,
 
             sinks: Vec::default(),
             sink_info: Vec::default(),
@@ -590,13 +809,15 @@ where
     I: FlowIn<I>,
     O: Clone + 'static
 {
-    unsafe fn add_sink(&mut self, dst_id: NodeId) -> Ptr {
+    unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> Ptr {
         // self.arrows_out.push(dst_id);
+        let src_index = self.sinks.len();
 
         let (source, sink) = 
-            task_channel(self.id.clone(), dst_id);
+            task_channel(self.id.clone(), src_index, dst_id, dst_index);
 
         self.sinks.push(sink);
+        self.sink_info.push(SinkInfo::new(dst_id));
 
         Ptr::wrap(source)
     }
@@ -607,7 +828,7 @@ where
 }
 
 //
-// task implementations
+// Nil task
 //
 
 pub struct NilTask;
@@ -617,6 +838,10 @@ impl Task<(), ()> for NilTask {
         todo!()
     }
 }
+
+//
+// Function task
+//
 
 impl<I, O, F> Task<I, O> for F
 where

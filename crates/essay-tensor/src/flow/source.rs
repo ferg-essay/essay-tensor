@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{mem, sync::mpsc::{self}};
 
-use super::{graph::{NodeId, TaskId}, data::FlowData};
+use super::{graph::{NodeId, TaskId}, data::FlowData, dispatch::Dispatcher};
 
 
 pub enum Out<T> {
@@ -19,12 +19,16 @@ pub enum SourceErr {
 }
 
 pub trait SourceTrait<T> {
-    fn is_available(&mut self) -> bool;
+    fn src_index(&self) -> usize;
+
+    fn fill(&mut self, waker: &mut Dispatcher) -> bool;
 
     fn next(&mut self) -> Option<T>;
 }
 
 pub trait SinkTrait<T> {
+    fn id(&self) -> NodeId;
+
     fn send(&mut self, value: Option<T>);
 }
 
@@ -36,35 +40,133 @@ pub struct ChannelSink<T> {
 }
 
 pub struct ChannelSource<T> {
-    _src: NodeId,
+    src_id: NodeId,
+    src_index: usize,
+
     _dst: NodeId,
+    dst_index: usize,
 
     receiver: mpsc::Receiver<Option<T>>,
+    n_receive: u64,
+
     value: Out<T>,
 }
 
+pub struct Source<T>(Box<dyn SourceTrait<T>>);
+
 pub fn task_channel<T: 'static>(
     src_id: TaskId<T>, 
-    dst_id: NodeId
+    src_index: usize,
+
+    dst_id: NodeId,
+    dst_index: usize,
 ) -> (Box<dyn SourceTrait<T>>, Box<dyn SinkTrait<T>>) {
     let (sender, receiver) = mpsc::channel::<Option<T>>();
 
     (
-        Box::new(ChannelSource::new(src_id.id(), dst_id, receiver)),
+        Box::new(ChannelSource::new(src_id.id(), src_index, dst_id, dst_index, receiver)),
         Box::new(ChannelSink::new(src_id.id(), dst_id, sender))
     )
 }
 
+impl<T> Source<T> {
+    pub fn next(&mut self) -> Option<T> {
+        self.0.next()
+    }
+}
+
+impl<T> Source<T>
+where
+    T: FlowData + Clone + 'static
+{
+    pub(crate) fn new(source: Box<dyn SourceTrait<T>>) -> Self {
+        Self(source)
+    }
+
+    pub(crate) fn fill(&mut self, waker: &mut Dispatcher) -> bool {
+        self.0.fill(waker)
+    }
+}
+
+//
+// ChannelSource
+//
+
 impl<T> ChannelSource<T> {
-    fn new(src_id: NodeId, dst_id: NodeId, receiver: mpsc::Receiver<Option<T>>) -> Self {
+    fn new(
+        src_id: NodeId, 
+        src_index: usize, 
+
+        dst_id: NodeId, 
+        dst_index: usize,
+
+        receiver: mpsc::Receiver<Option<T>>
+    ) -> Self {
         Self {
-            _src: src_id,
+            src_id,
+            src_index,
+
             _dst: dst_id,
+            dst_index: dst_index,
+
             receiver,
-            value: Out::None,
+            value: Out::Pending,
+            n_receive: 0,
         }
     }
 }
+
+impl<T> SourceTrait<T> for ChannelSource<T> {
+    fn src_index(&self) -> usize {
+        self.src_index
+    }
+
+    fn next(&mut self) -> Option<T> {
+        match self.value.take() {
+            Out::None => None,
+            Out::Some(value) => Some(value),
+            Out::Pending => {
+                panic!("Source.next() can't be called twice in a task");
+            }
+        }
+    }
+
+    fn fill(&mut self, waker: &mut Dispatcher) -> bool {
+        if ! self.value.is_pending() {
+            true
+        } else {
+            match self.receiver.try_recv() {
+                Ok(Some(value)) => { 
+                    self.value.replace(Out::Some(value)); 
+                    self.n_receive += 1;
+                    true 
+                }
+
+                Ok(None) => { 
+                    self.value.replace(Out::None);
+                    self.n_receive += 1;
+                    true 
+                }
+
+                Err(err) => {
+                    match err {
+                        mpsc::TryRecvError::Empty => {
+                            waker.request(self.src_id, self.src_index, self.n_receive + 1);
+                            false
+                        },
+                        mpsc::TryRecvError::Disconnected => {
+                            panic!("Source channel unexpected disconnect");
+                        }
+                    }
+                }
+            }
+        }
+    }
+} 
+
+//
+// channel sink
+//
 
 impl<T> ChannelSink<T> {
     fn new(src_id: NodeId, dst_id: NodeId, sender: mpsc::Sender<Option<T>>) -> Self {
@@ -77,63 +179,12 @@ impl<T> ChannelSink<T> {
 }
 
 impl<T> SinkTrait<T> for ChannelSink<T> {
+    fn id(&self) -> NodeId {
+        self._dst
+    }
+
     fn send(&mut self, value: Option<T>) {
         self.sender.send(value).unwrap();
-    }
-} 
-
-pub struct Source<T>(Box<dyn SourceTrait<T>>);
-
-impl<T> Source<T> {
-    pub fn next(&mut self) -> Option<T> {
-        self.0.next()
-    }
-}
-
-impl<T> Source<T>
-where
-    T: FlowData + Clone + 'static
-{
-    pub(crate) fn new(dst_id: Box<dyn SourceTrait<T>>) -> Source<T>
-    {
-        todo!()
-    }
-}
-
-impl<T> SourceTrait<T> for ChannelSource<T> {
-    fn next(&mut self) -> Option<T> {
-        match self.value.take() {
-            Out::None => None,
-            Out::Some(value) => Some(value),
-            Out::Pending => {
-                panic!("Source.next() can't be called twice in a task");
-            }
-        }
-    }
-
-    fn is_available(&mut self) -> bool {
-        if ! self.value.is_pending() {
-            true
-        } else {
-            match self.receiver.try_recv() {
-                Ok(Some(value)) => { 
-                    self.value.replace(Out::Some(value)); 
-                    true 
-                }
-
-                Ok(None) => { 
-                    self.value.replace(Out::None);
-                    true 
-                }
-
-                Err(err) => {
-                    match err {
-                        mpsc::TryRecvError::Empty => false,
-                        mpsc::TryRecvError::Disconnected => todo!(),
-                    }
-                }
-            }
-        }
     }
 } 
 
@@ -203,7 +254,7 @@ impl<T> fmt::Debug for ChannelSink<T> {
 
 impl<T> fmt::Debug for ChannelSource<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ChannelSource({:?}, {:?})", &self._src, &self._dst)
+        write!(f, "ChannelSource({:?}, {:?})", &self.src_id, &self._dst)
     }
 }
 
