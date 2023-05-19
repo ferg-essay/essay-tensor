@@ -20,18 +20,18 @@ impl Dispatcher {
         }
     }
 
-    pub fn spawn(&mut self, node: NodeId) {
+    pub fn execute(&mut self, node: NodeId) {
         self.active.push(node);
         if self.active.len() > 1 {
             panic!("Unknown spawn");
         }
     }
 
-    pub(crate) fn add_update(&mut self, id: NodeId) {
+    pub(crate) fn ready_source(&mut self, id: NodeId) {
         self.wake.push(id);
     }
 
-    pub fn request(&mut self, src_id: NodeId, src_index: usize, n_request: u64) {
+    pub fn request_source(&mut self, src_id: NodeId, src_index: usize, n_request: u64) {
         self.request.push(SourceRequest(src_id, src_index, n_request));
     }
 
@@ -44,19 +44,20 @@ impl Dispatcher {
 
         let complete : Vec<NodeId> = self.complete.drain(..).collect();
         for id in complete {
-            tasks.complete(id, self);
+            let is_done = false;
+            tasks.complete(id, is_done, self);
             is_update = true;
         }
 
         let wake : Vec<NodeId> = self.wake.drain(..).collect();
         for id in wake {
-            tasks.update(id, self);
+            tasks.ready_source(id, self);
             is_update = true;
         }
 
         let requests : Vec<SourceRequest> = self.request.drain(..).collect();
         for request in requests {
-            tasks.request(
+            tasks.request_source(
                 request.src_id(), 
                 request.src_index(), 
                 request.n_request(), 

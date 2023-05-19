@@ -376,16 +376,14 @@ mod test {
         assert_eq!(flow.call(()), Some(1));
         assert_eq!(take(&vec), "Task[2]");
 
-        // assert_eq!(flow.call(()), Some(0));
-        // assert_eq!(take(&vec), "Task[2]");
-
-        /*
-        assert_eq!(flow.call(()), None);
-        assert_eq!(take(&vec), "Task[2]");
+        assert_eq!(flow.call(()), Some(0));
+        assert_eq!(take(&vec), "Task[1]");
 
         assert_eq!(flow.call(()), None);
-        assert_eq!(take(&vec), "Task[2]");
-        */
+        assert_eq!(take(&vec), "Task[0]");
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "");
     }
 
     #[test]

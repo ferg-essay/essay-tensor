@@ -1,12 +1,12 @@
 use std::{any::TypeId, ptr::NonNull, alloc::Layout, mem::{ManuallyDrop, self}};
 
 
-pub(crate) struct Ptr {
+pub(crate) struct UnsafePtr {
     type_id: TypeId,
     data: NonNull<u8>,
 }
 
-impl Ptr {
+impl UnsafePtr {
     pub(crate) unsafe fn wrap<T: 'static>(value: T) -> Self {
         let type_id = TypeId::of::<T>();
 

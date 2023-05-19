@@ -20,6 +20,7 @@ pub trait FlowIn<T> : Send + Clone + 'static {
         // data: &mut GraphData,
     ) -> Out<()>;
 
+    fn init_source(source: &mut Self::Source);
     fn fill_source(source: &mut Self::Source, waker: &mut Dispatcher) -> bool;
 
     fn next(source: &mut Self::Source) -> Out<T>;
@@ -51,6 +52,9 @@ pub trait FlowIn<T> : Send + Clone + 'static {
 impl FlowIn<()> for () {
     type Nodes = (); // TaskId<()>;
     type Source = ();
+
+    fn init_source(_source: &mut Self::Source) {
+    }
 
     fn fill_source(_source: &mut Self::Source, _waker: &mut Dispatcher) -> bool {
         true
@@ -125,13 +129,6 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         todo!()
     }
 
-    /*
-    fn new_source(_nodes: &Self::Nodes) -> Self::Source {
-        todo!()
-        // SourceImpl::<T>::new()
-    }
-    */
-
     fn wake(
         nodes: &Self::Nodes, 
         graph: &Graph,
@@ -140,6 +137,10 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         // data: &mut GraphData,
     ) -> Out<()> {
         graph.wake(&nodes.id(), tasks, dispatcher)
+    }
+
+    fn init_source(source: &mut Self::Source) {
+        source.init();
     }
 
     fn fill_source(
@@ -203,11 +204,34 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
     type Nodes = Vec<T::Nodes>;
     type Source = Vec<T::Source>;
 
+    fn init_source(
+        source: &mut Self::Source, 
+    ) {
+        for source in source {
+            T::init_source(source);
+        }
+    }
+
     fn fill_source(
         source: &mut Self::Source, 
         waker: &mut Dispatcher,
     ) -> bool {
         todo!()
+    }
+
+    fn next(source: &mut Self::Source) -> Out<Vec<T>> {
+        let mut vec = Vec::new();
+        let is_none = true;
+
+        for source in source {
+            match T::next(source) {
+                Out::None => return Out::None,
+                Out::Some(value) => vec.push(value),
+                Out::Pending => todo!(),
+            }
+        }
+
+        Out::Some(vec)
     }
 
     fn wake(
@@ -228,21 +252,6 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         }
 
         out
-    }
-
-    fn next(source: &mut Self::Source) -> Out<Vec<T>> {
-        let mut vec = Vec::new();
-        let is_none = true;
-
-        for source in source {
-            match T::next(source) {
-                Out::None => return Out::None,
-                Out::Some(value) => vec.push(value),
-                Out::Pending => todo!(),
-            }
-        }
-
-        Out::Some(vec)
     }
 
     //
@@ -313,26 +322,14 @@ macro_rules! tuple_flow {
                 key
             }
 
-            fn wake(
-                nodes: &Self::Nodes, 
-                graph: &Graph,
-                tasks: &mut Tasks,
-                dispatcher: &mut Dispatcher,
-                // data: &mut GraphData,
-            ) -> Out<()> {
-                let ($($t),*) = nodes;
-
-                let mut out = Out::Some(());
+            fn init_source(
+                source: &mut Self::Source, 
+            ) {
+                let ($($v),*) = source;
         
                 $(
-                    match $t::wake($t, graph, tasks, dispatcher) {
-                        Out::None => return Out::None,
-                        Out::Pending => out = Out::Pending,
-                        Out::Some(_) => {},
-                    };
+                    $t::init_source($v);
                 )*
-        
-                out
             }
 
             fn fill_source(
@@ -362,6 +359,28 @@ macro_rules! tuple_flow {
                 ),*);
         
                 Out::Some(value)
+            }
+
+            fn wake(
+                nodes: &Self::Nodes, 
+                graph: &Graph,
+                tasks: &mut Tasks,
+                dispatcher: &mut Dispatcher,
+                // data: &mut GraphData,
+            ) -> Out<()> {
+                let ($($t),*) = nodes;
+
+                let mut out = Out::Some(());
+        
+                $(
+                    match $t::wake($t, graph, tasks, dispatcher) {
+                        Out::None => return Out::None,
+                        Out::Pending => out = Out::Pending,
+                        Out::Some(_) => {},
+                    };
+                )*
+        
+                out
             }
         
             //

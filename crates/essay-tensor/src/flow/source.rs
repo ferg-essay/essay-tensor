@@ -21,13 +21,15 @@ pub enum SourceErr {
 pub trait SourceTrait<T> {
     fn src_index(&self) -> usize;
 
+    fn init(&mut self);
+
     fn fill(&mut self, waker: &mut Dispatcher) -> bool;
 
     fn next(&mut self) -> Option<T>;
 }
 
 pub trait SinkTrait<T> {
-    fn id(&self) -> NodeId;
+    fn dst_id(&self) -> NodeId;
 
     fn send(&mut self, value: Option<T>);
 }
@@ -72,6 +74,10 @@ pub fn task_channel<T: 'static>(
 impl<T> Source<T> {
     pub fn next(&mut self) -> Option<T> {
         self.0.next()
+    }
+
+    pub(crate) fn init(&mut self) {
+        self.0.init();
     }
 }
 
@@ -121,6 +127,15 @@ impl<T> SourceTrait<T> for ChannelSource<T> {
         self.src_index
     }
 
+    fn init(&mut self) {
+        self.value.take();
+
+        self.n_receive = 0;
+
+        while let Ok(_) = self.receiver.try_recv() {
+        }
+    }
+
     fn next(&mut self) -> Option<T> {
         match self.value.take() {
             Out::None => None,
@@ -151,7 +166,7 @@ impl<T> SourceTrait<T> for ChannelSource<T> {
                 Err(err) => {
                     match err {
                         mpsc::TryRecvError::Empty => {
-                            waker.request(self.src_id, self.src_index, self.n_receive + 1);
+                            waker.request_source(self.src_id, self.src_index, self.n_receive + 1);
                             false
                         },
                         mpsc::TryRecvError::Disconnected => {
@@ -179,7 +194,7 @@ impl<T> ChannelSink<T> {
 }
 
 impl<T> SinkTrait<T> for ChannelSink<T> {
-    fn id(&self) -> NodeId {
+    fn dst_id(&self) -> NodeId {
         self._dst
     }
 
