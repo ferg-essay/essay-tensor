@@ -8,8 +8,6 @@ pub(crate) struct UnsafePtr {
 
 impl UnsafePtr {
     pub(crate) unsafe fn wrap<T: 'static>(value: T) -> Self {
-        let type_id = TypeId::of::<T>();
-
         let layout = Layout::for_value(&value);
 
         let data = std::alloc::alloc(layout);
@@ -29,18 +27,6 @@ impl UnsafePtr {
             type_id: TypeId::of::<T>(),
             data,
         }
-    }
-
-    pub(crate) unsafe fn as_ref<T: 'static>(&self) -> &T {
-        assert_eq!(self.type_id, TypeId::of::<T>());
-
-        self.data.cast::<T>().as_ref()
-    }
-
-    pub(crate) unsafe fn as_mut<T: 'static>(&mut self) -> &mut T {
-        assert_eq!(self.type_id, TypeId::of::<T>());
-
-        self.data.cast::<T>().as_mut()
     }
 
     pub(crate) unsafe fn unwrap<T: 'static>(self) -> T {

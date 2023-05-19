@@ -1,21 +1,13 @@
 use core::fmt;
 use std::{mem, sync::mpsc::{self}};
 
-use super::{graph::{NodeId, TaskId}, data::FlowData, dispatch::Dispatcher};
+use super::{data::FlowData, dispatch::Dispatcher, task::{NodeId, TaskId}};
 
 
 pub enum Out<T> {
     None,
     Some(T),
     Pending,
-}
-
-pub struct SourceImpl<T> {
-    item: Out<T>,
-}
-
-pub enum SourceErr {
-    Pending
 }
 
 pub trait SourceTrait<T> {
@@ -46,7 +38,7 @@ pub struct ChannelSource<T> {
     src_index: usize,
 
     _dst: NodeId,
-    dst_index: usize,
+    _dst_index: usize,
 
     receiver: mpsc::Receiver<Option<T>>,
     n_receive: u64,
@@ -113,7 +105,7 @@ impl<T> ChannelSource<T> {
             src_index,
 
             _dst: dst_id,
-            dst_index: dst_index,
+            _dst_index: dst_index,
 
             receiver,
             value: Out::Pending,
@@ -270,41 +262,5 @@ impl<T> fmt::Debug for ChannelSink<T> {
 impl<T> fmt::Debug for ChannelSource<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ChannelSource({:?}, {:?})", &self.src_id, &self._dst)
-    }
-}
-
-impl<T> Default for SourceImpl<T> {
-    fn default() -> Self {
-        Self { 
-            item: Default::default() 
-        }
-    }
-}
-
-impl<T> SourceImpl<T> {
-    pub(crate) fn new() -> Self {
-        Self {
-            item: Out::Pending,
-        }
-    }
-
-    pub fn next(&mut self) -> Out<T> {
-        self.item.take()        
-    }
-
-    pub fn push(&mut self, value: T) {
-        assert!(self.item.is_none());
-
-        self.item.replace(Out::Some(value));
-    }
-
-    #[inline]
-    pub(crate) fn is_some(&self) -> bool {
-        self.item.is_some()
-    }
-
-    #[inline]
-    pub(crate) fn is_none(&self) -> bool {
-        self.item.is_none()
     }
 }

@@ -1,7 +1,7 @@
 use super::{
-    task::{Tasks, TasksBuilder, SourceInfo}, 
+    task::{TasksBuilder, SourceInfo, NodeId, TaskId}, 
     dispatch::Dispatcher, 
-    graph::{NodeId, TaskId, Graph}, source::{Out, Source}
+    source::{Out, Source}
 };
 
 pub trait FlowData : Send + Clone + 'static {}
@@ -11,14 +11,6 @@ pub trait FlowIn<T> : Send + Clone + 'static {
     type Source;
 
     // execution methods
-
-    fn wake(
-        nodes: &Self::Nodes, 
-        graph: &Graph,
-        tasks: &mut Tasks,
-        dispatcher: &mut Dispatcher,
-        // data: &mut GraphData,
-    ) -> Out<()>;
 
     fn init_source(source: &mut Self::Source);
     fn fill_source(source: &mut Self::Source, waker: &mut Dispatcher) -> bool;
@@ -38,13 +30,12 @@ pub trait FlowIn<T> : Send + Clone + 'static {
 
     fn node_ids(nodes: &Self::Nodes, ids: &mut Vec<NodeId>);
 
-    fn new_input(graph: &mut Graph, tasks: &mut TasksBuilder) -> Self::Nodes;
+    fn new_input(tasks: &mut TasksBuilder) -> Self::Nodes;
 
     fn new_source(
         dst_id: NodeId, 
         src_nodes: &Self::Nodes, 
         infos: &mut Vec<SourceInfo>,
-        graph: &mut Graph,
         tasks: &mut TasksBuilder,
     ) -> Self::Source;
 }
@@ -58,25 +49,6 @@ impl FlowIn<()> for () {
 
     fn fill_source(_source: &mut Self::Source, _waker: &mut Dispatcher) -> bool {
         true
-    }
-
-    fn new_input(graph: &mut Graph, tasks: &mut TasksBuilder) -> Self::Nodes {
-        /*
-        let node = InputTask::<()>::new(id);
-
-        tasks.push_task(Box::new(node))
-        */
-        ()
-    }
-
-    fn wake(
-        _nodes: &Self::Nodes, 
-        _graph: &Graph,
-        _tasks: &mut Tasks,
-        _dispatcher: &mut Dispatcher,
-        // _data: &mut GraphData,
-    ) -> Out<()> {
-        Out::Some(())
     }
 
     fn next(source: &mut Self::Source) -> Out<()> {
@@ -101,11 +73,19 @@ impl FlowIn<()> for () {
         // ids.push(nodes.id());
     }
 
+    fn new_input(tasks: &mut TasksBuilder) -> Self::Nodes {
+        /*
+        let node = InputTask::<()>::new(id);
+
+        tasks.push_task(Box::new(node))
+        */
+        ()
+    }
+
     fn new_source(
         dst_id: NodeId,
         src_nodes: &Self::Nodes, 
         infos: &mut Vec<SourceInfo>,
-        graph: &mut Graph,
         tasks: &mut TasksBuilder,
     ) -> Self::Source {
         ()
@@ -116,7 +96,7 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
     type Nodes = TaskId<T>;
     type Source = Source<T>;
 
-    fn new_input(graph: &mut Graph, task_graph: &mut TasksBuilder) -> Self::Nodes {
+    fn new_input(tasks: &mut TasksBuilder) -> Self::Nodes {
         /*
         let id = graph.push_input::<T>();
 
@@ -127,16 +107,6 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         id
         */
         todo!()
-    }
-
-    fn wake(
-        nodes: &Self::Nodes, 
-        graph: &Graph,
-        tasks: &mut Tasks,
-        dispatcher: &mut Dispatcher,
-        // data: &mut GraphData,
-    ) -> Out<()> {
-        graph.wake(&nodes.id(), tasks, dispatcher)
     }
 
     fn init_source(source: &mut Self::Source) {
@@ -172,14 +142,11 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         dst_id: NodeId,
         src_nodes: &Self::Nodes, 
         infos: &mut Vec<SourceInfo>,
-        graph: &mut Graph,
         tasks: &mut TasksBuilder
     ) -> Self::Source {
         let src_id = src_nodes;
 
         let dst_index = infos.len();
-
-        graph.add_arrow_out(src_id.id(), dst_id);
 
         let source = tasks.add_sink(src_id.clone(), dst_id, dst_index);
 
@@ -234,26 +201,6 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         Out::Some(vec)
     }
 
-    fn wake(
-        nodes: &Self::Nodes, 
-        graph: &Graph,
-        tasks: &mut Tasks,
-        dispatcher: &mut Dispatcher,
-        // data: &mut GraphData,
-    ) -> Out<()> {
-        let mut out = Out::Some(());
-
-        for node in nodes {
-            match T::wake(node, graph, tasks, dispatcher) {
-                Out::None => return Out::None,
-                Out::Pending => out = Out::Pending,
-                Out::Some(_) => {},
-            }
-        }
-
-        out
-    }
-
     //
     // builders
     //
@@ -282,19 +229,18 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         dst_id: NodeId,
         src_nodes: &Self::Nodes, 
         infos: &mut Vec<SourceInfo>,
-        graph: &mut Graph,
         tasks: &mut TasksBuilder
     ) -> Self::Source {
         let mut vec = Vec::new();
 
         for node in src_nodes.iter() {
-            vec.push(T::new_source(dst_id, node, infos, graph, tasks));
+            vec.push(T::new_source(dst_id, node, infos, tasks));
         }
 
         vec
     }
 
-    fn new_input(_graph: &mut Graph, _tasks: &mut TasksBuilder) -> Self::Nodes {
+    fn new_input(_tasks: &mut TasksBuilder) -> Self::Nodes {
         todo!();
     }
 }
@@ -310,9 +256,9 @@ macro_rules! tuple_flow {
             type Nodes = ($($t::Nodes),*);
             type Source = ($($t::Source),*);
         
-            fn new_input(graph: &mut Graph, tasks: &mut TasksBuilder) -> Self::Nodes {
+            fn new_input(tasks: &mut TasksBuilder) -> Self::Nodes {
                 let key = ($(
-                    $t::new_input(graph, tasks)
+                    $t::new_input(tasks)
                 ),*);
 
                 //let task = InputTask::<($($t),*)>::new(key.clone());
@@ -360,28 +306,6 @@ macro_rules! tuple_flow {
         
                 Out::Some(value)
             }
-
-            fn wake(
-                nodes: &Self::Nodes, 
-                graph: &Graph,
-                tasks: &mut Tasks,
-                dispatcher: &mut Dispatcher,
-                // data: &mut GraphData,
-            ) -> Out<()> {
-                let ($($t),*) = nodes;
-
-                let mut out = Out::Some(());
-        
-                $(
-                    match $t::wake($t, graph, tasks, dispatcher) {
-                        Out::None => return Out::None,
-                        Out::Pending => out = Out::Pending,
-                        Out::Some(_) => {},
-                    };
-                )*
-        
-                out
-            }
         
             //
             // builders
@@ -415,13 +339,12 @@ macro_rules! tuple_flow {
                 dst_id: NodeId,
                 src_nodes: &Self::Nodes, 
                 infos: &mut Vec<SourceInfo>,
-                graph: &mut Graph,
                 tasks: &mut TasksBuilder
             ) -> Self::Source {
                 let ($($t),*) = src_nodes;
 
                 ($(
-                    $t::new_source(dst_id, $t, infos, graph, tasks)
+                    $t::new_source(dst_id, $t, infos, tasks)
                 ),*)
             }
         }

@@ -1,12 +1,11 @@
-use std::{marker::PhantomData, sync::mpsc::{Receiver, self}};
+use std::{marker::PhantomData};
 
 use super::{
-    task::{Task, Tasks, TasksBuilder, NilTask, self}, 
-    data::{FlowIn, FlowData}, dispatch::Dispatcher, graph::{TaskId, NodeId, Graph}, source::{Source, Out}, 
+    task::{Task, Tasks, TasksBuilder, NilTask, self, NodeId, TaskId}, 
+    data::{FlowIn, FlowData}, dispatch::Dispatcher, source::{Source, Out}, 
 };
 
 pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
-    graph: Graph,
     tasks: Tasks,
 
     input: In::Nodes,
@@ -16,7 +15,6 @@ pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
 }
 
 pub struct FlowBuilder<In: FlowIn<In>, Out: FlowIn<Out>> {
-    graph: Graph,
     tasks: TasksBuilder,
     nil_id: TaskId<()>,
     in_nodes: In::Nodes,
@@ -114,15 +112,13 @@ impl<T: Clone + Send + 'static> FlowData for OutputData<T> {}
 
 impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
     fn new() -> Self {
-        let mut graph = Graph::new();
         let mut tasks = TasksBuilder::new();
 
-        let nil_id = tasks.push_task(Box::new(NilTask), &(), &mut graph);
+        let nil_id = tasks.push_task(Box::new(NilTask), &());
 
-        let input_id = In::new_input(&mut graph, &mut tasks);
+        let input_id = In::new_input(&mut tasks);
 
         let builder = FlowBuilder {
-            graph,
             tasks,
             nil_id: nil_id,
             in_nodes: input_id,
@@ -150,7 +146,7 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
         I: FlowIn<I>,
         O: Clone + 'static,
     {
-        self.tasks.push_task(Box::new(task), in_nodes, &mut self.graph)
+        self.tasks.push_task(Box::new(task), in_nodes)
     }
 
     pub fn output(mut self, src_nodes: &Out::Nodes) -> Flow<In, Out> {
@@ -160,13 +156,12 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
 
         let output_task = OutputTask::<Out>::new();
 
-        let id = self.tasks.push_task(Box::new(output_task), src_nodes, &mut self.graph);
-        let tail = self.tasks.push_task(Box::new(TailTask), &(), &mut self.graph);
+        let id = self.tasks.push_task(Box::new(output_task), src_nodes);
+        let tail = self.tasks.push_task(Box::new(TailTask), &());
 
         let source = self.tasks.add_sink(id.clone(), tail.id(), 0);
 
         Flow {
-            graph: self.graph,
             tasks: self.tasks.build(),
 
             input: self.in_nodes,

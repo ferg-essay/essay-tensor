@@ -1,9 +1,9 @@
-use super::{graph::NodeId, task::Tasks};
+use super::{task::{Tasks, NodeId}};
 
 pub struct Dispatcher {
     active: Vec<NodeId>,
     request: Vec<SourceRequest>,
-    wake: Vec<NodeId>,
+    ready_source: Vec<NodeId>,
     complete: Vec<NodeId>,
 }
 
@@ -15,20 +15,17 @@ impl Dispatcher {
         Self {
             active: Default::default(),
             request: Default::default(),
-            wake: Default::default(),
+            ready_source: Default::default(),
             complete: Default::default(),
         }
     }
 
     pub fn execute(&mut self, node: NodeId) {
         self.active.push(node);
-        if self.active.len() > 1 {
-            panic!("Unknown spawn");
-        }
     }
 
     pub(crate) fn ready_source(&mut self, id: NodeId) {
-        self.wake.push(id);
+        self.ready_source.push(id);
     }
 
     pub fn request_source(&mut self, src_id: NodeId, src_index: usize, n_request: u64) {
@@ -49,7 +46,7 @@ impl Dispatcher {
             is_update = true;
         }
 
-        let wake : Vec<NodeId> = self.wake.drain(..).collect();
+        let wake : Vec<NodeId> = self.ready_source.drain(..).collect();
         for id in wake {
             tasks.ready_source(id, self);
             is_update = true;

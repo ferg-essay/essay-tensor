@@ -1,11 +1,21 @@
-use std::{sync::{Mutex, Arc}};
+use core::fmt;
+use std::{sync::{Mutex, Arc}, marker::PhantomData};
 
 use super::{
     data::{FlowIn},
-    dispatch::{Dispatcher}, graph::{NodeId, TaskId, Graph}, 
+    dispatch::{Dispatcher},
     source::{Out, SinkTrait, SourceTrait, task_channel}, 
     ptr::UnsafePtr,
 };
+
+#[derive(Copy, PartialEq)]
+pub struct TaskId<T> {
+    index: usize,
+    marker: PhantomData<T>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+pub struct NodeId(usize);
 
 #[derive(Debug)]
 pub struct TaskErr;
@@ -47,7 +57,6 @@ trait TaskOuter {
 
     fn ready_source(
         &mut self, 
-        // data: &mut GraphData, 
         waker: &mut Dispatcher
     );
 
@@ -70,11 +79,6 @@ struct TaskOuterNode<O> {
 trait TaskInner {
     fn init(&mut self);
 
-    fn wake(
-        &mut self, 
-        dispatcher: &mut Dispatcher,
-    ) -> Out<()>;
-
     fn execute(&mut self, waker: &mut Dispatcher) -> Result<Out<()>>;
 }
 
@@ -82,7 +86,7 @@ struct TaskInnerNode<I, O>
 where
     I: FlowIn<I>
 {
-    id: TaskId<O>,
+    _id: TaskId<O>,
     task: BoxTask<I, O>,
 
     source: I::Source,
@@ -108,10 +112,9 @@ struct SourceInfos(Vec<SourceInfo>);
 
 struct SinkInfo {
     _dst_id: NodeId,
+
     n_request: u64,
     n_sent: u64,
-
-    update_ticks: u64,
 }
 
 struct SinkInfos(Vec<SinkInfo>);
@@ -404,7 +407,7 @@ where
         sink_info: &Arc<Mutex<SinkInfos>>,
     ) -> Self {
         Self {
-            id: builder.id.clone(), 
+            _id: builder.id.clone(), 
             task: builder.task.take().unwrap(),
             source: builder.source.take().unwrap(),
 
@@ -473,16 +476,6 @@ where
 
         self.source_info.lock().unwrap().init();
         self.sink_info.lock().unwrap().init();
-    }
-
-    fn wake(&mut self, waker: &mut Dispatcher) -> Out<()> {
-        if I::fill_source(&mut self.source, waker) {
-            waker.execute(self.id.id());
-
-            Out::Some(())
-        } else {
-            Out::Pending
-        }
     }
 
     fn execute(&mut self, waker: &mut Dispatcher) -> Result<Out<()>> {
@@ -607,7 +600,6 @@ impl SinkInfo {
             _dst_id: dst_id,
             n_request: 0,
             n_sent: 0,
-            update_ticks: 0,
         }
     }
 
@@ -634,6 +626,50 @@ impl SinkInfo {
     }
 }
 
+impl<T> fmt::Debug for TaskId<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TaskId[{}]", self.index)
+    }
+}
+
+impl<T> Clone for TaskId<T> {
+    fn clone(&self) -> Self {
+        Self { 
+            index: self.index,
+            marker: self.marker.clone() 
+        }
+    }
+}
+
+impl NodeId {
+    pub fn index(&self) -> usize {
+        self.0
+    }
+
+    pub(crate) fn new(index: usize) -> NodeId {
+        NodeId(index)
+    }
+}
+
+impl<T: 'static> TaskId<T> {
+    fn new(index: usize) -> Self {
+        Self {
+            index,
+            marker: PhantomData,
+        }
+    }
+
+    #[inline]
+    pub fn id(&self) -> NodeId {
+        NodeId(self.index)
+    }
+
+    #[inline]
+    pub fn index(&self) -> usize {
+        self.index
+    }
+}
+
 //
 // Tasks builder
 //
@@ -649,14 +685,13 @@ impl TasksBuilder {
         &mut self, 
         task: BoxTask<I, O>,
         src_nodes: &I::Nodes,
-        graph: &mut Graph,
     ) -> TaskId<O>
     where
         I: FlowIn<I>,
         O: Clone + 'static
     {
-        let id = graph.push_input::<O>();
-        let task_item = TaskNodeBuilder::new(id.clone(), task, src_nodes, graph, self);
+        let id = TaskId::<O>::new(self.tasks.len());
+        let task_item = TaskNodeBuilder::new(id.clone(), task, src_nodes, self);
     
         assert_eq!(id.index(), self.tasks.len());
 
@@ -704,7 +739,6 @@ where
         id: TaskId<O>,
         task: Box<dyn Task<I, O>>,
         src_nodes: &I::Nodes,
-        graph: &mut Graph,
         tasks: &mut TasksBuilder,
     ) -> Self {
         let mut source_infos = Vec::new();
@@ -712,7 +746,6 @@ where
             id.id(), 
             src_nodes, 
             &mut source_infos, 
-            graph, 
             tasks,
         );
 
@@ -761,7 +794,7 @@ where
 pub struct NilTask;
 
 impl Task<(), ()> for NilTask {
-    fn call(&mut self, source: &mut ()) -> Result<Out<()>> {
+    fn call(&mut self, _source: &mut ()) -> Result<Out<()>> {
         todo!()
     }
 }
