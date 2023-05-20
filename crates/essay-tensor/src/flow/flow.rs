@@ -70,7 +70,7 @@ where
 
         // self.tasks.request(self.output_id, 0, 1, waker);
 
-        while waker.update(&mut self.tasks) {
+        while waker.apply(&mut self.tasks) {
         }
 
         assert!(self.output.fill(waker));
@@ -84,6 +84,7 @@ where
     fn init(&mut self) -> Dispatcher {
         let dispatcher = Dispatcher::new();
 
+        self.output.init();
         self.tasks.init();
 
         dispatcher

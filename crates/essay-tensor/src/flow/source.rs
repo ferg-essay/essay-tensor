@@ -11,11 +11,12 @@ pub enum Out<T> {
 }
 
 pub trait SourceTrait<T> {
-    fn src_index(&self) -> usize;
+    fn sink_index(&self) -> usize;
 
     fn init(&mut self);
 
     fn fill(&mut self, waker: &mut Dispatcher) -> bool;
+    fn n_read(&self) -> u64;
 
     fn next(&mut self) -> Option<T>;
 }
@@ -71,6 +72,10 @@ impl<T> Source<T> {
     pub(crate) fn init(&mut self) {
         self.0.init();
     }
+
+    pub(crate) fn n_read(&self) -> u64 {
+        self.0.n_read()
+    }
 }
 
 impl<T> Source<T>
@@ -115,7 +120,7 @@ impl<T> ChannelSource<T> {
 }
 
 impl<T> SourceTrait<T> for ChannelSource<T> {
-    fn src_index(&self) -> usize {
+    fn sink_index(&self) -> usize {
         self.src_index
     }
 
@@ -168,6 +173,10 @@ impl<T> SourceTrait<T> for ChannelSource<T> {
                 }
             }
         }
+    }
+
+    fn n_read(&self) -> u64 {
+        self.n_receive
     }
 } 
 

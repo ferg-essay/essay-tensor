@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{sync::{Mutex, Arc}, marker::PhantomData};
+use std::{sync::{Mutex, Arc}, marker::PhantomData, cmp};
 
 use super::{
     data::{FlowIn},
@@ -50,13 +50,15 @@ trait TaskOuter {
 
     fn request_source(
         &mut self, 
-        src_index: usize,
+        sink_index: usize,
         n_request: u64,
         waker: &mut Dispatcher,
     );
 
     fn ready_source(
         &mut self, 
+        source_index: usize,
+        n_ready: u64,
         waker: &mut Dispatcher
     );
 
@@ -86,7 +88,7 @@ struct TaskInnerNode<I, O>
 where
     I: FlowIn<I>
 {
-    _id: TaskId<O>,
+    id: TaskId<O>,
     task: BoxTask<I, O>,
 
     source: I::Source,
@@ -100,18 +102,20 @@ where
 
 pub struct SourceInfo {
     src_id: NodeId,
-    src_index: usize,
+    sink_index: usize,
 
     request_window: u32,
 
-    n_read: u64,
     n_request: u64,
+    n_ready: u64,
+    n_read: u64,
 }
 
-struct SourceInfos(Vec<SourceInfo>);
+pub struct SourceInfos(Vec<SourceInfo>);
 
 struct SinkInfo {
-    _dst_id: NodeId,
+    dst_id: NodeId,
+    source_index: usize,
 
     n_request: u64,
     n_sent: u64,
@@ -185,9 +189,11 @@ impl Tasks {
     pub(crate) fn ready_source(
         &mut self, 
         id: NodeId,
+        source_index: usize,
+        n_ready: u64,
         waker: &mut Dispatcher, 
     ) {
-        self.tasks[id.index()].ready_source(waker)
+        self.tasks[id.index()].ready_source(source_index, n_ready, waker)
     }
 
     pub(crate) fn execute(
@@ -249,29 +255,27 @@ impl TaskNode {
 
     pub(crate) fn request_source(
         &self, 
-        src_index: usize,
+        sink_index: usize,
         n_request: u64,
         waker: &mut Dispatcher,
     ) {
-        self.outer.lock().unwrap().request_source(src_index, n_request, waker);
+        self.outer.lock().unwrap().request_source(sink_index, n_request, waker);
     }
 
     fn ready_source(
         &mut self, 
+        source_index: usize,
+        n_ready: u64,
         waker: &mut Dispatcher, 
     ) {
-        self.outer.lock().unwrap().ready_source(waker);
+        self.outer.lock().unwrap().ready_source(source_index, n_ready, waker);
     }
 
     fn execute(
         &mut self, 
         waker: &mut Dispatcher, 
     ) {
-        match self.inner.lock().unwrap().execute(waker) {
-            Ok(_) => {
-            },
-            Err(_) => todo!(),
-        }
+        self.inner.lock().unwrap().execute(waker);
     }
 
     pub(crate) fn complete(
@@ -350,8 +354,12 @@ where
 
     fn ready_source(
         &mut self, 
+        source_index: usize,
+        n_ready: u64,
         waker: &mut Dispatcher
     ) {
+        self.source_info.lock().unwrap().ready_source(source_index, n_ready);
+
         match self.state {
             NodeState::Idle => { 
                 // self.state = NodeState::Active; // WaitingIn;
@@ -377,8 +385,7 @@ where
             NodeState::Active => {
                 if is_done {
                     self.state = NodeState::Done;
-                }
-                else if ! self.sink_info.lock().unwrap().is_any_sink_available() {
+                } else if ! self.sink_info.lock().unwrap().is_any_sink_available() {
                     self.state = NodeState::Idle;
                 } else if self.source_info.lock().unwrap().request_source(waker) {
                     self.state = NodeState::Active;
@@ -407,7 +414,7 @@ where
         sink_info: &Arc<Mutex<SinkInfos>>,
     ) -> Self {
         Self {
-            _id: builder.id.clone(), 
+            id: builder.id.clone(), 
             task: builder.task.take().unwrap(),
             source: builder.source.take().unwrap(),
 
@@ -458,9 +465,8 @@ where
         value: Option<O>,
         waker: &mut Dispatcher,
     ) {
-        self.sinks[index].send(value.clone());
-        self.sink_info.lock().unwrap().send(index);
-        waker.ready_source(self.sinks[index].dst_id());
+        self.sinks[index].send(value);
+        self.sink_info.lock().unwrap().send(index, waker);
     }
 } 
 
@@ -479,18 +485,21 @@ where
     }
 
     fn execute(&mut self, waker: &mut Dispatcher) -> Result<Out<()>> {
-        while I::fill_source(&mut self.source, waker) {
+        while self.source_info.lock().unwrap().fill_source::<I>(&mut self.source, waker) {
             match self.task.call(&mut self.source) {
                 Ok(Out::Some(value)) => {
                     if ! self.send(Some(value), waker) {
+                        waker.complete(self.id.id(), false);
                         return Ok(Out::Some(()))
                     }
                 },
                 Ok(Out::None) => {
                     self.send_all(None, waker);
+                    waker.complete(self.id.id(), true);
                     return Ok(Out::None);
                 },
                 Ok(Out::Pending) => {
+                    waker.complete(self.id.id(), false);
                     return Ok(Out::Pending);
                 },
                 Err(err) => {
@@ -500,6 +509,8 @@ where
             }
         }
 
+        println!("Unready");
+        waker.complete(self.id.id(), false);
         Ok(Out::Pending)
     }
 }
@@ -526,22 +537,39 @@ impl SourceInfos {
 
         is_ready
     }
+
+    fn ready_source(&mut self, source_index: usize, n_ready: u64) {
+        // TODO: cleanup this special case for tail task
+        if self.0.len() > 0 {
+            let info = &mut self.0[source_index];
+
+            info.n_ready = cmp::max(info.n_ready, n_ready);
+        }
+    }
+
+    fn fill_source<I: FlowIn<I>>(&mut self, source: &mut I::Source, waker: &mut Dispatcher) -> bool {
+        let mut index = 0;
+
+        I::fill_source(source, &mut self.0, &mut index, waker)
+    }
 }
 
 impl SourceInfo {
     pub(crate) fn new(src_id: NodeId, src_index: usize) -> Self {
         Self {
             src_id,
-            src_index,
+            sink_index: src_index,
 
             request_window: 1,
-            n_read: 0,
             n_request: 0,
+            n_ready: 0,
+            n_read: 0,
         }
     }
 
     fn init(&mut self) {
         self.n_request = 0;
+        self.n_ready = 0;
         self.n_read = 0;
     }
 
@@ -552,11 +580,15 @@ impl SourceInfo {
 
         if self.n_request < n_request {
             self.n_request = n_request;
-            waker.request_source(self.src_id, self.src_index, n_request);
+            waker.request_source(self.src_id, self.sink_index, n_request);
             is_ready = false;
         }
 
         is_ready
+    }
+
+    pub(crate) fn set_n_read(&mut self, n_read: u64) {
+        self.n_read = n_read;
     }
 }
 
@@ -585,8 +617,8 @@ impl SinkInfos {
         return false;
     }
 
-    fn send(&mut self, index: usize) {
-        self.0[index].send();
+    fn send(&mut self, index: usize, waker: &mut Dispatcher) {
+        self.0[index].send(waker);
     }
 
     fn request_source(&mut self, index: usize, n_request: u64) -> bool {
@@ -595,9 +627,11 @@ impl SinkInfos {
 }
 
 impl SinkInfo {
-    pub(crate) fn new(dst_id: NodeId) -> Self {
+    pub(crate) fn new(dst_id: NodeId, source_index: usize) -> Self {
         Self {
-            _dst_id: dst_id,
+            dst_id,
+            source_index,
+
             n_request: 0,
             n_sent: 0,
         }
@@ -612,8 +646,9 @@ impl SinkInfo {
         self.n_sent < self.n_request
     }
 
-    fn send(&mut self) {
+    fn send(&mut self, waker: &mut Dispatcher) {
         self.n_sent += 1;
+        waker.ready_source(self.dst_id, self.source_index, self.n_sent);
     }
 
     fn request_source(&mut self, n_request: u64) -> bool {
@@ -644,10 +679,6 @@ impl<T> Clone for TaskId<T> {
 impl NodeId {
     pub fn index(&self) -> usize {
         self.0
-    }
-
-    pub(crate) fn new(index: usize) -> NodeId {
-        NodeId(index)
     }
 }
 
@@ -770,14 +801,14 @@ where
     I: FlowIn<I>,
     O: Clone + 'static
 {
-    unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> UnsafePtr {
-        let src_index = self.sinks.len();
+    unsafe fn add_sink(&mut self, dst_id: NodeId, source_index: usize) -> UnsafePtr {
+        let sink_index = self.sinks.len();
 
         let (source, sink) = 
-            task_channel(self.id.clone(), src_index, dst_id, dst_index);
+            task_channel(self.id.clone(), sink_index, dst_id, source_index);
 
         self.sinks.push(sink);
-        self.sink_info.push(SinkInfo::new(dst_id));
+        self.sink_info.push(SinkInfo::new(dst_id, source_index));
 
         UnsafePtr::wrap(source)
     }

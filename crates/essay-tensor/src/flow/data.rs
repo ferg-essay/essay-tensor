@@ -1,5 +1,5 @@
 use super::{
-    task::{TasksBuilder, SourceInfo, NodeId, TaskId}, 
+    task::{TasksBuilder, SourceInfo, NodeId, TaskId, SourceInfos}, 
     dispatch::Dispatcher, 
     source::{Out, Source}
 };
@@ -13,7 +13,13 @@ pub trait FlowIn<T> : Send + Clone + 'static {
     // execution methods
 
     fn init_source(source: &mut Self::Source);
-    fn fill_source(source: &mut Self::Source, waker: &mut Dispatcher) -> bool;
+
+    fn fill_source(
+        source: &mut Self::Source, 
+        infos: &mut Vec<SourceInfo>, 
+        index: &mut usize, 
+        waker: &mut Dispatcher
+    ) -> bool;
 
     fn next(source: &mut Self::Source) -> Out<T>;
 
@@ -47,7 +53,12 @@ impl FlowIn<()> for () {
     fn init_source(_source: &mut Self::Source) {
     }
 
-    fn fill_source(_source: &mut Self::Source, _waker: &mut Dispatcher) -> bool {
+    fn fill_source(
+        source: &mut Self::Source, 
+        infos: &mut Vec<SourceInfo>, 
+        index: &mut usize, 
+        waker: &mut Dispatcher
+    ) -> bool {
         true
     }
 
@@ -115,9 +126,17 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
 
     fn fill_source(
         source: &mut Self::Source, 
-        waker: &mut Dispatcher,
+        infos: &mut Vec<SourceInfo>, 
+        index: &mut usize, 
+        waker: &mut Dispatcher
     ) -> bool {
-        source.fill(waker)
+        let is_available = source.fill(waker);
+
+        infos[*index].set_n_read(source.n_read());
+
+        *index += 1;
+
+        is_available
     }
 
     fn next(source: &mut Self::Source) -> Out<T> {
@@ -150,7 +169,7 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
 
         let source = tasks.add_sink(src_id.clone(), dst_id, dst_index);
 
-        infos.push(SourceInfo::new(src_id.id(), source.src_index()));
+        infos.push(SourceInfo::new(src_id.id(), source.sink_index()));
 
         Source::new(source)
     }
@@ -181,7 +200,9 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
 
     fn fill_source(
         source: &mut Self::Source, 
-        waker: &mut Dispatcher,
+        infos: &mut Vec<SourceInfo>, 
+        index: &mut usize, 
+        waker: &mut Dispatcher
     ) -> bool {
         todo!()
     }
@@ -280,12 +301,14 @@ macro_rules! tuple_flow {
 
             fn fill_source(
                 source: &mut Self::Source, 
-                waker: &mut Dispatcher,
+                infos: &mut Vec<SourceInfo>, 
+                index: &mut usize, 
+                waker: &mut Dispatcher
             ) -> bool {
                 let ($($v),*) = source;
         
                 $(
-                    if ! $t::fill_source($v, waker) {
+                    if ! $t::fill_source($v, infos, index, waker) {
                         return false
                     }
                 )*
