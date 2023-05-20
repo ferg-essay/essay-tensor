@@ -119,7 +119,7 @@ impl<T> ChannelSource<T> {
     }
 }
 
-impl<T> SourceTrait<T> for ChannelSource<T> {
+impl<T: 'static> SourceTrait<T> for ChannelSource<T> {
     fn sink_index(&self) -> usize {
         self.src_index
     }

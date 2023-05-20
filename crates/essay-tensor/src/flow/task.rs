@@ -1,11 +1,10 @@
 use core::fmt;
-use std::{sync::{Mutex, Arc}, marker::PhantomData, cmp};
+use std::{sync::{Mutex, Arc}, marker::PhantomData, cmp, any::Any, mem};
 
 use super::{
     data::{FlowIn},
     dispatch::{Dispatcher},
     source::{Out, SinkTrait, SourceTrait, task_channel}, 
-    ptr::UnsafePtr,
 };
 
 #[derive(Copy, PartialEq)]
@@ -145,7 +144,8 @@ pub struct TasksBuilder {
 }
 
 pub(crate) trait TaskNodeBuilderTrait {
-    unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> UnsafePtr;
+    //unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> UnsafePtr;
+    unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> Box<dyn Any>;
 
     fn build(&mut self) -> TaskNode;
 }
@@ -275,7 +275,7 @@ impl TaskNode {
         &mut self, 
         waker: &mut Dispatcher, 
     ) {
-        self.inner.lock().unwrap().execute(waker);
+        self.inner.lock().unwrap().execute(waker).unwrap();
     }
 
     pub(crate) fn complete(
@@ -740,7 +740,9 @@ impl TasksBuilder {
         let task = &mut self.tasks[src_id.index()];
 
         unsafe { 
-            task.add_sink(dst_id, dst_index).unwrap::<Box<dyn SourceTrait<O>>>()
+            // task.add_sink(dst_id, dst_index).downcast::<dyn SourceTrait<O>>().unwrap()
+
+            mem::transmute(task.add_sink(dst_id, dst_index))
         }
     }
 
@@ -801,7 +803,7 @@ where
     I: FlowIn<I>,
     O: Clone + 'static
 {
-    unsafe fn add_sink(&mut self, dst_id: NodeId, source_index: usize) -> UnsafePtr {
+    unsafe fn add_sink(&mut self, dst_id: NodeId, source_index: usize) -> Box<dyn Any> {
         let sink_index = self.sinks.len();
 
         let (source, sink) = 
@@ -810,7 +812,9 @@ where
         self.sinks.push(sink);
         self.sink_info.push(SinkInfo::new(dst_id, source_index));
 
-        UnsafePtr::wrap(source)
+        unsafe {
+            mem::transmute(source)
+        }
     }
 
     fn build(&mut self) -> TaskNode {
