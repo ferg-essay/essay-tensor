@@ -1,5 +1,5 @@
 use super::{
-    task::{TasksBuilder, SourceInfo, NodeId, TaskId, SourceInfos}, 
+    task::{TasksBuilder, SourceInfo, NodeId, TaskId}, 
     dispatch::Dispatcher, 
     source::{Out, Source}
 };
@@ -27,13 +27,6 @@ pub trait FlowIn<T> : Send + Clone + 'static {
     // build methods
     //
 
-    fn add_arrows(
-        id: NodeId, 
-        nodes_in: Self::Nodes, 
-        arrows_in: &mut Vec<NodeId>,
-        // graph: &mut Graph
-    );
-
     fn node_ids(nodes: &Self::Nodes, ids: &mut Vec<NodeId>);
 
     fn new_input(tasks: &mut TasksBuilder) -> Self::Nodes;
@@ -54,15 +47,15 @@ impl FlowIn<()> for () {
     }
 
     fn fill_source(
-        source: &mut Self::Source, 
-        infos: &mut Vec<SourceInfo>, 
-        index: &mut usize, 
-        waker: &mut Dispatcher
+        _source: &mut Self::Source, 
+        _infos: &mut Vec<SourceInfo>, 
+        _index: &mut usize, 
+        _waker: &mut Dispatcher
     ) -> bool {
         true
     }
 
-    fn next(source: &mut Self::Source) -> Out<()> {
+    fn next(_source: &mut Self::Source) -> Out<()> {
         Out::None
     }
 
@@ -70,21 +63,14 @@ impl FlowIn<()> for () {
     // builder
     //
 
-    fn add_arrows(
-        id: NodeId,
-        node_in: Self::Nodes, 
-        arrows_in: &mut Vec<NodeId>, 
-    ) {
-    }
-
     fn node_ids(
-        nodes: &Self::Nodes,
-        ids: &mut Vec<NodeId>, 
+        _nodes: &Self::Nodes,
+        _ids: &mut Vec<NodeId>, 
     ) {
         // ids.push(nodes.id());
     }
 
-    fn new_input(tasks: &mut TasksBuilder) -> Self::Nodes {
+    fn new_input(_tasks: &mut TasksBuilder) -> Self::Nodes {
         /*
         let node = InputTask::<()>::new(id);
 
@@ -94,10 +80,10 @@ impl FlowIn<()> for () {
     }
 
     fn new_source(
-        dst_id: NodeId,
-        src_nodes: &Self::Nodes, 
-        infos: &mut Vec<SourceInfo>,
-        tasks: &mut TasksBuilder,
+        _dst_id: NodeId,
+        _src_nodes: &Self::Nodes, 
+        _infos: &mut Vec<SourceInfo>,
+        _tasks: &mut TasksBuilder,
     ) -> Self::Source {
         ()
     }
@@ -173,17 +159,6 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
 
         Source::new(source)
     }
-
-    fn add_arrows(
-        id: NodeId,
-        node_in: Self::Nodes, 
-        arrows_in: &mut Vec<NodeId>, 
-        // graph: &mut Graph
-    ) {
-        arrows_in.push(node_in.id());
-
-        // graph.add_arrow_out(node_in.id(), id);
-    }
 }
 
 impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
@@ -204,12 +179,17 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         index: &mut usize, 
         waker: &mut Dispatcher
     ) -> bool {
-        todo!()
+        for source in source {
+            if ! T::fill_source(source, infos, index, waker) {
+                return false;
+            }
+        }
+
+        true
     }
 
     fn next(source: &mut Self::Source) -> Out<Vec<T>> {
         let mut vec = Vec::new();
-        let is_none = true;
 
         for source in source {
             match T::next(source) {
@@ -232,17 +212,6 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
     ) {
         for node_in in nodes {
             T::node_ids(node_in, ids);
-        }
-    }
-
-    fn add_arrows(
-        id: NodeId,
-        in_nodes: Self::Nodes, 
-        in_arrows: &mut Vec<NodeId>, 
-        // graph: &mut Graph
-    ) {
-        for node_in in in_nodes {
-            T::add_arrows(id, node_in, in_arrows);
         }
     }
 
@@ -342,19 +311,6 @@ macro_rules! tuple_flow {
 
                 $(
                     $t::node_ids($t, ids);
-                )*
-            }
-        
-            fn add_arrows(
-                id: NodeId,
-                nodes_in: Self::Nodes, 
-                arrows_in: &mut Vec<NodeId>, 
-                // graph: &mut Graph
-            ) {
-                let ($($t),*) = nodes_in;
-
-                $(
-                    $t::add_arrows(id, $t, arrows_in);
                 )*
             }
 
