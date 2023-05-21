@@ -8,17 +8,20 @@ use concurrent_queue::{ConcurrentQueue, PopError};
 use log::info;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct JobId(usize);
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MainId(usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ChildId(usize);
 
-pub trait MainTask<MP: Msg, PM: Msg> {
+pub enum Out<T> {
+    None,
+    Some(T),
+    Pending,
+}
+
+pub trait MainTask<T, MP: Msg, PM: Msg> {
     fn on_start(&mut self, to_parent: &mut dyn Sender<MP>);
-    fn on_parent(&mut self, msg: PM, to_parent: &mut dyn Sender<MP>);
+    fn on_parent(&mut self, msg: PM, to_parent: &mut dyn Sender<MP>) -> Out<T>;
     fn on_exit(&mut self);
 }
 
@@ -83,18 +86,18 @@ pub trait Msg : fmt::Debug + Send + 'static {}
 // ThreadPool -- Caller (Main) Implementation
 //
 
-pub struct ThreadPool<MP: Msg, PM: Msg, PC: Msg, CP: Msg> {
+pub struct ThreadPool<T, MP: Msg, PM: Msg, PC: Msg, CP: Msg> {
     //threads: Vec<Thread>,
     parent: Option<JoinHandle<()>>,
 
     receiver: mpsc::Receiver<MainMessage<PM>>,
     to_parent: mpsc::Sender<ParentMessage<MP, CP>>,
 
-    marker: PhantomData<PC>,
+    marker: PhantomData<(T, PC)>,
 }
 
-impl<MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPool<MP, PM, PC, CP> {
-    pub fn start(&self, main: impl MainTask<MP, PM>) -> Result<(), ThreadPoolErr> {
+impl<T, MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPool<T, MP, PM, PC, CP> {
+    pub fn start(&self, main: impl MainTask<T, MP, PM>) -> Result<Option<T>, ThreadPoolErr> {
         let mut main = main;
 
         let id = MainId(0);
@@ -106,9 +109,11 @@ impl<MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPool<MP, PM, PC, CP> {
         loop {
             match self.receiver.recv() {
                 Ok(MainMessage::OnParent(msg)) => {
-                    main.on_parent(msg, &mut to_parent);
-
-                    return Ok(());
+                    match main.on_parent(msg, &mut to_parent) {
+                        Out::None => return Ok(None),
+                        Out::Some(value) => return Ok(Some(value)),
+                        Out::Pending => continue,
+                    }
                 }
                 Ok(MainMessage::Exit) => {
                     panic!("unexpected exit");
@@ -145,7 +150,7 @@ impl<MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPool<MP, PM, PC, CP> {
     }
 }
 
-impl<MP: Msg, PM: Msg, CP: Msg, PC: Msg> Drop for ThreadPool<MP, PM, CP, PC> {
+impl<T, MP: Msg, PM: Msg, CP: Msg, PC: Msg> Drop for ThreadPool<T, MP, PM, CP, PC> {
     fn drop(&mut self) {
         match self.close() {
             Ok(_) => {},
@@ -406,16 +411,6 @@ impl<MP: Msg, CP: Msg> Drop for ChildGuard<MP, CP> {
         }
     }
 }
-/*
-impl<PC> fmt::Debug for ChildMessage<PC> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Start(_arg0) => f.debug_tuple("Start").finish(),
-            Self::Exit => write!(f, "Exit"),
-        }
-    }
-}
-*/
 
 impl<M: Msg> Sender<M> for ChannelSender<M> {
     fn send(&mut self, msg: M) -> Result<(), ThreadPoolErr> {
@@ -430,15 +425,15 @@ impl<M: Msg> Sender<M> for ChannelSender<M> {
 // ThreadPool builder
 //
 
-pub struct ThreadPoolBuilder<MP: Msg, PM: Msg, PC: Msg, CP: Msg> {
+pub struct ThreadPoolBuilder<T, MP: Msg, PM: Msg, PC: Msg, CP: Msg> {
     parent_task: Option<Box<dyn ParentTask<MP, PM, PC, CP>>>,
     child_task_builder: Option<Box<ChildTaskBuilder<PC, CP>>>,
     n_threads: Option<usize>,
 
-    marker: PhantomData<PM>,
+    marker: PhantomData<(T, PM)>,
 }
 
-impl<MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPoolBuilder<MP, PM, PC, CP> {
+impl<T, MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPoolBuilder<T, MP, PM, PC, CP> {
     pub fn new() -> Self {
         Self {
             parent_task: None,
@@ -474,7 +469,7 @@ impl<MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPoolBuilder<MP, PM, PC, CP> {
         self
     }
 
-    pub fn build(self) -> ThreadPool<MP, PM, PC, CP> {
+    pub fn build(self) -> ThreadPool<T, MP, PM, PC, CP> {
         assert!(! self.parent_task.is_none());
         assert!(! self.child_task_builder.is_none());
 
@@ -552,7 +547,7 @@ mod tests {
 
     use crate::flow::thread_pool::Sender;
 
-    use super::{JobId, Msg, MainTask, ParentTask, ChildTask, MainId};
+    use super::{Msg, MainTask, ParentTask, ChildTask, MainId, Out};
 
     use super::ThreadPoolBuilder;
 
@@ -566,9 +561,8 @@ mod tests {
         let ptr_child = values.clone();
         let count = 2;
         let mut index = count;
-        let mut pool = ThreadPoolBuilder::<MP, PM, PC, CP>::new().parent(
+        let mut pool = ThreadPoolBuilder::<String, MP, PM, PC, CP>::new().parent(
             TestParent::new(move |msg, to_main, to_child| {
-                println!("OnMain {:?}", &msg);
                 ptr.lock().unwrap().push(format!("[MP"));
 
                 for i in 0..index {
@@ -579,7 +573,6 @@ mod tests {
 
                 ptr.lock().unwrap().push(format!("MP]"));
             }, move |msg, to_main, to_child| {
-                println!("OnChild {:?}", &msg);
                 ptr_child.lock().unwrap().push(format!("[CP"));
                 thread::sleep(Duration::from_millis(100));
                 ptr_child.lock().unwrap().push(format!("CP]"));
@@ -593,7 +586,6 @@ mod tests {
             let ptr3 = ptr2.clone();
 
             Box::new(TestChild::new(move |msg: PC, to_parent: &mut dyn Sender<CP>| { 
-                println!("Child-OnParent {:?}", &msg);
                 ptr3.lock().unwrap().push(format!("[C"));
                 thread::sleep(Duration::from_millis(50));
                 ptr3.lock().unwrap().push(format!("C]"));
@@ -604,14 +596,16 @@ mod tests {
 
         let ptr2 = values.clone();
         let ptr3 = values.clone();
-        pool.start(TestMain::new(move |to_parent| {
+        let value = pool.start(TestMain::new(move |to_parent| {
             ptr2.lock().unwrap().push(format!("[Main"));
-            println!("Start");
             to_parent.send(MP(2)).unwrap();
-        }, move |msg, _to_parent| {
-            println!("OnParent {:?}", msg);
+        }, move |msg, _| {
             ptr3.lock().unwrap().push(format!("Main]"));
+
+            Out::Some(format!("Main[{:?}]", msg))
         })).unwrap();
+
+        assert_eq!(value, Some("Main[PM(0)]".to_string()));
     
         let list: Vec<String> = values.lock().unwrap().drain(..).collect();
         assert_eq!(list.join(", "), "[Main, [MP, MP], [C, [C, C], C], [CP, CP], [CP, CP], Main]");
@@ -727,13 +721,13 @@ mod tests {
     */
     struct TestMain {
         on_start: Box<dyn FnMut(&mut dyn Sender<MP>)>,
-        on_parent: Box<dyn FnMut(PM, &dyn Sender<MP>)>,
+        on_parent: Box<dyn FnMut(PM, &dyn Sender<MP>) -> Out<String>>,
     }
 
     impl TestMain {
         fn new(
             on_start: impl FnMut(&mut dyn Sender<MP>) + 'static,
-            on_parent: impl FnMut(PM, &dyn Sender<MP>) + 'static
+            on_parent: impl FnMut(PM, &dyn Sender<MP>) -> Out<String> + 'static
         ) -> Self {
             Self {
                 on_start: Box::new(on_start),
@@ -742,13 +736,13 @@ mod tests {
         }
     }
 
-    impl MainTask<MP, PM> for TestMain {
+    impl MainTask<String, MP, PM> for TestMain {
         fn on_start(&mut self, to_parent: &mut dyn Sender<MP>) {
             (self.on_start)(to_parent);
         }
 
-        fn on_parent(&mut self, msg: PM, to_parent: &mut dyn Sender<MP>) {
-            (self.on_parent)(msg, to_parent);
+        fn on_parent(&mut self, msg: PM, to_parent: &mut dyn Sender<MP>) -> Out<String> {
+            (self.on_parent)(msg, to_parent)
         }
 
         fn on_exit(&mut self) {
