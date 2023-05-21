@@ -1,4 +1,4 @@
-mod thread_pool;
+pub mod thread_pool;
 mod source;
 mod flow;
 mod data;
