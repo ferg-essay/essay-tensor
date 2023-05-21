@@ -461,7 +461,7 @@ impl<T, MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPoolBuilder<T, MP, PM, PC, CP>
         self
     }
 
-    pub fn _n_threads(mut self, n_threads: usize) -> Self {
+    pub fn n_threads(mut self, n_threads: usize) -> Self {
         assert!(n_threads > 0);
 
         self.n_threads = Some(n_threads);
@@ -552,7 +552,7 @@ mod tests {
     use super::ThreadPoolBuilder;
 
     #[test]
-    fn two_tasks_two_threads() {
+    fn two_tasks_two_child_threads() {
         let values = Arc::new(Mutex::new(Vec::<String>::new()));
 
         let ptr2 = values.clone();
@@ -562,7 +562,7 @@ mod tests {
         let count = 2;
         let mut index = count;
         let mut pool = ThreadPoolBuilder::<String, MP, PM, PC, CP>::new().parent(
-            TestParent::new(move |msg, to_main, to_child| {
+            TestParent::new(move |_, _, to_child| {
                 ptr.lock().unwrap().push(format!("[MP"));
 
                 for i in 0..index {
@@ -572,7 +572,7 @@ mod tests {
                 thread::sleep(Duration::from_millis(150));
 
                 ptr.lock().unwrap().push(format!("MP]"));
-            }, move |msg, to_main, to_child| {
+            }, move |_, to_main, _| {
                 ptr_child.lock().unwrap().push(format!("[CP"));
                 thread::sleep(Duration::from_millis(100));
                 ptr_child.lock().unwrap().push(format!("CP]"));
@@ -591,7 +591,7 @@ mod tests {
                 ptr3.lock().unwrap().push(format!("C]"));
                 to_parent.send(CP(msg.0));
             }))
-        })._n_threads(2)
+        }).n_threads(2)
         .build();
 
         let ptr2 = values.clone();
@@ -613,43 +613,68 @@ mod tests {
         pool.close().unwrap();
     }
 
-    /*
     #[test]
-    fn two_tasks_one_thread() {
+    fn two_tasks_one_child_thread() {
         let values = Arc::new(Mutex::new(Vec::<String>::new()));
 
-        let ptr = values.clone();
         let ptr2 = values.clone();
+    
+        let ptr = values.clone();
+        let ptr_child = values.clone();
+        let count = 2;
+        let mut index = count;
+        let mut pool = ThreadPoolBuilder::<String, MP, PM, PC, CP>::new().parent(
+            TestParent::new(move |_, _, to_child| {
+                ptr.lock().unwrap().push(format!("[MP"));
 
-        let mut pool = ThreadPoolBuilder::new().parent(
-        move |sender| {
-            ptr.lock().unwrap().push(format!("[P"));
+                for i in 0..index {
+                    to_child.send(PC(i));
+                }
 
-            sender.send(JobId(0));
-            sender.send(JobId(1));
-            sender.flush();
+                thread::sleep(Duration::from_millis(150));
 
-            sender.read();
-            sender.read();
+                ptr.lock().unwrap().push(format!("MP]"));
+            }, move |_, to_main, _| {
+                ptr_child.lock().unwrap().push(format!("[CP"));
+                thread::sleep(Duration::from_millis(100));
+                ptr_child.lock().unwrap().push(format!("CP]"));
 
-            ptr.lock().unwrap().push(format!("P]"));
-        }).child(move || {
+                index -= 1;
+
+                if index == 0 {
+                    to_main.send(PM(0));
+                }
+        })).child(move || {
             let ptr3 = ptr2.clone();
 
-            Box::new(move |_| { 
+            Box::new(TestChild::new(move |msg: PC, to_parent: &mut dyn Sender<CP>| { 
                 ptr3.lock().unwrap().push(format!("[C"));
-                thread::sleep(Duration::from_millis(100));
+                thread::sleep(Duration::from_millis(50));
                 ptr3.lock().unwrap().push(format!("C]"));
-            })
-        })._n_threads(1).build();
+                to_parent.send(CP(msg.0));
+            }))
+        }).n_threads(1)
+        .build();
 
-        pool.start().unwrap();
+        let ptr2 = values.clone();
+        let ptr3 = values.clone();
+        let value = pool.start(TestMain::new(move |to_parent| {
+            ptr2.lock().unwrap().push(format!("[Main"));
+            to_parent.send(MP(2)).unwrap();
+        }, move |msg, _| {
+            ptr3.lock().unwrap().push(format!("Main]"));
 
+            Out::Some(format!("Main[{:?}]", msg))
+        })).unwrap();
+
+        assert_eq!(value, Some("Main[PM(0)]".to_string()));
+    
         let list: Vec<String> = values.lock().unwrap().drain(..).collect();
-        assert_eq!(list.join(", "), "[P, [C, C], [C, C], P]");
+        assert_eq!(list.join(", "), "[Main, [MP, MP], [C, [C, C], C], [CP, CP], [CP, CP], Main]");
 
         pool.close().unwrap();
     }
+
 
     #[test]
     #[should_panic]
@@ -658,22 +683,30 @@ mod tests {
 
         let ptr = values.clone();
         let ptr2 = values.clone();
+        let ptr3 = values.clone();
 
-        let mut pool = ThreadPoolBuilder::new().parent(
-        move |_sender| {
-            ptr.lock().unwrap().push(format!("[P"));
+        let mut pool = ThreadPoolBuilder::new().parent(TestParent::new(
+            move |_mp, _, _| {
+                ptr.lock().unwrap().push(format!("[P"));
 
-            panic!("test parent panic");
-        }).child(move || {
+                panic!("test parent panic");
+            }, move |_, _, _| {
+                ptr3.lock().unwrap().push(format!("OnChild"));
+            })).child(move || {
             let ptr3 = ptr2.clone();
 
-            Box::new(move |_s| { 
-                ptr3.lock().unwrap().push(format!("[C"));
-                ptr3.lock().unwrap().push(format!("C]"));
-            })
+            Box::new(TestChild::new(move |_msg, _s| { 
+                ptr3.lock().unwrap().push(format!("[C]"));
+            }))
         }).build();
 
-        pool.start().unwrap();
+        let ptr2 = values.clone();
+        pool.start(TestMain::new(move |to_parent| {
+            to_parent.send(MP(0));
+        }, move |_msg, _| {
+            ptr2.lock().unwrap().push(format!("[OnParent]"));
+            Out::None
+        })).unwrap();
 
         let list: Vec<String> = values.lock().unwrap().drain(..).collect();
         assert_eq!(list.join(", "), "[P, [C, C], [C, C], P]");
@@ -688,37 +721,38 @@ mod tests {
 
         let ptr = values.clone();
         let ptr2 = values.clone();
+        let ptr3 = values.clone();
 
-        let mut pool = ThreadPoolBuilder::new().parent(
-        move |sender| {
-            ptr.lock().unwrap().push(format!("[P"));
+        let mut pool = ThreadPoolBuilder::new().parent(TestParent::new(
+            move |_mp, _, to_child| {
+                ptr.lock().unwrap().push(format!("[MP]"));
 
-            sender.send(JobId(0));
-            sender.send(JobId(1));
-            sender.flush();
-
-            sender.read();
-            sender.read();
-
-            ptr.lock().unwrap().push(format!("P]"));
-        }).child(move || {
+                to_child.send(PC(1));
+            }, move |_, _, _| {
+                ptr3.lock().unwrap().push(format!("[CP]"));
+            })).child(move || {
             let ptr3 = ptr2.clone();
 
-            Box::new(move |_s| { 
+            Box::new(TestChild::new(move |_msg, _s| { 
                 ptr3.lock().unwrap().push(format!("[C"));
-
-                panic!("test child panic");
-            })
+                panic!("Panic in child");
+            }))
         }).build();
 
-        pool.start().unwrap();
+        let ptr2 = values.clone();
+        pool.start(TestMain::new(move |to_parent| {
+            to_parent.send(MP(0));
+        }, move |_msg, _| {
+            ptr2.lock().unwrap().push(format!("[PM]"));
+            Out::None
+        })).unwrap();
 
         let list: Vec<String> = values.lock().unwrap().drain(..).collect();
         assert_eq!(list.join(", "), "[P, [C, C], [C, C], P]");
 
         pool.close().unwrap();
     }
-    */
+
     struct TestMain {
         on_start: Box<dyn FnMut(&mut dyn Sender<MP>)>,
         on_parent: Box<dyn FnMut(PM, &dyn Sender<MP>) -> Out<String>>,
