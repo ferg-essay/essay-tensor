@@ -1,3 +1,4 @@
+mod thread_pool;
 mod source;
 mod flow;
 mod data;
