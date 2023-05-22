@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{mem, sync::mpsc::{self}};
 
-use super::{data::FlowData, dispatch::Dispatcher, task::{NodeId, TaskId}};
+use super::{data::FlowData, dispatch::{InnerWaker}, task::{NodeId, TaskId}};
 
 
 pub enum Out<T> {
@@ -10,31 +10,24 @@ pub enum Out<T> {
     Pending,
 }
 
-pub trait SourceTrait<T> {
-    fn sink_index(&self) -> usize;
+pub trait PipeIn<T> : Send {
+    fn out_index(&self) -> usize;
 
     fn init(&mut self);
 
-    fn fill(&mut self, waker: &mut Dispatcher) -> bool;
+    fn fill(&mut self, waker: &mut dyn InnerWaker) -> bool;
     fn n_read(&self) -> u64;
 
     fn next(&mut self) -> Option<T>;
 }
 
-pub trait SinkTrait<T> {
+pub trait PipeOut<T> : Send {
     fn dst_id(&self) -> NodeId;
 
     fn send(&mut self, value: Option<T>);
 }
 
-pub struct ChannelSink<T> {
-    _src: NodeId,
-    _dst: NodeId,
-
-    sender: mpsc::Sender<Option<T>>,
-}
-
-pub struct ChannelSource<T> {
+pub struct ChannelIn<T> {
     src_id: NodeId,
     src_index: usize,
 
@@ -47,24 +40,24 @@ pub struct ChannelSource<T> {
     value: Out<T>,
 }
 
-pub struct Source<T>(Box<dyn SourceTrait<T>>);
+pub struct In<T>(Box<dyn PipeIn<T>>);
 
-pub fn task_channel<T: 'static>(
+pub(crate) fn pipe<T: Send + 'static>(
     src_id: TaskId<T>, 
     src_index: usize,
 
     dst_id: NodeId,
     dst_index: usize,
-) -> (Box<dyn SourceTrait<T>>, Box<dyn SinkTrait<T>>) {
+) -> (Box<dyn PipeIn<T>>, Box<dyn PipeOut<T>>) {
     let (sender, receiver) = mpsc::channel::<Option<T>>();
 
     (
-        Box::new(ChannelSource::new(src_id.id(), src_index, dst_id, dst_index, receiver)),
-        Box::new(ChannelSink::new(src_id.id(), dst_id, sender))
+        Box::new(ChannelIn::new(src_id.id(), src_index, dst_id, dst_index, receiver)),
+        Box::new(ChannelOut::new(src_id.id(), dst_id, sender))
     )
 }
 
-impl<T> Source<T> {
+impl<T> In<T> {
     pub fn next(&mut self) -> Option<T> {
         self.0.next()
     }
@@ -78,24 +71,24 @@ impl<T> Source<T> {
     }
 }
 
-impl<T> Source<T>
+impl<T> In<T>
 where
     T: FlowData + Clone + 'static
 {
-    pub(crate) fn new(source: Box<dyn SourceTrait<T>>) -> Self {
-        Self(source)
+    pub(crate) fn new(input: Box<dyn PipeIn<T>>) -> Self {
+        Self(input)
     }
 
-    pub(crate) fn fill(&mut self, waker: &mut Dispatcher) -> bool {
+    pub(crate) fn fill(&mut self, waker: &mut dyn InnerWaker) -> bool {
         self.0.fill(waker)
     }
 }
 
 //
-// ChannelSource
+// ChannelIn
 //
 
-impl<T> ChannelSource<T> {
+impl<T> ChannelIn<T> {
     fn new(
         src_id: NodeId, 
         src_index: usize, 
@@ -119,8 +112,8 @@ impl<T> ChannelSource<T> {
     }
 }
 
-impl<T: 'static> SourceTrait<T> for ChannelSource<T> {
-    fn sink_index(&self) -> usize {
+impl<T: Send + 'static> PipeIn<T> for ChannelIn<T> {
+    fn out_index(&self) -> usize {
         self.src_index
     }
 
@@ -138,12 +131,12 @@ impl<T: 'static> SourceTrait<T> for ChannelSource<T> {
             Out::None => None,
             Out::Some(value) => Some(value),
             Out::Pending => {
-                panic!("Source.next() can't be called twice in a task");
+                panic!("PipeIn.next() can't be called twice in a task");
             }
         }
     }
 
-    fn fill(&mut self, waker: &mut Dispatcher) -> bool {
+    fn fill(&mut self, waker: &mut dyn InnerWaker) -> bool {
         if ! self.value.is_pending() {
             true
         } else {
@@ -163,7 +156,7 @@ impl<T: 'static> SourceTrait<T> for ChannelSource<T> {
                 Err(err) => {
                     match err {
                         mpsc::TryRecvError::Empty => {
-                            waker.request_source(self.src_id, self.src_index, self.n_receive + 1);
+                            waker.data_request(self.src_id, self.src_index, self.n_receive + 1);
                             false
                         },
                         mpsc::TryRecvError::Disconnected => {
@@ -181,10 +174,17 @@ impl<T: 'static> SourceTrait<T> for ChannelSource<T> {
 } 
 
 //
-// channel sink
+// ChannelOut
 //
 
-impl<T> ChannelSink<T> {
+pub struct ChannelOut<T> {
+    _src: NodeId,
+    _dst: NodeId,
+
+    sender: mpsc::Sender<Option<T>>,
+}
+
+impl<T> ChannelOut<T> {
     fn new(src_id: NodeId, dst_id: NodeId, sender: mpsc::Sender<Option<T>>) -> Self {
         Self {
             _src: src_id,
@@ -194,7 +194,7 @@ impl<T> ChannelSink<T> {
     }
 }
 
-impl<T> SinkTrait<T> for ChannelSink<T> {
+impl<T: Send> PipeOut<T> for ChannelOut<T> {
     fn dst_id(&self) -> NodeId {
         self._dst
     }
@@ -262,14 +262,14 @@ impl<T> Default for Out<T> {
     }
 }
 
-impl<T> fmt::Debug for ChannelSink<T> {
+impl<T> fmt::Debug for ChannelOut<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ChannelSink({:?}, {:?})", &self._src, &self._dst)
+        write!(f, "ChannelOut({:?}, {:?})", &self._src, &self._dst)
     }
 }
 
-impl<T> fmt::Debug for ChannelSource<T> {
+impl<T> fmt::Debug for ChannelIn<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ChannelSource({:?}, {:?})", &self.src_id, &self._dst)
+        write!(f, "ChannelIn({:?}, {:?})", &self.src_id, &self._dst)
     }
 }

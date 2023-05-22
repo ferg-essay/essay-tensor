@@ -13,7 +13,7 @@ pub struct MainId(usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ChildId(usize);
 
-type Result<T> = std::result::Result<T, ThreadPoolErr>;
+pub type Result<T> = std::result::Result<T, ThreadPoolErr>;
 
 pub enum Out<T> {
     None,

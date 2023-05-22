@@ -1,5 +1,5 @@
 pub mod thread_pool;
-mod source;
+mod pipe;
 mod flow;
 mod data;
 mod dispatch;

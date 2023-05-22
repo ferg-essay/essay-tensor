@@ -2,36 +2,19 @@ use std::{marker::PhantomData};
 
 use super::{
     task::{Task, Tasks, TasksBuilder, NilTask, self, NodeId, TaskId}, 
-    data::{FlowIn, FlowData}, dispatch::Dispatcher, source::{Source, Out}, 
+    data::{FlowIn, FlowData}, dispatch::Dispatcher, pipe::{In, Out}, 
 };
-
-pub struct Flow<In: FlowIn<In>, Out: FlowIn<Out>> {
-    tasks: Tasks,
-
-    input: In::Nodes,
-
-    output_id: NodeId,
-    output: Source<OutputData<Out>>,
-}
-
-pub struct FlowBuilder<In: FlowIn<In>, Out: FlowIn<Out>> {
-    tasks: TasksBuilder,
-    nil_id: TaskId<()>,
-    in_nodes: In::Nodes,
-    marker: PhantomData<(In, Out)>,
-}
-
-pub struct FlowIter<'a, In: FlowIn<In>, Out: FlowIn<Out>> {
-    flow: &'a mut Flow<In, Out>,
-    dispatcher: Dispatcher,
-    count: usize,
-}
 
 #[derive(Clone)]
 pub struct OutputData<T: Clone + Send + 'static>(T);
 
-struct OutputTask<O: FlowIn<O>> {
-    marker: PhantomData<O>,
+pub struct Flow<I: FlowIn<I>, O: FlowIn<O>> {
+    tasks: Tasks,
+
+    input: I::Nodes,
+
+    output_id: NodeId,
+    output: In<OutputData<O>>,
 }
 
 impl<I, O> Flow<I, O>
@@ -65,10 +48,7 @@ where
     }
 
     pub fn next(&mut self, waker: &mut Dispatcher) -> Option<O> {
-        //self.graph.wake(&self.output_id, &mut self.tasks, dispatcher);
         self.output.fill(waker);
-
-        // self.tasks.request(self.output_id, 0, 1, waker);
 
         while waker.apply(&mut self.tasks) {
         }
@@ -91,8 +71,14 @@ where
     }
 }
 
-impl<In: FlowIn<In>, Out: FlowIn<Out>> Iterator for FlowIter<'_, In, Out> {
-    type Item = Out;
+pub struct FlowIter<'a, I: FlowIn<I>, O: FlowIn<O>> {
+    flow: &'a mut Flow<I, O>,
+    dispatcher: Dispatcher,
+    count: usize,
+}
+
+impl<I: FlowIn<I>, O: FlowIn<O>> Iterator for FlowIter<'_, I, O> {
+    type Item = O;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.flow.next(&mut self.dispatcher)
@@ -111,13 +97,20 @@ impl<T: Clone + Send + 'static> FlowData for OutputData<T> {}
 // Flow builder
 //
 
-impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
+pub struct FlowBuilder<I: FlowIn<I>, O: FlowIn<O>> {
+    tasks: TasksBuilder,
+    nil_id: TaskId<()>,
+    in_nodes: I::Nodes,
+    marker: PhantomData<(I, O)>,
+}
+
+impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
     fn new() -> Self {
         let mut tasks = TasksBuilder::new();
 
         let nil_id = tasks.push_task(Box::new(NilTask), &());
 
-        let input_id = In::new_input(&mut tasks);
+        let input_id = I::new_flow_input(&mut tasks);
 
         let builder = FlowBuilder {
             tasks,
@@ -129,7 +122,7 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
         builder
     }
 
-    pub fn input(&self) -> In::Nodes {
+    pub fn input(&self) -> I::Nodes {
         //self.in_nodes.clone()
         todo!();
     }
@@ -138,35 +131,35 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
         self.nil_id.clone()
     }
 
-    pub fn task<I, O>(
+    pub fn task<I1, O1>(
         &mut self, 
-        task: impl Task<I, O>,
-        in_nodes: &I::Nodes,
-    ) -> TaskId<O>
+        task: impl Task<I1, O1>,
+        in_nodes: &I1::Nodes,
+    ) -> TaskId<O1>
     where
-        I: FlowIn<I>,
-        O: Clone + 'static,
+        I1: FlowIn<I1>,
+        O1: Send + Clone + 'static,
     {
         self.tasks.push_task(Box::new(task), in_nodes)
     }
 
-    pub fn output(mut self, src_nodes: &Out::Nodes) -> Flow<In, Out> {
+    pub fn output(mut self, src_nodes: &O::Nodes) -> Flow<I, O> {
         let mut output_ids = Vec::new();
 
-        Out::node_ids(src_nodes, &mut output_ids);
+        O::node_ids(src_nodes, &mut output_ids);
 
-        let output_task = OutputTask::<Out>::new();
+        let output_task = OutputTask::<O>::new();
 
         let id = self.tasks.push_task(Box::new(output_task), src_nodes);
         let tail = self.tasks.push_task(Box::new(TailTask), &());
 
-        let source = self.tasks.add_sink(id.clone(), tail.id(), 0);
+        let source = self.tasks.add_pipe(id.clone(), tail.id(), 0);
 
         Flow {
             tasks: self.tasks.build(),
 
             input: self.in_nodes,
-            output: Source::new(source),
+            output: In::new(source),
             output_id: id.id(),
         }
     }
@@ -175,6 +168,10 @@ impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
 //
 // Output task
 //
+
+struct OutputTask<O: FlowIn<O>> {
+    marker: PhantomData<O>,
+}
 
 impl<O: FlowIn<O>> OutputTask<O> {
     pub(crate) fn new() -> Self {
@@ -185,7 +182,7 @@ impl<O: FlowIn<O>> OutputTask<O> {
 }
 
 impl<O: FlowIn<O>> Task<O, OutputData<O>> for OutputTask<O> {
-    fn call(&mut self, source: &mut O::Source) -> task::Result<Out<OutputData<O>>> {
+    fn next(&mut self, source: &mut O::Input) -> task::Result<Out<OutputData<O>>> {
         let value = O::next(source);
 
         match value {
@@ -203,13 +200,13 @@ impl<O: FlowIn<O>> Task<O, OutputData<O>> for OutputTask<O> {
 }
 
 //
-// Output task
+// tail task
 //
 
 struct TailTask;
 
 impl Task<(), ()> for TailTask {
-    fn call(&mut self, _source: &mut ()) -> task::Result<Out<()>> {
+    fn next(&mut self, _source: &mut ()) -> task::Result<Out<()>> {
         todo!();
     }
 }
@@ -219,7 +216,7 @@ mod test {
     use std::{sync::{Arc, Mutex}};
 
     use crate::flow::{
-        source::{Out, Source}
+        pipe::{Out, In}
     };
 
     use super::{Flow};
@@ -306,7 +303,7 @@ mod test {
         assert_eq!(n_0.index(), 1);
 
         let ptr = vec.clone();
-        let n_1 = builder.task::<String, bool>(move |s: &mut Source<String>| {
+        let n_1 = builder.task::<String, bool>(move |s: &mut In<String>| {
             ptr.lock().unwrap().push(format!("Node1[{:?}]", s.next()));
             Ok(Out::None)
         }, &n_0);
@@ -334,7 +331,7 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input();
-        let n_0 = builder.task::<usize, ()>(move |x: &mut Source<usize>| {
+        let n_0 = builder.task::<usize, ()>(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("Task[{:?}]", x.next().unwrap()));
             Ok(Out::None)
         }, &input);
@@ -391,7 +388,7 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input();
-        let n_0 = builder.task::<usize, usize>(move |x: &mut Source<usize>| {
+        let n_0 = builder.task::<usize, usize>(move |x: &mut In<usize>| {
             let x_v = x.next().unwrap();
             ptr.lock().unwrap().push(format!("Task[{:?}]", x_v));
             Ok(Out::Some(x_v + 10))
@@ -419,13 +416,13 @@ mod test {
         }, &()); // builder.nil());
 
         let ptr = vec.clone();
-        let _n_1 = builder.task::<usize, ()>(move |x: &mut Source<usize>| {
+        let _n_1 = builder.task::<usize, ()>(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }, &n_0);
 
         let ptr = vec.clone();
-        let n_2 = builder.task::<usize, ()>(move |x: &mut Source<usize>| {
+        let n_2 = builder.task::<usize, ()>(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }, &n_0);
@@ -455,7 +452,7 @@ mod test {
         }, &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_2 = builder.task::<(usize, f32), ()>(move |v: &mut (Source<usize>, Source<f32>)| {
+        let n_2 = builder.task::<(usize, f32), ()>(move |v: &mut (In<usize>, In<f32>)| {
             ptr.lock().unwrap().push(format!("N-2[{}, {}]", v.0.next().unwrap(), v.1.next().unwrap()));
             Ok(Out::None)
         }, &(n_1, n_2));
@@ -491,7 +488,7 @@ mod test {
         }, &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_4 = builder.task::<Vec<usize>, ()>(move |x: &mut Vec<Source<usize>>| {
+        let n_4 = builder.task::<Vec<usize>, ()>(move |x: &mut Vec<In<usize>>| {
             ptr.lock().unwrap().push(format!("N-2[{:?}]", x[0].next().unwrap()));
             Ok(Out::None)
         }, &vec![n_1, n_2, n_3]);
@@ -511,7 +508,7 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input();
-        let n_0 = builder.task::<usize, usize>(move |x: &mut Source<usize>| {
+        let n_0 = builder.task::<usize, usize>(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("Task[{:?}]", x.next().unwrap()));
             Ok(Out::None)
         }, &input);
