@@ -3,13 +3,6 @@ use std::{mem, sync::mpsc::{self}};
 
 use super::{data::FlowData, dispatch::{InnerWaker}, source::{NodeId, SourceId}};
 
-
-pub enum Out<T> {
-    None,
-    Some(T),
-    Pending,
-}
-
 pub trait PipeIn<T> : Send {
     fn out_index(&self) -> usize;
 
@@ -54,16 +47,6 @@ pub(crate) fn pipe<T: Send + 'static>(
     (
         Box::new(ChannelIn::new(src_id.id(), src_index, dst_id, dst_index, receiver)),
         Box::new(ChannelOut::new(src_id.id(), dst_id, sender))
-    )
-}
-
-pub(crate) fn pipe_nil<T: Send + 'static>(
-    src_id: SourceId<T>, 
-    dst_id: NodeId,
-) -> (Box<dyn PipeIn<T>>, Box<dyn PipeOut<T>>) {
-    (
-        Box::new(NilIn::new(src_id.clone(), dst_id)),
-        Box::new(NilOut::new(src_id.clone(), dst_id))
     )
 }
 
@@ -218,69 +201,11 @@ impl<T: Send> PipeOut<T> for ChannelOut<T> {
         }
     }
 } 
-
-//
-// NilIn/NilOut
-//
-
-pub struct NilIn<T> {
-    _src: SourceId<T>,
-    _dst: NodeId,
+pub enum Out<T> {
+    None,
+    Some(T),
+    Pending,
 }
-
-impl<T> NilIn<T> {
-    fn new(src_id: SourceId<T>, dst_id: NodeId) -> Self {
-        Self {
-            _src: src_id,
-            _dst: dst_id,
-        }
-    }
-}
-
-impl<T: Send> PipeIn<T> for NilIn<T> {
-    fn out_index(&self) -> usize {
-        todo!()
-    }
-
-    fn init(&mut self) {
-        todo!()
-    }
-
-    fn fill(&mut self, waker: &mut dyn InnerWaker) -> bool {
-        todo!()
-    }
-
-    fn n_read(&self) -> u64 {
-        todo!()
-    }
-
-    fn next(&mut self) -> Option<T> {
-        todo!()
-    }
-} 
-
-pub struct NilOut<T> {
-    _src: SourceId<T>,
-    _dst: NodeId,
-}
-
-impl<T> NilOut<T> {
-    fn new(src_id: SourceId<T>, dst_id: NodeId) -> Self {
-        Self {
-            _src: src_id,
-            _dst: dst_id,
-        }
-    }
-}
-
-impl<T: Send> PipeOut<T> for NilOut<T> {
-    fn dst_id(&self) -> NodeId {
-        self._dst
-    }
-
-    fn send(&mut self, value: Option<T>) {
-    }
-} 
 
 impl<T> Out<T> {
     #[inline]

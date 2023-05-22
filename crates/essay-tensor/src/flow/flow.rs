@@ -1,10 +1,10 @@
 use std::{marker::PhantomData, sync::{Arc, Mutex}};
 
-use crate::flow::dispatch::{DispatcherInner, FlowThreads};
+use crate::flow::dispatch::{FlowThreads};
 
 use super::{
-    source::{Source, Sources, SourcesBuilder, NilTask, self, NodeId, SourceId, SourcesInner, SourcesOuter}, 
-    data::{FlowIn, FlowData}, dispatch::{DispatcherOuter, Dispatcher}, pipe::{In, Out}, thread_pool::ThreadPool, 
+    source::{Source, Sources, SourcesBuilder, self, NodeId, SourceId, SourcesInner, SourcesOuter}, 
+    data::{FlowIn, FlowData}, dispatch::{Dispatcher}, pipe::{In, Out}, 
 };
 
 pub struct Flow<I: FlowIn<I>, O: FlowIn<O>> {
@@ -49,7 +49,7 @@ pub struct FlowPool<I: FlowIn<I>, O: FlowIn<O>> {
     pool: FlowThreads,
     sources_inner: Arc<SourcesInner>,
 
-    input_ids: I::Nodes,
+    _input_ids: I::Nodes,
 
     output: SharedOutput<O>,
 }
@@ -73,7 +73,7 @@ where
         Flow::new(Self {
             pool,
             sources_inner,
-            input_ids,
+            _input_ids: input_ids,
             output,
         })
     }
@@ -84,7 +84,7 @@ where
     I: FlowIn<I>,
     O: FlowIn<O>
 {
-    fn call(&mut self, input: I) -> Option<O> {
+    fn call(&mut self, _input: I) -> Option<O> {
         self.output.take();
 
         self.sources_inner.init();
@@ -110,10 +110,10 @@ pub struct FlowSingle<I: FlowIn<I>, O: FlowIn<O>> {
     sources_outer: SourcesOuter,
     sources_inner: SourcesInner,
 
-    input_ids: I::Nodes,
+    _input_ids: I::Nodes,
 
-    output_id: NodeId,
-    //output: In<OutputData<O>>,
+    _output_id: NodeId,
+
     output: SharedOutput<O>,
 }
 
@@ -171,7 +171,7 @@ where
             flow: self,
             // data: data,
             waker: dispatcher,
-            count: 0,
+            _count: 0,
         }
     }
 }
@@ -179,7 +179,7 @@ where
 pub struct FlowIter<'a, I: FlowIn<I>, O: FlowIn<O>> {
     flow: &'a mut FlowSingle<I, O>,
     waker: Dispatcher,
-    count: usize,
+    _count: usize,
 }
 
 impl<I: FlowIn<I>, O: FlowIn<O>> Iterator for FlowIter<'_, I, O> {
@@ -200,7 +200,7 @@ impl<I: FlowIn<I>, O: FlowIn<O>> Iterator for FlowIter<'_, I, O> {
 
 pub struct FlowBuilder<I: FlowIn<I>, O: FlowIn<O>> {
     sources: SourcesBuilder,
-    nil_id: SourceId<()>,
+    // nil_id: SourceId<()>,
     in_nodes: I::Nodes,
     marker: PhantomData<(I, O)>,
 }
@@ -209,13 +209,13 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
     fn new() -> Self {
         let mut tasks = SourcesBuilder::new();
 
-        let nil_id = tasks.push_source(Box::new(NilTask), &());
+        // let nil_id = tasks.push_source(Box::new(NilTask), &());
 
         let input_id = I::new_flow_input(&mut tasks);
 
         let builder = FlowBuilder {
             sources: tasks,
-            nil_id: nil_id,
+            // nil_id: nil_id,
             in_nodes: input_id,
             marker: Default::default(),
         };
@@ -224,13 +224,14 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
     }
 
     pub fn input(&self) -> I::Nodes {
-        //self.in_nodes.clone()
         todo!();
     }
 
+    /*
     pub fn nil(&self) -> SourceId<()> {
         self.nil_id.clone()
     }
+    */
 
     pub fn task<I1, O1>(
         &mut self, 
@@ -275,9 +276,9 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
                 sources_outer: outer,
                 sources_inner: inner,
 
-                input_ids: self.in_nodes,
+                _input_ids: self.in_nodes,
                 output: shared_output, // In::new(source),
-                output_id: id.id(),
+                _output_id: id.id(),
             })
         }
     }
@@ -377,7 +378,6 @@ mod test {
     #[test]
     fn test_graph_nil() {
         let builder = Flow::<(), ()>::builder();
-        let nil = builder.nil();
         let mut flow = builder.output(&());
 
         assert_eq!(flow.call(()), None);
@@ -395,7 +395,7 @@ mod test {
             Ok(Out::None)
         }, &());
 
-        assert_eq!(node_id.index(), 1);
+        assert_eq!(node_id.index(), 0);
 
         let mut flow = builder.output(&node_id);
 
@@ -485,7 +485,7 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input();
-        let n_0 = builder.task::<usize, ()>(move |x: &mut In<usize>| {
+        let _n_0 = builder.task::<usize, ()>(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("Task[{:?}]", x.next().unwrap()));
             Ok(Out::None)
         }, &input);
@@ -606,7 +606,7 @@ mod test {
         }, &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_2 = builder.task::<(usize, f32), ()>(move |v: &mut (In<usize>, In<f32>)| {
+        let _n_2 = builder.task::<(usize, f32), ()>(move |v: &mut (In<usize>, In<f32>)| {
             ptr.lock().unwrap().push(format!("N-2[{}, {}]", v.0.next().unwrap(), v.1.next().unwrap()));
             Ok(Out::None)
         }, &(n_1, n_2));
@@ -642,7 +642,7 @@ mod test {
         }, &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_4 = builder.task::<Vec<usize>, ()>(move |x: &mut Vec<In<usize>>| {
+        let _n_4 = builder.task::<Vec<usize>, ()>(move |x: &mut Vec<In<usize>>| {
             ptr.lock().unwrap().push(format!("N-2[{:?}]", x[0].next().unwrap()));
             Ok(Out::None)
         }, &vec![n_1, n_2, n_3]);

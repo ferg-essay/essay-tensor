@@ -4,7 +4,7 @@ use std::{sync::{Mutex, Arc}, marker::PhantomData, cmp, any::Any, mem};
 use super::{
     data::{FlowIn},
     dispatch::{InnerWaker, OuterWaker},
-    pipe::{Out, PipeOut, PipeIn, pipe, pipe_nil}, 
+    pipe::{Out, PipeOut, PipeIn, pipe}, 
 };
 
 pub trait Source<I, O> : Send + 'static
@@ -65,37 +65,19 @@ impl SourcesOuter {
         }
     }
 
-    pub(crate) fn add_tail_request(
+    pub(crate) fn wake(
         &mut self, 
         id: NodeId,
-        delta_request: usize,
         waker: &mut dyn OuterWaker,
     ) {
-        self.sources[id.index()].add_tail_request(delta_request as u64, waker)
+        self.sources[id.index()].wake(waker)
     }
-
 
     pub(crate) fn is_idle(
         &mut self, 
         id: NodeId,
     ) -> bool {
         self.sources[id.index()].is_idle()
-    }
-
-
-    pub(crate) fn is_data_ready(
-        &mut self, 
-        id: NodeId,
-    ) -> bool {
-        self.sources[id.index()].is_data_ready()
-    }
-
-    pub(crate) fn wake_tail(
-        &mut self, 
-        id: NodeId,
-        waker: &mut dyn OuterWaker,
-    ) {
-        self.sources[id.index()].wake_tail(waker)
     }
 
     pub(crate) fn data_request(
@@ -131,13 +113,7 @@ impl SourcesOuter {
 pub trait SourceOuter : Send {
     fn init(&mut self);
 
-    fn add_tail_request(
-        &mut self, 
-        n_request: u64,
-        waker: &mut dyn OuterWaker,
-    );
-
-    fn wake_tail(
+    fn wake(
         &mut self, 
         waker: &mut dyn OuterWaker,
     );
@@ -150,8 +126,6 @@ pub trait SourceOuter : Send {
         n_request: u64,
         waker: &mut dyn OuterWaker,
     );
-
-    fn is_data_ready(&mut self) -> bool;
 
     fn data_ready(
         &mut self, 
@@ -201,18 +175,34 @@ impl<O> SourceOuter for SourceOuterImpl<O>
 where
     O: Send + Clone + 'static
 {
+
     fn init(
         &mut self, 
     ) {
         self.state = State::Idle;
     }
 
-    fn add_tail_request(
+    fn wake(
         &mut self, 
-        add_request: u64,
         waker: &mut dyn OuterWaker,
     ) {
-        self.input_meta.lock().unwrap().add_request(add_request, waker);
+        match self.state {
+            State::Idle => {
+                if self.input_meta.lock().unwrap().data_request(waker) {
+                    self.state = State::Active;
+                    waker.execute(self.id.id());
+                } else {
+                    self.state = State::Pending;
+                }
+            },
+            _ => { panic!("unexpected state {:?}", self.state) }
+        }
+    }
+
+    fn is_idle(
+        &mut self
+    ) -> bool {
+        if let State::Idle = self.state { true } else { false }
     }
 
     fn data_request(
@@ -243,10 +233,6 @@ where
             State::Done => {
             },
         }
-    }
-
-    fn is_data_ready(&mut self) -> bool {
-        self.input_meta.lock().unwrap().is_data_ready()
     }
 
     fn data_ready(
@@ -285,29 +271,6 @@ where
             },
             _ => { panic!("unexpected state {:?}", self.state) }
         }
-    }
-
-    fn wake_tail(
-        &mut self, 
-        waker: &mut dyn OuterWaker,
-    ) {
-        match self.state {
-            State::Idle => {
-                if self.input_meta.lock().unwrap().data_request(waker) {
-                    self.state = State::Active;
-                    waker.execute(self.id.id());
-                } else {
-                    self.state = State::Pending;
-                }
-            },
-            _ => { panic!("unexpected state {:?}", self.state) }
-        }
-    }
-
-    fn is_idle(
-        &mut self
-    ) -> bool {
-        if let State::Idle = self.state { true } else { false }
     }
 }
 
@@ -460,7 +423,6 @@ where
                 },
                 Err(err) => {
                     panic!("Error from task {:?}", err);
-                    // return Ok(Out::Pending); // Err(SourceErr::Pending)
                 },
             }
         }
@@ -494,12 +456,6 @@ impl InMetas {
         }
     }
 
-    fn add_request(&mut self, n_request: u64, waker: &mut dyn OuterWaker) {
-        for meta in &mut self.0 {
-            meta.add_request(n_request, waker);
-        }
-    }
-
     fn data_request(&mut self, waker: &mut dyn OuterWaker) -> bool {
         let mut is_ready = true;
 
@@ -512,24 +468,10 @@ impl InMetas {
         is_ready
     }
 
-    fn is_data_ready(&self) -> bool {
-        println!("IsReady {:?}", &self.0.len());
-        for input in &self.0 {
-            if ! input.is_ready() {
-                return false;
-            }
-        }
-
-        true
-    }
-
     fn data_ready(&mut self, index: usize, n_ready: u64) {
-        // TODO: cleanup this special case for tail task
-        if self.0.len() > 0 {
-            let meta = &mut self.0[index];
+        let meta = &mut self.0[index];
 
-            meta.n_ready = cmp::max(meta.n_ready, n_ready);
-        }
+        meta.n_ready = cmp::max(meta.n_ready, n_ready);
     }
 
     fn fill_data<I: FlowIn<I>>(
@@ -560,15 +502,6 @@ impl InMeta {
         self.n_request = 0;
         self.n_ready = 0;
         self.n_read = 0;
-    }
-
-    fn is_ready(&self) -> bool {
-        self.n_request <= self.n_ready
-    }
-
-    fn add_request(&mut self, delta: u64, waker: &mut dyn OuterWaker) {
-        self.n_request += delta;
-        waker.data_request(self.src_id, self.src_out_index, self.n_request);
     }
 
     fn data_request(&mut self, waker: &mut dyn OuterWaker) -> bool {
@@ -752,24 +685,7 @@ impl SourcesBuilder {
         let source = &mut self.sources[src_id.index()];
 
         unsafe { 
-            // task.add_sink(dst_id, dst_index).downcast::<dyn SourceTrait<O>>().unwrap()
-
             mem::transmute(source.add_pipe(dst_id, dst_index))
-        }
-    }
-
-    pub(crate) fn add_pipe_nil<O: 'static>(
-        &mut self,
-        src_id: SourceId<O>,
-        dst_id: NodeId,
-        dst_index: usize,
-    ) -> Box<dyn PipeIn<O>> {
-        let source = &mut self.sources[src_id.index()];
-
-        unsafe { 
-            // task.add_sink(dst_id, dst_index).downcast::<dyn SourceTrait<O>>().unwrap()
-
-            mem::transmute(source.add_pipe_nil(dst_id, dst_index))
         }
     }
 
@@ -778,7 +694,6 @@ impl SourcesBuilder {
         let mut sources_inner: Vec<Mutex<Box<dyn SourceInner>>> = Vec::new();
 
         for mut source in self.sources.drain(..) {
-            //tasks.push(task.build());
             source.build(&mut sources_outer, &mut sources_inner);
         }
 
@@ -799,10 +714,7 @@ impl SourcesBuilder {
 //
 
 pub(crate) trait SourceBuilderTrait {
-    //unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> UnsafePtr;
     unsafe fn add_pipe(&mut self, dst_id: NodeId, dst_index: usize) -> Box<dyn Any>;
-
-    unsafe fn add_pipe_nil(&mut self, dst_id: NodeId, dst_index: usize) -> Box<dyn Any>;
 
     fn build(
         &mut self,
@@ -880,20 +792,6 @@ where
         }
     }
 
-    unsafe fn add_pipe_nil(&mut self, dst_id: NodeId, input_index: usize) -> Box<dyn Any> {
-        let output_index = self.outputs.len();
-
-        let (input, output) = 
-            pipe_nil(self.id.clone(), dst_id);
-
-        self.outputs.push(output);
-        self.output_meta.push(OutMeta::new(dst_id, input_index));
-
-        unsafe {
-            mem::transmute(input)
-        }
-    }
-
     fn build(
         &mut self,
         sources_outer: &mut Vec<Box<dyn SourceOuter>>,
@@ -910,18 +808,6 @@ where
 
         sources_outer.push(Box::new(outer));
         sources_inner.push(Mutex::new(Box::new(inner)));
-    }
-}
-
-//
-// Nil task
-//
-
-pub struct NilTask;
-
-impl Source<(), ()> for NilTask {
-    fn next(&mut self, _source: &mut ()) -> Result<Out<()>> {
-        todo!()
     }
 }
 

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{
     source::{NodeId, SourcesOuter, SourcesInner}, 
-    thread_pool::{Child, Result, Sender, Msg, Parent, MainId, ThreadPool, ThreadPoolBuilder, Main, self}};
+    thread_pool::{Child, Result, Sender, Msg, Parent, MainId, ThreadPool, Main, self}};
 
 pub trait InnerWaker {
     fn post_execute(&mut self, task: NodeId, id_done: bool);
@@ -38,7 +38,6 @@ enum MainReply {
 impl Msg for MainReply {}
 
 type SourcePool = ThreadPool<(), MainRequest, MainReply, ChildRequest, ChildReply>;
-type SourcePoolBuilder = ThreadPoolBuilder<(), MainRequest, MainReply, ChildRequest, ChildReply>;
 
 pub(crate) struct FlowThreads {
     tail_id: NodeId,
@@ -78,7 +77,6 @@ impl FlowThreads {
 // 
 
 pub(crate) struct FlowMain {
-    // out_id: NodeId,
     tail_id: NodeId,
     is_init: bool,
 }
@@ -123,7 +121,6 @@ impl Main<(), MainRequest, MainReply> for FlowMain {
 
 pub(crate) struct FlowParent {
     sources: SourcesOuter,
-    // waker: DispatcherOuter,
 
     tail: Option<NodeId>,
 }
@@ -138,7 +135,6 @@ impl FlowParent {
 
     fn take_complete(&mut self) -> bool {
         if let Some(output_id) = self.tail {
-            //if self.sources.is_data_ready(output_id) {
             if self.sources.is_idle(output_id) {
                 self.tail.take();
 
@@ -169,12 +165,11 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
         match msg {
             MainRequest::Init(tail_id) => {
                 self.sources.init();
-                //self.sources.data_request(output_id, 0, 1, &mut waker);
-                //self.sources.add_tail_request(tail_id, 1, &mut waker);
-                self.sources.wake_tail(tail_id, &mut waker); // , 1, &mut waker);
+
+                self.sources.wake(tail_id, &mut waker); // , 1, &mut waker);
                 self.tail = Some(tail_id);
             }
-            MainRequest::Next(tail_id) => todo!(),
+            MainRequest::Next(_tail_id) => todo!(),
         }
 
         waker.apply(&mut self.sources);
@@ -186,7 +181,7 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
         Ok(())
     }
 
-    fn on_main_end(&mut self, id: super::thread_pool::MainId) {
+    fn on_main_end(&mut self, _id: super::thread_pool::MainId) {
     }
 
     fn on_child(
@@ -239,8 +234,6 @@ impl<'a> ParentWaker<'a> {
 
         while let Some(command) = self.commands.pop() {
             is_update = true;
-
-            // println!("Command: {:?}", command);
 
             match command {
                 Wake::RequestSource(src_id, out_index, n_request) => {
@@ -402,8 +395,6 @@ impl<'a> DispatcherOuter<'a> {
         while let Some(command) = self.outer_commands.pop() {
             is_update = true;
 
-            // println!("Command: {:?}", command);
-
             match command {
                 Wake::RequestSource(src_id, sink_index, n_request) => {
                     tasks.data_request(src_id, sink_index, n_request, self);
@@ -447,10 +438,6 @@ impl<'a> DispatcherInner<'a> {
         }
     }
 
-    pub fn execute(&mut self, node: NodeId) {
-        self.inner_commands.push(Wake::Execute(node));
-    }
-
     pub fn apply(
         &mut self, 
         tasks: &mut SourcesInner, 
@@ -459,8 +446,6 @@ impl<'a> DispatcherInner<'a> {
 
         while let Some(command) = self.inner_commands.pop() {
             is_update = true;
-
-            // println!("Command: {:?}", command);
 
             match command {
                 Wake::Execute(id) => {
