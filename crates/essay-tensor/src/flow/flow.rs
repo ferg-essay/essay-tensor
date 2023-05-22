@@ -51,7 +51,6 @@ pub struct FlowPool<I: FlowIn<I>, O: FlowIn<O>> {
 
     input_ids: I::Nodes,
 
-    output_id: NodeId,
     output: SharedOutput<O>,
 }
 
@@ -65,18 +64,16 @@ where
         sources_inner: SourcesInner,
         input_ids: I::Nodes,
         output: SharedOutput<O>,
-        output_id: NodeId,
         tail_id: NodeId,
     ) -> Flow<I, O> {
         let sources_inner = Arc::new(sources_inner);
 
-        let pool = FlowThreads::new(output_id, tail_id, sources_outer, sources_inner.clone());
+        let pool = FlowThreads::new(tail_id, sources_outer, sources_inner.clone());
         
         Flow::new(Self {
             pool,
             sources_inner,
             input_ids,
-            output_id,
             output,
         })
     }
@@ -256,13 +253,10 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
         let shared_output = output_task.data().clone();
 
         let id = self.sources.push_source(Box::new(output_task), src_nodes);
-        let tail = self.sources.push_source(
-            Box::new(TailTask::<OutputData<O>>::new()),
-            &id
-        );
+        let tail = self.sources.push_source(Box::new(TailTask), &id);
 
         //let source = self.sources.add_pipe_nil(id.clone(), tail.id(), 0);
-        self.sources.add_pipe_nil(id.clone(), tail.id(), 0);
+        // self.sources.add_pipe_nil(id.clone(), tail.id(), 0);
 
         let Sources(outer, inner) = self.sources.build();
 
@@ -274,7 +268,6 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
                 inner, 
                 self.in_nodes, 
                 shared_output, // In::new(source), 
-                id.id(),
                 tail.id(),
             )
         } else {
@@ -304,6 +297,38 @@ struct OutputTask<O: FlowIn<O>> {
     data: SharedOutput<O>,
 }
 
+impl<O: FlowIn<O>> OutputTask<O> {
+    pub(crate) fn new() -> Self {
+        Self {
+            data: SharedOutput::new(),
+        }
+    }
+
+    fn data(&self) -> &SharedOutput<O> {
+        &self.data
+    }
+}
+
+impl<O: FlowIn<O>> Source<O, bool> for OutputTask<O> {
+    fn next(&mut self, input: &mut O::Input) -> source::Result<Out<bool>> {
+        let value = O::next(input);
+
+        match value {
+            Out::Some(value) => {
+                self.data.replace(value);
+                Ok(Out::Some(true))
+            },
+            Out::None => {
+                self.data.take();
+                Ok(Out::None)
+            },
+            Out::Pending => {
+                Ok(Out::Pending)
+            }
+        }
+    }
+}
+
 #[derive(Clone)]
 struct SharedOutput<O> {
     value: Arc<Mutex<Option<O>>>,
@@ -325,57 +350,15 @@ impl<O> SharedOutput<O> {
     }
 }
 
-impl<O: FlowIn<O>> OutputTask<O> {
-    pub(crate) fn new() -> Self {
-        Self {
-            data: SharedOutput::new(),
-        }
-    }
-
-    fn data(&self) -> &SharedOutput<O> {
-        &self.data
-    }
-}
-
-impl<O: FlowIn<O>> Source<O, OutputData<O>> for OutputTask<O> {
-    fn next(&mut self, input: &mut O::Input) -> source::Result<Out<OutputData<O>>> {
-        let value = O::next(input);
-
-        match value {
-            Out::Some(value) => {
-                self.data.replace(value);
-                Ok(Out::Some(OutputData { marker: PhantomData }))
-            },
-            Out::None => {
-                self.data.take();
-                Ok(Out::None)
-            },
-            Out::Pending => {
-                Ok(Out::Pending)
-            }
-        }
-    }
-}
-
 //
 // tail task
 //
 
-struct TailTask<O: FlowIn<O>> {
-    marker: PhantomData<O>,
-}
+struct TailTask;
 
-impl<O: FlowIn<O>> TailTask<O> {
-    fn new() -> Self {
-        Self {
-            marker: Default::default(),
-        }
-    }
-}
-
-impl<O: FlowData> Source<O, ()> for TailTask<O> {
-    fn next(&mut self, source: &mut In<O>) -> source::Result<Out<()>> {
-        source.next();
+impl Source<bool, ()> for TailTask {
+    fn next(&mut self, source: &mut In<bool>) -> source::Result<Out<()>> {
+        source.next(); // assert!(if let Some(true) = source.next() { true } else { false });
 
         Ok(Out::Some(()))
     }
@@ -460,11 +443,9 @@ mod test {
             ptr.lock().unwrap().push(format!("Node0[]"));
             match data.pop() {
                 Some(v) => {
-                    println!("N_0 {:?}", v);
                     Ok(Out::Some(v))
                 },
                 None => {
-                    println!("N_0 None");
                     Ok(Out::None)
                 }
             }
@@ -483,13 +464,16 @@ mod test {
         let mut flow = builder.output(&n_1); // n_1);
 
         assert_eq!(flow.call(()), None);
-        assert_eq!(take(&vec), "Node0[], Node1[b]");
+        assert_eq!(take(&vec), "Node0[], Node1[Some(\"b\")]");
 
         assert_eq!(flow.call(()), None);
-        assert_eq!(take(&vec), "Node0[], Node1[a]");
+        assert_eq!(take(&vec), "Node0[], Node1[Some(\"a\")]");
 
         assert_eq!(flow.call(()), None);
-        assert_eq!(take(&vec), "Node0[]");
+        assert_eq!(take(&vec), "Node0[], Node1[None]");
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "Node0[], Node1[None]");
     }
 
     #[test]
@@ -577,7 +561,7 @@ mod test {
     fn node_output_split() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
-        let mut builder = Flow::<(), ()>::builder();
+        let mut builder = Flow::<(), Vec<usize>>::builder();
 
         let ptr = vec.clone();
         let n_0 = builder.task::<(), usize>(move |_: &mut ()| {
@@ -586,21 +570,21 @@ mod test {
         }, &()); // builder.nil());
 
         let ptr = vec.clone();
-        let _n_1 = builder.task::<usize, ()>(move |x: &mut In<usize>| {
+        let n_1 = builder.task::<usize, usize>(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }, &n_0);
 
         let ptr = vec.clone();
-        let n_2 = builder.task::<usize, ()>(move |x: &mut In<usize>| {
+        let n_2 = builder.task::<usize, usize>(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }, &n_0);
 
-        let mut flow = builder.output(&()); // n_2);
+        let mut flow = builder.output(&(vec![n_1, n_2])); // n_2);
 
-        assert_eq!(flow.call(()), Some(()));
-        assert_eq!(take(&vec), "N-0[], N-1[1], N-1[1]");
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "N-0[], N-0[], N-1[1], N-1[1]");
     }
 
     #[test]
