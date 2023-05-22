@@ -57,6 +57,16 @@ pub(crate) fn pipe<T: Send + 'static>(
     )
 }
 
+pub(crate) fn pipe_nil<T: Send + 'static>(
+    src_id: SourceId<T>, 
+    dst_id: NodeId,
+) -> (Box<dyn PipeIn<T>>, Box<dyn PipeOut<T>>) {
+    (
+        Box::new(NilIn::new(src_id.clone(), dst_id)),
+        Box::new(NilOut::new(src_id.clone(), dst_id))
+    )
+}
+
 impl<T> In<T> {
     pub fn next(&mut self) -> Option<T> {
         self.0.next()
@@ -131,7 +141,7 @@ impl<T: Send + 'static> PipeIn<T> for ChannelIn<T> {
             Out::None => None,
             Out::Some(value) => Some(value),
             Out::Pending => {
-                panic!("PipeIn.next() can't be called twice in a task");
+                panic!("{:?}.next() can't be called twice in a task", self);
             }
         }
     }
@@ -200,7 +210,75 @@ impl<T: Send> PipeOut<T> for ChannelOut<T> {
     }
 
     fn send(&mut self, value: Option<T>) {
-        self.sender.send(value).unwrap();
+        match self.sender.send(value) {
+            Ok(_) => {},
+            Err(err) => { 
+                println!("{:?} Unexpected error {:?}", self._dst, err);
+            }
+        }
+    }
+} 
+
+//
+// NilIn/NilOut
+//
+
+pub struct NilIn<T> {
+    _src: SourceId<T>,
+    _dst: NodeId,
+}
+
+impl<T> NilIn<T> {
+    fn new(src_id: SourceId<T>, dst_id: NodeId) -> Self {
+        Self {
+            _src: src_id,
+            _dst: dst_id,
+        }
+    }
+}
+
+impl<T: Send> PipeIn<T> for NilIn<T> {
+    fn out_index(&self) -> usize {
+        todo!()
+    }
+
+    fn init(&mut self) {
+        todo!()
+    }
+
+    fn fill(&mut self, waker: &mut dyn InnerWaker) -> bool {
+        todo!()
+    }
+
+    fn n_read(&self) -> u64 {
+        todo!()
+    }
+
+    fn next(&mut self) -> Option<T> {
+        todo!()
+    }
+} 
+
+pub struct NilOut<T> {
+    _src: SourceId<T>,
+    _dst: NodeId,
+}
+
+impl<T> NilOut<T> {
+    fn new(src_id: SourceId<T>, dst_id: NodeId) -> Self {
+        Self {
+            _src: src_id,
+            _dst: dst_id,
+        }
+    }
+}
+
+impl<T: Send> PipeOut<T> for NilOut<T> {
+    fn dst_id(&self) -> NodeId {
+        self._dst
+    }
+
+    fn send(&mut self, value: Option<T>) {
     }
 } 
 

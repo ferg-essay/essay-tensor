@@ -410,7 +410,10 @@ impl<MP: Msg, CP: Msg> ChildGuard<MP, CP> {
 impl<MP: Msg, CP: Msg> Drop for ChildGuard<MP, CP> {
     fn drop(&mut self) {
         if ! self.is_close {
-            self.to_parent.send(ParentMessage::Panic).unwrap();
+            match self.to_parent.send(ParentMessage::Panic) {
+                Ok(_) => {},
+                Err(_) => {},
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, sync::{Arc, Mutex}};
 
 use crate::flow::dispatch::{DispatcherInner, FlowThreads};
 
@@ -6,9 +6,6 @@ use super::{
     source::{Source, Sources, SourcesBuilder, NilTask, self, NodeId, SourceId, SourcesInner, SourcesOuter}, 
     data::{FlowIn, FlowData}, dispatch::{DispatcherOuter, Dispatcher}, pipe::{In, Out}, thread_pool::ThreadPool, 
 };
-
-#[derive(Clone)]
-pub struct OutputData<T: Clone + Send + 'static>(T);
 
 pub struct Flow<I: FlowIn<I>, O: FlowIn<O>> {
     flow: Box<dyn FlowTrait<I, O>>,
@@ -55,7 +52,7 @@ pub struct FlowPool<I: FlowIn<I>, O: FlowIn<O>> {
     input_ids: I::Nodes,
 
     output_id: NodeId,
-    output: In<OutputData<O>>,
+    output: SharedOutput<O>,
 }
 
 impl<I, O> FlowPool<I, O>
@@ -67,19 +64,20 @@ where
         sources_outer: SourcesOuter,
         sources_inner: SourcesInner,
         input_ids: I::Nodes,
-        output: In<OutputData<O>>,
+        output: SharedOutput<O>,
         output_id: NodeId,
+        tail_id: NodeId,
     ) -> Flow<I, O> {
         let sources_inner = Arc::new(sources_inner);
 
-        let pool = FlowThreads::new(output_id, sources_outer, sources_inner.clone());
+        let pool = FlowThreads::new(output_id, tail_id, sources_outer, sources_inner.clone());
         
         Flow::new(Self {
             pool,
             sources_inner,
             input_ids,
             output_id,
-            output
+            output,
         })
     }
 }
@@ -90,17 +88,16 @@ where
     O: FlowIn<O>
 {
     fn call(&mut self, input: I) -> Option<O> {
+        self.output.take();
+
         self.sources_inner.init();
 
         self.pool.init().unwrap();
-        /*
-        match self.output.next() {
-            Some(data) => Some(data.0),
+
+        match self.output.take() {
+            Some(data) => Some(data),
             None => None,
         }
-        */
-
-        None
     }
 
     fn iter(&mut self, _input: I) -> FlowIter<I, O> {
@@ -119,7 +116,8 @@ pub struct FlowSingle<I: FlowIn<I>, O: FlowIn<O>> {
     input_ids: I::Nodes,
 
     output_id: NodeId,
-    output: In<OutputData<O>>,
+    //output: In<OutputData<O>>,
+    output: SharedOutput<O>,
 }
 
 impl<I, O> FlowSingle<I, O>
@@ -128,16 +126,16 @@ where
     O: FlowIn<O>
 {
     pub fn next(&mut self, waker: &mut Dispatcher) -> Option<O> {
-        self.output.fill(&mut waker.inner());
+       //  self.output.fill(&mut waker.inner());
 
         while waker.outer().apply(&mut self.sources_outer) ||
             waker.inner().apply(&mut self.sources_inner) {
         }
 
-        assert!(self.output.fill(&mut waker.inner()));
+        // assert!(self.output.fill(&mut waker.inner()));
 
-        match self.output.next() {
-            Some(OutputData(value)) => Some(value),
+        match self.output.take() {
+            Some(value) => Some(value),
             None => None,
         }
     }
@@ -145,7 +143,8 @@ where
     fn init(&mut self) -> Dispatcher {
         let dispatcher = Dispatcher::new();
 
-        self.output.init();
+        //self.output.init();
+        self.output.take();
         self.sources_outer.init();
         self.sources_inner.init();
 
@@ -194,14 +193,6 @@ impl<I: FlowIn<I>, O: FlowIn<O>> Iterator for FlowIter<'_, I, O> {
     }
 }
 
-impl<T: Clone + Send + 'static> OutputData<T> {
-    fn unwrap(self) -> T {
-        self.0
-    }
-}
-
-impl<T: Clone + Send + 'static> FlowData for OutputData<T> {}
-
 //
 // Flow threading
 //
@@ -211,7 +202,7 @@ impl<T: Clone + Send + 'static> FlowData for OutputData<T> {}
 //
 
 pub struct FlowBuilder<I: FlowIn<I>, O: FlowIn<O>> {
-    tasks: SourcesBuilder,
+    sources: SourcesBuilder,
     nil_id: SourceId<()>,
     in_nodes: I::Nodes,
     marker: PhantomData<(I, O)>,
@@ -226,7 +217,7 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
         let input_id = I::new_flow_input(&mut tasks);
 
         let builder = FlowBuilder {
-            tasks,
+            sources: tasks,
             nil_id: nil_id,
             in_nodes: input_id,
             marker: Default::default(),
@@ -253,7 +244,7 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
         I1: FlowIn<I1>,
         O1: Send + Clone + 'static,
     {
-        self.tasks.push_source(Box::new(task), in_nodes)
+        self.sources.push_source(Box::new(task), in_nodes)
     }
 
     pub fn output(mut self, src_nodes: &O::Nodes) -> Flow<I, O> {
@@ -262,13 +253,18 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
         O::node_ids(src_nodes, &mut output_ids);
 
         let output_task = OutputTask::<O>::new();
+        let shared_output = output_task.data().clone();
 
-        let id = self.tasks.push_source(Box::new(output_task), src_nodes);
-        let tail = self.tasks.push_source(Box::new(TailTask), &());
+        let id = self.sources.push_source(Box::new(output_task), src_nodes);
+        let tail = self.sources.push_source(
+            Box::new(TailTask::<OutputData<O>>::new()),
+            &id
+        );
 
-        let source = self.tasks.add_pipe(id.clone(), tail.id(), 0);
+        //let source = self.sources.add_pipe_nil(id.clone(), tail.id(), 0);
+        self.sources.add_pipe_nil(id.clone(), tail.id(), 0);
 
-        let Sources(outer, inner) = self.tasks.build();
+        let Sources(outer, inner) = self.sources.build();
 
         let is_pool = true;
 
@@ -277,8 +273,9 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
                 outer, 
                 inner, 
                 self.in_nodes, 
-                In::new(source), 
+                shared_output, // In::new(source), 
                 id.id(),
+                tail.id(),
             )
         } else {
             Flow::new(FlowSingle {
@@ -286,7 +283,7 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
                 sources_inner: inner,
 
                 input_ids: self.in_nodes,
-                output: In::new(source),
+                output: shared_output, // In::new(source),
                 output_id: id.id(),
             })
         }
@@ -296,28 +293,61 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
 //
 // Output task
 //
+#[derive(Clone)]
+pub struct OutputData<T: Clone + Send + 'static> {
+    marker: PhantomData<T>,
+}
+
+impl<T: Clone + Send + 'static> FlowData for OutputData<T> {}
 
 struct OutputTask<O: FlowIn<O>> {
-    marker: PhantomData<O>,
+    data: SharedOutput<O>,
+}
+
+#[derive(Clone)]
+struct SharedOutput<O> {
+    value: Arc<Mutex<Option<O>>>,
+}
+
+impl<O> SharedOutput<O> {
+    fn new() -> Self {
+        Self {
+            value: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn take(&self) -> Option<O> {
+        self.value.lock().unwrap().take()
+    }
+
+    fn replace(&self, value: O) {
+        self.value.lock().unwrap().replace(value);
+    }
 }
 
 impl<O: FlowIn<O>> OutputTask<O> {
     pub(crate) fn new() -> Self {
         Self {
-            marker: PhantomData,
+            data: SharedOutput::new(),
         }
+    }
+
+    fn data(&self) -> &SharedOutput<O> {
+        &self.data
     }
 }
 
 impl<O: FlowIn<O>> Source<O, OutputData<O>> for OutputTask<O> {
-    fn next(&mut self, source: &mut O::Input) -> source::Result<Out<OutputData<O>>> {
-        let value = O::next(source);
+    fn next(&mut self, input: &mut O::Input) -> source::Result<Out<OutputData<O>>> {
+        let value = O::next(input);
 
         match value {
             Out::Some(value) => {
-                Ok(Out::Some(OutputData(value)))
+                self.data.replace(value);
+                Ok(Out::Some(OutputData { marker: PhantomData }))
             },
             Out::None => {
+                self.data.take();
                 Ok(Out::None)
             },
             Out::Pending => {
@@ -331,11 +361,23 @@ impl<O: FlowIn<O>> Source<O, OutputData<O>> for OutputTask<O> {
 // tail task
 //
 
-struct TailTask;
+struct TailTask<O: FlowIn<O>> {
+    marker: PhantomData<O>,
+}
 
-impl Source<(), ()> for TailTask {
-    fn next(&mut self, _source: &mut ()) -> source::Result<Out<()>> {
-        todo!();
+impl<O: FlowIn<O>> TailTask<O> {
+    fn new() -> Self {
+        Self {
+            marker: Default::default(),
+        }
+    }
+}
+
+impl<O: FlowData> Source<O, ()> for TailTask<O> {
+    fn next(&mut self, source: &mut In<O>) -> source::Result<Out<()>> {
+        source.next();
+
+        Ok(Out::Some(()))
     }
 }
 
