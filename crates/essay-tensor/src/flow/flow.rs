@@ -1,15 +1,18 @@
 use std::{marker::PhantomData};
 
+use crate::flow::dispatch::DispatcherInner;
+
 use super::{
-    task::{Task, Tasks, TasksBuilder, NilTask, self, NodeId, TaskId}, 
-    data::{FlowIn, FlowData}, dispatch::Dispatcher, pipe::{In, Out}, 
+    source::{Source, Sources, SourcesBuilder, NilTask, self, NodeId, SourceId, SourcesInner, SourcesOuter}, 
+    data::{FlowIn, FlowData}, dispatch::{DispatcherOuter, Dispatcher}, pipe::{In, Out}, 
 };
 
 #[derive(Clone)]
 pub struct OutputData<T: Clone + Send + 'static>(T);
 
 pub struct Flow<I: FlowIn<I>, O: FlowIn<O>> {
-    tasks: Tasks,
+    tasks_outer: SourcesOuter,
+    tasks_inner: SourcesInner,
 
     input: I::Nodes,
 
@@ -42,18 +45,22 @@ where
         FlowIter {
             flow: self,
             // data: data,
-            dispatcher: dispatcher,
+            waker: dispatcher,
             count: 0,
         }
     }
 
     pub fn next(&mut self, waker: &mut Dispatcher) -> Option<O> {
-        self.output.fill(waker);
+        //let mut outer_waker = DispatcherOuter::new(waker);
+        //let mut inner_waker = DispatcherInner::new(waker);
 
-        while waker.apply(&mut self.tasks) {
+        self.output.fill(&mut waker.inner());
+
+        while waker.outer().apply(&mut self.tasks_outer) ||
+            waker.inner().apply(&mut self.tasks_inner) {
         }
 
-        assert!(self.output.fill(waker));
+        assert!(self.output.fill(&mut waker.inner()));
 
         match self.output.next() {
             Some(OutputData(value)) => Some(value),
@@ -65,7 +72,8 @@ where
         let dispatcher = Dispatcher::new();
 
         self.output.init();
-        self.tasks.init();
+        self.tasks_outer.init();
+        self.tasks_inner.init();
 
         dispatcher
     }
@@ -73,7 +81,7 @@ where
 
 pub struct FlowIter<'a, I: FlowIn<I>, O: FlowIn<O>> {
     flow: &'a mut Flow<I, O>,
-    dispatcher: Dispatcher,
+    waker: Dispatcher,
     count: usize,
 }
 
@@ -81,7 +89,7 @@ impl<I: FlowIn<I>, O: FlowIn<O>> Iterator for FlowIter<'_, I, O> {
     type Item = O;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.flow.next(&mut self.dispatcher)
+        self.flow.next(&mut self.waker)
     }
 }
 
@@ -98,17 +106,17 @@ impl<T: Clone + Send + 'static> FlowData for OutputData<T> {}
 //
 
 pub struct FlowBuilder<I: FlowIn<I>, O: FlowIn<O>> {
-    tasks: TasksBuilder,
-    nil_id: TaskId<()>,
+    tasks: SourcesBuilder,
+    nil_id: SourceId<()>,
     in_nodes: I::Nodes,
     marker: PhantomData<(I, O)>,
 }
 
 impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
     fn new() -> Self {
-        let mut tasks = TasksBuilder::new();
+        let mut tasks = SourcesBuilder::new();
 
-        let nil_id = tasks.push_task(Box::new(NilTask), &());
+        let nil_id = tasks.push_source(Box::new(NilTask), &());
 
         let input_id = I::new_flow_input(&mut tasks);
 
@@ -127,20 +135,20 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
         todo!();
     }
 
-    pub fn nil(&self) -> TaskId<()> {
+    pub fn nil(&self) -> SourceId<()> {
         self.nil_id.clone()
     }
 
     pub fn task<I1, O1>(
         &mut self, 
-        task: impl Task<I1, O1>,
+        task: impl Source<I1, O1>,
         in_nodes: &I1::Nodes,
-    ) -> TaskId<O1>
+    ) -> SourceId<O1>
     where
         I1: FlowIn<I1>,
         O1: Send + Clone + 'static,
     {
-        self.tasks.push_task(Box::new(task), in_nodes)
+        self.tasks.push_source(Box::new(task), in_nodes)
     }
 
     pub fn output(mut self, src_nodes: &O::Nodes) -> Flow<I, O> {
@@ -150,13 +158,16 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
 
         let output_task = OutputTask::<O>::new();
 
-        let id = self.tasks.push_task(Box::new(output_task), src_nodes);
-        let tail = self.tasks.push_task(Box::new(TailTask), &());
+        let id = self.tasks.push_source(Box::new(output_task), src_nodes);
+        let tail = self.tasks.push_source(Box::new(TailTask), &());
 
         let source = self.tasks.add_pipe(id.clone(), tail.id(), 0);
 
+        let Sources(outer, inner) = self.tasks.build();
+
         Flow {
-            tasks: self.tasks.build(),
+            tasks_outer: outer,
+            tasks_inner: inner,
 
             input: self.in_nodes,
             output: In::new(source),
@@ -181,8 +192,8 @@ impl<O: FlowIn<O>> OutputTask<O> {
     }
 }
 
-impl<O: FlowIn<O>> Task<O, OutputData<O>> for OutputTask<O> {
-    fn next(&mut self, source: &mut O::Input) -> task::Result<Out<OutputData<O>>> {
+impl<O: FlowIn<O>> Source<O, OutputData<O>> for OutputTask<O> {
+    fn next(&mut self, source: &mut O::Input) -> source::Result<Out<OutputData<O>>> {
         let value = O::next(source);
 
         match value {
@@ -205,8 +216,8 @@ impl<O: FlowIn<O>> Task<O, OutputData<O>> for OutputTask<O> {
 
 struct TailTask;
 
-impl Task<(), ()> for TailTask {
-    fn next(&mut self, _source: &mut ()) -> task::Result<Out<()>> {
+impl Source<(), ()> for TailTask {
+    fn next(&mut self, _source: &mut ()) -> source::Result<Out<()>> {
         todo!();
     }
 }

@@ -3,7 +3,7 @@ mod pipe;
 mod flow;
 mod data;
 mod dispatch;
-pub mod task;
+pub mod source;
 
 pub use flow::{
     FlowBuilder, Flow,

@@ -7,7 +7,7 @@ use super::{
     pipe::{Out, PipeOut, PipeIn, pipe}, 
 };
 
-pub trait Task<I, O> : Send + 'static
+pub trait Source<I, O> : Send + 'static
 where
     I: FlowIn<I> + 'static,
     O: 'static,
@@ -18,7 +18,7 @@ where
 }
 
 #[derive(Copy, PartialEq)]
-pub struct TaskId<T> {
+pub struct SourceId<T> {
     index: usize,
     marker: PhantomData<T>,
 }
@@ -27,147 +27,20 @@ pub struct TaskId<T> {
 pub struct NodeId(usize);
 
 #[derive(Debug)]
-pub struct TaskErr;
+pub struct SourceErr;
 
-pub type Result<T> = std::result::Result<T, TaskErr>;
+pub type Result<T> = std::result::Result<T, SourceErr>;
 
-type BoxTask<In, Out> = Box<dyn Task<In, Out>>;
-
-//
-// Tasks implementation
-//
-
-pub struct Tasks {
-    tasks: Vec<TaskNode>,
-}
-
-impl Tasks {
-    pub(crate) fn init(&mut self) {
-        for task in &mut self.tasks {
-            task.init();
-        }
-    }
-
-    pub(crate) fn data_request(
-        &self, 
-        id: NodeId,
-        sink_index: usize,
-        n_request: u64,
-        waker: &mut dyn OuterWaker,
-    ) {
-        self.tasks[id.index()].data_request(sink_index, n_request, waker)
-    }
-
-    pub(crate) fn data_ready(
-        &mut self, 
-        id: NodeId,
-        source_index: usize,
-        n_ready: u64,
-        waker: &mut dyn OuterWaker, 
-    ) {
-        self.tasks[id.index()].data_ready(source_index, n_ready, waker)
-    }
-
-    pub(crate) fn complete(
-        &self, 
-        id: NodeId,
-        is_done: bool, 
-        waker: &mut dyn OuterWaker,
-    ) {
-        self.tasks[id.index()].complete(is_done, waker);
-    }
-
-    pub(crate) fn execute(
-        &mut self, 
-        id: NodeId,
-        waker: &mut dyn InnerWaker, 
-    ) {
-        self.tasks[id.index()].execute(waker)
-    }
-}
-
-impl Default for Tasks {
-    fn default() -> Self {
-        Self { 
-            tasks: Default::default(),
-        }
-    }
-}
+type BoxSource<In, Out> = Box<dyn Source<In, Out>>;
 
 //
-// TaskNode
+// Sources implementation
 //
 
-pub(crate) struct TaskNode {
-    _id: NodeId,
-
-    outer: Mutex<Box<dyn TaskOuter>>,
-    inner: Mutex<Box<dyn TaskInner>>,
-}
-
-impl TaskNode {
-    fn new<I, O>(builder: &mut TaskNodeBuilder<I, O>) -> Self
-    where
-        I: FlowIn<I>,
-        O: Send + Clone + 'static
-    {
-        let input_metas = InMetas(builder.source_info.drain(..).collect());
-        let input_metas = Arc::new(Mutex::new(input_metas));
-
-        let out_metas = OutMetas(builder.sink_info.drain(..).collect());
-        let out_metas = Arc::new(Mutex::new(out_metas));
-
-        let outer = TaskOuterNode::new(builder, &input_metas, &out_metas);
-        let inner = TaskInnerNode::new(builder, &input_metas, &out_metas);
-
-        Self {
-            _id: builder.id.id(),
-            outer: Mutex::new(Box::new(outer)),
-            inner: Mutex::new(Box::new(inner)),
-        }
-    }
-
-    fn init(&self) {
-        self.outer.lock().unwrap().init();
-        self.inner.lock().unwrap().init();
-    }
-
-    pub(crate) fn data_request(
-        &self, 
-        out_index: usize,
-        n_request: u64,
-        waker: &mut dyn OuterWaker,
-    ) {
-        self.outer.lock().unwrap().data_request(out_index, n_request, waker);
-    }
-
-    fn data_ready(
-        &mut self, 
-        source_index: usize,
-        n_ready: u64,
-        waker: &mut dyn OuterWaker, 
-    ) {
-        self.outer.lock().unwrap().data_ready(source_index, n_ready, waker);
-    }
-
-    pub(crate) fn complete(
-        &self, 
-        is_done: bool, 
-        waker: &mut dyn OuterWaker,
-    ) {
-        self.outer.lock().unwrap().post_execute(is_done, waker);
-    }
-
-    fn execute(
-        &mut self, 
-        waker: &mut dyn InnerWaker, 
-    ) {
-        self.inner.lock().unwrap().next(waker).unwrap();
-    }
-}
+pub struct Sources(pub SourcesOuter, pub SourcesInner);
 
 //
-// TaskOuter
+// SourceOuter
 //
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -181,7 +54,48 @@ enum State {
     Done,
 }
 
-trait TaskOuter : Send {
+pub struct SourcesOuter {
+    sources: Vec<Box<dyn SourceOuter>>,
+}
+
+impl SourcesOuter {
+    pub(crate) fn init(&mut self) {
+        for source in &mut self.sources {
+            source.init();
+        }
+    }
+
+    pub(crate) fn data_request(
+        &mut self, 
+        id: NodeId,
+        out_index: usize,
+        n_request: u64,
+        waker: &mut dyn OuterWaker,
+    ) {
+        self.sources[id.index()].data_request(out_index, n_request, waker)
+    }
+
+    pub(crate) fn data_ready(
+        &mut self, 
+        id: NodeId,
+        input_index: usize,
+        n_ready: u64,
+        waker: &mut dyn OuterWaker, 
+    ) {
+        self.sources[id.index()].data_ready(input_index, n_ready, waker)
+    }
+
+    pub(crate) fn post_execute(
+        &mut self, 
+        id: NodeId,
+        is_done: bool, 
+        waker: &mut dyn OuterWaker,
+    ) {
+        self.sources[id.index()].post_execute(is_done, waker);
+    }
+}
+
+pub trait SourceOuter : Send {
     fn init(&mut self);
 
     fn data_request(
@@ -205,49 +119,8 @@ trait TaskOuter : Send {
     );
 }
 
-pub struct OuterTasks {
-    tasks: Vec<Box<dyn TaskOuter>>,
-}
-
-impl OuterTasks {
-    pub(crate) fn init(&mut self) {
-        for task in &mut self.tasks {
-            task.init();
-        }
-    }
-
-    pub(crate) fn data_request(
-        &mut self, 
-        id: NodeId,
-        out_index: usize,
-        n_request: u64,
-        waker: &mut dyn OuterWaker,
-    ) {
-        self.tasks[id.index()].data_request(out_index, n_request, waker)
-    }
-
-    pub(crate) fn data_ready(
-        &mut self, 
-        id: NodeId,
-        input_index: usize,
-        n_ready: u64,
-        waker: &mut dyn OuterWaker, 
-    ) {
-        self.tasks[id.index()].data_ready(input_index, n_ready, waker)
-    }
-
-    pub(crate) fn next_complete(
-        &mut self, 
-        id: NodeId,
-        is_done: bool, 
-        waker: &mut dyn OuterWaker,
-    ) {
-        self.tasks[id.index()].post_execute(is_done, waker);
-    }
-}
-
-struct TaskOuterNode<O> {
-    id: TaskId<O>,
+struct SourceOuterImpl<O> {
+    id: SourceId<O>,
 
     state: State,
 
@@ -255,12 +128,12 @@ struct TaskOuterNode<O> {
     output_meta: Arc<Mutex<OutMetas>>,
 }
 
-impl<O> TaskOuterNode<O>
+impl<O> SourceOuterImpl<O>
 where
     O: Clone + 'static
 {
     fn new<I>(
-        builder: &mut TaskNodeBuilder<I, O>,
+        builder: &mut SourceBuilder<I, O>,
         input_meta: &Arc<Mutex<InMetas>>,
         output_meta: &Arc<Mutex<OutMetas>>,
     ) -> Self
@@ -276,7 +149,7 @@ where
     }
 }
 
-impl<O> TaskOuter for TaskOuterNode<O>
+impl<O> SourceOuter for SourceOuterImpl<O>
 where
     O: Send + Clone + 'static
 {
@@ -356,42 +229,42 @@ where
 }
 
 //
-// TaskInner
+// SourceInner
 //
 
-trait TaskInner : Send {
+pub trait SourceInner : Send {
     fn init(&mut self);
 
-    fn next(&mut self, waker: &mut dyn InnerWaker) -> Result<Out<()>>;
+    fn execute(&mut self, waker: &mut dyn InnerWaker) -> Result<Out<()>>;
 }
 
-pub struct InnerTasks {
-    tasks: Vec<Mutex<Box<dyn TaskInner>>>,
+pub struct SourcesInner {
+    sources: Vec<Mutex<Box<dyn SourceInner>>>,
 }
 
-impl InnerTasks {
+impl SourcesInner {
     pub(crate) fn init(&mut self) {
-        for task in &mut self.tasks {
-            task.lock().unwrap().init();
+        for source in &mut self.sources {
+            source.lock().unwrap().init();
         }
     }
 
-    pub(crate) fn next(
+    pub(crate) fn execute(
         &mut self, 
         id: NodeId,
         waker: &mut dyn InnerWaker,
     ) {
         // TODO: check output
-        self.tasks[id.index()].lock().unwrap().next(waker).unwrap();
+        self.sources[id.index()].lock().unwrap().execute(waker).unwrap();
     }
 }
 
-struct TaskInnerNode<I, O>
+struct SourceInnerImpl<I, O>
 where
     I: FlowIn<I>
 {
-    id: TaskId<O>,
-    task: BoxTask<I, O>,
+    id: SourceId<O>,
+    source: BoxSource<I, O>,
 
     input: I::Input,
 
@@ -402,22 +275,22 @@ where
     output_meta: Arc<Mutex<OutMetas>>,
 }
 
-impl<I, O> TaskInnerNode<I, O>
+impl<I, O> SourceInnerImpl<I, O>
 where
     I: FlowIn<I>,
     O: Clone + 'static
 {
     fn new(
-        builder: &mut TaskNodeBuilder<I, O>,
+        builder: &mut SourceBuilder<I, O>,
         input_meta: &Arc<Mutex<InMetas>>,
         output_meta: &Arc<Mutex<OutMetas>>,
     ) -> Self {
         Self {
             id: builder.id.clone(), 
-            task: builder.task.take().unwrap(),
-            input: builder.source.take().unwrap(),
+            source: builder.source.take().unwrap(),
+            input: builder.input.take().unwrap(),
 
-            outputs: builder.sinks.drain(..).collect(),
+            outputs: builder.outputs.drain(..).collect(),
 
             out_index: 0,
 
@@ -470,23 +343,23 @@ where
     }
 } 
 
-impl<I, O> TaskInner for TaskInnerNode<I, O>
+impl<I, O> SourceInner for SourceInnerImpl<I, O>
 where
     I: FlowIn<I>,
     O: Send + Clone + 'static
 {
     fn init(&mut self) {
-        self.task.init();
+        self.source.init();
 
-        I::init_source(&mut self.input);
+        I::init(&mut self.input);
 
         self.input_meta.lock().unwrap().init();
         self.output_meta.lock().unwrap().init();
     }
 
-    fn next(&mut self, waker: &mut dyn InnerWaker) -> Result<Out<()>> {
+    fn execute(&mut self, waker: &mut dyn InnerWaker) -> Result<Out<()>> {
         while self.input_meta.lock().unwrap().fill_data::<I>(&mut self.input, waker) {
-            match self.task.next(&mut self.input) {
+            match self.source.next(&mut self.input) {
                 Ok(Out::Some(value)) => {
                     if ! self.send(Some(value), waker) {
                         waker.post_execute(self.id.id(), false);
@@ -515,7 +388,7 @@ where
 }
 
 //
-// SourceInfo
+// pipe input meta
 //
 
 pub struct InMetas(Vec<InMeta>);
@@ -566,7 +439,7 @@ impl InMetas {
     ) -> bool {
         let mut index = 0;
 
-        I::fill_source(input, &mut self.0, &mut index, waker)
+        I::fill(input, &mut self.0, &mut index, waker)
     }
 }
 
@@ -609,12 +482,12 @@ impl InMeta {
 }
 
 //
-// SinkInfo
+// OutMeta
 //
 
-struct OutMetas(Vec<PipeOutInfo>);
+struct OutMetas(Vec<OutMeta>);
 
-struct PipeOutInfo {
+struct OutMeta {
     dst_id: NodeId,
     input_index: usize,
 
@@ -624,8 +497,8 @@ struct PipeOutInfo {
 
 impl OutMetas {
     fn init(&mut self) {
-        for info in &mut self.0 {
-            info.init();
+        for meta in &mut self.0 {
+            meta.init();
         }
     }
     
@@ -634,8 +507,8 @@ impl OutMetas {
     }
 
     fn is_any_out_available(&mut self) -> bool {
-        for out in &self.0 {
-            if out.is_available() {
+        for meta in &self.0 {
+            if meta.is_available() {
                 return true;
             }
         }
@@ -652,7 +525,7 @@ impl OutMetas {
     }
 }
 
-impl PipeOutInfo {
+impl OutMeta {
     pub(crate) fn new(dst_id: NodeId, input_index: usize) -> Self {
         Self {
             dst_id,
@@ -687,13 +560,13 @@ impl PipeOutInfo {
     }
 }
 
-impl<T> fmt::Debug for TaskId<T> {
+impl<T> fmt::Debug for SourceId<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "TaskId[{}]", self.index)
     }
 }
 
-impl<T> Clone for TaskId<T> {
+impl<T> Clone for SourceId<T> {
     fn clone(&self) -> Self {
         Self { 
             index: self.index,
@@ -708,7 +581,7 @@ impl NodeId {
     }
 }
 
-impl<T: 'static> TaskId<T> {
+impl<T: 'static> SourceId<T> {
     fn new(index: usize) -> Self {
         Self {
             index,
@@ -728,86 +601,72 @@ impl<T: 'static> TaskId<T> {
 }
 
 //
-// Tasks builder
+// Source builder
 //
 
-pub struct TasksBuilder {
-    tasks: Vec<Box<dyn TaskNodeBuilderTrait>>,
+pub struct SourcesBuilder {
+    sources: Vec<Box<dyn SourceBuilderTrait>>,
 }
 
-pub(crate) trait TaskNodeBuilderTrait {
-    //unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> UnsafePtr;
-    unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> Box<dyn Any>;
-
-    fn build(&mut self) -> TaskNode;
-}
-
-pub(crate) struct TaskNodeBuilder<I, O>
-where
-    I: FlowIn<I>,
-    O: Clone + 'static
-{
-    id: TaskId<O>,
-    task: Option<BoxTask<I, O>>,
-
-    source: Option<I::Input>,
-    source_info: Vec<InMeta>,
-
-    sinks: Vec<Box<dyn PipeOut<O>>>,
-    sink_info: Vec<PipeOutInfo>,
-}
-
-impl TasksBuilder {
+impl SourcesBuilder {
     pub(crate) fn new() -> Self {
         Self {
-            tasks: Vec::default(),
+            sources: Vec::default(),
         }
     }
 
-    pub(crate) fn push_task<I, O>(
+    pub(crate) fn push_source<I, O>(
         &mut self, 
-        task: BoxTask<I, O>,
-        src_nodes: &I::Nodes,
-    ) -> TaskId<O>
+        source: BoxSource<I, O>,
+        in_nodes: &I::Nodes,
+    ) -> SourceId<O>
     where
         I: FlowIn<I>,
         O: Send + Clone + 'static
     {
-        let id = TaskId::<O>::new(self.tasks.len());
-        let task_item = TaskNodeBuilder::new(id.clone(), task, src_nodes, self);
+        let id = SourceId::<O>::new(self.sources.len());
+        let source = SourceBuilder::new(id.clone(), source, in_nodes, self);
     
-        assert_eq!(id.index(), self.tasks.len());
+        assert_eq!(id.index(), self.sources.len());
 
-        self.tasks.push(Box::new(task_item));
+        self.sources.push(Box::new(source));
 
         id
     }
 
     pub(crate) fn add_pipe<O: 'static>(
         &mut self,
-        src_id: TaskId<O>,
+        src_id: SourceId<O>,
         dst_id: NodeId,
         dst_index: usize,
     ) -> Box<dyn PipeIn<O>> {
-        let task = &mut self.tasks[src_id.index()];
+        let source = &mut self.sources[src_id.index()];
 
         unsafe { 
             // task.add_sink(dst_id, dst_index).downcast::<dyn SourceTrait<O>>().unwrap()
 
-            mem::transmute(task.add_sink(dst_id, dst_index))
+            mem::transmute(source.add_pipe(dst_id, dst_index))
         }
     }
 
-    pub(crate) fn build(mut self) -> Tasks {
-        let mut tasks = Vec::new();
+    pub(crate) fn build(mut self) -> Sources {
+        let mut sources_outer: Vec<Box<dyn SourceOuter>> = Vec::new();
+        let mut sources_inner: Vec<Mutex<Box<dyn SourceInner>>> = Vec::new();
 
-        for mut task in self.tasks.drain(..) {
-            tasks.push(task.build());
+        for mut source in self.sources.drain(..) {
+            //tasks.push(task.build());
+            source.build(&mut sources_outer, &mut sources_inner);
         }
 
-        Tasks {
-            tasks
-        }
+        let sources_outer = SourcesOuter {
+            sources: sources_outer,
+        };
+
+        let sources_inner = SourcesInner {
+            sources: sources_inner,
+        };
+        
+        Sources(sources_outer, sources_inner)
     }
 }
 
@@ -815,23 +674,49 @@ impl TasksBuilder {
 // TaskNode builder
 //
 
-impl<I, O> TaskNodeBuilder<I, O>
+pub(crate) trait SourceBuilderTrait {
+    //unsafe fn add_sink(&mut self, dst_id: NodeId, dst_index: usize) -> UnsafePtr;
+    unsafe fn add_pipe(&mut self, dst_id: NodeId, dst_index: usize) -> Box<dyn Any>;
+
+    fn build(
+        &mut self,
+        sources_outer: &mut Vec<Box<dyn SourceOuter>>,
+        sources_inner: &mut Vec<Mutex<Box<dyn SourceInner>>>,
+    );
+}
+
+pub(crate) struct SourceBuilder<I, O>
+where
+    I: FlowIn<I>,
+    O: Clone + 'static
+{
+    id: SourceId<O>,
+    source: Option<BoxSource<I, O>>,
+
+    input: Option<I::Input>,
+    input_meta: Vec<InMeta>,
+
+    outputs: Vec<Box<dyn PipeOut<O>>>,
+    output_meta: Vec<OutMeta>,
+}
+
+impl<I, O> SourceBuilder<I, O>
 where
     I: FlowIn<I>,
     O: Clone + 'static
 {
     fn new(
-        id: TaskId<O>,
-        task: Box<dyn Task<I, O>>,
+        id: SourceId<O>,
+        source: Box<dyn Source<I, O>>,
         src_nodes: &I::Nodes,
-        tasks: &mut TasksBuilder,
+        sources: &mut SourcesBuilder,
     ) -> Self {
         let mut source_infos = Vec::new();
-        let source = I::new_input(
+        let input = I::new_input(
             id.id(), 
             src_nodes, 
             &mut source_infos, 
-            tasks,
+            sources,
         );
 
         let mut in_arrows = Vec::new();
@@ -839,38 +724,52 @@ where
 
         Self {
             id: id.clone(),
-            task: Some(task),
-
             source: Some(source),
-            source_info: source_infos,
 
-            sinks: Vec::default(),
-            sink_info: Vec::default(),
+            input: Some(input),
+            input_meta: source_infos,
+
+            outputs: Vec::default(),
+            output_meta: Vec::default(),
         }
     }
 }
 
-impl<I, O> TaskNodeBuilderTrait for TaskNodeBuilder<I, O>
+impl<I, O> SourceBuilderTrait for SourceBuilder<I, O>
 where
     I: FlowIn<I>,
     O: Send + Clone + 'static
 {
-    unsafe fn add_sink(&mut self, dst_id: NodeId, source_index: usize) -> Box<dyn Any> {
-        let sink_index = self.sinks.len();
+    unsafe fn add_pipe(&mut self, dst_id: NodeId, input_index: usize) -> Box<dyn Any> {
+        let output_index = self.outputs.len();
 
-        let (source, sink) = 
-            pipe(self.id.clone(), sink_index, dst_id, source_index);
+        let (input, output) = 
+            pipe(self.id.clone(), output_index, dst_id, input_index);
 
-        self.sinks.push(sink);
-        self.sink_info.push(PipeOutInfo::new(dst_id, source_index));
+        self.outputs.push(output);
+        self.output_meta.push(OutMeta::new(dst_id, input_index));
 
         unsafe {
-            mem::transmute(source)
+            mem::transmute(input)
         }
     }
 
-    fn build(&mut self) -> TaskNode {
-        TaskNode::new(self)
+    fn build(
+        &mut self,
+        sources_outer: &mut Vec<Box<dyn SourceOuter>>,
+        sources_inner: &mut Vec<Mutex<Box<dyn SourceInner>>>,
+    ) {
+        let input_meta = InMetas(self.input_meta.drain(..).collect());
+        let input_meta = Arc::new(Mutex::new(input_meta));
+
+        let output_meta = OutMetas(self.output_meta.drain(..).collect());
+        let output_meta = Arc::new(Mutex::new(output_meta));
+
+        let outer = SourceOuterImpl::new(self, &input_meta, &output_meta);
+        let inner = SourceInnerImpl::new(self, &input_meta, &output_meta);
+
+        sources_outer.push(Box::new(outer));
+        sources_inner.push(Mutex::new(Box::new(inner)));
     }
 }
 
@@ -880,23 +779,23 @@ where
 
 pub struct NilTask;
 
-impl Task<(), ()> for NilTask {
+impl Source<(), ()> for NilTask {
     fn next(&mut self, _source: &mut ()) -> Result<Out<()>> {
         todo!()
     }
 }
 
 //
-// Function task
+// Function Source
 //
 
-impl<I, O, F> Task<I, O> for F
+impl<I, O, F> Source<I, O> for F
 where
     I: FlowIn<I> + 'static,
     O: 'static,
     F: FnMut(&mut I::Input) -> Result<Out<O>> + Send + 'static
 {
-    fn next(&mut self, source: &mut I::Input) -> Result<Out<O>> {
-        self(source)
+    fn next(&mut self, input: &mut I::Input) -> Result<Out<O>> {
+        self(input)
     }
 }

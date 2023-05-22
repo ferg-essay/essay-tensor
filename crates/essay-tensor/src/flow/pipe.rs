@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{mem, sync::mpsc::{self}};
 
-use super::{data::FlowData, dispatch::{InnerWaker}, task::{NodeId, TaskId}};
+use super::{data::FlowData, dispatch::{InnerWaker}, source::{NodeId, SourceId}};
 
 
 pub enum Out<T> {
@@ -43,7 +43,7 @@ pub struct ChannelIn<T> {
 pub struct In<T>(Box<dyn PipeIn<T>>);
 
 pub(crate) fn pipe<T: Send + 'static>(
-    src_id: TaskId<T>, 
+    src_id: SourceId<T>, 
     src_index: usize,
 
     dst_id: NodeId,

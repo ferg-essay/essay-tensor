@@ -1,5 +1,5 @@
 use super::{
-    task::{Tasks, NodeId}, 
+    source::{NodeId, SourcesOuter, SourcesInner}, 
     thread_pool::{Child, Result, Sender, Msg, Parent, MainId}};
 
 pub trait InnerWaker {
@@ -35,8 +35,8 @@ enum MainReply {
 impl Msg for MainReply {}
 
 pub(crate) struct FlowParent {
-    tasks: Tasks,
-    waker: Dispatcher,
+    tasks: SourcesOuter,
+    // waker: DispatcherOuter,
 }
 
 impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
@@ -71,7 +71,7 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
 
         match msg {
             ChildReply::PostExecute(node_id, is_done) => {
-                self.tasks.complete(node_id, is_done, &mut waker);
+                self.tasks.post_execute(node_id, is_done, &mut waker);
             }
             ChildReply::DataRequest(src_id, sink_index, n_request) => {
                 self.tasks.data_request(src_id, sink_index, n_request, &mut waker);
@@ -81,7 +81,7 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
             }
         }
 
-        self.waker.apply(&mut self.tasks);
+        // waker.apply(&mut self.tasks);
         Ok(())
     }
 }
@@ -131,7 +131,7 @@ enum ChildReply {
 impl Msg for ChildReply {}
 
 pub(crate) struct FlowChild {
-    tasks: Tasks,
+    tasks: SourcesInner,
 }
 
 impl Child<ChildRequest, ChildReply> for FlowChild {
@@ -195,27 +195,47 @@ enum Wake {
 }
 
 pub struct Dispatcher {
-    commands: Vec<Wake>,
+    outer_commands: Vec<Wake>,
+    inner_commands: Vec<Wake>,
 }
 
 impl Dispatcher {
-    pub fn new() -> Self {
+    pub fn new<'a>() -> Self {
         Self {
-            commands: Default::default(),
+            outer_commands: Vec::new(),
+            inner_commands: Vec::new(),
         }
     }
 
-    pub fn execute(&mut self, node: NodeId) {
-        self.commands.push(Wake::Execute(node));
+    pub fn outer(&mut self) -> DispatcherOuter {
+        DispatcherOuter::new(self)
+    }
+
+    pub fn inner(&mut self) -> DispatcherInner {
+        DispatcherInner::new(self)
+    }
+}
+
+pub struct DispatcherOuter<'a> {
+    outer_commands: &'a mut Vec<Wake>,
+    inner_commands: &'a mut Vec<Wake>,
+}
+
+impl<'a> DispatcherOuter<'a> {
+    pub fn new(dispatcher: &'a mut Dispatcher) -> Self {
+        Self {
+            outer_commands: &mut dispatcher.outer_commands,
+            inner_commands: &mut dispatcher.inner_commands,
+        }
     }
 
     pub fn apply(
         &mut self, 
-        tasks: &mut Tasks, 
+        tasks: &mut SourcesOuter, 
     ) -> bool {
         let mut is_update = false;
 
-        while let Some(command) = self.commands.pop() {
+        while let Some(command) = self.outer_commands.pop() {
             is_update = true;
 
             // println!("Command: {:?}", command);
@@ -227,12 +247,12 @@ impl Dispatcher {
                 Wake::ReadySource(dst_id, source_index, n_ready) => {
                     tasks.data_ready(dst_id, source_index, n_ready, self);
                 },
-                Wake::Execute(id) => {
-                    tasks.execute(id, self);
-                },
                 Wake::Complete(id, is_done) => {
-                    tasks.complete(id, is_done, self);
+                    tasks.post_execute(id, is_done, self);
                 },
+                _ => { 
+                    todo!();
+                }
             }
         }
 
@@ -240,26 +260,67 @@ impl Dispatcher {
     }
 }
 
-impl InnerWaker for Dispatcher {
-    fn data_request(&mut self, src_id: NodeId, sink_index: usize, n_request: u64) {
-        self.commands.push(Wake::RequestSource(src_id, sink_index, n_request));
+impl OuterWaker for DispatcherOuter<'_> {
+    fn execute(&mut self, task: NodeId) {
+        self.inner_commands.push(Wake::Execute(task));
+        todo!()
     }
 
-    fn data_ready(&mut self, id: NodeId, source_index: usize, n_ready: u64) {
-        self.commands.push(Wake::ReadySource(id, source_index, n_ready));
-    }
-
-    fn post_execute(&mut self, node: NodeId, is_done: bool) {
-        self.commands.push(Wake::Complete(node, is_done));
+    fn data_request(&mut self, src_id: NodeId, out_index: usize, n_request: u64) {
+        self.outer_commands.push(Wake::RequestSource(src_id, out_index, n_request));
     }
 }
 
-impl OuterWaker for Dispatcher {
-    fn execute(&mut self, task: NodeId) {
-        todo!()
+pub struct DispatcherInner<'a> {
+    outer_commands: &'a mut Vec<Wake>,
+    inner_commands: &'a mut Vec<Wake>,
+}
+
+impl<'a> DispatcherInner<'a> {
+    pub fn new(dispatcher: &'a mut Dispatcher) -> Self {
+        Self {
+            outer_commands: &mut dispatcher.outer_commands,
+            inner_commands: &mut dispatcher.inner_commands,
+        }
     }
 
-    fn data_request(&mut self, dst_id: NodeId, sink_index: usize, n_requested: u64) {
-        todo!()
+    pub fn execute(&mut self, node: NodeId) {
+        self.inner_commands.push(Wake::Execute(node));
+    }
+
+    pub fn apply(
+        &mut self, 
+        tasks: &mut SourcesInner, 
+    ) -> bool {
+        let mut is_update = false;
+
+        while let Some(command) = self.inner_commands.pop() {
+            is_update = true;
+
+            // println!("Command: {:?}", command);
+
+            match command {
+                Wake::Execute(id) => {
+                    tasks.execute(id, self);
+                },
+                _ => { todo!() }
+            }
+        }
+
+        is_update
+    }
+}
+
+impl InnerWaker for DispatcherInner<'_> {
+    fn data_request(&mut self, src_id: NodeId, sink_index: usize, n_request: u64) {
+        self.outer_commands.push(Wake::RequestSource(src_id, sink_index, n_request));
+    }
+
+    fn data_ready(&mut self, id: NodeId, source_index: usize, n_ready: u64) {
+        self.outer_commands.push(Wake::ReadySource(id, source_index, n_ready));
+    }
+
+    fn post_execute(&mut self, node: NodeId, is_done: bool) {
+        self.outer_commands.push(Wake::Complete(node, is_done));
     }
 }
