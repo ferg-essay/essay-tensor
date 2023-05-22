@@ -1,6 +1,6 @@
-use std::{marker::PhantomData};
+use std::{marker::PhantomData, sync::Arc};
 
-use crate::flow::dispatch::DispatcherInner;
+use crate::flow::dispatch::{DispatcherInner, FlowThreads};
 
 use super::{
     source::{Source, Sources, SourcesBuilder, NilTask, self, NodeId, SourceId, SourcesInner, SourcesOuter}, 
@@ -43,6 +43,74 @@ pub trait FlowTrait<I: FlowIn<I>, O: FlowIn<O>> : 'static {
 
     fn iter(&mut self, _input: I) -> FlowIter<I, O>;
 }
+
+//
+// FlowPool
+//
+
+pub struct FlowPool<I: FlowIn<I>, O: FlowIn<O>> {
+    pool: FlowThreads,
+    sources_inner: Arc<SourcesInner>,
+
+    input_ids: I::Nodes,
+
+    output_id: NodeId,
+    output: In<OutputData<O>>,
+}
+
+impl<I, O> FlowPool<I, O>
+where
+    I: FlowIn<I>,
+    O: FlowIn<O>
+{
+    fn new(
+        sources_outer: SourcesOuter,
+        sources_inner: SourcesInner,
+        input_ids: I::Nodes,
+        output: In<OutputData<O>>,
+        output_id: NodeId,
+    ) -> Flow<I, O> {
+        let sources_inner = Arc::new(sources_inner);
+
+        let pool = FlowThreads::new(output_id, sources_outer, sources_inner.clone());
+        
+        Flow::new(Self {
+            pool,
+            sources_inner,
+            input_ids,
+            output_id,
+            output
+        })
+    }
+}
+
+impl<I, O> FlowTrait<I, O> for FlowPool<I, O>
+where
+    I: FlowIn<I>,
+    O: FlowIn<O>
+{
+    fn call(&mut self, input: I) -> Option<O> {
+        self.sources_inner.init();
+
+        self.pool.init().unwrap();
+        /*
+        match self.output.next() {
+            Some(data) => Some(data.0),
+            None => None,
+        }
+        */
+
+        None
+    }
+
+    fn iter(&mut self, _input: I) -> FlowIter<I, O> {
+        todo!();
+    }
+}
+
+// 
+// FlowSingle
+//
 
 pub struct FlowSingle<I: FlowIn<I>, O: FlowIn<O>> {
     sources_outer: SourcesOuter,
@@ -202,14 +270,26 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
 
         let Sources(outer, inner) = self.tasks.build();
 
-        Flow::new(FlowSingle {
-            sources_outer: outer,
-            sources_inner: inner,
+        let is_pool = true;
 
-            input_ids: self.in_nodes,
-            output: In::new(source),
-            output_id: id.id(),
-        })
+        if is_pool {
+            FlowPool::<I, O>::new(
+                outer, 
+                inner, 
+                self.in_nodes, 
+                In::new(source), 
+                id.id(),
+            )
+        } else {
+            Flow::new(FlowSingle {
+                sources_outer: outer,
+                sources_inner: inner,
+
+                input_ids: self.in_nodes,
+                output: In::new(source),
+                output_id: id.id(),
+            })
+        }
     }
 }
 

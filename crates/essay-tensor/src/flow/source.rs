@@ -65,6 +65,13 @@ impl SourcesOuter {
         }
     }
 
+    pub(crate) fn is_data_ready(
+        &mut self, 
+        id: NodeId,
+    ) -> bool {
+        self.sources[id.index()].is_data_ready()
+    }
+
     pub(crate) fn data_request(
         &mut self, 
         id: NodeId,
@@ -104,6 +111,8 @@ pub trait SourceOuter : Send {
         n_request: u64,
         waker: &mut dyn OuterWaker,
     );
+
+    fn is_data_ready(&mut self) -> bool;
 
     fn data_ready(
         &mut self, 
@@ -189,6 +198,10 @@ where
         }
     }
 
+    fn is_data_ready(&mut self) -> bool {
+        self.input_meta.lock().unwrap().is_data_ready()
+    }
+
     fn data_ready(
         &mut self, 
         input_index: usize,
@@ -243,8 +256,8 @@ pub struct SourcesInner {
 }
 
 impl SourcesInner {
-    pub(crate) fn init(&mut self) {
-        for source in &mut self.sources {
+    pub(crate) fn init(&self) {
+        for source in &self.sources {
             source.lock().unwrap().init();
         }
     }
@@ -423,6 +436,16 @@ impl InMetas {
         is_ready
     }
 
+    fn is_data_ready(&self) -> bool {
+        for input in &self.0 {
+            if ! input.is_ready() {
+                return false;
+            }
+        }
+
+        true
+    }
+
     fn data_ready(&mut self, index: usize, n_ready: u64) {
         // TODO: cleanup this special case for tail task
         if self.0.len() > 0 {
@@ -460,6 +483,10 @@ impl InMeta {
         self.n_request = 0;
         self.n_ready = 0;
         self.n_read = 0;
+    }
+
+    fn is_ready(&self) -> bool {
+        self.n_request <= self.n_ready
     }
 
     fn data_request(&mut self, waker: &mut dyn OuterWaker) -> bool {

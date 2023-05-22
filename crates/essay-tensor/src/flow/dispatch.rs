@@ -24,6 +24,7 @@ pub trait OuterWaker {
 
 #[derive(Debug)]
 enum MainRequest {
+    Init(NodeId),
     Next(NodeId),
 }
 
@@ -39,13 +40,13 @@ impl Msg for MainReply {}
 type SourcePool = ThreadPool<(), MainRequest, MainReply, ChildRequest, ChildReply>;
 type SourcePoolBuilder = ThreadPoolBuilder<(), MainRequest, MainReply, ChildRequest, ChildReply>;
 
-pub struct FlowThreads {
+pub(crate) struct FlowThreads {
     output_id: NodeId,
     pool: SourcePool,
 }
 
 impl FlowThreads {
-    fn new(
+    pub(crate) fn new(
         output_id: NodeId,
         sources_outer: SourcesOuter,
         sources_inner: Arc<SourcesInner>,
@@ -64,6 +65,12 @@ impl FlowThreads {
     pub fn next(&mut self) -> Option<()> {
         self.pool.start(FlowMain::new(self.output_id)).unwrap()   
     }
+
+    pub fn init(&mut self) -> Option<()> {
+        let main = FlowMain::new(self.output_id);
+
+        self.pool.start(main).unwrap()
+    }
 }
 
 //
@@ -72,21 +79,26 @@ impl FlowThreads {
 
 pub(crate) struct FlowMain {
     out_id: NodeId,
+    is_init: bool,
 }
 
 impl FlowMain {
     fn new(out_id: NodeId) -> Self {
         Self {
-            out_id
+            out_id,
+            is_init: true,
         }
     }
 }
 
 impl Main<(), MainRequest, MainReply> for FlowMain {
     fn on_start(&mut self, to_parent: &mut dyn Sender<MainRequest>) -> Result<()> {
-        println!("OnStart");
-
-        to_parent.send(MainRequest::Next(self.out_id));
+        if self.is_init {
+            self.is_init = false;
+            to_parent.send(MainRequest::Init(self.out_id))?;
+        } else {
+            to_parent.send(MainRequest::Next(self.out_id))?;
+        }
 
         Ok(())
     }
@@ -94,11 +106,13 @@ impl Main<(), MainRequest, MainReply> for FlowMain {
     fn on_parent(
         &mut self, 
         msg: MainReply, 
-        to_parent: &mut dyn Sender<MainRequest>
+        _to_parent: &mut dyn Sender<MainRequest>
     ) -> Result<thread_pool::Out<()>> {
-        println!("OnParent {:?}", msg);
-
-        todo!()
+        match msg {
+            MainReply::Complete => {
+                Ok(thread_pool::Out::Some(()))
+            }
+        }
     }
 }
 
@@ -109,13 +123,28 @@ impl Main<(), MainRequest, MainReply> for FlowMain {
 pub(crate) struct FlowParent {
     sources: SourcesOuter,
     // waker: DispatcherOuter,
+
+    output: Option<NodeId>,
 }
 
 impl FlowParent {
     fn new(sources: SourcesOuter) -> Self {
         Self {
-            sources
+            sources,
+            output: Default::default(),
         }
+    }
+
+    fn take_complete(&mut self) -> bool {
+        if let Some(output_id) = self.output {
+            if self.sources.is_data_ready(output_id) {
+                self.output.take();
+
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -130,12 +159,27 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
         &mut self, 
         _main_id: MainId, 
         msg: MainRequest, 
-        _to_main: &mut dyn Sender<MainReply>, 
+        to_main: &mut dyn Sender<MainReply>, 
         to_child: &mut dyn Sender<ChildRequest>
     ) -> Result<()> {
+        let mut waker = ParentWaker::new(to_child);
+
         match msg {
+            MainRequest::Init(output_id) => {
+                self.sources.init();
+                self.sources.data_request(output_id, 0, 1, &mut waker);
+                self.output = Some(output_id);
+            }
             MainRequest::Next(output_id) => todo!(),
         }
+
+        waker.apply(&mut self.sources);
+
+        if self.take_complete() {
+            to_main.send(MainReply::Complete);
+        }
+
+        Ok(())
     }
 
     fn on_main_end(&mut self, id: super::thread_pool::MainId) {
@@ -161,13 +205,19 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
             }
         }
 
-        // waker.apply(&mut self.tasks);
+        waker.apply(&mut self.sources);
+
+        if self.take_complete() {
+            to_main.send(MainReply::Complete);
+        }
+
         Ok(())
     }
 }
 
 pub struct ParentWaker<'a> {
     to_child: &'a mut dyn Sender<ChildRequest>,
+    commands: Vec<Wake>,
 }
 
 impl<'a> ParentWaker<'a> {
@@ -175,14 +225,36 @@ impl<'a> ParentWaker<'a> {
         to_child: &'a mut dyn Sender<ChildRequest>,
     ) -> Self {
         Self {
-            to_child
+            to_child,
+            commands: Vec::new(),
         }
+    }
+
+    fn apply(&mut self, tasks: &mut SourcesOuter) -> bool {
+        let mut is_update = false;
+
+        while let Some(command) = self.commands.pop() {
+            is_update = true;
+
+            // println!("Command: {:?}", command);
+
+            match command {
+                Wake::RequestSource(src_id, out_index, n_request) => {
+                    tasks.data_request(src_id, out_index, n_request, self);
+                },
+                _ => { 
+                    todo!();
+                }
+            }
+        }
+
+        is_update
     }
 }
 
 impl OuterWaker for ParentWaker<'_> {
-    fn data_request(&mut self, dst_id: NodeId, out_index: usize, n_requested: u64) {
-        todo!()
+    fn data_request(&mut self, dst_id: NodeId, out_index: usize, n_request: u64) {
+        self.commands.push(Wake::RequestSource(dst_id, out_index, n_request));
     }
 
     fn execute(&mut self, task: NodeId) {

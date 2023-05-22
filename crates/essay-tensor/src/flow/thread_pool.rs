@@ -372,7 +372,7 @@ impl<MP: Msg, PC: Msg, CP: Msg> ChildThread<MP, PC, CP> {
                     thread::park();
                     continue;
                 }
-                Err(err) => panic!("unknown queue error {:?}", err)
+                Err(_err) => { return; } // Queue Closed panic!("unknown queue error {:?}", err)
             }
         }
     }
