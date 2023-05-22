@@ -4,20 +4,14 @@ use crate::flow::dispatch::DispatcherInner;
 
 use super::{
     source::{Source, Sources, SourcesBuilder, NilTask, self, NodeId, SourceId, SourcesInner, SourcesOuter}, 
-    data::{FlowIn, FlowData}, dispatch::{DispatcherOuter, Dispatcher}, pipe::{In, Out}, 
+    data::{FlowIn, FlowData}, dispatch::{DispatcherOuter, Dispatcher}, pipe::{In, Out}, thread_pool::ThreadPool, 
 };
 
 #[derive(Clone)]
 pub struct OutputData<T: Clone + Send + 'static>(T);
 
 pub struct Flow<I: FlowIn<I>, O: FlowIn<O>> {
-    tasks_outer: SourcesOuter,
-    tasks_inner: SourcesInner,
-
-    input: I::Nodes,
-
-    output_id: NodeId,
-    output: In<OutputData<O>>,
+    flow: Box<dyn FlowTrait<I, O>>,
 }
 
 impl<I, O> Flow<I, O>
@@ -29,35 +23,47 @@ where
         FlowBuilder::new()
     }
 
-    pub fn call(&mut self, input: I) -> Option<O> {
-        let mut iter = self.iter(input);
-
-        iter.next()
-    }
-
-    pub fn iter(&mut self, _input: I) -> FlowIter<I, O> {
-        // let mut data = self.new_data();
-
-        // In::write(&self.input, &mut data, input);
-
-        let dispatcher = self.init(); // &mut data);
-
-        FlowIter {
-            flow: self,
-            // data: data,
-            waker: dispatcher,
-            count: 0,
+    fn new(flow: impl FlowTrait<I, O>) -> Self {
+        Self {
+            flow: Box::new(flow)
         }
     }
 
-    pub fn next(&mut self, waker: &mut Dispatcher) -> Option<O> {
-        //let mut outer_waker = DispatcherOuter::new(waker);
-        //let mut inner_waker = DispatcherInner::new(waker);
+    pub fn call(&mut self, input: I) -> Option<O> {
+        self.flow.call(input)
+    }
 
+    pub fn iter(&mut self, input: I) -> FlowIter<I, O> {
+        self.flow.iter(input)
+    }
+}
+
+pub trait FlowTrait<I: FlowIn<I>, O: FlowIn<O>> : 'static {
+    fn call(&mut self, input: I) -> Option<O>;
+
+    fn iter(&mut self, _input: I) -> FlowIter<I, O>;
+}
+
+pub struct FlowSingle<I: FlowIn<I>, O: FlowIn<O>> {
+    sources_outer: SourcesOuter,
+    sources_inner: SourcesInner,
+
+    input_ids: I::Nodes,
+
+    output_id: NodeId,
+    output: In<OutputData<O>>,
+}
+
+impl<I, O> FlowSingle<I, O>
+where
+    I: FlowIn<I>,
+    O: FlowIn<O>
+{
+    pub fn next(&mut self, waker: &mut Dispatcher) -> Option<O> {
         self.output.fill(&mut waker.inner());
 
-        while waker.outer().apply(&mut self.tasks_outer) ||
-            waker.inner().apply(&mut self.tasks_inner) {
+        while waker.outer().apply(&mut self.sources_outer) ||
+            waker.inner().apply(&mut self.sources_inner) {
         }
 
         assert!(self.output.fill(&mut waker.inner()));
@@ -72,15 +78,42 @@ where
         let dispatcher = Dispatcher::new();
 
         self.output.init();
-        self.tasks_outer.init();
-        self.tasks_inner.init();
+        self.sources_outer.init();
+        self.sources_inner.init();
 
         dispatcher
     }
 }
 
+impl<I, O> FlowTrait<I, O> for FlowSingle<I, O>
+where
+    I: FlowIn<I>,
+    O: FlowIn<O>
+{
+    fn call(&mut self, input: I) -> Option<O> {
+        let mut iter = self.iter(input);
+
+        iter.next()
+    }
+
+    fn iter(&mut self, _input: I) -> FlowIter<I, O> {
+        // let mut data = self.new_data();
+
+        // In::write(&self.input, &mut data, input);
+
+        let dispatcher = self.init(); // &mut data);
+
+        FlowIter {
+            flow: self,
+            // data: data,
+            waker: dispatcher,
+            count: 0,
+        }
+    }
+}
+
 pub struct FlowIter<'a, I: FlowIn<I>, O: FlowIn<O>> {
-    flow: &'a mut Flow<I, O>,
+    flow: &'a mut FlowSingle<I, O>,
     waker: Dispatcher,
     count: usize,
 }
@@ -100,6 +133,10 @@ impl<T: Clone + Send + 'static> OutputData<T> {
 }
 
 impl<T: Clone + Send + 'static> FlowData for OutputData<T> {}
+
+//
+// Flow threading
+//
 
 //
 // Flow builder
@@ -165,14 +202,14 @@ impl<I: FlowIn<I>, O: FlowIn<O>> FlowBuilder<I, O> {
 
         let Sources(outer, inner) = self.tasks.build();
 
-        Flow {
-            tasks_outer: outer,
-            tasks_inner: inner,
+        Flow::new(FlowSingle {
+            sources_outer: outer,
+            sources_inner: inner,
 
-            input: self.in_nodes,
+            input_ids: self.in_nodes,
             output: In::new(source),
             output_id: id.id(),
-        }
+        })
     }
 }
 

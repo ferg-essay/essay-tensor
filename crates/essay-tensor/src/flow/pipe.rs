@@ -118,7 +118,7 @@ impl<T: Send + 'static> PipeIn<T> for ChannelIn<T> {
     }
 
     fn init(&mut self) {
-        self.value.take();
+        self.value.replace(Out::Pending);
 
         self.n_receive = 0;
 

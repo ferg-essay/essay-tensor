@@ -250,7 +250,7 @@ impl SourcesInner {
     }
 
     pub(crate) fn execute(
-        &mut self, 
+        &self, 
         id: NodeId,
         waker: &mut dyn InnerWaker,
     ) {

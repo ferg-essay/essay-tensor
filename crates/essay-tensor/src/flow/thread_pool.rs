@@ -104,6 +104,10 @@ pub struct ThreadPool<T, MP: Msg, PM: Msg, PC: Msg, CP: Msg> {
 }
 
 impl<T, MP: Msg, PM: Msg, PC: Msg, CP: Msg> ThreadPool<T, MP, PM, PC, CP> {
+    pub fn builder() -> ThreadPoolBuilder<T, MP, PM, PC, CP> {
+        ThreadPoolBuilder::new()
+    }
+
     pub fn start(&self, main: impl Main<T, MP, PM>) -> Result<Option<T>> {
         let mut main = main;
 

@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use super::{
     source::{NodeId, SourcesOuter, SourcesInner}, 
-    thread_pool::{Child, Result, Sender, Msg, Parent, MainId}};
+    thread_pool::{Child, Result, Sender, Msg, Parent, MainId, ThreadPool, ThreadPoolBuilder, Main, self}};
 
 pub trait InnerWaker {
     fn post_execute(&mut self, task: NodeId, id_done: bool);
@@ -34,23 +36,101 @@ enum MainReply {
 
 impl Msg for MainReply {}
 
+type SourcePool = ThreadPool<(), MainRequest, MainReply, ChildRequest, ChildReply>;
+type SourcePoolBuilder = ThreadPoolBuilder<(), MainRequest, MainReply, ChildRequest, ChildReply>;
+
+pub struct FlowThreads {
+    output_id: NodeId,
+    pool: SourcePool,
+}
+
+impl FlowThreads {
+    fn new(
+        output_id: NodeId,
+        sources_outer: SourcesOuter,
+        sources_inner: Arc<SourcesInner>,
+    ) -> Self {
+        let pool = SourcePool::builder()
+            .parent(FlowParent::new(sources_outer))
+            .child(move || { FlowChild::new(sources_inner.clone()) })
+            .build();
+
+        Self {
+            output_id,
+            pool,
+        }
+    }
+
+    pub fn next(&mut self) -> Option<()> {
+        self.pool.start(FlowMain::new(self.output_id)).unwrap()   
+    }
+}
+
+//
+// Main task
+// 
+
+pub(crate) struct FlowMain {
+    out_id: NodeId,
+}
+
+impl FlowMain {
+    fn new(out_id: NodeId) -> Self {
+        Self {
+            out_id
+        }
+    }
+}
+
+impl Main<(), MainRequest, MainReply> for FlowMain {
+    fn on_start(&mut self, to_parent: &mut dyn Sender<MainRequest>) -> Result<()> {
+        println!("OnStart");
+
+        to_parent.send(MainRequest::Next(self.out_id));
+
+        Ok(())
+    }
+
+    fn on_parent(
+        &mut self, 
+        msg: MainReply, 
+        to_parent: &mut dyn Sender<MainRequest>
+    ) -> Result<thread_pool::Out<()>> {
+        println!("OnParent {:?}", msg);
+
+        todo!()
+    }
+}
+
+//
+// Parent task
+// 
+
 pub(crate) struct FlowParent {
-    tasks: SourcesOuter,
+    sources: SourcesOuter,
     // waker: DispatcherOuter,
+}
+
+impl FlowParent {
+    fn new(sources: SourcesOuter) -> Self {
+        Self {
+            sources
+        }
+    }
 }
 
 impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
     fn on_start(&mut self) {
     }
 
-    fn on_main_start(&mut self, id: super::thread_pool::MainId) {
+    fn on_main_start(&mut self, _id: MainId) {
     }
 
     fn on_main(
         &mut self, 
         _main_id: MainId, 
         msg: MainRequest, 
-        to_main: &mut dyn Sender<MainReply>, 
+        _to_main: &mut dyn Sender<MainReply>, 
         to_child: &mut dyn Sender<ChildRequest>
     ) -> Result<()> {
         match msg {
@@ -71,13 +151,13 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
 
         match msg {
             ChildReply::PostExecute(node_id, is_done) => {
-                self.tasks.post_execute(node_id, is_done, &mut waker);
+                self.sources.post_execute(node_id, is_done, &mut waker);
             }
             ChildReply::DataRequest(src_id, sink_index, n_request) => {
-                self.tasks.data_request(src_id, sink_index, n_request, &mut waker);
+                self.sources.data_request(src_id, sink_index, n_request, &mut waker);
             }
             ChildReply::DataReady(dst_id, source_index, n_ready) => {
-                self.tasks.data_ready(dst_id, source_index, n_ready, &mut waker);
+                self.sources.data_ready(dst_id, source_index, n_ready, &mut waker);
             }
         }
 
@@ -111,7 +191,7 @@ impl OuterWaker for ParentWaker<'_> {
 }
 
 //
-// Child task manager
+// Child task
 //
 
 #[derive(Debug)]
@@ -131,7 +211,15 @@ enum ChildReply {
 impl Msg for ChildReply {}
 
 pub(crate) struct FlowChild {
-    tasks: SourcesInner,
+    sources: Arc<SourcesInner>,
+}
+
+impl FlowChild {
+    fn new(sources: Arc<SourcesInner>) -> Box<dyn Child<ChildRequest, ChildReply> + Send> {
+        Box::new(Self {
+            sources
+        })
+    }
 }
 
 impl Child<ChildRequest, ChildReply> for FlowChild {
@@ -146,7 +234,7 @@ impl Child<ChildRequest, ChildReply> for FlowChild {
         match msg {
             ChildRequest::Execute(node_id) => {
                 let mut waker = ChildWaker::new(to_parent);
-                self.tasks.execute(node_id, &mut waker);
+                self.sources.execute(node_id, &mut waker);
                 Ok(())
             }
         }
@@ -263,7 +351,6 @@ impl<'a> DispatcherOuter<'a> {
 impl OuterWaker for DispatcherOuter<'_> {
     fn execute(&mut self, task: NodeId) {
         self.inner_commands.push(Wake::Execute(task));
-        todo!()
     }
 
     fn data_request(&mut self, src_id: NodeId, out_index: usize, n_request: u64) {
