@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{TensorUninit, Shape}, eval::{IntoForward}};
+use crate::{Tensor, tensor::{TensorUninit, Shape}, function::{IntoForward}};
 
 use crate::tensor::{Dtype};
 

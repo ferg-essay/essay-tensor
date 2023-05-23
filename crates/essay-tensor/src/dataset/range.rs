@@ -22,7 +22,7 @@ pub fn range<R>(range: R, step: Option<usize>) -> Dataset<Tensor<f32>>
     let step = match step { Some(step) => step, None => 1 };
 
     Dataset::from_flow(|builder| {
-        builder.source(|| {
+        builder.source(move || {
             Range {
                 index: start,
                 stop,

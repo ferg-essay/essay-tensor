@@ -1,6 +1,6 @@
 use std::{any::type_name};
 
-use crate::{eval::{Graph, Operation, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
+use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
     tensor::{Dtype, TensorId, TensorUninit, NodeId}
 };
 

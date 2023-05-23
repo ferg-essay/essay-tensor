@@ -74,7 +74,7 @@ impl<T> Source<T> for Middle<T> {
 mod test {
     use futures::executor;
 
-    use crate::data::tasks::{Count, Middle, Source};
+    use crate::dataset::tasks::{Count, Middle, Source};
 
     #[test]
     fn test() {

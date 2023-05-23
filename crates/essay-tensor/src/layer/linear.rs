@@ -1,4 +1,4 @@
-use crate::eval::Var;
+use crate::function::Var;
 
 pub struct _Linear {
     var_a : Var,

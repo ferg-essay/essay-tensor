@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{NodeId, TensorId}, eval::TensorCache};
+use crate::{Tensor, tensor::{NodeId, TensorId}, function::TensorCache};
 
 pub trait Bundle : Clone {
     type Item;

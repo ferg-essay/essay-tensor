@@ -265,6 +265,15 @@ impl<T> Default for Out<T> {
     }
 }
 
+impl<T> From<Option<T>> for Out<T> {
+    fn from(value: Option<T>) -> Self {
+        match value {
+            Some(value) => Out::Some(value),
+            None => Out::None,
+        }
+    }
+}
+
 impl<T> fmt::Debug for ChannelOut<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ChannelOut({:?}, {:?})", &self._src, &self._dst)

@@ -8,47 +8,23 @@ use std::{
     marker::PhantomData
 };
 
-pub(crate) struct TensorData {
-    type_id: TypeId,
+pub(crate) struct TensorData<T> {
+    // type_id: TypeId,
     len: usize,
     // item_size: usize,
 
-    data: NonNull<u8>,
+    data: NonNull<T>,
 
-    drop: Option<Box<dyn Fn(&NonNull<u8>)>>,
+    // drop: Option<Box<dyn Fn(&NonNull<u8>)>>,
 }
 
-pub struct TensorUninit<T=f32> {
-    type_id: TypeId,
-    len: usize,
-    // item_size: usize,
-
-    data: NonNull<u8>,
-    marker: PhantomData<T>,
-}
-
-impl TensorData {
-    pub(crate) fn from_slice<T:Clone + 'static>(value: &[T]) -> Self {
-        let layout = Layout::array::<T>(value.len()).unwrap();
-
-        unsafe {
-            let data = NonNull::<u8>::new_unchecked(alloc::alloc(layout));
-
-            let ptr = data.cast::<T>().as_ptr();
-            for i in 0..value.len() {
-                ptr::write(ptr.add(i), value[i].clone())
-            }
-
-            Self::new_with_drop::<T>(data, value.len())            
-        }
-    }
-
-    pub fn from_vec<T:'static>(mut vec: Vec<T>) -> Self {
+impl<T> TensorData<T> {
+    pub fn from_vec(mut vec: Vec<T>) -> Self {
         let len = vec.len();
         let layout = Layout::array::<T>(len).unwrap();
 
         unsafe {
-            let data = NonNull::<u8>::new_unchecked(alloc::alloc(layout));
+            let data = NonNull::<T>::new_unchecked(alloc::alloc(layout).cast::<T>());
 
             let ptr = data.cast::<T>().as_ptr();
             let mut i = 0;
@@ -57,11 +33,22 @@ impl TensorData {
                 i += 1;
             }
 
-            Self::new_with_drop::<T>(data, len)
+            // Self::new_with_drop::<T>(data, len)
+            Self::new(data, len)
         }
     }
 
-    fn new_with_drop<T: 'static>(data: NonNull<u8>, len: usize) -> Self {
+    fn new(data: NonNull<T>, len: usize) -> Self {
+        Self {
+            // type_id: TypeId::of::<T>(),
+            len,
+
+            data,
+        }
+    }
+
+    /*
+    fn new_with_drop(data: NonNull<u8>, len: usize) -> Self {
         Self {
             type_id: TypeId::of::<T>(),
             len,
@@ -71,59 +58,61 @@ impl TensorData {
         }
     }
 
-    fn box_drop<T>() -> Option<Box<dyn Fn(&NonNull<u8>)>> {
+    fn box_drop() -> Option<Box<dyn Fn(&NonNull<u8>)>> {
         Some(Box::new(|data: &NonNull<u8>| {
             unsafe {
                 ptr::drop_in_place(data.cast::<T>().as_ptr())
             }
         }))
     }
+    */
 
     #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
 
-    pub fn checkcast<T: 'static>(&self, len: usize) {
-        assert_eq!(self.type_id, TypeId::of::<T>());
+    pub fn checkcast(&self, len: usize) {
+        // assert_eq!(self.type_id, TypeId::of::<T>());
         assert_eq!(self.len, len);
     }
 
     #[inline(always)]
-    pub unsafe fn as_ptr<T>(&self) -> *const T {
-        self.data.cast::<T>().as_ptr()
+    pub unsafe fn as_ptr(&self) -> *const T {
+        //self.data.cast::<T>().as_ptr()
+        self.data.as_ptr()
     }
 
     // Returns a possibly-wrapped pointer at the offset to support
     // broadcast
     #[inline]
-    pub unsafe fn as_wrap_ptr<T>(&self, offset: usize) -> *const T {
+    pub unsafe fn as_wrap_ptr(&self, offset: usize) -> *const T {
         if offset < self.len {
-            self.as_ptr::<T>().add(offset)
+            self.as_ptr().add(offset)
         } else {
-            self.as_ptr::<T>().add(offset % self.len)
+            self.as_ptr().add(offset % self.len)
         }
     }
 
     #[inline]
-    pub unsafe fn as_slice<T>(&self) -> &[T] {
+    pub unsafe fn as_slice(&self) -> &[T] {
         ptr::slice_from_raw_parts(self.as_ptr(), self.len())
             .as_ref()
             .unwrap()
     }
 
     #[inline]
-    pub unsafe fn as_sub_slice<T>(&self, offset: usize, len: usize) -> &[T] {
+    pub unsafe fn as_sub_slice(&self, offset: usize, len: usize) -> &[T] {
         assert!(offset <= self.len());
         assert!(offset + len <= self.len());
 
-        ptr::slice_from_raw_parts(self.as_ptr::<T>().add(offset), len)
+        ptr::slice_from_raw_parts(self.as_ptr().add(offset), len)
             .as_ref()
             .unwrap()
     }
 
     #[inline]
-    pub unsafe fn as_wrap_slice<T>(&self, range: impl RangeBounds<usize>) -> &[T] {
+    pub unsafe fn as_wrap_slice(&self, range: impl RangeBounds<usize>) -> &[T] {
         use ops::Bound::*;
     
         match (range.start_bound(), range.end_bound()) {
@@ -154,23 +143,41 @@ impl TensorData {
     }
 
     #[inline]
-    pub unsafe fn get<T>(&self, offset: usize) -> Option<&T> {
+    pub unsafe fn get(&self, offset: usize) -> Option<&T> {
         if offset < self.len {
-            self.as_ptr::<T>().add(offset).as_ref()
+            self.as_ptr().add(offset).as_ref()
         } else {
             None
         }
     }
 }
 
-impl TensorData {
+impl<T:Clone> TensorData<T> {
+    pub(crate) fn from_slice(value: &[T]) -> Self {
+        let layout = Layout::array::<T>(value.len()).unwrap();
+
+        unsafe {
+            let data = NonNull::<T>::new_unchecked(alloc::alloc(layout).cast::<T>());
+
+            let ptr = data.as_ptr();
+            for i in 0..value.len() {
+                ptr::write(ptr.add(i), value[i].clone())
+            }
+
+            Self::new(data, value.len())            
+        }
+    }
+
+}
+
+impl<T:Copy> TensorData<T> {
     #[inline]
-    pub unsafe fn get_unchecked<T:Copy>(&self, offset: usize) -> T {
-        *self.as_ptr::<T>().add(offset)
+    pub unsafe fn get_unchecked(&self, offset: usize) -> T {
+        *self.as_ptr().add(offset)
     }
 
     #[inline]
-    pub unsafe fn get_wrap<T:Copy>(&self, offset: usize) -> Option<T> {
+    pub unsafe fn get_wrap(&self, offset: usize) -> Option<T> {
         if offset < self.len {
             Some(self.get_unchecked(offset))
         } else {
@@ -179,7 +186,7 @@ impl TensorData {
     }
 
     #[inline]
-    pub unsafe fn read_wrap<T:Copy>(&self, offset: usize) -> T {
+    pub unsafe fn read_wrap(&self, offset: usize) -> T {
         if offset < self.len {
             self.get_unchecked(offset)
         } else {
@@ -187,13 +194,26 @@ impl TensorData {
         }
     }
 }
-
-impl Drop for TensorData {
+/*
+impl<T: Drop> Drop for TensorData<T> {
     fn drop(&mut self) {
         if let Some(drop) = &self.drop {
             (drop)(&self.data)
         }
     }
+}
+*/
+
+// unsafe: TensorData is read-only
+unsafe impl<T: Send> Send for TensorData<T> {}
+unsafe impl<T: Sync> Sync for TensorData<T> {}
+
+pub struct TensorUninit<T=f32> {
+    type_id: TypeId,
+    len: usize,
+    // item_size: usize,
+
+    data: NonNull<T>,
 }
 
 impl<T:'static + Copy> TensorUninit<T> {
@@ -204,12 +224,13 @@ impl<T:'static + Copy> TensorUninit<T> {
             type_id: TypeId::of::<T>(),
             len,
 
-            data: NonNull::<u8>::new_unchecked(alloc::alloc(layout)),
-            marker: PhantomData,
+            data: NonNull::<T>::new_unchecked(alloc::alloc(layout).cast::<T>()),
         }
     }
 
-    pub(crate) unsafe fn init(self) -> TensorData {
+    pub(crate) unsafe fn init(self) -> TensorData<T> {
+        TensorData::new(self.data, self.len)
+        /*
         TensorData {
             type_id: self.type_id,
             len: self.len,
@@ -218,6 +239,7 @@ impl<T:'static + Copy> TensorUninit<T> {
 
             drop: None,
         }
+        */
     }
 }
 

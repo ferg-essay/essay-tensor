@@ -3,10 +3,10 @@ mod pipe;
 mod flow;
 mod data;
 mod dispatch;
-pub mod source;
+mod source;
 
 pub use data::{
-    FlowData,
+    FlowIn, FlowData,
 };
 
 pub use pipe::{
@@ -14,7 +14,7 @@ pub use pipe::{
 };
 
 pub use source::{
-    Source, Result,
+    SourceId, Source, SourceFactory, Result,
 };
 
 pub use flow::{

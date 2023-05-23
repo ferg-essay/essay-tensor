@@ -6,6 +6,6 @@ mod dataset;
 
 pub use range::range;
 pub use dataset::{
-    Dataset,
+    Dataset, IntoFlowBuilder,
     from_tensors,
 };
