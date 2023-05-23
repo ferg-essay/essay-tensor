@@ -5,56 +5,52 @@
 
 use std::marker::PhantomData;
 
-use crate::{Tensor};
+use crate::{flow::{self, SourceFactory, Out, Source, In, FlowData, SourceId}};
 
-use super::Dataset;
+use super::{Dataset, IntoFlowBuilder, dataset::IntoFlow};
 
-#[derive(Clone)]
-pub struct Take<T:Clone, D:Dataset<T>> {
-    source: D,
-    count: usize,
+pub struct Take<T: FlowData> {
+    count: usize, 
     marker: PhantomData<T>,
 }
 
-impl<T:Clone, D:Dataset<T>> Take<T, D> {
-    pub(crate) fn new(source: D, count: usize) -> Self {
-        Self {
-            source,
+impl<T: FlowData> Take<T> {
+    pub(crate) fn build(
+        builder: &mut IntoFlowBuilder,
+        input: SourceId<T>,
+        count: usize
+    ) -> SourceId<T> {
+        let source = Take {
             count,
-            marker: Default::default()
-        }
+            marker: Default::default(),
+        };
+
+        builder.source(source, &input)
     }
 }
 
-impl<T:Clone, D:Dataset<T>> Dataset<T> for Take<T, D> {
-    type IntoIter = TakeIter<T, D>;
+impl<T: FlowData> SourceFactory<T, T> for Take<T> {
+    type Source = Take<T>;
 
-    fn iter(&self) -> Self::IntoIter {
-        TakeIter {
-            source: self.source.iter(),
+    fn new(&mut self) -> Self::Source {
+        Take {
             count: self.count,
+            marker: Default::default(),
         }
     }
-
-    fn get_single_element(&self) -> Tensor<T> {
-        self.source.get_single_element()
-    }
 }
 
-pub struct TakeIter<T:Clone, D:Dataset<T>> {
-    source: D::IntoIter,
-    count: usize,
-}
-
-impl<T:Clone, D:Dataset<T>> Iterator for TakeIter<T, D> {
-    type Item = Tensor<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl<T> Source<T, T> for Take<T> 
+where
+    T: FlowData,
+{
+    fn next(&mut self, input: &mut In<T>) -> flow::Result<Out<T>> {
         if self.count > 0 {
             self.count -= 1;
-            self.source.next()
+
+            Ok(Out::from(input.next()))
         } else {
-            None
+            Ok(Out::None)
         }
     }
 }

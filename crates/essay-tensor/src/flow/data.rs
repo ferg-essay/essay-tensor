@@ -4,7 +4,7 @@ use super::{
     pipe::{Out, In}
 };
 
-pub trait FlowData : Send + Clone + 'static {}
+pub trait FlowData : Send + Sync + Clone + 'static {}
 
 pub trait FlowIn<T: Send> : Send + Clone + 'static {
     type Nodes : Clone;

@@ -1,18 +1,11 @@
 use std::{ops::{RangeBounds, Bound}};
 
-use crate::{Tensor, tensor, flow::{source::Source, In, self, Out}};
+use crate::{Tensor, tensor, flow::{Source, self, Out, SourceFactory}};
 
-use super::dataset::Dataset;
+use super::{dataset::{Dataset, IntoFlow}, IntoFlowBuilder};
 
-#[derive(Clone)]
-pub struct Range {
-    start: usize,
-    stop: usize,
-    step: usize,
-}
-
-pub fn range<R>(range: R, step: Option<usize>) -> Range
-where R: RangeBounds<usize>,
+pub fn range<R>(range: R, step: Option<usize>) -> Dataset<Tensor<f32>>
+    where R: RangeBounds<usize>,
 {
     let start = match range.start_bound() {
         Bound::Included(value) => *value,
@@ -26,60 +19,41 @@ where R: RangeBounds<usize>,
         Bound::Unbounded => usize::MAX,
     };
 
-    Range {
-        start,
-        stop,
-        step: match step { Some(step) => step, None => 1 },
-    }
+    let step = match step { Some(step) => step, None => 1 };
+
+    Dataset::from_flow(|builder| {
+        builder.source(move || {
+            Range {
+                index: start,
+                stop,
+                step,
+            }
+        }, &())
+    })
 }
 
-impl Dataset<f32> for Range {
-    type IntoIter=RangeIter;
+//
+// Range - source
+//
 
-    fn iter(&self) -> Self::IntoIter {
-        RangeIter {
-            index: self.start,
-            stop: self.stop,
-            step: self.step,
-        }
-    }
-
-    fn get_single_element(&self) -> Tensor<f32> {
-        Tensor::from(self.start as f32)
-    }
-}
-
-pub struct RangeIter {
+pub struct Range {
     index: usize,
     stop: usize,
     step: usize,
 }
 
-impl Iterator for RangeIter {
-    type Item=Tensor<f32>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl Source<(), Tensor<f32>> for Range {
+    fn next(&mut self, _input: &mut ()) -> flow::Result<Out<Tensor<f32>>> {
         if self.index < self.stop {
             let value = self.index;
+
             self.index += self.step;
-            Some(tensor!(value as f32))
+
+            Ok(Out::Some(tensor!(value as f32)))
         } else {
-            None
+            Ok(Out::None)
         }
     }
-}
-
-pub struct RangeSource {
-    index: usize,
-    stop: usize,
-    step: usize,
-}
-
-impl Source<(), Tensor<f32>> for RangeSource {
-    fn next(&mut self, input: &mut ()) -> flow::Result<Out<Tensor<f32>>> {
-        todo!()
-    }
-
 }
 
 

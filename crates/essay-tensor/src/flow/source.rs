@@ -4,7 +4,7 @@ use std::{sync::{Mutex, Arc}, marker::PhantomData, cmp, any::Any, mem};
 use super::{
     data::{FlowIn},
     dispatch::{InnerWaker, OuterWaker},
-    pipe::{Out, PipeOut, PipeIn, pipe}, 
+    pipe::{Out, PipeOut, PipeIn, pipe}, FlowData, 
 };
 
 pub trait Source<I, O> : Send + 'static
@@ -15,6 +15,30 @@ where
     fn init(&mut self) {}
     
     fn next(&mut self, input: &mut I::Input) -> Result<Out<O>>;
+}
+
+pub trait SourceFactory<I, O> : Send + 'static
+where
+    I: FlowIn<I> + 'static,
+    O: 'static,
+{
+    type Source : Source<I, O>;
+
+    fn new(&mut self) -> Self::Source;
+}
+
+impl<I, O, F: Fn() -> S, S> SourceFactory<I, O> for F
+where
+    I: FlowIn<I> + 'static,
+    O: FlowData,
+    F: Send + 'static,
+    S: Source<I, O>
+{
+    type Source = S;
+
+    fn new(&mut self) -> Self::Source {
+        self()
+    }
 }
 
 #[derive(Copy, PartialEq)]
