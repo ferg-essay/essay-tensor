@@ -38,7 +38,8 @@ where
 pub trait FlowTrait<I: FlowIn<I>, O: FlowIn<O>> : 'static {
     fn call(&mut self, input: I) -> Option<O>;
 
-    fn iter(&mut self, _input: I) -> FlowIter<I, O>;
+    fn iter(&mut self, _input: I) -> FlowIter<I, O>; // FlowIter<I, O>;
+    fn next(&mut self) -> Option<O>;
 }
 
 //
@@ -90,6 +91,16 @@ where
         self.sources_inner.init();
 
         self.pool.init().unwrap();
+        self.pool.next().unwrap();
+
+        match self.output.take() {
+            Some(data) => Some(data),
+            None => None,
+        }
+    }
+
+    fn next(&mut self) -> Option<O> {
+        self.pool.next().unwrap();
 
         match self.output.take() {
             Some(data) => Some(data),
@@ -98,7 +109,13 @@ where
     }
 
     fn iter(&mut self, _input: I) -> FlowIter<I, O> {
-        todo!();
+        self.output.take();
+
+        self.sources_inner.init();
+
+        self.pool.init().unwrap();
+
+        FlowIter::new(self)
     }
 }
 
@@ -174,19 +191,33 @@ where
             _count: 0,
         }
     }
+
+    fn next(&mut self) -> Option<O> {
+        None
+    }
 }
 
 pub struct FlowIter<'a, I: FlowIn<I>, O: FlowIn<O>> {
-    flow: &'a mut FlowSingle<I, O>,
+    flow: &'a mut dyn FlowTrait<I, O>,
     waker: Dispatcher,
     _count: usize,
+}
+
+impl<'a, I: FlowIn<I>, O: FlowIn<O>> FlowIter<'a, I, O> {
+    fn new(flow: &'a mut dyn FlowTrait<I, O>) -> Self {
+        Self {
+            flow,
+            waker: Dispatcher::new(),
+            _count: 0,
+        }
+    }
 }
 
 impl<I: FlowIn<I>, O: FlowIn<O>> Iterator for FlowIter<'_, I, O> {
     type Item = O;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.flow.next(&mut self.waker)
+        self.flow.next() // &mut self.waker)
     }
 }
 

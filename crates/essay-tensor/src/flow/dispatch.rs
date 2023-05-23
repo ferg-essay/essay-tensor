@@ -32,7 +32,8 @@ impl Msg for MainRequest {}
 
 #[derive(Debug)]
 enum MainReply {
-    Complete,
+    InitComplete,
+    NextComplete,
 }
 
 impl Msg for MainReply {}
@@ -62,11 +63,11 @@ impl FlowThreads {
     }
 
     pub fn next(&mut self) -> Option<()> {
-        self.pool.start(FlowMain::new(self.tail_id)).unwrap()   
+        self.pool.start(FlowMain::new(self.tail_id, true)).unwrap()   
     }
 
     pub fn init(&mut self) -> Option<()> {
-        let main = FlowMain::new(self.tail_id);
+        let main = FlowMain::new(self.tail_id, false);
 
         self.pool.start(main).unwrap()
     }
@@ -82,18 +83,18 @@ pub(crate) struct FlowMain {
 }
 
 impl FlowMain {
-    fn new(tail_id: NodeId) -> Self {
+    fn new(tail_id: NodeId, is_init: bool) -> Self {
         Self {
             tail_id,
-            is_init: true,
+            is_init,
         }
     }
 }
 
 impl Main<(), MainRequest, MainReply> for FlowMain {
     fn on_start(&mut self, to_parent: &mut dyn Sender<MainRequest>) -> Result<()> {
-        if self.is_init {
-            self.is_init = false;
+        if ! self.is_init {
+            self.is_init = true;
             to_parent.send(MainRequest::Init(self.tail_id))?;
         } else {
             to_parent.send(MainRequest::Next(self.tail_id))?;
@@ -108,7 +109,10 @@ impl Main<(), MainRequest, MainReply> for FlowMain {
         _to_parent: &mut dyn Sender<MainRequest>
     ) -> Result<thread_pool::Out<()>> {
         match msg {
-            MainReply::Complete => {
+            MainReply::InitComplete => {
+                Ok(thread_pool::Out::Some(()))
+            }
+            MainReply::NextComplete => {
                 Ok(thread_pool::Out::Some(()))
             }
         }
@@ -163,19 +167,21 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
         let mut waker = ParentWaker::new(to_child);
 
         match msg {
-            MainRequest::Init(tail_id) => {
+            MainRequest::Init(_tail_id) => {
                 self.sources.init();
-
+                to_main.send(MainReply::InitComplete)?;
+                self.tail = None;
+            }
+            MainRequest::Next(tail_id) => {
                 self.sources.wake(tail_id, &mut waker); // , 1, &mut waker);
                 self.tail = Some(tail_id);
             }
-            MainRequest::Next(_tail_id) => todo!(),
         }
 
         waker.apply(&mut self.sources);
 
         if self.take_complete() {
-            to_main.send(MainReply::Complete)?;
+            to_main.send(MainReply::NextComplete)?;
         }
 
         Ok(())
@@ -207,7 +213,7 @@ impl Parent<MainRequest, MainReply, ChildRequest, ChildReply> for FlowParent {
         waker.apply(&mut self.sources);
 
         if self.take_complete() {
-            to_main.send(MainReply::Complete)?;
+            to_main.send(MainReply::NextComplete)?;
         }
 
         Ok(())
