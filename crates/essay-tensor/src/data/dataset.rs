@@ -1,4 +1,4 @@
-use crate::{Tensor};
+use crate::{Tensor, flow::FlowData};
 
 use super::{take::Take};
 
@@ -112,6 +112,8 @@ impl<T:Clone> Iterator for TensorIter<T> {
         self.tensor.pop()
     }
 }
+
+// impl<T: Clone + Sync> FlowData for Tensor<T> {}
 
 #[cfg(test)]
 mod test {

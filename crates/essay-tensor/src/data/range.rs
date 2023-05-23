@@ -1,17 +1,17 @@
 use std::{ops::{RangeBounds, Bound}};
 
-use crate::{Tensor, tensor};
+use crate::{Tensor, tensor, flow::{source::Source, In, self, Out}};
 
 use super::dataset::Dataset;
 
 #[derive(Clone)]
-pub struct DatasetRange {
+pub struct Range {
     start: usize,
     stop: usize,
     step: usize,
 }
 
-pub fn range<R>(range: R, step: Option<usize>) -> DatasetRange
+pub fn range<R>(range: R, step: Option<usize>) -> Range
 where R: RangeBounds<usize>,
 {
     let start = match range.start_bound() {
@@ -26,14 +26,14 @@ where R: RangeBounds<usize>,
         Bound::Unbounded => usize::MAX,
     };
 
-    DatasetRange {
+    Range {
         start,
         stop,
         step: match step { Some(step) => step, None => 1 },
     }
 }
 
-impl Dataset<f32> for DatasetRange {
+impl Dataset<f32> for Range {
     type IntoIter=RangeIter;
 
     fn iter(&self) -> Self::IntoIter {
@@ -67,6 +67,19 @@ impl Iterator for RangeIter {
             None
         }
     }
+}
+
+pub struct RangeSource {
+    index: usize,
+    stop: usize,
+    step: usize,
+}
+
+impl Source<(), Tensor<f32>> for RangeSource {
+    fn next(&mut self, input: &mut ()) -> flow::Result<Out<Tensor<f32>>> {
+        todo!()
+    }
+
 }
 
 
