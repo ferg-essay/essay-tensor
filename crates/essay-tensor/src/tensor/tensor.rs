@@ -13,11 +13,9 @@ pub struct Tensor<T=f32> {
     offset: usize,
     len: usize,
 
-    data: Arc<TensorData>,
+    data: Arc<TensorData<T>>,
 
     node_id: NodeId,
-
-    marker: PhantomData<T>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -30,14 +28,6 @@ pub enum NodeId {
     None,
     Var(String),
     Id(TensorId),
-}
-
-pub struct RawTensor {
-    shape: Shape,
-    offset: usize,
-    len: usize,
-
-    data: Arc<TensorData>,
 }
 
 impl<T: 'static> Tensor<T> {
@@ -53,14 +43,15 @@ impl<T: 'static> Tensor<T> {
     }
 
     pub(crate) unsafe fn from_data(
-        data: TensorData, 
+        data: TensorData<T>, 
         shape: impl Into<Shape>, 
         node: NodeId
     ) -> Self {
         let shape = shape.into();
         let len: usize = shape.size();
         
-        data.checkcast::<T>(len);
+        assert_eq!(len, data.len());
+        // data.checkcast::<T>(len);
 
         Self {
             shape,
@@ -70,7 +61,6 @@ impl<T: 'static> Tensor<T> {
             data: Arc::new(data),
 
             node_id: node,
-            marker: PhantomData,
         }
     }
 }
@@ -87,7 +77,6 @@ impl<T: Clone + 'static> Tensor<T> {
             data: Arc::new(TensorData::from_slice(data)),
 
             node_id: NodeId::None,
-            marker: PhantomData,
         }
     }
 }
@@ -104,7 +93,8 @@ impl<T: Copy + 'static> Tensor<T> {
     ) -> Self {
         let shape = shape.into();
         let len: usize = max(1, shape.size());
-        
+
+        assert_eq!(len, data.len());        
         //data.checkcast::<T>(len);
 
         Self {
@@ -115,7 +105,6 @@ impl<T: Copy + 'static> Tensor<T> {
             data: Arc::new(unsafe { data.init() }),
 
             node_id: node,
-            marker: PhantomData,
         }
     }
 }
@@ -222,7 +211,7 @@ impl<T> Tensor<T> {
 
     #[inline]
     pub fn get(&self, offset: usize) -> Option<&T> {
-        unsafe { self.data.get::<T>(offset) }
+        unsafe { self.data.get(offset) }
     }
 
     #[inline]
@@ -245,7 +234,7 @@ impl<T> Tensor<T> {
 
     #[inline]
     pub unsafe fn as_ptr(&self) -> *const T {
-        self.data.as_ptr::<T>().add(self.offset)
+        self.data.as_ptr().add(self.offset)
     }
 
     // Returns a possibly-wrapped pointer at the offset to support
@@ -253,9 +242,9 @@ impl<T> Tensor<T> {
     #[inline]
     pub unsafe fn as_wrap_ptr(&self, offset: usize) -> *const T {
         if offset < self.len {
-            self.data.as_ptr::<T>().add(offset)
+            self.data.as_ptr().add(offset)
         } else {
-            self.data.as_ptr::<T>().add(offset % self.len)
+            self.data.as_ptr().add(offset % self.len)
         }
     }
 
@@ -272,7 +261,6 @@ impl<T> Tensor<T> {
             len,
             data: self.data.clone(),
             node_id: NodeId::None,
-            marker: PhantomData,
         }
     }
 }
@@ -291,7 +279,7 @@ impl<T> Deref for Tensor<T> {
     }
 }
 
-impl<T:Clone> Clone for Tensor<T> {
+impl<T> Clone for Tensor<T> {
     fn clone(&self) -> Self {
         Self { 
             shape: self.shape.clone(), 
@@ -301,7 +289,6 @@ impl<T:Clone> Clone for Tensor<T> {
             data: self.data.clone(),
 
             node_id: self.node_id.clone(),
-            marker: self.marker.clone(),
         }
     }
 }
@@ -550,7 +537,7 @@ impl<T:Dtype + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<T
         Tensor::from(&vec)
     }
 }
-
+/*
 impl<T: 'static> From<&RawTensor> for Tensor<T> {
     fn from(raw: &RawTensor) -> Self {
         raw.data.checkcast::<T>(raw.len);
@@ -579,6 +566,7 @@ impl<T: 'static> From<&Tensor<T>> for RawTensor {
         }
     }
 }
+*/
 
 impl Shape {
     pub fn scalar() -> Self {

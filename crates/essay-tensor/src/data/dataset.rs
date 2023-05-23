@@ -113,7 +113,7 @@ impl<T:Clone> Iterator for TensorIter<T> {
     }
 }
 
-// impl<T: Clone + Sync> FlowData for Tensor<T> {}
+impl<T: Send + Sync + 'static> FlowData for Tensor<T> {}
 
 #[cfg(test)]
 mod test {

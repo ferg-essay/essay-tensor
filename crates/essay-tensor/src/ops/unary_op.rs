@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{eval::{IntoForward, NodeOp, Tape, Operation, Graph, graph::BackOp}, Tensor, 
+use crate::{function::{IntoForward, NodeOp, Tape, Operation, Graph, graph::BackOp}, Tensor, 
     tensor::{Dtype, TensorUninit, TensorId, NodeId}
 };
 

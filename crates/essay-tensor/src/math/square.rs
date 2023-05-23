@@ -17,7 +17,7 @@ impl UnaryKernel<f32> for SquareOp {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, eval::{Var, Trainer}};
+    use crate::{prelude::*, function::{Var, Trainer}};
 
     #[test]
     fn square() {

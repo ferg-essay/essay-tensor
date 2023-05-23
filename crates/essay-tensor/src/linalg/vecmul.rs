@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorUninit, eval::{EvalOp}, prelude::Shape};
+use crate::{Tensor, tensor::TensorUninit, function::{EvalOp}, prelude::Shape};
 
 
 #[derive(Debug, Clone)]

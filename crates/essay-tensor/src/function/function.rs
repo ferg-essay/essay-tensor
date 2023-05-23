@@ -51,10 +51,10 @@ where
 mod test {
     use log::LevelFilter;
 
-    use crate::eval::{Tape};
+    use crate::function::{Tape};
 
     use crate::{
-        eval::{function::Function, Var},
+        function::{function::Function, Var},
         tensor::{TensorId},
         tensor,
         Tensor,

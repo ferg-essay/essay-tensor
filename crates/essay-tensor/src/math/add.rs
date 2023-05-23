@@ -25,7 +25,7 @@ impl BinaryKernel for Add {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, eval::{Var, Trainer}};
+    use crate::{prelude::*, function::{Var, Trainer}};
 
     #[test]
     fn test_add() {
