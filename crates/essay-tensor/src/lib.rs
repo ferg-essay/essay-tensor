@@ -1,5 +1,5 @@
 pub mod flow;
-pub mod data;
+pub mod dataset;
 pub mod model;
 pub mod layer;
 pub mod activation;
@@ -27,7 +27,7 @@ pub mod prelude {
     pub use crate::function::{
         Trainer, 
     };
-    pub use crate::data::{
+    pub use crate::dataset::{
         Dataset,
     };
 }
