@@ -5,9 +5,9 @@
 
 use std::marker::PhantomData;
 
-use crate::{flow::{self, SourceFactory, Out, Source, In, FlowData, SourceId}};
+use crate::{flow::{self, Out, Source, In, FlowData, SourceId}};
 
-use super::{Dataset, IntoFlowBuilder, dataset::IntoFlow};
+use super::{IntoFlowBuilder};
 
 pub struct Take<T: FlowData> {
     count: usize, 
@@ -20,23 +20,12 @@ impl<T: FlowData> Take<T> {
         input: SourceId<T>,
         count: usize
     ) -> SourceId<T> {
-        let source = Take {
-            count,
-            marker: Default::default(),
-        };
-
-        builder.source(source, &input)
-    }
-}
-
-impl<T: FlowData> SourceFactory<T, T> for Take<T> {
-    type Source = Take<T>;
-
-    fn new(&mut self) -> Self::Source {
-        Take {
-            count: self.count,
-            marker: Default::default(),
-        }
+        builder.source(move || {
+            Take {
+                count,
+                marker: Default::default(),
+            }
+        }, &input)
     }
 }
 

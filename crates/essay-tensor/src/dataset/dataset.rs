@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::{Tensor, flow::{FlowData, FlowIn, SourceFactory, SourceId, Source}};
+use crate::{Tensor, flow::{FlowData, FlowIn, SourceFactory, SourceId}};
 
-use super::{take::Take, flow::DatasetFlowBuilder};
+use super::{take::Take};
 
 pub struct Dataset<T: FlowData> {
     marker: PhantomData<T>,

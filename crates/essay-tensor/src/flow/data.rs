@@ -1,7 +1,7 @@
 use super::{
-    source::{SourcesBuilder, InMeta, NodeId, SourceId}, 
+    flow_pool::{InMeta}, 
     dispatch::{InnerWaker}, 
-    pipe::{Out, In}
+    pipe::{In, PipeIn}, source::NodeId, SourceId, Out, FlowOutputBuilder, flow::FlowSourcesBuilder, Source, SourceFactory
 };
 
 pub trait FlowData : Send + Sync + Clone + 'static {}
@@ -29,14 +29,32 @@ pub trait FlowIn<T: Send> : Send + Clone + 'static {
 
     fn node_ids(nodes: &Self::Nodes, ids: &mut Vec<NodeId>);
 
-    fn new_flow_input(builder: &mut SourcesBuilder) -> Self::Nodes;
+    fn new_flow_input(builder: &mut impl FlowInBuilder) -> Self::Nodes;
 
     fn new_input(
         dst_id: NodeId, 
         src_nodes: &Self::Nodes, 
         input_meta: &mut Vec<InMeta>,
-        builder: &mut SourcesBuilder,
+        builder: &mut impl FlowInBuilder,
     ) -> Self::Input;
+    
+}
+pub trait FlowInBuilder {
+    fn add_source<I, O>(
+        &mut self, 
+        source: impl SourceFactory<I, O>,
+        in_nodes: &I::Nodes,
+    ) -> SourceId<O>
+    where
+        I: FlowIn<I>,
+        O: FlowData;
+
+    fn add_pipe<O: FlowIn<O>>(
+        &mut self,
+        src_id: SourceId<O>,
+        dst_id: NodeId,
+        dst_index: usize,
+    ) -> Box<dyn PipeIn<O>>;
 }
 
 impl FlowIn<()> for () {
@@ -70,7 +88,7 @@ impl FlowIn<()> for () {
         // ids.push(nodes.id());
     }
 
-    fn new_flow_input(_builder: &mut SourcesBuilder) -> Self::Nodes {
+    fn new_flow_input(_builder: &mut impl FlowInBuilder) -> Self::Nodes {
         /*
         let node = InputTask::<()>::new(id);
 
@@ -83,7 +101,7 @@ impl FlowIn<()> for () {
         _dst_id: NodeId,
         _in_nodes: &Self::Nodes, 
         _input_meta: &mut Vec<InMeta>,
-        _builder: &mut SourcesBuilder,
+        _builder: &mut impl FlowInBuilder,
     ) -> Self::Input {
         ()
     }
@@ -134,7 +152,7 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         dst_id: NodeId,
         in_nodes: &Self::Nodes, 
         input_meta: &mut Vec<InMeta>,
-        builder: &mut SourcesBuilder
+        builder: &mut impl FlowInBuilder
     ) -> Self::Input {
         let src_id = in_nodes;
 
@@ -147,7 +165,7 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         In::new(input)
     }
 
-    fn new_flow_input(builder: &mut SourcesBuilder) -> Self::Nodes {
+    fn new_flow_input(builder: &mut impl FlowInBuilder) -> Self::Nodes {
         /*
         let id = graph.push_input::<T>();
 
@@ -219,7 +237,7 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         dst_id: NodeId,
         in_nodes: &Self::Nodes, 
         input_meta: &mut Vec<InMeta>,
-        builder: &mut SourcesBuilder
+        builder: &mut impl FlowInBuilder
     ) -> Self::Input {
         let mut vec = Vec::new();
 
@@ -230,7 +248,7 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
         vec
     }
 
-    fn new_flow_input(_tasks: &mut SourcesBuilder) -> Self::Nodes {
+    fn new_flow_input(_tasks: &mut impl FlowInBuilder) -> Self::Nodes {
         todo!();
     }
 }
@@ -246,9 +264,9 @@ macro_rules! tuple_flow {
             type Nodes = ($($t::Nodes),*);
             type Input = ($($t::Input),*);
         
-            fn new_flow_input(tasks: &mut SourcesBuilder) -> Self::Nodes {
+            fn new_flow_input(builder: &mut impl FlowInBuilder) -> Self::Nodes {
                 let key = ($(
-                    $t::new_flow_input(tasks)
+                    $t::new_flow_input(builder)
                 ),*);
 
                 //let task = InputTask::<($($t),*)>::new(key.clone());
@@ -318,7 +336,7 @@ macro_rules! tuple_flow {
                 dst_id: NodeId,
                 in_nodes: &Self::Nodes, 
                 input_meta: &mut Vec<InMeta>,
-                builder: &mut SourcesBuilder
+                builder: &mut impl FlowInBuilder
             ) -> Self::Input {
                 let ($($t),*) = in_nodes;
 

@@ -1,7 +1,7 @@
 use core::fmt;
-use std::{mem, sync::mpsc::{self}};
+use std::{mem, sync::{mpsc::{self}, Mutex, Arc}};
 
-use super::{data::FlowData, dispatch::{InnerWaker}, source::{NodeId, SourceId}};
+use super::{data::FlowData, dispatch::{InnerWaker}, source::{NodeId, SourceId, Out}};
 
 pub trait PipeIn<T> : Send {
     fn out_index(&self) -> usize;
@@ -201,78 +201,6 @@ impl<T: Send> PipeOut<T> for ChannelOut<T> {
         }
     }
 } 
-pub enum Out<T> {
-    None,
-    Some(T),
-    Pending,
-}
-
-impl<T> Out<T> {
-    #[inline]
-    pub fn is_none(&self) -> bool {
-        match self {
-            Out::None => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn is_pending(&self) -> bool {
-        match self {
-            Out::Pending => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn is_some(&self) -> bool {
-        match self {
-            Out::Some(_) => true,
-            _ => false,
-        }
-    }
-
-    #[inline]
-    pub fn take(&mut self) -> Self {
-        match self {
-            Out::None => Out::None,
-            Out::Some(_) => mem::replace(self, Out::Pending),
-            Out::Pending => Out::Pending,
-        }
-    }
-
-    #[inline]
-    pub fn replace(&mut self, value: Self) -> Self {
-        mem::replace(self, value)
-    }
-
-    #[inline]
-    pub fn unwrap(&mut self) -> T {
-        if let Out::Some(_) = self {
-            let v = mem::replace(self, Out::Pending);
-            if let Out::Some(v) = v {
-                return v
-            }
-        }
-
-        panic!("Unwrap with invalid value")
-    }
-}
-
-impl<T> Default for Out<T> {
-    fn default() -> Self {
-        Out::None
-    }
-}
-
-impl<T> From<Option<T>> for Out<T> {
-    fn from(value: Option<T>) -> Self {
-        match value {
-            Some(value) => Out::Some(value),
-            None => Out::None,
-        }
-    }
-}
 
 impl<T> fmt::Debug for ChannelOut<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -283,5 +211,145 @@ impl<T> fmt::Debug for ChannelOut<T> {
 impl<T> fmt::Debug for ChannelIn<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ChannelIn({:?}, {:?})", &self.src_id, &self._dst)
+    }
+}
+
+pub(crate) trait EagerPipeTrait {
+    fn is_pending(&self) -> bool;
+    fn src_id(&self) -> NodeId;
+    fn src_index(&self) -> usize;
+    fn n_read(&self) -> u64;
+}
+
+#[derive(Clone)]
+pub struct EagerPipe<T: FlowData> {
+    pipe: Arc<Mutex<PipeInner<T>>>,
+}
+
+impl<T: FlowData> EagerPipe<T> {
+    pub(crate) fn new(src_id: SourceId<T>, src_index: usize, dst_id: NodeId, dst_index: usize) -> Self {
+        let inner = PipeInner {
+            src_id,
+            src_index,
+
+            dst_id,
+            dst_index,
+
+            value: Out::None,
+
+            n_request: 0, 
+            n_sent: 0,
+            n_read: 0,
+        };
+
+        Self {
+            pipe: Arc::new(Mutex::new(inner))
+        }
+    }
+}
+
+impl<T: FlowData> EagerPipeTrait for EagerPipe<T> {
+    fn is_pending(&self) -> bool {
+        self.pipe.lock().unwrap().value.is_pending()
+    }
+
+    fn src_id(&self) -> NodeId {
+        self.pipe.lock().unwrap().src_id.id()
+    }
+
+    fn src_index(&self) -> usize {
+        self.pipe.lock().unwrap().src_index
+    }
+
+    fn n_read(&self) -> u64 {
+        self.pipe.lock().unwrap().n_read
+    }
+}
+
+impl<T: FlowData> EagerPipe<T> {
+    pub(crate) fn data_request(&self, n_request: u64) -> bool {
+        self.pipe.lock().unwrap().data_request(n_request)
+    }
+
+    pub(crate) fn send(&self, value: Out<T>) {
+        self.pipe.lock().unwrap().send(value);
+    }
+}
+
+impl<T: FlowData> PipeIn<T> for EagerPipe<T> {
+    fn out_index(&self) -> usize {
+        self.pipe.lock().unwrap().src_index
+    }
+
+    fn init(&mut self) {
+        todo!()
+    }
+
+    fn fill(&mut self, waker: &mut dyn InnerWaker) -> bool {
+        todo!()
+    }
+
+    fn n_read(&self) -> u64 {
+        self.pipe.lock().unwrap().n_read
+    }
+
+    fn next(&mut self) -> Option<T> {
+        self.pipe.lock().unwrap().next()
+    }
+}
+
+pub struct PipeInner<T: FlowData> {
+    // id: PipeId,
+
+    src_id: SourceId<T>,
+    src_index: usize,
+
+    dst_id: NodeId,
+    dst_index: usize,
+
+    value: Out<T>,
+
+    n_request: u64,
+    n_sent: u64,
+    n_read: u64,
+}
+
+impl<T: FlowData> PipeInner<T> {
+    fn data_request(&mut self, n_request: u64) -> bool {
+        if self.n_read < self.n_request && self.value.is_pending() {
+            self.n_request = n_request;
+
+            true
+        } else {
+            false
+        }
+    }
+
+    fn next(&mut self) -> Option<T> {
+        match self.value.take() {
+            Out::None => {
+                self.n_read += 1;
+
+                None
+            },
+            Out::Some(value) => {
+                self.n_read += 1;
+
+                self.value.replace(Out::Pending);
+
+                Some(value)
+            },
+            Out::Pending => todo!(),
+        }
+
+    }
+
+    fn send(&mut self, value: Out<T>) {
+        assert!(self.value.is_pending());
+        assert!(! value.is_pending());
+
+        self.value.replace(value);
+
+        self.n_sent += 1;
     }
 }

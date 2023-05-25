@@ -1,8 +1,8 @@
 use std::{ops::{RangeBounds, Bound}};
 
-use crate::{Tensor, tensor, flow::{Source, self, Out, SourceFactory}};
+use crate::{Tensor, tensor, flow::{Source, self, Out}};
 
-use super::{dataset::{Dataset, IntoFlow}, IntoFlowBuilder};
+use super::{dataset::{Dataset}};
 
 pub fn range<R>(range: R, step: Option<usize>) -> Dataset<Tensor<f32>>
     where R: RangeBounds<usize>,

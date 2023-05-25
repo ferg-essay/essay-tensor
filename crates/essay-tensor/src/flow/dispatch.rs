@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use super::{
-    source::{NodeId, SourcesOuter, SourcesInner}, 
-    thread_pool::{Child, Result, Sender, Msg, Parent, MainId, ThreadPool, Main, self}};
+    flow_pool::{SourcesOuter, SourcesInner}, 
+    thread_pool::{Child, Result, Sender, Msg, Parent, MainId, ThreadPool, Main, self}, source::NodeId};
 
 pub trait InnerWaker {
     fn post_execute(&mut self, task: NodeId, id_done: bool);
