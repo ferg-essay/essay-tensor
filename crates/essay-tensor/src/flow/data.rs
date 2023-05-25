@@ -3,7 +3,7 @@ use core::fmt;
 use super::{
     flow_pool::{InMeta}, 
     dispatch::{InnerWaker}, 
-    pipe::{In, PipeIn}, source::NodeId, SourceId, Out, FlowOutputBuilder, flow::FlowSourcesBuilder, Source, SourceFactory
+    pipe::{In, PipeIn}, source::NodeId, SourceId, Out, SourceFactory
 };
 
 pub trait FlowData : Send + Sync + Clone + fmt::Debug + 'static {}
@@ -166,7 +166,7 @@ impl<T:FlowData> FlowIn<T> for T {
         In::new(input)
     }
 
-    fn new_flow_input(builder: &mut impl FlowInBuilder) -> Self::Nodes {
+    fn new_flow_input(_builder: &mut impl FlowInBuilder) -> Self::Nodes {
         /*
         let id = graph.push_input::<T>();
 

@@ -50,7 +50,7 @@ mod test {
 
     #[test]
     fn test_take() {
-        let data = range(4.., None).take(2);
+        let mut data = range(4.., None).take(2);
         assert_eq!(
             &data.iter().collect::<Vec<Tensor<f32>>>(),
             &vec![tensor!(4.), tensor!(5.)]

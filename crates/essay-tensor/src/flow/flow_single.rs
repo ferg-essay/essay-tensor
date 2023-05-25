@@ -1,12 +1,12 @@
 use std::{
     any::Any,
     mem, 
-    sync::{Arc, Mutex}, marker::PhantomData, cell::RefCell, 
+    marker::PhantomData, cell::RefCell, 
 };
 
 use super::{
     FlowData, FlowIn, Source, 
-    Out, pipe::{PipeIn, PipeSingleTrait, PipeSingle}, dispatch::InnerWaker, SourceId, SourceFactory, FlowOutputBuilder, flow::{Flow, FlowSourcesBuilder}, source::{NodeId, SharedOutput, OutputSource, TailSource, UnsetSource}, data::FlowInBuilder,
+    Out, pipe::{PipeIn, PipeSingleTrait, PipeSingle}, SourceId, SourceFactory, FlowOutputBuilder, flow::{Flow, FlowSourcesBuilder}, source::{NodeId, SharedOutput, OutputSource, TailSource, UnsetSource}, data::FlowInBuilder,
 };
 
 
@@ -20,7 +20,7 @@ where
 {
     sources: Vec<RefCell<Box<dyn SourceTraitSingle>>>,
 
-    input: I::Nodes,
+    _input: I::Nodes,
     output: SharedOutput<O>,
     tail_id: SourceId<bool>,
 }
@@ -31,7 +31,7 @@ where
     O: FlowIn<O>,
 {
     fn next(&mut self, count: u64) -> Option<O> {
-        self.data_request(self.tail_id.id(), 0, count);
+        self.sources[self.tail_id.index()].borrow_mut().execute(self);
 
         self.output.take()
     }
@@ -44,7 +44,7 @@ where
 {
     type Iter<'a> = FlowIterSingle<'a, I, O>;
 
-    fn iter<'a>(&'a mut self, input: I) -> Self::Iter<'a> {
+    fn iter<'a>(&'a mut self, _input: I) -> Self::Iter<'a> {
         self.output.take();
 
         for source in &self.sources {
@@ -103,7 +103,7 @@ where
     I: FlowIn<I>,
     O: FlowIn<O>
 {
-    id: SourceId<O>,
+    _id: SourceId<O>,
     factory: Box<dyn SourceFactory<I, O>>,
     source: Box<dyn Source<I, O>>,
     inputs: I::Input,
@@ -131,6 +131,8 @@ pub trait SourceTraitSingle {
     fn init(&mut self);
 
     fn data_request(&mut self, out_index: usize, n_request: u64, flow: &dyn FlowSingleTrait);
+
+    fn execute(&mut self, flow: &dyn FlowSingleTrait);
 }
 
 impl<I, O> SourceTraitSingle for SourceSingle<I, O>
@@ -171,6 +173,23 @@ where
                     Err(err) => { panic!("Unknown error {:?}", &err); }
                 }
             }
+        }
+    }
+
+    fn execute(&mut self, flow: &dyn FlowSingleTrait) {
+        self.input_request(flow);
+
+        match self.source.next(&mut self.inputs) {
+            Ok(Out::Some(value)) => {
+                return;
+            }
+            Ok(Out::None) => {
+                return;
+            }
+            Ok(Out::Pending) => {
+                panic!("Unexpected pending");
+            }
+            Err(err) => { panic!("Unknown error {:?}", &err); }
         }
     }
 }
@@ -256,7 +275,7 @@ impl<In: FlowIn<In>> FlowOutputBuilder<In> for FlowBuilderSingle<In> {
         FlowSingle {
             sources: flow_sources,
 
-            input: self.inputs.unwrap(),
+            _input: self.inputs.unwrap(),
             output: shared_output, // In::new(source),
             tail_id: id,
         }
@@ -402,7 +421,7 @@ where
         sources: &mut Vec<RefCell<Box<dyn SourceTraitSingle>>>,
     ) {
         let source = SourceSingle {
-            id: self.id.clone(),
+            _id: self.id.clone(),
             factory: self.source.take().unwrap(),
             source: Box::new(UnsetSource::new()),
             inputs: self.input.take().unwrap(),
@@ -423,13 +442,13 @@ mod test {
     use source::Source;
 
     use crate::flow::{
-        pipe::{In}, SourceFactory, FlowIn, flow_pool::{self, PoolFlowBuilder}, 
+        pipe::{In}, SourceFactory, FlowIn,
         flow::{Flow, FlowSourcesBuilder},
-        FlowOutputBuilder, source::{self, Out}, FlowData, flow_single::FlowBuilderSingle,
+        FlowOutputBuilder, source::{self, Out}, flow_single::FlowBuilderSingle,
     };
 
     #[test]
-    fn test_graph_nil() {
+    fn flow_nil() {
         let builder = FlowBuilderSingle::<()>::new();
         let mut flow = builder.output::<()>(&());
 
@@ -437,7 +456,7 @@ mod test {
     }
 
     #[test]
-    fn test_graph_node() {
+    fn flow_node() {
         let vec = Arc::new(Mutex::new(Vec::<String>::default()));
         
         let mut builder = FlowBuilderSingle::<()>::new();
@@ -457,6 +476,131 @@ mod test {
 
         assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "Node[]");
+    }
+
+    #[test]
+    fn flow_detached_node() {
+        let vec = Arc::new(Mutex::new(Vec::<String>::default()));
+        
+        let mut builder = FlowBuilderSingle::<()>::new();
+        let ptr = vec.clone();
+
+        let node_id = builder.source::<(), bool>(S::new(move |_: &mut ()| {
+            ptr.lock().unwrap().push(format!("Node[]"));
+            Ok(Out::None)
+        }), &());
+
+        assert_eq!(node_id.index(), 0);
+
+        let mut flow = builder.output::<()>(&());
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "");
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "");
+    }
+
+    #[test]
+    fn flow_sequence() {
+        let vec = Arc::new(Mutex::new(Vec::<String>::default()));
+        
+        let mut builder = FlowBuilderSingle::<()>::new();
+
+        let ptr = vec.clone();
+        let mut data = vec!["a".to_string(), "b".to_string()];
+
+        let n_0 = builder.source::<(), String>(S::new(move |_: &mut ()| {
+            ptr.lock().unwrap().push(format!("Node0[]"));
+            match data.pop() {
+                Some(v) => {
+                    Ok(Out::Some(v))
+                },
+                None => {
+                    Ok(Out::None)
+                }
+            }
+        }), &());
+
+        assert_eq!(n_0.index(), 0);
+
+        let ptr = vec.clone();
+        let n_1 = builder.source::<String, bool>(S::new(move |s: &mut In<String>| {
+            ptr.lock().unwrap().push(format!("Node1[{:?}]", s.next()));
+            Ok(Out::None)
+        }), &n_0);
+
+        assert_eq!(n_1.index(), 1);
+
+        let mut flow = builder.output::<bool>(&n_1); // n_1);
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "Node0[], Node1[Some(\"b\")]");
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "Node0[], Node1[Some(\"a\")]");
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "Node0[], Node1[None]");
+
+        assert_eq!(flow.call(()), None);
+        assert_eq!(take(&vec), "Node0[], Node1[None]");
+    }
+
+    #[test]
+    fn flow_iter() {
+        let vec = Arc::new(Mutex::new(Vec::<String>::default()));
+        
+        let mut builder = FlowBuilderSingle::<()>::new();
+
+        let ptr = vec.clone();
+        let mut data = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+
+        let n_0 = builder.source::<(), String>(S::new(move |_: &mut ()| {
+            ptr.lock().unwrap().push(format!("Node0[]"));
+            match data.pop() {
+                Some(v) => {
+                    Ok(Out::Some(v))
+                },
+                None => {
+                    Ok(Out::None)
+                }
+            }
+        }), &());
+
+        assert_eq!(n_0.index(), 0);
+
+        let ptr = vec.clone();
+        let n_1 = builder.source::<String, String>(S::new(move |s: &mut In<String>| {
+            let value = s.next();
+            ptr.lock().unwrap().push(format!("Node1[{:?}]", &value));
+            Ok(Out::from(value))
+        }), &n_0);
+
+        assert_eq!(n_1.index(), 1);
+
+        let mut flow = builder.output::<String>(&n_1); // n_1);
+
+        let mut iter = flow.iter(());
+        assert_eq!(take(&vec), "");
+
+        assert_eq!(iter.next(), Some("c".to_string()));
+        assert_eq!(take(&vec), "Node0[], Node1[Some(\"c\")]");
+
+        assert_eq!(iter.next(), Some("b".to_string()));
+        assert_eq!(take(&vec), "Node0[], Node1[Some(\"b\")]");
+
+        assert_eq!(iter.next(), Some("a".to_string()));
+        assert_eq!(take(&vec), "Node0[], Node1[Some(\"a\")]");
+
+        assert_eq!(iter.next(), None);
+        assert_eq!(take(&vec), "Node0[], Node1[None]");
+
+        assert_eq!(iter.next(), None);
+        assert_eq!(take(&vec), "");
+
+        assert_eq!(iter.next(), None);
+        assert_eq!(take(&vec), "");
     }
 
     fn take(ptr: &Arc<Mutex<Vec<String>>>) -> String {
@@ -489,31 +633,4 @@ mod test {
             Box::new(self.clone())
         }
     }
-    
-    /*
-    impl<I, O, F> From<F> for Box<dyn SourceFactory<I, O>>
-    where
-        I: FlowIn<I> + 'static,
-        O: FlowData,
-        F: FnMut(&mut I::Input) -> source::Result<Out<O>> + Send + 'static
-    {
-        fn from(value: F) -> Self {
-            let mut item = Some(Box::new(value));
-            Box::new(move || item.take().unwrap())
-        }
-    }
-    */
-    
-    /*
-    impl<I, O, F> SourceFactory<I, O> for F
-    where
-        I: FlowIn<I> + 'static,
-        O: FlowData,
-        F: FnMut(&mut I::Input) -> source::Result<Out<O>> + Send + 'static
-    {
-        fn new(&mut self) -> Box<dyn source::Source<I, O>> {
-        todo!()
-    }
-    }
-    */
 }

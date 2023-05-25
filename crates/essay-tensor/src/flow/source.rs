@@ -38,7 +38,7 @@ pub type Result<T> = std::result::Result<T, SourceErr>;
 
 impl<T> fmt::Debug for SourceId<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TaskId[{}]", self.index)
+        f.debug_tuple("SourceId").field(&self.index).finish()
     }
 }
 
@@ -96,10 +96,6 @@ impl<O: FlowIn<O>> OutputSource<O> {
         Self {
             data,
         }
-    }
-
-    fn data(&self) -> &SharedOutput<O> {
-        &self.data
     }
 }
 
@@ -250,7 +246,7 @@ impl<I: FlowIn<I>, O: FlowIn<O>> UnsetSource<I, O> {
 }
 
 impl<I: FlowIn<I>, O: FlowIn<O>> Source<I, O> for UnsetSource<I, O> {
-    fn next(&mut self, source: &mut I::Input) -> Result<Out<O>> {
+    fn next(&mut self, _source: &mut I::Input) -> Result<Out<O>> {
         panic!();
     }
 }

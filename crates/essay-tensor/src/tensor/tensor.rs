@@ -301,7 +301,7 @@ impl<T:PartialEq> PartialEq for Tensor<T> {
 
 impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Tensor {{")?;
+        write!(f, "Tensor<{}> {{", type_name::<T>())?;
 
         if self.shape.size() > 1 {
             write!(f, "\n")?;
@@ -309,8 +309,8 @@ impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
 
         fmt_tensor_rec(&self, f, self.rank(), 0)?;
         
-        write!(f, ", shape: {:?}", &self.shape)?;
-        write!(f, ", dtype: {}", type_name::<T>())?;
+        write!(f, ", shape: {:?}", &self.shape.dims)?;
+        // write!(f, ", dtype: {}", type_name::<T>())?;
 
         if f.alternate() {
             write!(f, ", graph: {:#?}", &self.node_id)?;

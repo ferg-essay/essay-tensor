@@ -65,25 +65,25 @@ mod test {
 
     #[test]
     fn test_range() {
-        let data = range(0..4, None);
+        let mut data = range(0..4, None);
         assert_eq!(
             &data.iter().collect::<Vec<Tensor<f32>>>(),
             &vec![tensor!(0.), tensor!(1.), tensor!(2.), tensor!(3.)]
         );
 
-        let data = range(1..4, None);
+        let mut data = range(1..4, None);
         assert_eq!(
             &data.iter().collect::<Vec<Tensor<f32>>>(),
             &vec![tensor!(1.), tensor!(2.), tensor!(3.)]
         );
 
-        let data = range(1..=4, None);
+        let mut data = range(1..=4, None);
         assert_eq!(
             &data.iter().collect::<Vec<Tensor<f32>>>(),
             &vec![tensor!(1.), tensor!(2.), tensor!(3.), tensor!(4.)]
         );
 
-        let data = range(1..=4, Some(2));
+        let mut data = range(1..=4, Some(2));
         assert_eq!(
             &data.iter().collect::<Vec<Tensor<f32>>>(),
             &vec![tensor!(1.), tensor!(3.),]
@@ -92,7 +92,7 @@ mod test {
 
     #[test]
     fn test_range_get_single_element() {
-        let data = range(0..0, None);
+        let mut data = range(0..=0, None);
         assert_eq!(data.get_single_element(), tensor!(0.));
     }
 }

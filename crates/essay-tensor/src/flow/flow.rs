@@ -19,37 +19,6 @@ pub trait FlowTrait<I: FlowIn<I>, O: FlowIn<O>> {
     fn iter<'a>(&'a mut self, input: I) -> Self::Iter<'a>;
 }
 
-/*
-pub struct FlowBuilder<In: FlowIn<In>, Out: FlowIn<Out>> {
-    // flow: Box<dyn FlowBuilderTrait<In, Out>>, 
-    marker: PhantomData<(In, Out)>,
-}
-
-impl<In: FlowIn<In>, Out: FlowIn<Out>> FlowBuilder<In, Out> {
-    fn source<I, O>(
-        &mut self, 
-        source: impl Into<Box<dyn SourceFactory<I, O>>>,
-        in_nodes: &I::Nodes,
-    ) -> SourceId<O>
-    where
-        I: FlowIn<I>,
-        O: FlowData,
-    {
-        //self.flow.source(source, in_nodes)
-        todo!()
-    }
-
-    fn output(self, src_nodes: &Out::Nodes) -> FlowSingle<In, Out> {
-        todo!()
-    }
-}
-*/
-
-//pub struct FlowBuilder<In: FlowIn<In>> {
-//builder: Box<dyn FlowOutputBuilder<Flow<O> = TopFlow<In, O>>>,
-//}
-
-// pub trait FlowBuilder<In: FlowIn<In>, Out: FlowIn<Out>> : Sized + 'static {
 pub trait FlowSourcesBuilder {
     fn source<I, O>(
         &mut self, 
@@ -67,68 +36,6 @@ pub trait FlowOutputBuilder<In: FlowIn<In>> : FlowSourcesBuilder + Sized + 'stat
 
     fn output<O: FlowIn<O>>(self, src_nodes: &O::Nodes) -> Self::Flow<O>; // FlowSingle<In, Out>;
 }
-/*
-pub struct FlowIterBase<'a, O> {
-    flow: Box<dyn Iterator<Item=O>>,
-    marker: PhantomData<&'a u8>
-}
-
-impl<O: FlowIn<O>> Iterator for FlowIterBase<'_, O> {
-    type Item = O;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        todo!()
-    }
-}
-*/
-/*
-pub trait FlowTrait<I: FlowIn<I>, O: FlowIn<O>> : 'static {
-    // type Iter<'a> : Iterator<Item=O>;
-
-    /*
-    fn builder() -> FlowBuilderPool<I, O> {
-        FlowBuilderPool::new()
-    }
-    */
-
-    fn call(&mut self, input: I) -> Option<O> {
-        self.iter(input).next()
-    }
-
-    fn iter<'a>(&'a mut self, input: I) -> FlowIterBase<'a, O>; // FlowIter<I, O>; // FlowIter<I, O>;
-    // fn next(&mut self) -> Option<O>;
-}
-*/
-
-/*
-pub struct Flow<I: FlowIn<I>, O: FlowIn<O>> {
-    flow: dyn FlowTrait<I, O>,
-}
-
-impl<I, O> Flow<I, O>
-where
-    I: FlowIn<I>,
-    O: FlowIn<O>
-{
-    pub fn builder() -> FlowBuilder<I, O> {
-        FlowBuilder::new()
-    }
-
-    fn new(flow: impl FlowTrait<I, O>) -> Self {
-        Self {
-            flow: Box::new(flow)
-        }
-    }
-
-    pub fn call(&mut self, input: I) -> Option<O> {
-        self.flow.call(input)
-    }
-
-    pub fn iter(&mut self, input: I) -> FlowIter<I, O> {
-        self.flow.iter(input)
-    }
-}
- */
 
 //
 // Flow threading
@@ -141,9 +48,9 @@ mod test {
     use source::Source;
 
     use crate::flow::{
-        pipe::{In}, SourceFactory, FlowIn, flow_pool::{self, PoolFlowBuilder}, 
+        pipe::{In}, SourceFactory, FlowIn, flow_pool::{PoolFlowBuilder}, 
         flow::{Flow, FlowSourcesBuilder},
-        FlowOutputBuilder, source::{self, Out}, FlowData,
+        FlowOutputBuilder, source::{self, Out},
     };
 
     #[test]
@@ -161,7 +68,7 @@ mod test {
         let mut builder = PoolFlowBuilder::<()>::new();
         let ptr = vec.clone();
 
-        let node_id = builder.source::<(), usize>(S(move |_: &mut ()| {
+        let node_id = builder.source::<(), usize>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node[]"));
             Ok(Out::None)
         }), &());
@@ -184,7 +91,7 @@ mod test {
         let mut builder = PoolFlowBuilder::<()>::new();
         let ptr = vec.clone();
 
-        let node_id = builder.source::<(), bool>(S(move |_: &mut ()| {
+        let node_id = builder.source::<(), bool>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node[]"));
             Ok(Out::None)
         }), &());
@@ -210,7 +117,7 @@ mod test {
         let ptr = vec.clone();
         let mut data = vec!["a".to_string(), "b".to_string()];
 
-        let n_0 = builder.source::<(), String>(S(move |_: &mut ()| {
+        let n_0 = builder.source::<(), String>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node0[]"));
             match data.pop() {
                 Some(v) => {
@@ -225,7 +132,7 @@ mod test {
         assert_eq!(n_0.index(), 1);
 
         let ptr = vec.clone();
-        let n_1 = builder.source::<String, bool>(S(move |s: &mut In<String>| {
+        let n_1 = builder.source::<String, bool>(s(move |s: &mut In<String>| {
             ptr.lock().unwrap().push(format!("Node1[{:?}]", s.next()));
             Ok(Out::None)
         }), &n_0);
@@ -256,7 +163,7 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input().clone();
-        let _n_0 = builder.source::<usize, bool>(S(move |x: &mut In<usize>| {
+        let _n_0 = builder.source::<usize, bool>(s(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("Task[{:?}]", x.next().unwrap()));
             Ok(Out::None)
         }), &input);
@@ -279,7 +186,7 @@ mod test {
         let ptr = vec.clone();
 
         let mut count = 2;
-        let n_0 = builder.source::<(), usize>(S(move |_: &mut ()| {
+        let n_0 = builder.source::<(), usize>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Task[{}]", count));
             if count > 0 {
                 count -= 1;
@@ -313,7 +220,7 @@ mod test {
         let ptr = vec.clone();
 
         let input = builder.input().clone();
-        let n_0 = builder.source::<usize, usize>(S(move |x: &mut In<usize>| {
+        let n_0 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
             let x_v = x.next().unwrap();
             ptr.lock().unwrap().push(format!("Task[{:?}]", x_v));
             Ok(Out::Some(x_v + 10))
@@ -335,19 +242,19 @@ mod test {
         let mut builder = PoolFlowBuilder::<()>::new();
 
         let ptr = vec.clone();
-        let n_0 = builder.source::<(), usize>(S(move |_: &mut ()| {
+        let n_0 = builder.source::<(), usize>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-0[]"));
             Ok(Out::Some(1))
         }), &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_1 = builder.source::<usize, usize>(S(move |x: &mut In<usize>| {
+        let n_1 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }), &n_0);
 
         let ptr = vec.clone();
-        let n_2 = builder.source::<usize, usize>(S(move |x: &mut In<usize>| {
+        let n_2 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }), &n_0);
@@ -365,19 +272,19 @@ mod test {
         let mut builder = PoolFlowBuilder::<()>::new();
 
         let ptr = vec.clone();
-        let n_1 = builder.source::<(), usize>(S(move |_: &mut ()| {
+        let n_1 = builder.source::<(), usize>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(1))
         }), &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_2 = builder.source::<(), f32>(S(move |_: &mut ()| {
+        let n_2 = builder.source::<(), f32>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(10.5))
         }), &()); // builder.nil());
 
         let ptr = vec.clone();
-        let _n_2 = builder.source::<(usize, f32), bool>(S(move |v: &mut (In<usize>, In<f32>)| {
+        let _n_2 = builder.source::<(usize, f32), bool>(s(move |v: &mut (In<usize>, In<f32>)| {
             ptr.lock().unwrap().push(format!("N-2[{}, {}]", v.0.next().unwrap(), v.1.next().unwrap()));
             Ok(Out::None)
         }), &(n_1, n_2));
@@ -395,25 +302,25 @@ mod test {
         let mut builder = PoolFlowBuilder::<()>::new();
 
         let ptr = vec.clone();
-        let n_1 = builder.source::<(), usize>(S(move |_: &mut ()| {
+        let n_1 = builder.source::<(), usize>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(1))
         }), &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_2 = builder.source::<(), usize>(S(move |_: &mut ()| {
+        let n_2 = builder.source::<(), usize>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(10))
         }), &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_3 = builder.source::<(), usize>(S(move |_: &mut ()| {
+        let n_3 = builder.source::<(), usize>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("N-1[]"));
             Ok(Out::Some(100))
         }), &()); // builder.nil());
 
         let ptr = vec.clone();
-        let _n_4 = builder.source::<Vec<usize>, bool>(S(move |x: &mut Vec<In<usize>>| {
+        let _n_4 = builder.source::<Vec<usize>, bool>(s(move |x: &mut Vec<In<usize>>| {
             ptr.lock().unwrap().push(format!("N-2[{:?}]", x[0].next().unwrap()));
             Ok(Out::None)
         }), &vec![n_1, n_2, n_3]);
@@ -457,7 +364,7 @@ mod test {
         let mut builder = PoolFlowBuilder::<()>::new();
         let ptr = vec.clone();
 
-        let n_0 = builder.source::<(), usize>(S(move |_: &mut ()| {
+        let n_0 = builder.source::<(), usize>(s(move |_: &mut ()| {
             ptr.lock().unwrap().push(format!("Node[]"));
             Ok(Out::Some(1))
         }), &()); // builder.nil());
@@ -477,37 +384,12 @@ mod test {
 
         vec.join(", ")
     }
-    /*
-    impl<I, O, F> From<F> for Box<dyn SourceFactory<I, O>>
-    where
-        I: FlowIn<I> + 'static,
-        O: FlowData,
-        F: FnMut(&mut I::Input) -> source::Result<Out<O>> + Send + 'static
-    {
-        fn from(value: F) -> Self {
-            let mut item = Some(Box::new(value));
-            Box::new(move || item.take().unwrap())
-        }
-    }
-    */
-    /*
-    impl<I, O, F> SourceFactory<I, O> for F
-    where
-        I: FlowIn<I> + 'static,
-        O: FlowData,
-        F: FnMut(&mut I::Input) -> source::Result<Out<O>> + Send + 'static
-    {
-        fn new(&mut self) -> Box<dyn source::Source<I, O>> {
-            Box::new(self.clone());    
-        }
-    }
-    */
 
     struct Wrap<I: FlowIn<I>, O: FlowIn<O>> {
         source: Option<Box<dyn Source<I, O>>>,
     }
 
-    fn S<I: FlowIn<I>, O: FlowIn<O>>(source: impl Source<I, O>) -> Wrap<I, O> {
+    fn s<I: FlowIn<I>, O: FlowIn<O>>(source: impl Source<I, O>) -> Wrap<I, O> {
         Wrap::new(source)
     }
 

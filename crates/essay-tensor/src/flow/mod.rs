@@ -19,10 +19,14 @@ pub use flow_pool::{
 //    SourceId, Source, SourceFactory, Result,
 };
 
+pub use flow_single::{
+    FlowSingle, FlowBuilderSingle, FlowIterSingle,
+};
+    
 pub use source::{
     SourceId, Source, SourceFactory, Out, Result,
 };
 
 pub use flow::{
-    FlowOutputBuilder, Flow,
+    FlowOutputBuilder, Flow, FlowSourcesBuilder, 
 };

@@ -1,21 +1,30 @@
 use core::fmt;
 use std::marker::PhantomData;
 
-use crate::{Tensor, flow::{FlowData, FlowIn, SourceFactory, SourceId}};
+use crate::{Tensor, 
+    flow::{
+        FlowData, FlowIn, SourceFactory, SourceId, Flow, FlowSingle, 
+        FlowSourcesBuilder, FlowBuilderSingle, FlowOutputBuilder,
+    }
+};
 
 use super::{take::Take};
 
 pub struct Dataset<T: FlowData> {
-    marker: PhantomData<T>,
+    // marker: PhantomData<T>,
+
+    flow: FlowSingle<(), T>,
 }
 
 impl<T: FlowData> Dataset<T> {
-    pub fn iter(&self) -> DatasetIter<T> {
-        todo!()
+    pub fn iter(&mut self) -> DatasetIter<T> {
+        DatasetIter {
+            iter: self.flow.iter(())
+        }
     }
 
-    pub fn get_single_element(&self) -> T {
-        todo!()
+    pub fn get_single_element(&mut self) -> T {
+        self.flow.call(()).unwrap()
     }
 
     pub fn take(self, count: usize) -> Dataset<T> {
@@ -41,32 +50,17 @@ impl<T: FlowData> IntoFlow<T> for Dataset<T> {
     }
 }
 
-pub struct DatasetIter<T: FlowData> {
-    marker: PhantomData<T>,
+pub struct DatasetIter<'a, T: FlowData> {
+    iter: <FlowSingle<(), T> as Flow<(), T>>::Iter<'a>,
 }
 
-impl<T: FlowData> Iterator for DatasetIter<T> {
+impl<T: FlowData> Iterator for DatasetIter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        None
+        self.iter.next()
     }
 }
-
-/*
-pub trait Dataset<T: FlowData> : Clone + Send + Sync + Sized + 'static {
-    type IntoIter: Iterator<Item=Tensor<T>>;
-
-    fn iter(&self) -> Self::IntoIter;
-
-    fn get_single_element(&self) -> Tensor<T>;
-    
-    //fn take(self, count: usize) -> Take<T> {
-    //    todo!()
-    //    // Take::new(self, count)
-    //}
-}
-*/
 
 pub fn from_tensors<T: FlowData, I: IntoDataset<Tensor<T>>>(item: I) -> Dataset<Tensor<T>> {
     I::into_dataset(item)
@@ -145,18 +139,22 @@ impl<T:Clone> Iterator for TensorIter<T> {
     }
 }
 
+//
+// IntoFlow
+//
+
 pub trait IntoFlow<T: FlowData> {
     fn into_flow(self, builder: &mut IntoFlowBuilder) -> SourceId<T>;
 }
 
 pub struct IntoFlowBuilder {
-
+    builder: FlowBuilderSingle<()>,
 }
 
 impl IntoFlowBuilder {
     pub fn new() -> Self {
         Self {
-
+            builder: FlowBuilderSingle::<()>::new()
         }
     }
 
@@ -169,11 +167,21 @@ impl IntoFlowBuilder {
         I: FlowIn<I>,
         O: FlowData,
     {
-        todo!()
+        self.builder.source(source, in_nodes)
     }
 
-    fn build_dataset<T: FlowData>(&self, id: SourceId<T>) -> Dataset<T> {
-        todo!()
+    fn build_dataset<T: FlowData>(self, id: SourceId<T>) -> Dataset<T> {
+        let flow = self.builder.output(&id);
+
+        Dataset::from(flow)
+    }
+}
+
+impl<T: FlowData> From<FlowSingle<(), T>> for Dataset<T> {
+    fn from(flow: FlowSingle<(), T>) -> Self {
+        Self {
+            flow,
+        }
     }
 }
 
