@@ -1,10 +1,10 @@
 use core::fmt;
-use std::marker::PhantomData;
+use std::{marker::PhantomData, collections::VecDeque};
 
 use crate::{Tensor, 
     flow::{
         FlowData, FlowIn, SourceFactory, SourceId, Flow, FlowSingle, 
-        FlowSourcesBuilder, FlowBuilderSingle, FlowOutputBuilder,
+        FlowSourcesBuilder, FlowBuilderSingle, FlowOutputBuilder, Source, self, Out,
     }
 };
 
@@ -44,14 +44,10 @@ impl<T: FlowData> Dataset<T> {
         builder.build_dataset(id)
     }
 }
-/*
-impl<T: FlowData> IntoFlow<T> for Dataset<T> {
-    fn into_flow(self, builder: &mut IntoFlowBuilder) -> SourceId<T> {
-        //self.flow.export(builder)
-        todo!()
-    }
-}
-*/
+
+//
+// DatasetIter
+//
 
 pub struct DatasetIter<'a, T: FlowData> {
     iter: <FlowSingle<(), T> as Flow<(), T>>::Iter<'a>,
@@ -62,83 +58,6 @@ impl<T: FlowData> Iterator for DatasetIter<'_, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
-    }
-}
-
-pub fn from_tensors<T: FlowData, I: IntoDataset<Tensor<T>>>(item: I) -> Dataset<Tensor<T>> {
-    I::into_dataset(item)
-}
-
-pub struct TensorIter<T:Clone> {
-    tensor: Vec<Tensor<T>>,
-}
-
-pub trait IntoDataset<T: FlowData> {
-    // type Item: Dataset<T>;
-
-    fn into_dataset(self) -> Dataset<T>;
-}
-
-impl<T: FlowData> IntoDataset<T> for &Tensor<T> {
-    // type Item = DatasetTensorList<T>;
-
-    fn into_dataset(self) -> Dataset<T> {
-        todo!()
-        // DatasetTensorList::from_slice(&[self.clone()])
-    }
-}
-
-#[derive(Clone)]
-pub struct DatasetTensorList<T:Clone> {
-    tensors: Vec<Tensor<T>>,
-}
-
-impl<T: FlowData> DatasetTensorList<T> {
-    pub fn from_slice(vec: &[Tensor<T>]) -> Self {
-        let mut dataset_vec = Vec::new();
-        let shape = vec[0].shape();
-
-        for i in vec.len() - 1 ..= 0 {
-            assert_eq!(&shape, &vec[i].shape());
-
-            dataset_vec.push(vec[i].clone());
-        }
-
-        Self {
-            tensors: dataset_vec,
-        }
-    }
-}
-
-impl<T: FlowData> IntoDataset<Tensor<T>> for &[Tensor<T>] {
-    // type Item = DatasetTensorList<T>;
-
-    fn into_dataset(self) -> Dataset<Tensor<T>> {
-        // DatasetTensorList::from_slice(self)
-        todo!()
-    }
-}
-/*
-impl<T: FlowData> Dataset<T> for DatasetTensorList<T> {
-    type IntoIter = TensorIter<T>;
-
-    fn iter(&self) -> Self::IntoIter {
-        TensorIter {
-            tensor: self.tensors.clone(),
-        }
-    }
-
-    fn get_single_element(&self) -> Tensor<T> {
-        self.tensors[0].clone()
-    }
-}
-*/
-
-impl<T:Clone> Iterator for TensorIter<T> {
-    type Item = Tensor<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.tensor.pop()
     }
 }
 
@@ -190,6 +109,63 @@ impl IntoFlowBuilder {
     }
 }
 
+//
+// constant converters
+//
+
+pub fn from_tensors<T: FlowData>(into_dataset: impl Into<Dataset<Tensor<T>>>) -> Dataset<Tensor<T>> {
+    into_dataset.into()
+}
+
+impl<T: FlowData> From<Tensor<T>> for Dataset<Tensor<T>> {
+    fn from(value: Tensor<T>) -> Self {
+        let vec = vec![value];
+    
+        Dataset::from_flow(|builder| {
+            builder.source(move || {
+                vec.clone()
+            }, &())
+        })
+    }
+}
+
+impl<T: FlowData> From<&Tensor<T>> for Dataset<Tensor<T>> {
+    fn from(value: &Tensor<T>) -> Self {
+        let vec = vec![value.clone()];
+    
+        Dataset::from_flow(|builder| {
+            builder.source(move || {
+                vec.clone()
+            }, &())
+        })
+    }
+}
+
+impl<T: FlowData> From<Vec<T>> for Dataset<T> {
+    fn from(vec: Vec<T>) -> Self {
+        let mut vec = vec;
+        vec.reverse();
+    
+        Dataset::from_flow(|builder| {
+            builder.source(move || {
+                vec.clone()
+            }, &())
+        })
+    }
+}
+
+impl<T: FlowData> Source<(), T> for Vec<T> {
+    fn next(&mut self, _input: &mut ()) -> flow::Result<Out<T>> {
+        Ok(Out::from(self.pop()))
+    }
+}
+
+impl<T: FlowData> Source<(), T> for VecDeque<T> {
+    fn next(&mut self, _input: &mut ()) -> flow::Result<Out<T>> {
+        Ok(Out::from(self.pop_front()))
+    }
+}
+
 impl<T: FlowData> From<FlowSingle<(), T>> for Dataset<T> {
     fn from(flow: FlowSingle<(), T>) -> Self {
         Self {
@@ -207,12 +183,10 @@ mod test {
     #[test]
     fn from_tensors() {
         let t = tf32!([1., 2., 3.]);
-        todo!();
-        /*
-        let ds = dataset::from_tensors(&t);
+
+        let mut ds = dataset::from_tensors(&t);
         let tensors : Vec<Tensor> = ds.iter().collect();
 
         assert_eq!(&tensors, &vec![tf32!([1., 2., 3.])]);
-        */
     }
 }

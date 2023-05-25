@@ -32,11 +32,7 @@ pub fn range<R>(range: R, step: Option<usize>) -> Dataset<Tensor<f32>>
     })
 }
 
-//
-// Range - source
-//
-
-pub struct Range {
+struct Range {
     index: usize,
     stop: usize,
     step: usize,
