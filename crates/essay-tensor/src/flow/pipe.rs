@@ -4,6 +4,7 @@ use std::{mem, sync::{mpsc::{self}, Mutex, Arc}, any::type_name};
 use super::{data::FlowData, dispatch::{InnerWaker}, source::{NodeId, SourceId, Out}};
 
 pub trait PipeIn<T> : Send {
+    fn src_id(&self) -> NodeId;
     fn out_index(&self) -> usize;
 
     fn init(&mut self);
@@ -51,6 +52,10 @@ pub(crate) fn pipe<T: Send + 'static>(
 }
 
 impl<T> In<T> {
+    pub fn src_id(&self) -> NodeId {
+        self.0.src_id()
+    }
+
     pub fn next(&mut self) -> Option<T> {
         let value = self.0.next();
 
@@ -108,6 +113,10 @@ impl<T> ChannelIn<T> {
 }
 
 impl<T: Send + 'static> PipeIn<T> for ChannelIn<T> {
+    fn src_id(&self) -> NodeId {
+        self.src_id
+    }
+
     fn out_index(&self) -> usize {
         self.src_index
     }
@@ -279,6 +288,10 @@ impl<T: FlowData> PipeSingle<T> {
 }
 
 impl<T: FlowData> PipeIn<T> for PipeSingle<T> {
+    fn src_id(&self) -> NodeId {
+        self.pipe.lock().unwrap().src_id.id()
+    }
+
     fn out_index(&self) -> usize {
         self.pipe.lock().unwrap().src_index
     }

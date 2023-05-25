@@ -28,7 +28,7 @@ pub struct SourceId<T> {
     marker: PhantomData<T>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd)]
 pub struct NodeId(usize);
 
 #[derive(Debug)]
@@ -47,6 +47,15 @@ impl<T> Clone for SourceId<T> {
         Self { 
             index: self.index,
             marker: self.marker.clone() 
+        }
+    }
+}
+
+impl<T> From<&NodeId> for SourceId<T> {
+    fn from(value: &NodeId) -> Self {
+        Self {
+            index: value.index(),
+            marker: PhantomData,
         }
     }
 }
@@ -233,11 +242,11 @@ impl Source<bool, bool> for TailSource {
     }
 }
 
-pub struct UnsetSource<I: FlowIn<I>, O: FlowIn<O>> {
+pub struct NoneSourceFactory<I: FlowIn<I>, O: FlowIn<O>> {
     marker: PhantomData<(I, O)>,
 }
 
-impl<I: FlowIn<I>, O: FlowIn<O>> UnsetSource<I, O> {
+impl<I: FlowIn<I>, O: FlowIn<O>> NoneSourceFactory<I, O> {
     pub(crate) fn new() -> Self {
         Self {
             marker: PhantomData,
@@ -245,7 +254,25 @@ impl<I: FlowIn<I>, O: FlowIn<O>> UnsetSource<I, O> {
     }
 }
 
-impl<I: FlowIn<I>, O: FlowIn<O>> Source<I, O> for UnsetSource<I, O> {
+impl<I: FlowIn<I>, O: FlowIn<O>> SourceFactory<I, O> for NoneSourceFactory<I, O> {
+    fn new(&mut self) -> Box<dyn Source<I, O>> {
+        todo!()
+    }
+}
+
+pub struct NoneSource<I: FlowIn<I>, O: FlowIn<O>> {
+    marker: PhantomData<(I, O)>,
+}
+
+impl<I: FlowIn<I>, O: FlowIn<O>> NoneSource<I, O> {
+    pub(crate) fn new() -> Self {
+        Self {
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<I: FlowIn<I>, O: FlowIn<O>> Source<I, O> for NoneSource<I, O> {
     fn next(&mut self, _source: &mut I::Input) -> Result<Out<O>> {
         panic!();
     }

@@ -1,4 +1,5 @@
 use core::fmt;
+use std::collections::HashMap;
 
 use super::{
     flow_pool::{InMeta}, 
@@ -39,7 +40,8 @@ pub trait FlowIn<T: Send> : Send + Clone + 'static {
         input_meta: &mut Vec<InMeta>,
         builder: &mut impl FlowInBuilder,
     ) -> Self::Input;
-    
+
+    fn export(inputs: &Self::Input, node_map: &HashMap<NodeId, NodeId>) -> Self::Nodes;
 }
 pub trait FlowInBuilder {
     fn add_source<I, O>(
@@ -105,6 +107,10 @@ impl FlowIn<()> for () {
         _input_meta: &mut Vec<InMeta>,
         _builder: &mut impl FlowInBuilder,
     ) -> Self::Input {
+        ()
+    }
+
+    fn export(inputs: &Self::Input, node_map: &HashMap<NodeId, NodeId>) -> Self::Nodes {
         ()
     }
 }
@@ -177,6 +183,10 @@ impl<T:FlowData> FlowIn<T> for T {
         id
         */
         todo!()
+    }
+
+    fn export(input: &Self::Input, node_map: &HashMap<NodeId, NodeId>) -> Self::Nodes {
+        SourceId::<T>::from(node_map.get(&input.src_id()).unwrap())
     }
 }
 
@@ -251,6 +261,16 @@ impl<T: FlowIn<T>> FlowIn<Vec<T>> for Vec<T> {
 
     fn new_flow_input(_tasks: &mut impl FlowInBuilder) -> Self::Nodes {
         todo!();
+    }
+
+    fn export(input: &Self::Input, node_map: &HashMap<NodeId, NodeId>) -> Self::Nodes {
+        let mut vec = Vec::new();
+
+        for node in input.iter() {
+            vec.push(T::export(node, node_map));
+        }
+
+        vec
     }
 }
 
@@ -345,7 +365,15 @@ macro_rules! tuple_flow {
                     $t::new_input(dst_id, $t, input_meta, builder)
                 ),*)
             }
-        }
+
+            fn export(input: &Self::Input, node_map: &HashMap<NodeId, NodeId>) -> Self::Nodes {
+                let ($($t),*) = input;
+
+                ($(
+                    $t::export($t, node_map)
+                ),*)
+            }
+                }
     }
 }
 

@@ -1,12 +1,14 @@
 use std::{
     any::Any,
     mem, 
-    marker::PhantomData, cell::RefCell, 
+    marker::PhantomData, cell::RefCell, collections::HashMap, 
 };
+
+use crate::flow::source::NoneSourceFactory;
 
 use super::{
     FlowData, FlowIn, Source, 
-    Out, pipe::{PipeIn, PipeSingleTrait, PipeSingle}, SourceId, SourceFactory, FlowOutputBuilder, flow::{Flow, FlowSourcesBuilder}, source::{NodeId, SharedOutput, OutputSource, TailSource, UnsetSource}, data::FlowInBuilder,
+    Out, pipe::{PipeIn, PipeSingleTrait, PipeSingle}, SourceId, SourceFactory, FlowOutputBuilder, flow::{Flow, FlowSourcesBuilder}, source::{NodeId, SharedOutput, OutputSource, TailSource, NoneSource}, data::FlowInBuilder,
 };
 
 
@@ -21,8 +23,11 @@ where
     sources: Vec<RefCell<Box<dyn SourceTraitSingle>>>,
 
     _input: I::Nodes,
+    last_id: SourceId<O>,
+
     output: SharedOutput<O>,
     tail_id: SourceId<bool>,
+
 }
 
 impl<I, O> FlowSingle<I, O>
@@ -34,6 +39,18 @@ where
         self.sources[self.tail_id.index()].borrow_mut().execute(self);
 
         self.output.take()
+    }
+
+    pub(crate) fn export(mut self, builder: &mut FlowInBuilderSingle) -> SourceId<O> {
+        let mut node_map : HashMap<NodeId, NodeId> = HashMap::new();
+
+        for source in self.sources.drain(..) {
+            let mut source = source.into_inner();
+
+            source.export(&mut node_map, builder);
+        }
+
+        SourceId::from(node_map.get(&self.last_id.id()).unwrap())
     }
 }
 
@@ -103,7 +120,7 @@ where
     I: FlowIn<I>,
     O: FlowIn<O>
 {
-    _id: SourceId<O>,
+    id: SourceId<O>,
     factory: Box<dyn SourceFactory<I, O>>,
     source: Box<dyn Source<I, O>>,
     inputs: I::Input,
@@ -133,6 +150,11 @@ pub trait SourceTraitSingle {
     fn data_request(&mut self, out_index: usize, n_request: u64, flow: &dyn FlowSingleTrait);
 
     fn execute(&mut self, flow: &dyn FlowSingleTrait);
+
+    fn export(
+        &mut self, 
+        node_map: &mut HashMap<NodeId, NodeId>, 
+        builder: &mut FlowInBuilderSingle);
 }
 
 impl<I, O> SourceTraitSingle for SourceSingle<I, O>
@@ -192,39 +214,157 @@ where
             Err(err) => { panic!("Unknown error {:?}", &err); }
         }
     }
+
+    fn export(
+        &mut self, 
+        node_map: &mut HashMap<NodeId, NodeId>, 
+        builder: &mut FlowInBuilderSingle
+    ) {
+        let none_factory : Box<dyn SourceFactory<I, O>> = Box::new(NoneSourceFactory::new());
+
+        let factory = mem::replace(&mut self.factory, none_factory);
+
+        let in_nodes = I::export(&mut self.inputs, node_map);
+        
+        let id = builder.add_factory(factory, &in_nodes);
+
+        node_map.insert(self.id.id(), id.id());
+    }
 }
 
+pub struct ExportBuilder {
+}
 
+impl ExportBuilder {
+    fn add_factory<I, O>(
+        &mut self, 
+        factory: Box<dyn SourceFactory<I, O>>, 
+        in_nodes: &I::Nodes
+    ) -> SourceId<O>
+    where
+        I: FlowIn<I>,
+        O: FlowData 
+    {
+        todo!();
+    }
+}
 //
 // FlowBuilder single builder
 //
 
 pub struct FlowBuilderSingle<I: FlowIn<I>> {
-    inputs: Option<I::Nodes>,
-    sources: Vec<Box<dyn SourceBuilderSingleTrait>>,
+    inputs: I::Nodes,
+    
+    sources: FlowInBuilderSingle, // Vec<Box<dyn SourceBuilderSingleTrait>>,
 }
 
 impl<I: FlowIn<I>> FlowBuilderSingle<I> {
     pub(crate) fn new() -> Self {
-        let mut builder = Self {
-            inputs: None,
+        let mut sources_builder = FlowInBuilderSingle {
             sources: Vec::new(),
         };
 
-        let inputs = I::new_flow_input(&mut builder);
+        let inputs = I::new_flow_input(&mut sources_builder);
 
-        builder.inputs = Some(inputs);
-
-        builder
+        Self {
+            inputs,
+            sources: sources_builder,
+        }
     }
 
     fn get_pipe(&self, src_id: NodeId, src_index: usize) -> Box<dyn PipeSingleTrait> {
-        self.sources[src_id.index()].get_pipe(src_index)
+        self.sources.sources[src_id.index()].get_pipe(src_index)
+    }
+
+    pub(crate) fn sources(&mut self) -> &mut FlowInBuilderSingle {
+        &mut self.sources
     }
 }
 
 impl<In: FlowIn<In>> FlowSourcesBuilder for FlowBuilderSingle<In> {
     fn source<I, O>(
+        &mut self, 
+        source: impl SourceFactory<I, O>,
+        in_nodes: &I::Nodes,
+    ) -> SourceId<O>
+    where
+        I: FlowIn<I>,
+        O: FlowData,
+    {
+        self.sources.add_source(source, in_nodes)
+    }
+}
+
+impl<In: FlowIn<In>> FlowOutputBuilder<In> for FlowBuilderSingle<In> {
+    type Flow<O: FlowData> = FlowSingle<In, O>;
+    
+    fn output<O: FlowData>(mut self, src_id: &SourceId<O>) -> Self::Flow<O> {
+        let shared_output = SharedOutput::<O>::new();
+
+        let output_ptr = shared_output.clone();
+
+        let id = self.source::<O, bool>(move || {
+            OutputSource::new(output_ptr.clone())
+        }, src_id);
+        let _tail = self.source::<bool, bool>(|| TailSource, &id);
+
+        let mut flow_sources = Vec::new();
+
+        for mut source in self.sources.sources.drain(..) {
+            source.build(&mut flow_sources)
+        }
+
+        FlowSingle {
+            sources: flow_sources,
+
+            _input: self.inputs,
+            last_id: src_id.clone(),
+            output: shared_output, // In::new(source),
+            tail_id: id,
+        }
+    }
+
+    fn input(&mut self) -> &In::Nodes {
+        todo!()
+    }
+}
+
+pub struct FlowInBuilderSingle {
+    sources: Vec<Box<dyn SourceBuilderSingleTrait>>,
+}
+
+impl FlowInBuilderSingle {
+    fn get_pipe(&self, src_id: NodeId, src_index: usize) -> Box<dyn PipeSingleTrait> {
+        self.sources[src_id.index()].get_pipe(src_index)
+    }
+
+    fn add_factory<I, O>(
+        &mut self, 
+        factory: Box<dyn SourceFactory<I, O>>, 
+        in_nodes: &I::Nodes
+    ) -> SourceId<O>
+    where 
+        I: FlowIn<I>, 
+        O: FlowData 
+    {
+        let id = SourceId::<O>::new(self.sources.len());
+        let source = SourceBuilderSingle::new(
+            id.clone(), 
+            factory,
+            in_nodes, 
+            self,
+        );
+    
+        assert_eq!(id.index(), self.sources.len());
+
+        self.sources.push(Box::new(source));
+
+        id
+    }
+}
+
+impl FlowInBuilder for FlowInBuilderSingle {
+    fn add_source<I, O>(
         &mut self, 
         source: impl SourceFactory<I, O>,
         in_nodes: &I::Nodes,
@@ -247,45 +387,21 @@ impl<In: FlowIn<In>> FlowSourcesBuilder for FlowBuilderSingle<In> {
 
         id
     }
-}
 
-impl<In: FlowIn<In>> FlowOutputBuilder<In> for FlowBuilderSingle<In> {
-    type Flow<O: FlowIn<O>> = FlowSingle<In, O>;
-    
-    fn output<O: FlowIn<O>>(mut self, src_nodes: &O::Nodes) -> Self::Flow<O> {
-        let mut output_ids = Vec::new();
+    fn add_pipe<O: FlowIn<O>>(
+        &mut self,
+        src_id: SourceId<O>,
+        dst_id: NodeId,
+        dst_index: usize,
+    ) -> Box<dyn PipeIn<O>> {
+        let source = &mut self.sources[src_id.index()];
 
-        O::node_ids(src_nodes, &mut output_ids);
-
-        let shared_output = SharedOutput::<O>::new();
-
-        let output_ptr = shared_output.clone();
-
-        let id = self.source::<O, bool>(move || {
-            OutputSource::new(output_ptr.clone())
-        }, src_nodes);
-        let _tail = self.source::<bool, bool>(|| TailSource, &id);
-
-        let mut flow_sources = Vec::new();
-
-        for mut source in self.sources.drain(..) {
-            source.build(&mut flow_sources)
-        }
-
-        FlowSingle {
-            sources: flow_sources,
-
-            _input: self.inputs.unwrap(),
-            output: shared_output, // In::new(source),
-            tail_id: id,
+        unsafe { 
+            mem::transmute(source.add_pipe(dst_id, dst_index))
         }
     }
-
-    fn input(&mut self) -> &In::Nodes {
-        todo!()
-    }
 }
-
+/*
 impl<In: FlowIn<In>> FlowInBuilder for FlowBuilderSingle<In> {
     fn add_source<I, O>(
         &mut self, 
@@ -311,6 +427,7 @@ impl<In: FlowIn<In>> FlowInBuilder for FlowBuilderSingle<In> {
         }
     }
 }
+*/
 
 //
 // Eager builder
@@ -339,11 +456,11 @@ where
     I: FlowIn<I>,
     O: FlowData,
 {
-    fn new<In: FlowIn<In>>(
+    fn new(
         id: SourceId<O>,
         source: Box<dyn SourceFactory<I, O>>,
         src_nodes: &I::Nodes,
-        builder: &mut FlowBuilderSingle<In>,
+        builder: &mut FlowInBuilderSingle,
     ) -> Self {
 
         let mut source_meta = Vec::new();
@@ -372,7 +489,6 @@ where
             input_pipes,
 
             output_pipes: Vec::default(),
-            // output_meta: Vec::default(),
         }
     }
 }
@@ -421,9 +537,9 @@ where
         sources: &mut Vec<RefCell<Box<dyn SourceTraitSingle>>>,
     ) {
         let source = SourceSingle {
-            _id: self.id.clone(),
+            id: self.id.clone(),
             factory: self.source.take().unwrap(),
-            source: Box::new(UnsetSource::new()),
+            source: Box::new(NoneSource::new()),
             inputs: self.input.take().unwrap(),
             input_pipes: self.input_pipes.drain(..).collect(),
             output_pipes: self.output_pipes.drain(..).collect(),
@@ -449,10 +565,13 @@ mod test {
 
     #[test]
     fn flow_nil() {
+        todo!();
+        /*
         let builder = FlowBuilderSingle::<()>::new();
         let mut flow = builder.output::<()>(&());
 
         assert_eq!(flow.call(()), None);
+        */
     }
 
     #[test]
@@ -492,6 +611,8 @@ mod test {
 
         assert_eq!(node_id.index(), 0);
 
+        todo!();
+        /*
         let mut flow = builder.output::<()>(&());
 
         assert_eq!(flow.call(()), None);
@@ -499,6 +620,7 @@ mod test {
 
         assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "");
+        */
     }
 
     #[test]

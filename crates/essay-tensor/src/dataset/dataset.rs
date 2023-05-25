@@ -29,9 +29,10 @@ impl<T: FlowData> Dataset<T> {
 
     pub fn take(self, count: usize) -> Dataset<T> {
         Self::from_flow(|builder| {
-            let input = self.into_flow(builder);
+            //let input = self.into_flow(builder);
+            let id = builder.add_flow(self.flow);
 
-            Take::build(builder, input, count)
+            Take::build(builder, id, count)
         })
     }
 
@@ -43,12 +44,14 @@ impl<T: FlowData> Dataset<T> {
         builder.build_dataset(id)
     }
 }
-
+/*
 impl<T: FlowData> IntoFlow<T> for Dataset<T> {
     fn into_flow(self, builder: &mut IntoFlowBuilder) -> SourceId<T> {
+        //self.flow.export(builder)
         todo!()
     }
 }
+*/
 
 pub struct DatasetIter<'a, T: FlowData> {
     iter: <FlowSingle<(), T> as Flow<(), T>>::Iter<'a>,
@@ -168,6 +171,16 @@ impl IntoFlowBuilder {
         O: FlowData,
     {
         self.builder.source(source, in_nodes)
+    }
+
+    fn add_flow<O>(
+        &mut self,
+        flow: FlowSingle<(), O>,
+    ) -> SourceId<O>
+    where
+        O: FlowData
+    {
+        flow.export(&mut self.builder.sources())
     }
 
     fn build_dataset<T: FlowData>(self, id: SourceId<T>) -> Dataset<T> {

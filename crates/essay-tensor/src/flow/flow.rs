@@ -30,11 +30,11 @@ pub trait FlowSourcesBuilder {
         O: FlowData;
 }
 pub trait FlowOutputBuilder<In: FlowIn<In>> : FlowSourcesBuilder + Sized + 'static {
-    type Flow<O: FlowIn<O>>;
+    type Flow<O: FlowData>;
 
     fn input(&mut self) -> &In::Nodes;
 
-    fn output<O: FlowIn<O>>(self, src_nodes: &O::Nodes) -> Self::Flow<O>; // FlowSingle<In, Out>;
+    fn output<O: FlowData>(self, src_id: &SourceId<O>) -> Self::Flow<O>; // FlowSingle<In, Out>;
 }
 
 //
@@ -55,10 +55,13 @@ mod test {
 
     #[test]
     fn test_graph_nil() {
+        todo!();
+        /*
         let builder = PoolFlowBuilder::<()>::new();
         let mut flow = builder.output::<()>(&());
 
         assert_eq!(flow.call(()), None);
+        */
     }
 
     #[test]
@@ -98,7 +101,8 @@ mod test {
 
         assert_eq!(node_id.index(), 1);
 
-        // let nil = builder.nil();
+        todo!();
+        /*
         let mut flow = builder.output::<()>(&());
 
         assert_eq!(flow.call(()), None);
@@ -106,6 +110,7 @@ mod test {
 
         assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "");
+        */
     }
 
     #[test]
@@ -168,6 +173,8 @@ mod test {
             Ok(Out::None)
         }), &input);
 
+        todo!();
+        /*
         let mut flow = builder.output::<()>(&()); // n_0);
 
         assert_eq!(flow.call(1), Some(()));
@@ -175,6 +182,7 @@ mod test {
 
         assert_eq!(flow.call(2), Some(()));
         assert_eq!(take(&vec), "Task[2]");
+        */
     }
 
     #[test]
@@ -259,10 +267,13 @@ mod test {
             Ok(Out::None)
         }), &n_0);
 
+        todo!();
+        /*
         let mut flow = builder.output::<Vec<usize>>(&(vec![n_1, n_2])); // n_2);
 
         assert_eq!(flow.call(()), None);
         assert_eq!(take(&vec), "N-0[], N-0[], N-1[1], N-1[1]");
+        */
     }
 
     #[test]
@@ -289,10 +300,13 @@ mod test {
             Ok(Out::None)
         }), &(n_1, n_2));
 
+        todo!();
+        /*
         let mut flow = builder.output(&()); // n_2);
 
         assert_eq!(flow.call(()), Some(()));
         assert_eq!(take(&vec), "N-1[], N-1[], N-2[1, 10.5]");
+        */
     }
 
     #[test]
@@ -325,10 +339,13 @@ mod test {
             Ok(Out::None)
         }), &vec![n_1, n_2, n_3]);
 
+        todo!();
+        /*
         let mut flow = builder.output(&()); // n_4);
 
         assert_eq!(flow.call(()), Some(()));
         assert_eq!(take(&vec), "N-1[], N-1[], N-1[], N-2[[1, 10, 100]]");
+        */
     }
 
     #[test]
