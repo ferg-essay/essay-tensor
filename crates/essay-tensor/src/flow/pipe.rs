@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{mem, sync::{mpsc::{self}, Mutex, Arc}};
+use std::{mem, sync::{mpsc::{self}, Mutex, Arc}, any::type_name};
 
 use super::{data::FlowData, dispatch::{InnerWaker}, source::{NodeId, SourceId, Out}};
 
@@ -52,7 +52,9 @@ pub(crate) fn pipe<T: Send + 'static>(
 
 impl<T> In<T> {
     pub fn next(&mut self) -> Option<T> {
-        self.0.next()
+        let value = self.0.next();
+
+        value
     }
 
     pub(crate) fn init(&mut self) {
@@ -214,7 +216,7 @@ impl<T> fmt::Debug for ChannelIn<T> {
     }
 }
 
-pub(crate) trait EagerPipeTrait {
+pub(crate) trait PipeSingleTrait {
     fn is_pending(&self) -> bool;
     fn src_id(&self) -> NodeId;
     fn src_index(&self) -> usize;
@@ -222,11 +224,11 @@ pub(crate) trait EagerPipeTrait {
 }
 
 #[derive(Clone)]
-pub struct EagerPipe<T: FlowData> {
+pub struct PipeSingle<T: FlowData> {
     pipe: Arc<Mutex<PipeInner<T>>>,
 }
 
-impl<T: FlowData> EagerPipe<T> {
+impl<T: FlowData> PipeSingle<T> {
     pub(crate) fn new(src_id: SourceId<T>, src_index: usize, dst_id: NodeId, dst_index: usize) -> Self {
         let inner = PipeInner {
             src_id,
@@ -248,7 +250,7 @@ impl<T: FlowData> EagerPipe<T> {
     }
 }
 
-impl<T: FlowData> EagerPipeTrait for EagerPipe<T> {
+impl<T: FlowData> PipeSingleTrait for PipeSingle<T> {
     fn is_pending(&self) -> bool {
         self.pipe.lock().unwrap().value.is_pending()
     }
@@ -266,7 +268,7 @@ impl<T: FlowData> EagerPipeTrait for EagerPipe<T> {
     }
 }
 
-impl<T: FlowData> EagerPipe<T> {
+impl<T: FlowData> PipeSingle<T> {
     pub(crate) fn data_request(&self, n_request: u64) -> bool {
         self.pipe.lock().unwrap().data_request(n_request)
     }
@@ -276,13 +278,13 @@ impl<T: FlowData> EagerPipe<T> {
     }
 }
 
-impl<T: FlowData> PipeIn<T> for EagerPipe<T> {
+impl<T: FlowData> PipeIn<T> for PipeSingle<T> {
     fn out_index(&self) -> usize {
         self.pipe.lock().unwrap().src_index
     }
 
     fn init(&mut self) {
-        todo!()
+        self.pipe.lock().unwrap().init()
     }
 
     fn fill(&mut self, waker: &mut dyn InnerWaker) -> bool {
@@ -315,8 +317,15 @@ pub struct PipeInner<T: FlowData> {
 }
 
 impl<T: FlowData> PipeInner<T> {
+    fn init(&mut self) {
+        self.value = Out::Pending;
+        self.n_request = 0;
+        self.n_sent = 0;
+        self.n_read = 0;
+    }
+
     fn data_request(&mut self, n_request: u64) -> bool {
-        if self.n_read < self.n_request && self.value.is_pending() {
+        if self.n_request < n_request && self.value.is_pending() {
             self.n_request = n_request;
 
             true

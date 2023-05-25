@@ -1,10 +1,12 @@
+use core::fmt;
+
 use super::{
     flow_pool::{InMeta}, 
     dispatch::{InnerWaker}, 
     pipe::{In, PipeIn}, source::NodeId, SourceId, Out, FlowOutputBuilder, flow::FlowSourcesBuilder, Source, SourceFactory
 };
 
-pub trait FlowData : Send + Sync + Clone + 'static {}
+pub trait FlowData : Send + Sync + Clone + fmt::Debug + 'static {}
 
 pub trait FlowIn<T: Send> : Send + Clone + 'static {
     type Nodes : Clone;
@@ -107,7 +109,7 @@ impl FlowIn<()> for () {
     }
 }
 
-impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
+impl<T:FlowData> FlowIn<T> for T {
     type Nodes = SourceId<T>;
     type Input = In<T>;
 
@@ -159,7 +161,6 @@ impl<T:FlowData + Clone + 'static> FlowIn<T> for T {
         let dst_index = input_meta.len();
 
         let input = builder.add_pipe(src_id.clone(), dst_id, dst_index);
-
         input_meta.push(InMeta::new(src_id.id(), input.out_index()));
 
         In::new(input)

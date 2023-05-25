@@ -564,6 +564,14 @@ impl InMeta {
         }
     }
 
+    pub(crate) fn src_id(&self) -> NodeId {
+        self.src_id
+    }
+
+    pub(crate) fn src_index(&self) -> usize {
+        self.src_out_index
+    }
+
     fn init(&mut self) {
         self.n_request = 0;
         self.n_ready = 0;

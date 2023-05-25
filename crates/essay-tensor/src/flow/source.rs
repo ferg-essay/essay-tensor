@@ -80,12 +80,12 @@ impl<T: 'static> SourceId<T> {
 //
 // Output task
 //
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OutputData<T: Clone + Send + 'static> {
     marker: PhantomData<T>,
 }
 
-impl<T: Clone + Send + Sync + 'static> FlowData for OutputData<T> {}
+impl<T: Clone + Send + Sync + fmt::Debug + 'static> FlowData for OutputData<T> {}
 
 pub struct OutputSource<O: FlowIn<O>> {
     data: SharedOutput<O>,
@@ -158,7 +158,7 @@ impl<T> Out<T> {
     pub fn take(&mut self) -> Self {
         match self {
             Out::None => Out::None,
-            Out::Some(_) => mem::replace(self, Out::Pending),
+            Out::Some(_) => mem::replace(self, Out::<T>::Pending),
             Out::Pending => Out::Pending,
         }
     }
@@ -171,7 +171,7 @@ impl<T> Out<T> {
     #[inline]
     pub fn unwrap(&mut self) -> T {
         if let Out::Some(_) = self {
-            let v = mem::replace(self, Out::Pending);
+            let v = mem::replace(self, Out::<T>::Pending);
             if let Out::Some(v) = v {
                 return v
             }
@@ -192,6 +192,16 @@ impl<T> From<Option<T>> for Out<T> {
         match value {
             Some(value) => Out::Some(value),
             None => Out::None,
+        }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for Out<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Some(arg0) => f.debug_tuple("Some").field(arg0).finish(),
+            Self::Pending => write!(f, "Pending"),
         }
     }
 }

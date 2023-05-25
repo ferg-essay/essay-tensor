@@ -1,3 +1,4 @@
+use core::fmt;
 use std::marker::PhantomData;
 
 use crate::{Tensor, flow::{FlowData, FlowIn, SourceFactory, SourceId}};
@@ -176,7 +177,7 @@ impl IntoFlowBuilder {
     }
 }
 
-impl<T: Send + Sync + 'static> FlowData for Tensor<T> {}
+impl<T: Send + Sync + fmt::Debug + 'static> FlowData for Tensor<T> {}
 
 #[cfg(test)]
 mod test {
