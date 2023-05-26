@@ -1,6 +1,8 @@
 use core::fmt;
 use std::collections::HashMap;
 
+use crate::tensor::Dtype;
+
 use super::{
     flow_pool::{InMeta}, 
     dispatch::{InnerWaker}, 
@@ -386,8 +388,10 @@ tuple_flow!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7)
 tuple_flow!((T1, v1), (T2, v2), (T3, v3), (T4, v4), (T5, v5), (T6, v6), (T7, v7), (T8, v8));
 
 // impl FlowData for () {}
-impl FlowData for String {}
-impl FlowData for usize {}
-impl FlowData for i32 {}
-impl FlowData for f32 {}
-impl FlowData for bool {}
+//impl FlowData for String {}
+//impl FlowData for usize {}
+//impl FlowData for i32 {}
+//impl FlowData for f32 {}
+//impl FlowData for bool {}
+
+impl<T: Dtype + fmt::Debug + Sync>FlowData for T {}

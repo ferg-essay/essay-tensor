@@ -1,7 +1,7 @@
 use core::fmt;
-use std::{marker::PhantomData, sync::{Arc, Mutex}, mem};
+use std::{marker::PhantomData, sync::{Arc, Mutex}, mem, collections::VecDeque};
 
-use super::{FlowIn, FlowData, In};
+use super::{FlowIn, FlowData, In, flow};
 
 
 pub trait Source<I, O> : Send + 'static
@@ -304,5 +304,17 @@ where
 {
     fn new(&mut self) -> Box<dyn Source<I, O>> {
         Box::new(self())
+    }
+}
+
+impl<T: FlowData> Source<(), T> for Vec<T> {
+    fn next(&mut self, _input: &mut ()) -> Result<Out<T>> {
+        Ok(Out::from(self.pop()))
+    }
+}
+
+impl<T: FlowData> Source<(), T> for VecDeque<T> {
+    fn next(&mut self, _input: &mut ()) -> Result<Out<T>> {
+        Ok(Out::from(self.pop_front()))
     }
 }

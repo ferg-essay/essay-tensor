@@ -5,7 +5,6 @@ use std::{
     ops::{Index, self, IndexMut, RangeBounds}, 
     slice::SliceIndex, 
     any::TypeId, 
-    marker::PhantomData
 };
 
 pub(crate) struct TensorData<T> {
@@ -322,7 +321,7 @@ impl<T, I: SliceIndex<[T]>> IndexMut<I> for TensorUninit<T> {
 
 #[cfg(test)]
 mod test {
-    use std::{rc::Rc, cell::RefCell};
+    use std::{rc::Rc, cell::RefCell, sync::{Arc, Mutex}};
 
     use crate::{prelude::*, tensor::{Dtype, tensor::Shape}};
 
@@ -363,8 +362,8 @@ mod test {
         assert_eq!(take(&ptr), "Drop[2]");
     }
 
-    fn take(ptr: &Rc<RefCell<Vec<String>>>) -> String {
-        let vec : Vec<String> = ptr.borrow_mut().drain(..).collect();
+    fn take(ptr: &Arc<Mutex<Vec<String>>>) -> String {
+        let vec : Vec<String> = ptr.lock().unwrap().drain(..).collect();
 
         vec.join(", ")
     }
@@ -372,14 +371,14 @@ mod test {
     #[derive(Debug, Clone)]
     struct Test {
         id: usize,
-        ptr: Rc<RefCell<Vec<String>>>,
+        ptr: Arc<Mutex<Vec<String>>>,
     }
 
     impl Test {
         fn new(id: usize) -> Self {
             Self {
                 id,
-                ptr: Rc::new(RefCell::new(Vec::default())),
+                ptr: Arc::new(Mutex::new(Vec::default())),
             }
         }
     }
@@ -388,7 +387,7 @@ mod test {
 
     impl Drop for Test {
         fn drop(&mut self) {
-            self.ptr.borrow_mut().push(format!("Drop[{:?}]", self.id));
+            self.ptr.lock().unwrap().push(format!("Drop[{:?}]", self.id));
         }
     }
 

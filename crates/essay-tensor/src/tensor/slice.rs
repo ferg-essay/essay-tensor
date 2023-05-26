@@ -56,6 +56,31 @@ mod test {
     }
 
     #[test]
+    fn slice_usize_rank1() {
+        let t = tf32!([1., 2., 3., 4.]);
+
+        let t1 = t.slice(0);
+        assert_eq!(t1.shape().as_slice(), &[]);
+        assert_eq!(t1.as_slice(), &[1.]);
+        assert_eq!(t1[0], 1.);
+
+        let t1 = t.slice(1);
+        assert_eq!(t1.shape().as_slice(), &[]);
+        assert_eq!(t1.as_slice(), &[2.]);
+        assert_eq!(t1[0], 2.);
+
+        let t1 = t.slice(2);
+        assert_eq!(t1.shape().as_slice(), &[]);
+        assert_eq!(t1.as_slice(), &[3.]);
+        assert_eq!(t1[0], 3.);
+
+        let t1 = t.slice(3);
+        assert_eq!(t1.shape().as_slice(), &[]);
+        assert_eq!(t1.as_slice(), &[4.]);
+        assert_eq!(t1[0], 4.);
+    }
+
+    #[test]
     fn slice_usize_usize() {
         let t = tf32!([
             [[1., 2.], [3., 4.], [5., 6.]],

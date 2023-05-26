@@ -1,3 +1,4 @@
+mod fit;
 mod sequential;
 mod model;
 

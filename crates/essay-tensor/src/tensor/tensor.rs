@@ -1,9 +1,9 @@
 use core::fmt;
-use std::{cmp::{max, self}, any::type_name, sync::Arc, ops::{Deref, Index}, marker::PhantomData, slice::SliceIndex};
+use std::{cmp::{max, self}, any::type_name, sync::Arc, ops::{Deref, Index}, slice::SliceIndex};
 
 use super::{data::TensorData, TensorUninit, slice::TensorSlice};
 
-pub trait Dtype : Clone + 'static {}
+pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TensorId(pub usize);
@@ -248,9 +248,11 @@ impl<T> Tensor<T> {
         }
     }
 
-    pub fn subslice(&self, offset: usize, len: usize, shape: Shape) -> Self {
-        assert!(offset < self.len);
-        assert!(offset + len < self.len);
+    pub fn subslice(&self, offset: usize, len: usize, shape: impl Into<Shape>) -> Self {
+        assert!(offset <= self.len);
+        assert!(offset + len <= self.len);
+
+        let shape = shape.into();
 
         let shape_len : usize = shape.size();
         assert!(shape_len == len || shape.size() == 0 && len == 1);
@@ -374,6 +376,12 @@ fn fmt_tensor_rec<T:fmt::Debug>(
 
             write!(f, "]")
         },
+    }
+}
+
+impl<T: Dtype> From<&Tensor<T>> for Tensor<T> {
+    fn from(value: &Tensor<T>) -> Self {
+        value.clone()
     }
 }
 
@@ -789,6 +797,7 @@ where
 */
 
 //trait Dtype : Copy {}
+impl Dtype for bool {}
 impl Dtype for f32 {}
 impl Dtype for i32 {}
 impl Dtype for usize {}

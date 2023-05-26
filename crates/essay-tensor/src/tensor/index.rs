@@ -10,7 +10,7 @@ impl<T> Index<usize> for Tensor<T> {
         assert!(index < self.len());
 
         unsafe {
-            self.as_ptr().add(self.offset() + index).as_ref().unwrap()
+            self.as_ptr().add(index).as_ref().unwrap()
         }
     }
 }
@@ -133,5 +133,27 @@ mod test {
         assert_eq!(t[(1, 1)], 4.);
         assert_eq!(t[(2, 0)], 5.);
         assert_eq!(t[(2, 1)], 6.);
+    }
+
+    #[test]
+    fn index_rank_1() {
+        let t = tf32!([1., 2., 3., 4.]);
+        assert_eq!(t.shape().as_slice(), &[4]);
+
+        assert_eq!(t[0], 1.);
+        assert_eq!(t[1], 2.);
+        assert_eq!(t[2], 3.);
+        assert_eq!(t[3], 4.);
+    }
+
+    #[test]
+    fn index_rank_1_slice() {
+        let t = tf32!([1., 2., 3., 4.]);
+        assert_eq!(t.shape().as_slice(), &[4]);
+
+        assert_eq!(t.slice(0)[0], 1.);
+        assert_eq!(t.slice(1)[0], 2.);
+        assert_eq!(t.slice(2)[0], 3.);
+        assert_eq!(t.slice(3)[0], 4.);
     }
 }

@@ -1,3 +1,4 @@
+mod optimizer;
 pub mod flow;
 pub mod dataset;
 pub mod model;

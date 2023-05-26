@@ -5,7 +5,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{flow::{self, Out, Source, In, FlowData, SourceId}};
+use crate::{flow::{self, Out, Source, In, FlowData, SourceId}, Tensor};
 
 use super::{IntoFlowBuilder};
 

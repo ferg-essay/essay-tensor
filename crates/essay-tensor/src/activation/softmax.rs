@@ -92,7 +92,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
         let batch = len / inner_len;
 
         let chunk = self.1;
-        let n_chunks = inner_len / chunk;
+        let k_chunks = inner_len / chunk;
     
         unsafe {
             let mut o_data = TensorUninit::<f32>::new(len);
@@ -100,9 +100,9 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
             let op = self.op();
     
             for batch in 0..batch {
-                for n in 0..n_chunks {
-                    let a_ptr = a.as_ptr().add(batch * inner_len + n * chunk);
-                    let o_ptr = o_data.as_mut_ptr().add(batch * inner_len + n * chunk);
+                for k in 0..k_chunks {
+                    let a_ptr = a.as_ptr().add(batch * inner_len + k * chunk);
+                    let o_ptr = o_data.as_mut_ptr().add(batch * inner_len + k * chunk);
         
                     let mut sum = 0.;
 
@@ -114,7 +114,9 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
                         sum += v;
                     }
 
-                    let factor = if sum == 0. { 1. } else { 1. / sum };
+                    // TODO: consider a softmax that doesn't select an option
+                    // when all the inputs are too low
+                    let factor = if sum <= 1e-20 { 1. } else { sum.recip() };
 
                     // normalize
                     for i in 0..chunk {
@@ -189,13 +191,16 @@ mod test {
 
     #[test]
     fn test_softmax() {
-        assert_eq!(tensor!(0.).softmax(), tensor!(1.));
-        assert_eq!(tensor!(1.).softmax(), tensor!(1.));
-        assert_eq!(tensor!([0., 1.]).softmax(), 
-            tensor!([0.26894143, 0.7310586]));
-        assert_eq!(tensor!([0., 1., 0., 0.]).softmax(), 
-            tensor!([0.1748777, 0.47536686, 0.1748777, 0.1748777]));
-        assert_eq!(tensor!([0., 10., 0., 0.]).softmax(), 
-            tensor!([4.539375e-5, 0.99986386, 4.539375e-5, 4.539375e-5]));
+        assert_eq!(tf32!(0.).softmax(), tf32!(1.));
+        assert_eq!(tf32!(1.).softmax(), tf32!(1.));
+        assert_eq!(
+            tf32!([0., 1.]).softmax(), 
+            tf32!([0.26894143, 0.7310586]));
+        assert_eq!(
+            tf32!([0., 1., 0., 0.]).softmax(), 
+            tf32!([0.1748777, 0.47536686, 0.1748777, 0.1748777]));
+        assert_eq!(
+            tf32!([0., 10., 0., 0.]).softmax(), 
+            tf32!([4.539375e-5, 0.99986386, 4.539375e-5, 4.539375e-5]));
     }
 }

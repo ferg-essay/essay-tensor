@@ -1,16 +1,16 @@
 use core::fmt;
-use std::{marker::PhantomData, collections::VecDeque};
+use std::{collections::VecDeque};
 
 use crate::{Tensor, 
     flow::{
         FlowData, FlowIn, SourceFactory, SourceId, Flow, FlowSingle, 
         FlowSourcesBuilder, FlowBuilderSingle, FlowOutputBuilder, Source, self, Out,
-    }
+    }, 
 };
 
 use super::{take::Take};
 
-pub struct Dataset<T: FlowData> {
+pub struct Dataset<T: FlowData = Tensor<f32>> {
     // marker: PhantomData<T>,
 
     flow: FlowSingle<(), T>,
@@ -49,7 +49,7 @@ impl<T: FlowData> Dataset<T> {
 // DatasetIter
 //
 
-pub struct DatasetIter<'a, T: FlowData> {
+pub struct DatasetIter<'a, T: FlowData = Tensor<f32>> {
     iter: <FlowSingle<(), T> as Flow<(), T>>::Iter<'a>,
 }
 
@@ -109,84 +109,10 @@ impl IntoFlowBuilder {
     }
 }
 
-//
-// constant converters
-//
-
-pub fn from_tensors<T: FlowData>(into_dataset: impl Into<Dataset<Tensor<T>>>) -> Dataset<Tensor<T>> {
-    into_dataset.into()
-}
-
-impl<T: FlowData> From<Tensor<T>> for Dataset<Tensor<T>> {
-    fn from(value: Tensor<T>) -> Self {
-        let vec = vec![value];
-    
-        Dataset::from_flow(|builder| {
-            builder.source(move || {
-                vec.clone()
-            }, &())
-        })
-    }
-}
-
-impl<T: FlowData> From<&Tensor<T>> for Dataset<Tensor<T>> {
-    fn from(value: &Tensor<T>) -> Self {
-        let vec = vec![value.clone()];
-    
-        Dataset::from_flow(|builder| {
-            builder.source(move || {
-                vec.clone()
-            }, &())
-        })
-    }
-}
-
-impl<T: FlowData> From<Vec<T>> for Dataset<T> {
-    fn from(vec: Vec<T>) -> Self {
-        let mut vec = vec;
-        vec.reverse();
-    
-        Dataset::from_flow(|builder| {
-            builder.source(move || {
-                vec.clone()
-            }, &())
-        })
-    }
-}
-
-impl<T: FlowData> Source<(), T> for Vec<T> {
-    fn next(&mut self, _input: &mut ()) -> flow::Result<Out<T>> {
-        Ok(Out::from(self.pop()))
-    }
-}
-
-impl<T: FlowData> Source<(), T> for VecDeque<T> {
-    fn next(&mut self, _input: &mut ()) -> flow::Result<Out<T>> {
-        Ok(Out::from(self.pop_front()))
-    }
-}
-
 impl<T: FlowData> From<FlowSingle<(), T>> for Dataset<T> {
     fn from(flow: FlowSingle<(), T>) -> Self {
         Self {
             flow,
         }
-    }
-}
-
-impl<T: Send + Sync + fmt::Debug + 'static> FlowData for Tensor<T> {}
-
-#[cfg(test)]
-mod test {
-    use crate::{prelude::*, dataset};
-
-    #[test]
-    fn from_tensors() {
-        let t = tf32!([1., 2., 3.]);
-
-        let mut ds = dataset::from_tensors(&t);
-        let tensors : Vec<Tensor> = ds.iter().collect();
-
-        assert_eq!(&tensors, &vec![tf32!([1., 2., 3.])]);
     }
 }
