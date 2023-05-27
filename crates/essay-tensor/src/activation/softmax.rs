@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorUninit, NodeId, TensorId}, 
-    function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::BackOp}
+    function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::GradientOp}
 };
 
 pub trait Softmax<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -149,7 +149,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
     }
 }
 
-impl<Op:Softmax> BackOp for SoftmaxCpu<Op> {
+impl<Op:Softmax> GradientOp for SoftmaxCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }

@@ -1,6 +1,6 @@
 mod unary_op;
 mod binary_op;
-mod reduce;
+pub mod reduce;
 mod fold;
 mod fold_2;
 
@@ -13,7 +13,7 @@ pub use binary_op::{
 };
 
 pub use reduce::{
-    reduce_op, ReduceKernel,
+    reduce_op, ReduceKernel, ReduceOpt,
 };
 
 pub use fold_2::{

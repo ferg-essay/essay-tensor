@@ -1,3 +1,4 @@
+mod reduce_mean;
 mod sin;
 mod neg;
 mod ln;
@@ -40,7 +41,7 @@ tensor_binop!(min, min::Min);
 tensor_binop!(powf, powf::Powf);
 tensor_binop!(powi, powi::Powi);
 
-pub use reduce_sum::{reduce_sum, reduce_sum_axis};
+pub use reduce_sum::{reduce_sum, reduce_sum_opt};
 
 //
 // overloaded operations: Add, Sub, Mul
@@ -48,8 +49,11 @@ pub use reduce_sum::{reduce_sum, reduce_sum_axis};
 
 macro_rules! tensor_ops {
     ($op:ident, $fun:ident, $binop:expr) => {
-        pub fn $fun(a: &Tensor, b: &Tensor) -> Tensor {
-            binary_op(a, b, $binop)
+        pub fn $fun(a: impl Into<Tensor>, b: impl Into<Tensor>) -> Tensor {
+            let a = a.into();
+            let b = b.into();
+
+            binary_op(&a, &b, $binop)
         }
 
         impl ops::$op for &Tensor {

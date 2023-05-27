@@ -102,7 +102,7 @@ pub trait EvalOp : Send + Sync + 'static {
 
 pub type BoxForwardOp = Box<dyn Operation>;
 
-pub trait BackOp : Send + Sync + 'static {
+pub trait GradientOp : Send + Sync + 'static {
     fn name(&self) -> &str;
 
     fn df(
@@ -116,7 +116,7 @@ pub trait IntoBack {
     fn to_op(&self) -> BoxBackOp;
 }
 
-pub type BoxBackOp = Box<dyn BackOp>;
+pub type BoxBackOp = Box<dyn GradientOp>;
 
 impl Graph {
     pub(crate) fn var(&mut self, name: &str, tensor: &Tensor) -> TensorId {

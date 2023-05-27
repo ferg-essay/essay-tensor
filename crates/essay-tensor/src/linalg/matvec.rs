@@ -2,7 +2,7 @@ use std::{any::type_name, cmp};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit, NodeId}, 
-    function::{Operation, Graph, graph::BackOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
+    function::{Operation, Graph, graph::GradientOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
 };
 
 use super::matmul::Transpose;
@@ -198,7 +198,7 @@ impl Operation for Matvec {
     }
 }
 
-impl BackOp for MatvecBackLeft {
+impl GradientOp for MatvecBackLeft {
     fn name(&self) -> &str {
         type_name::<Self>()
     }
@@ -222,7 +222,7 @@ impl BackOp for MatvecBackLeft {
     }
 }
 
-impl BackOp for MatvecBackRight {
+impl GradientOp for MatvecBackRight {
     fn name(&self) -> &str {
         type_name::<Self>()
     }

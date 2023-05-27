@@ -1,6 +1,6 @@
 use std::{any::type_name};
 
-use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, graph::BackOp}, Tensor, 
+use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, graph::GradientOp}, Tensor, 
     tensor::{Dtype, TensorId, TensorUninit, NodeId}
 };
 
@@ -92,7 +92,7 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
     }
 }
 
-impl<Op:BinaryKernel<f32>> BackOp for BinopDx<Op> {
+impl<Op:BinaryKernel<f32>> GradientOp for BinopDx<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -132,7 +132,7 @@ impl<Op:BinaryKernel<f32>> BackOp for BinopDx<Op> {
     }
 }
 
-impl<Op:BinaryKernel<f32>> BackOp for BinopDy<Op> {
+impl<Op:BinaryKernel<f32>> GradientOp for BinopDy<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }

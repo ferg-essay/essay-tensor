@@ -1,33 +1,38 @@
-use crate::{Tensor, ops::{fold_op, Fold}};
+use reduce::{ReduceOpt, ReduceKernel};
+
+use crate::{Tensor, ops::{fold_op, Fold, reduce_op, reduce}};
 
 #[derive(Debug, Copy, Clone)]
-pub struct L2Loss(f32);
+pub struct L2Loss;
 
 pub fn l2_loss(a: &Tensor) -> Tensor {
-    let n = a.dim_tail();
-    let n_inv = 0.5 / n as f32;
-    fold_op(a, 0.0.into(), L2Loss(n_inv))
+    l2_loss_opt(a, ())
+}
+
+pub fn l2_loss_opt(a: &Tensor, opt: impl ReduceOpt) -> Tensor {
+    reduce_op(a, L2Loss, opt)
 }
 
 impl Tensor {
     pub fn l2_loss(&self) -> Tensor {
-        l2_loss(self)
+        l2_loss_opt(self, ())
     }
 }
 
-impl Fold for L2Loss {
-    fn f(&self, acc: f32, a: f32) -> f32 {
-        acc + self.0 * a * a
+impl ReduceKernel<f32> for L2Loss {
+    #[inline]
+    fn f(&self, acc: f32, x: f32) -> f32 {
+        acc + 0.5 * x * x
     }
 
-    fn df_dx(&self, a: f32) -> f32 {
-        a
+    fn df_dx(&self, x: f32) -> f32 {
+        x
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::{prelude::*, function::Var};
 
     #[test]
     fn l2_loss() {
@@ -42,5 +47,18 @@ mod test {
         assert_eq!(tf32!([[0.], [1.]]).l2_loss(), tf32!(0.5));
         assert_eq!(tf32!([[0., 1.]]).l2_loss(), tf32!(0.5));
         assert_eq!(tf32!([[1., 0.], [0., 1.]]).l2_loss(), tf32!(1.0));
+    }
+
+    #[test]
+    fn l2_loss_df_n() {
+        let x = Var::new("x", tf32!([1., 2., 2., 1.]));
+
+        let module = Trainer::compile((), |()| {
+            2. * x.l2_loss()
+        });
+        let train = module.train(());
+
+        assert_eq!(train.value(), tf32!(10.));
+        assert_eq!(train.gradient(&x), tf32!([2., 4., 4., 2.]));
     }
 }

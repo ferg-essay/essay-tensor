@@ -3,7 +3,7 @@ use std::{collections::HashSet, any::type_name};
 use crate::{Tensor, tensor::{NodeId, TensorId}};
 
 use super::{Graph, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
-    graph::{IntoBack, BackOp, BoxBackOp}
+    graph::{IntoBack, GradientOp, BoxBackOp}
 };
 
 
@@ -172,7 +172,7 @@ where
 
 impl<Op> IntoBack for Op
 where
-    Op: Clone + BackOp
+    Op: Clone + GradientOp
 {
     fn to_op(&self) -> BoxBackOp {
         Box::new(self.clone())

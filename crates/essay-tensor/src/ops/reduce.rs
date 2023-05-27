@@ -1,42 +1,52 @@
-use std::any::type_name;
+use core::fmt;
+use std::{any::type_name, marker::PhantomData};
 
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit, NodeId}, 
-    function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::BackOp}, prelude::Shape
+    function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::GradientOp}, prelude::Shape
 };
 
-pub trait ReduceKernel<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
-    fn f(&self, state: D, a: D) -> D;
+pub trait ReduceKernel<S: State, D: Dtype=f32> : Clone + Copy + Send + Sync + 'static {
+    fn f(&self, state: S, a: D) -> S;
 
     fn df_dx(&self, a: D) -> D;
 }
 
-pub fn reduce_op<Op>(a: &Tensor, op: Op, axis: Option<i32>) -> Tensor
+pub fn reduce_op<Op, S>(a: &Tensor, op: Op, opt: impl ReduceOpt) -> Tensor
 where
-    Op: ReduceKernel
+    Op: ReduceKernel<S>,
+    S: State<Value=f32>,
 {
-    let fold_op = ReduceCpu(op.clone(), axis);
+    let reduce_op = ReduceCpu {
+        op: op.clone(), 
+        options: opt.into(),
+        marker: PhantomData,
+    };
 
-    let node = NodeOp::new(&[a], fold_op.to_op());
+    let node = NodeOp::new(&[a], reduce_op.to_op());
 
-    let tensor = fold_op.forward(&[&a], node);
+    let tensor = reduce_op.forward(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct ReduceCpu<Op: ReduceKernel>(Op, Option<i32>);
+#[derive(PartialEq)]
+pub struct ReduceCpu<Op: ReduceKernel<S>, S: State> {
+    op: Op, 
+    options: ReduceArg,
+    marker: PhantomData<S>,
+}
 
-impl<Op: ReduceKernel> ReduceCpu<Op> {
+impl<Op: ReduceKernel<S>, S: State> ReduceCpu<Op, S> {
     #[inline]
     fn op(&self) -> Op {
-        self.0
+        self.op
     }
 
     #[inline]
     fn axis(&self) -> Option<i32> {
-        self.1
+        self.options.axis
     }
 
     fn output_shape(&self, shape: &Shape) -> (Shape, usize, usize, usize) {
@@ -73,7 +83,11 @@ impl<Op: ReduceKernel> ReduceCpu<Op> {
     }
 }
 
-impl<Op: ReduceKernel> Operation for ReduceCpu<Op> {
+impl<Op, S> Operation for ReduceCpu<Op, S> 
+where
+    Op: ReduceKernel<S>,
+    S: State<Value=f32>
+{
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -86,7 +100,6 @@ impl<Op: ReduceKernel> Operation for ReduceCpu<Op> {
         assert!(args.len() == 1);
 
         let a = args[0];
-        let shape = a.shape();
 
         let (o_shape, batch, a_len, inner) = self.output_shape(a.shape());
 
@@ -102,16 +115,16 @@ impl<Op: ReduceKernel> Operation for ReduceCpu<Op> {
                 for i in 0..inner {
                     let a_ptr = a_ptr.add(n * a_len * inner + i);
 
-                    let mut v = 0.0;
+                    let mut state = S::default();
 
                     for k in 0..a_len {
-                        v = op.f(
-                            v, 
+                        state = op.f(
+                            state, 
                             *a_ptr.add(k * inner), 
                         );
                     }
 
-                    *o_ptr.add(n * inner + i) = v;
+                    *o_ptr.add(n * inner + i) = state.value();
                 }
             }
 
@@ -133,7 +146,7 @@ impl<Op: ReduceKernel> Operation for ReduceCpu<Op> {
     }
 }
 
-impl<Op: ReduceKernel> BackOp for ReduceCpu<Op> {
+impl<Op: ReduceKernel<S>, S: State> GradientOp for ReduceCpu<Op, S> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -143,29 +156,168 @@ impl<Op: ReduceKernel> BackOp for ReduceCpu<Op> {
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {
-        let a = &args[0];
+        let a = args[0];
 
-        assert_eq!(a.len(), prev.len());
+        let (o_shape, batch, a_len, inner) = self.output_shape(a.shape());
         
         let len = a.len();
         
         unsafe {
             let out = TensorUninit::<f32>::new(len);
 
-            let op = &self.0;
+            let op = &self.op;
 
-            let a_ptr = a.as_ptr();
-            let prev = prev.as_ptr();
-            let o_ptr = out.as_ptr();
+            for n in 0..batch {
+                let a_ptr = a.as_ptr().add(n * a_len * inner);
+                let o_ptr = out.as_ptr().add(n * a_len * inner);
+                let prev_ptr = prev.as_ptr().add(n * inner);
+
+                for i in 0..inner {
+                    let a_ptr = a_ptr.add(i);
+                    let o_ptr = o_ptr.add(i);
+                    let prev_ptr = prev_ptr.add(i);
         
-            for i in 0..len {
-                let df_dx = op.df_dx(*a_ptr.add(i));
-                let prev_df = *prev.add(i);
+                    for k in 0..a_len {
+                        let df_dx = op.df_dx(*a_ptr.add(k * inner));
+                        let prev_df = *prev_ptr.add(i);
 
-                *o_ptr.add(i) = df_dx * prev_df;
+                        *o_ptr.add(k * inner) = df_dx * prev_df;
+                    }
+                }
             }
     
             Tensor::from_uninit(out, a.shape())
         }
+    }
+}
+
+impl<Op: ReduceKernel<S>, S: State> Clone for ReduceCpu<Op, S> {
+    fn clone(&self) -> Self {
+        Self { 
+            op: self.op.clone(), 
+            options: self.options.clone(), 
+            marker: self.marker.clone() 
+        }
+    }
+}
+
+pub trait ReduceOpt {
+    fn axis(self, axis: Option<i32>) -> ReduceArg;
+    fn into(self) -> ReduceArg;
+}
+
+#[derive(Default, Clone, Debug, PartialEq)]
+pub struct ReduceArg {
+    axis: Option<i32>,
+}
+
+impl ReduceOpt for ReduceArg {
+    fn axis(self, axis: Option<i32>) -> ReduceArg {
+        Self { axis, ..self }
+    }
+
+    fn into(self) -> ReduceArg {
+        self
+    }
+}
+
+impl ReduceOpt for () {
+    fn axis(self, axis: Option<i32>) -> ReduceArg {
+        ReduceArg::default().axis(axis)
+    }
+
+    fn into(self) -> ReduceArg {
+        ReduceArg::default()
+    }
+}
+
+pub trait State : Default + Send + Sync + 'static {
+    type Value;
+
+    fn value(&self) -> Self::Value;
+}
+
+impl<T: Dtype + Clone + Default + fmt::Debug> State for T {
+    type Value = Self;
+
+    fn value(&self) -> Self::Value {
+        self.clone()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{prelude::*, function::Var};
+
+    #[test]
+    fn reduce_sum_n() {
+        assert_eq!(tf32!([1.]).reduce_sum(), tf32!(1.));
+        assert_eq!(tf32!([1., 10.]).reduce_sum(), tf32!(11.));
+        assert_eq!(tf32!([10., 1.]).reduce_sum(), tf32!(11.));
+    }
+
+    #[test]
+    fn reduce_sum_1xn() {
+        assert_eq!(tf32!([[1.]]).reduce_sum(), tf32!([1.]));
+        assert_eq!(tf32!([[1., 10.]]).reduce_sum(), tf32!([11.]));
+        assert_eq!(tf32!([[10., 1.]]).reduce_sum(), tf32!([11.]));
+    }
+
+    #[test]
+    fn reduce_sum_2xn() {
+        assert_eq!(tf32!([[1.], [2.]]).reduce_sum(), tf32!([1., 2.]));
+        assert_eq!(tf32!([[1., 10.], [2., 20.]]).reduce_sum(), tf32!([11., 22.]));
+        assert_eq!(tf32!([[20., 2.], [10., 1.]]).reduce_sum(), tf32!([22., 11.]));
+    }
+
+    #[test]
+    fn reduce_sum_2x1xn() {
+        assert_eq!(tf32!([[[1.]], [[2.]]]).reduce_sum(), tf32!([[1.], [2.]]));
+        assert_eq!(tf32!([[[1., 10.]], [[2., 20.]]]).reduce_sum(), tf32!([[11.], [22.]]));
+        assert_eq!(tf32!([[[20., 2.]], [[10., 1.]]]).reduce_sum(), tf32!([[22.], [11.]]));
+    }
+
+    #[test]
+    fn reduce_sum_1xn_axis_none() {
+        assert_eq!(tf32!([[1.]]).reduce_sum_opt(().axis(None)), tf32!(1.));
+        assert_eq!(tf32!([[1., 10.]]).reduce_sum_opt(().axis(None)), tf32!(11.));
+        assert_eq!(tf32!([[10., 1.]]).reduce_sum_opt(().axis(None)), tf32!(11.));
+    }
+
+    #[test]
+    fn reduce_sum_2xn_axis_none() {
+        assert_eq!(tf32!([[1.], [2.]]).reduce_sum_opt(().axis(None)), tf32!(3.));
+        assert_eq!(tf32!([[1., 10.], [100., 1000.]]).reduce_sum_opt(().axis(None)), tf32!(1111.));
+    }
+
+    #[test]
+    fn reduce_sum_2x1x1xn_axis_none() {
+        assert_eq!(tf32!([[[[1.]]], [[[2.]]]]).reduce_sum_opt(().axis(None)), tf32!(3.));
+        assert_eq!(tf32!([[[[1., 10.]]], [[[100., 1000.]]]]).reduce_sum_opt(().axis(None)), tf32!(1111.));
+    }
+
+    #[test]
+    fn reduce_sum_2xn_axis_0() {
+        assert_eq!(tf32!([[1.], [2.]]).reduce_sum_opt(().axis(Some(0))), tf32!([3.]));
+        assert_eq!(tf32!([[1., 10.], [100., 1000.]]).reduce_sum_opt(().axis(Some(0))), tf32!([101., 1010.]));
+    }
+
+    #[test]
+    fn reduce_sum_2xn_axis_m1() {
+        assert_eq!(tf32!([[1.], [2.]]).reduce_sum_opt(().axis(Some(-1))), tf32!([1., 2.]));
+        assert_eq!(tf32!([[1., 10.], [100., 1000.]]).reduce_sum_opt(().axis(Some(-1))), tf32!([11., 1100.]));
+    }
+
+    #[test]
+    fn l2_loss_df_n() {
+        let x = Var::new("x", tf32!([1., 2., 2., 1.]));
+
+        let module = Trainer::compile((), |()| {
+            2. * &x.l2_loss()
+        });
+        let train = module.train(());
+
+        assert_eq!(train.value(), tf32!(10.));
+        assert_eq!(train.gradient(&x), tf32!([2., 4., 4., 2.]));
     }
 }

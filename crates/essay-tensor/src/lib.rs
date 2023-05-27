@@ -31,4 +31,7 @@ pub mod prelude {
     pub use crate::dataset::{
         Dataset,
     };
+    pub use crate::ops::{
+        ReduceOpt,
+    };
 }

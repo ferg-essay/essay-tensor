@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{function::{IntoForward, NodeOp, Tape, Operation, Graph, graph::BackOp}, Tensor, 
+use crate::{function::{IntoForward, NodeOp, Tape, Operation, Graph, graph::GradientOp}, Tensor, 
     tensor::{Dtype, TensorUninit, TensorId, NodeId}
 };
 
@@ -70,7 +70,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
     }
 }
 
-impl<Op:UnaryKernel<f32>> BackOp for UopCpu<Op> {
+impl<Op:UnaryKernel<f32>> GradientOp for UopCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }

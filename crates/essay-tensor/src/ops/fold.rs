@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit, NodeId}, 
-    function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::BackOp}, prelude::Shape
+    function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::GradientOp}, prelude::Shape
 };
 
 pub trait Fold<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -104,7 +104,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
     }
 }
 
-impl<Op:Fold> BackOp for FoldCpu<Op> {
+impl<Op:Fold> GradientOp for FoldCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
