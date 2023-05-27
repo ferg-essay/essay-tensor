@@ -399,7 +399,7 @@ fn fmt_tensor_rec<T:fmt::Debug>(
             let shape = tensor.shape();
             let rank = shape.rank();
             // TODO:
-            let stride : usize = shape.sublen((rank - n)..rank - 1);
+            let stride : usize = shape.sublen((rank - n + 1)..rank - 1);
             for j in 0..shape.dim_rev(n - 1) {
                 if j > 0 {
                     write!(f, ",\n\n  ")?;
@@ -710,9 +710,9 @@ impl Shape {
         }
 
         if self.rank() - a_min < b.rank() - b_min { 
-            b.dims.iter().skip(b_min).product()
+            b.sublen(0..b.rank() - b_min)
         } else { 
-            self.dims.iter().skip(a_min).product()
+            self.sublen(0..self.rank() - a_min)
         }
     }
 

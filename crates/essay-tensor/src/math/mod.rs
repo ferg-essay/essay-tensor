@@ -10,6 +10,7 @@ mod min;
 mod max;
 mod log;
 mod sub;
+mod reduce_sum;
 mod rem;
 mod mul;
 mod div;
@@ -22,7 +23,6 @@ use crate::{
     tensor::{Tensor}, 
     tensor_uop, ops::unary_op,
     tensor_binop, ops::binary_op,
-
 };
 
 tensor_uop!(abs, abs::Abs);
@@ -39,6 +39,8 @@ tensor_binop!(max, max::Max);
 tensor_binop!(min, min::Min);
 tensor_binop!(powf, powf::Powf);
 tensor_binop!(powi, powi::Powi);
+
+pub use reduce_sum::{reduce_sum, reduce_sum_axis};
 
 //
 // overloaded operations: Add, Sub, Mul

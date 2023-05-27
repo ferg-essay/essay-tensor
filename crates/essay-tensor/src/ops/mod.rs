@@ -1,15 +1,8 @@
-mod fold_2;
-mod binary_op;
-mod fold;
 mod unary_op;
-
-pub use fold_2::{
-    BiFold,
-};
-
-pub use fold::{
-    fold_op, Fold,
-};
+mod binary_op;
+mod reduce;
+mod fold;
+mod fold_2;
 
 pub use unary_op::{
     unary_op, UnaryKernel,
@@ -17,4 +10,16 @@ pub use unary_op::{
 
 pub use binary_op::{
     binary_op, BinaryKernel,
+};
+
+pub use reduce::{
+    reduce_op, ReduceKernel,
+};
+
+pub use fold_2::{
+    BiFold,
+};
+
+pub use fold::{
+    fold_op, Fold,
 };

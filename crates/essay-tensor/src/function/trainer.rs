@@ -1,6 +1,6 @@
 use crate::{Tensor, tensor::{TensorId, Tensors}};
 
-use super::{TensorCache, Var, Graph, Tape, backprop::backprop_graph};
+use super::{TensorCache, Var, Graph, Tape, gradient::backprop_graph};
 
 pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
 

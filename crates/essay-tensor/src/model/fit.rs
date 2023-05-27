@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     prelude::Dataset, 
     dataset::{DatasetIter, rebatch}, Tensor, loss::l2_loss,
@@ -56,14 +58,59 @@ pub struct FitBuilder {
     steps_per_epoch: usize,
 }
 
+pub trait FitOpt {
+    fn epochs(self, epochs: usize) -> FitArgs;
+
+    fn into(self) -> FitArgs;
+}
+
+#[derive(Default)]
+// #[derive_options(FitOpt)]
+pub struct FitArgs {
+    epochs: usize,
+    steps_per_epoch: usize,
+}
+
+//derive_arg!(FitOpt, FitArg);
+impl FitOpt for FitArgs {
+    fn epochs(self, epochs: usize) -> FitArgs {
+        Self { epochs, ..self }
+    }
+
+    fn into(self) -> FitArgs {
+        self
+    }
+}
+
+impl FitOpt for () {
+    fn epochs(self, epochs: usize) -> FitArgs {
+        FitArgs::default().epochs(epochs)
+    }
+
+    fn into(self) -> FitArgs {
+        FitArgs::default()
+    }
+}
+
+fn test(opt: impl FitOpt) {
+
+}
+
+fn my_test() {
+    test(().epochs(1));
+}
+
 impl FitBuilder {
     fn new_tensor(
         model: impl FnOnce(Tensor) -> Tensor + 'static,
         train_x: impl Into<Tensor>, 
-        train_y: impl Into<Tensor>
+        train_y: impl Into<Tensor>,
+        options: impl FitOpt,
     ) -> FitBuilder {
         let train_x = train_x.into();
         let train_y = train_y.into();
+
+        let options = options.into();
 
         assert_eq!(train_x.dim(0), train_y.dim(0));
 
@@ -74,8 +121,8 @@ impl FitBuilder {
             model: Some(Box::new(model)),
             train_x,
             train_y,
-            epochs: 1,
-            steps_per_epoch: usize::MAX,
+            epochs: options.epochs,
+            steps_per_epoch: options.steps_per_epoch,
         }
     }
 
@@ -120,6 +167,7 @@ impl FitBuilder {
 mod test {
     use crate::{model::{fit::FitBuilder, model::Model}, function::Var};
     pub use crate::prelude::*;
+    pub use crate::model::prelude::*;
 
     #[test]
     fn fit_builder() {
@@ -134,7 +182,8 @@ mod test {
         let mut builder = FitBuilder::new_tensor(
             move |x| &a.matvec(&x) + &b,
             &train_x, 
-            &train_y
+            &train_y,
+            ().epochs(2)
         );
 
         let mut fit = builder.build();

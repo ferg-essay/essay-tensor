@@ -1,7 +1,7 @@
 mod trainer;
 mod tape;
 mod function;
-mod backprop;
+mod gradient;
 mod var;
 pub(crate) mod graph;
 
