@@ -1,6 +1,6 @@
 use crate::{Tensor, tensor::{NodeId, TensorId}, function::TensorCache};
 
-pub trait Bundle : Clone {
+pub trait Tensors : Clone {
     type Item;
 
     fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
@@ -11,7 +11,7 @@ pub trait Bundle : Clone {
     fn make_out(cache: &TensorCache, out: &Vec<TensorId>, index: &mut usize) -> Self::Item;
 }
 
-impl Bundle for Tensor {
+impl Tensors for Tensor {
     type Item = Tensor;
 
     fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
@@ -42,7 +42,7 @@ impl Bundle for Tensor {
     fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
         match &item.op() {
             NodeId::None => todo!(),
-            NodeId::Var(_) => todo!(),
+            NodeId::Var(_name) => panic!("output of var not supported {:?}", &item.op()),
             NodeId::Id(id) => out.push(*id)
         }
     }
@@ -54,7 +54,7 @@ impl Bundle for Tensor {
     }
 }
 
-impl Bundle for () {
+impl Tensors for () {
     type Item = ();
 
     fn push_arg(_out: &mut TensorCache, index: usize, _item: &Self::Item) -> usize {
@@ -81,7 +81,7 @@ macro_rules! bundle_tuple {
     ($( $id:ident ),*) => {
 
     #[allow(non_snake_case)]
-    impl<$($id: Bundle<Item=$id>,)*> Bundle for ($($id,)*) {
+    impl<$($id: Tensors<Item=$id>,)*> Tensors for ($($id,)*) {
         type Item = ($($id,)*);
 
         fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {

@@ -1,8 +1,8 @@
-use std::{any::type_name};
+use std::{any::type_name, cmp};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit, NodeId}, 
-    function::{Operation, Graph, graph::BackOp}, linalg::blas::sgemm
+    function::{Operation, Graph, graph::BackOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
 };
 
 use super::matmul::Transpose;
@@ -11,13 +11,81 @@ use super::matmul::Transpose;
 struct Matvec;
 
 #[derive(Debug, Clone)]
-struct MatvecOuter;
+struct MatvecBackLeft;
 
 #[derive(Debug, Clone)]
 struct MatvecBackRight;
 
-#[derive(Debug, Clone)]
-struct MatvecBackRightT;
+impl Tensor<f32> {
+    pub fn matvec(&self, b: &Tensor<f32>) -> Tensor {
+        matvec_t(&self, b, Transpose::None)
+    }
+
+    pub fn matvec_t(&self, b: &Tensor<f32>, transpose: impl TransposeMatvec) -> Tensor {
+        matvec_t(&self, b, transpose)
+    }
+}
+
+pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
+    let node = NodeOp::new(&[a, b], Matvec.to_op());
+
+    matvec_t_op(a, b, Transpose::None, node)
+}
+
+pub fn matvec_t(
+    a: &Tensor<f32>,
+    x: &Tensor<f32>,
+    _transpose: impl TransposeMatvec,
+) -> Tensor<f32> {
+    let node = NodeOp::new(&[a, x], Matvec.to_op());
+
+    matvec_t_op(a, x, _transpose, node)
+}
+
+fn matvec_t_op(
+    a: &Tensor<f32>,
+    x: &Tensor<f32>,
+    transpose: impl TransposeMatvec,
+    node: NodeId,
+) -> Tensor<f32> {
+    assert!(a.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", a.rank());
+    
+    //assert_eq!(a.shape().as_subslice(2..), x.shape().as_subslice(1..), "matvec batch shape must match");
+    /*
+    assert_eq!(x.cols(), a.cols(), 
+        "mismatches shapes for matvec A={:?} x={:?}",
+        &a.shape().as_slice(), &x.shape().as_slice());
+        */
+
+    let n : usize = a.broadcast_min(2, &x, cmp::min(2, x.rank()));
+
+    let a_size = a.cols() * a.rows();
+
+    let x_rows = cmp::max(1, x.rows());
+    let x_size = x.cols() * x_rows;
+
+    let (o_cols, o_rows) = transpose.o_size(a, x);
+    let o_size = o_cols * o_rows;
+
+    unsafe {
+        let mut out = TensorUninit::<f32>::new(o_size * n);
+
+        for block in 0..n {
+            let a_ptr = a.as_wrap_ptr(block * a_size);
+            let x_ptr = x.as_wrap_ptr(block * x_size);
+            let o_ptr = out.as_mut_ptr().add(block * o_size);
+
+            transpose.sgemm(a, x, o_cols, o_rows, a_ptr, x_ptr, o_ptr);
+        }
+
+        let mut o_shape = Vec::from(x.shape().as_slice());
+        let len = o_shape.len();
+        o_shape[len - 1] = o_cols;
+        let tensor = Tensor::from_uninit_node(out, o_shape, node);
+
+        Tape::set_tensor(tensor)
+    }
+}
 
 pub trait TransposeMatvec {
     fn inner_len(
@@ -32,67 +100,18 @@ pub trait TransposeMatvec {
 
     fn b_inc(&self, b_cols: usize, b_rows: usize) -> usize;
 
-    fn out_size(&self, a_cols: usize, a_rows: usize) -> usize;
-}
+    fn o_size(&self, a: &Tensor<f32>, x: &Tensor<f32>) -> (usize, usize);
 
-impl Tensor<f32> {
-    pub fn matvec(&self, b: &Tensor<f32>) -> Tensor {
-        matvec_t(&self, b, Transpose::None)
-    }
-
-    pub fn matvec_t(&self, b: &Tensor<f32>, transpose: impl TransposeMatvec) -> Tensor {
-        matvec_t(&self, b, transpose)
-    }
-}
-
-pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
-    matvec_t(a, b, Transpose::None)
-}
-
-pub fn matvec_t(
-    a: &Tensor<f32>,
-    x: &Tensor<f32>,
-    _transpose: impl TransposeMatvec,
-) -> Tensor<f32> {
-    assert!(a.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", a.rank());
-    
-    //assert_eq!(a.shape().as_subslice(2..), x.shape().as_subslice(1..), "matvec batch shape must match");
-    assert_eq!(x.cols(), a.cols());
-
-    let n : usize = a.broadcast_min(2, &x, 2);
-
-    let a_dim = [a.cols(), a.rows()];
-    let x_dim = [x.cols(), x.rows()];
-
-    let o_size = a_dim[1] * x_dim[1];
-
-    let a_size = a_dim[0] * a_dim[1];
-    let x_size = x_dim[0] * x_dim[1];
-
-    unsafe {
-        let mut out = TensorUninit::<f32>::new(o_size * n);
-
-        for block in 0..n {
-            sgemm(
-                x.rows(), x_dim[0], o_size,
-                1.,
-                x.as_wrap_ptr(block * x_size),
-                x_dim[0], 1,
-                a.as_wrap_ptr(block * a_size),
-                1, a_dim[0],
-                0.,
-                out.as_mut_ptr().add(block * o_size),
-                o_size, 1,
-            )
-        }
-
-        let mut o_shape = Vec::from(x.shape().as_slice());
-        let len = o_shape.len();
-        o_shape[len - 1] = o_size;
-        Tensor::from_uninit(out, o_shape)
-        //a.next_binop(&b, out.init(), o_shape, Matvec)
-        //todo!()
-    }
+    fn sgemm(
+        &self, 
+        a: &Tensor<f32>, 
+        x: &Tensor<f32>, 
+        o_cols: usize,
+        o_rows: usize,
+        a_ptr: *const f32, 
+        x_ptr: *const f32, 
+        o_ptr: *mut f32,
+    );
 }
 
 impl TransposeMatvec for Transpose {
@@ -145,10 +164,68 @@ impl TransposeMatvec for Transpose {
         }
     }
 
-    fn out_size(&self, a_cols: usize, a_rows: usize) -> usize {
+    fn o_size(&self, a: &Tensor<f32>, x: &Tensor<f32>) -> (usize, usize) {
         match self {
-            Transpose::None => a_rows,
-            Transpose::TransposeA => a_cols,
+            Transpose::None => {
+                assert_eq!(a.cols(), x.cols(),
+                    "matvec shapes do not match A={:?} x={:?}",
+                    &a.shape().as_slice(), &x.shape().as_slice());
+
+                (a.rows(), cmp::max(1, x.rows()))
+            },
+            Transpose::TransposeA => {
+                assert_eq!(a.rows(), x.cols(),
+                    "matvec shapes do not match A={:?} x={:?} for TransposeA",
+                    &a.shape().as_slice(), &x.shape().as_slice());
+                    
+                (a.cols(), cmp::max(1, x.rows()))
+            },
+            Transpose::TransposeB => todo!(),
+            Transpose::TransposeAB => todo!(),
+        }
+    }
+
+    fn sgemm(
+        &self, 
+        a: &Tensor<f32>, 
+        x: &Tensor<f32>,
+        o_cols: usize,
+        o_rows: usize,
+        a_ptr: *const f32, 
+        x_ptr: *const f32, 
+        o_ptr: *mut f32,
+    ) {
+        match self {
+            Transpose::None => {
+                unsafe {
+                    sgemm(
+                        o_rows, x.cols(), o_cols,
+                        1.,
+                        x_ptr,
+                        x.cols(), 1,
+                        a_ptr,
+                        1, a.cols(),
+                        0.,
+                        o_ptr,
+                        o_cols, 1,
+                    );
+                }
+            }
+            Transpose::TransposeA => {
+                unsafe {
+                    sgemm(
+                        o_rows, x.cols(), o_cols,
+                        1.,
+                        x_ptr,
+                        x.cols(), 1,
+                        a_ptr,
+                        a.cols(), 1,
+                        0.,
+                        o_ptr,
+                        o_cols, 1,
+                    );
+                }
+            },
             Transpose::TransposeB => todo!(),
             Transpose::TransposeAB => todo!(),
         }
@@ -178,18 +255,18 @@ impl Operation for Matvec {
     ) -> TensorId {
         match i {
             0 => {
-                graph.add_back_op(MatvecOuter, &[args[1]], prev)
+                graph.add_back_op(MatvecBackLeft, &[args[1]], prev)
             },
             1 => {
                 // let left = graph.constant_id(args[0]);
-                graph.add_back_op(MatvecBackRightT, &[args[0]], prev)
+                graph.add_back_op(MatvecBackRight, &[args[0]], prev)
             }
             _ => panic!("invalid argument")
         }
     }
 }
 
-impl BackOp for MatvecOuter {
+impl BackOp for MatvecBackLeft {
     fn name(&self) -> &str {
         type_name::<Self>()
     }
@@ -199,11 +276,21 @@ impl BackOp for MatvecOuter {
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {
-        args[0].outer_product(prev)
+        let mut x = args[0].clone();
+        let mut prev = prev.clone();
+
+        if x.rank() <= 1 {
+            x = x.reshape([1, x.cols()]);
+        }
+        if prev.rank() <= 1 {
+            prev = prev.reshape([1, prev.cols()]);
+        }
+        //args[0].outer_product(prev)
+        x.matmul_t(&prev, Transpose::TransposeA)
     }
 }
 
-impl BackOp for MatvecBackRightT {
+impl BackOp for MatvecBackRight {
     fn name(&self) -> &str {
         type_name::<Self>()
     }
@@ -219,7 +306,7 @@ impl BackOp for MatvecBackRightT {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, function::{Var, Trainer}, linalg::matmul::Transpose};
+    use crate::{tensor, Tensor, function::{Var, Trainer}, linalg::matmul::Transpose, tf32};
 
     #[test]
     fn test_matvec_1_1() {
@@ -264,7 +351,58 @@ mod test {
         let a = tensor!([[1., 2., 3.], [4., 5., 6.]]);
         let b = tensor!([10., 20.]);
         assert_eq!(a.matvec_t(&b, Transpose::TransposeA), tensor!([90., 120., 150.]));
+    }
 
+    #[test]
+    fn matvec_2x1_by_1() {
+        // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
+        
+        let a = tf32!([[1.], [10.]]);
+        let x = tf32!([2.]);
+
+        assert_eq!(a.matvec(&x), tensor!([2., 20.]));
+        assert_eq!(
+            a.matvec_t(&tf32!([1., 1.]), Transpose::TransposeA),
+            tensor!([11.])
+        );
+
+        let a = Var::new("a", tf32!([[1.], [10.]]));
+        let x = Var::new("x", tf32!([2.]));
+
+        let module = Trainer::compile((), |()| {
+            a.matvec(&x)
+        }); // .training(&[&a, &x]);
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!([2., 20.]));
+        assert_eq!(train.gradient(&x), tensor!([11.0]));
+        assert_eq!(train.gradient(&a), tensor!([[2.0], [2.]]));
+    }
+
+    #[test]
+    fn matvec_1x1_by_1x2() {
+        // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
+        
+        let a = tf32!([[10.]]);
+        let x = tf32!([[1.], [2.]]);
+
+        assert_eq!(a.matvec(&x), tf32!([[10.], [20.]]));
+        assert_eq!(
+            a.matvec_t(&tf32!([[1.], [1.]]), Transpose::TransposeA),
+            tensor!([[10.], [10.]])
+        );
+
+        let a = Var::new("a", tf32!([[10.]]));
+        let x = Var::new("x", tf32!([[1.], [2.]]));
+
+        let module = Trainer::compile((), |()| {
+            a.matvec(&x)
+        }); // .training(&[&a, &x]);
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!([[10.], [20.]]));
+        assert_eq!(train.gradient(&x), tensor!([[10.0], [10.0]]));
+        assert_eq!(train.gradient(&a), tensor!([[3.0]]));
     }
     
     #[test]

@@ -1,3 +1,5 @@
+use std::ops::RangeBounds;
+
 use crate::{Tensor};
 
 
@@ -13,7 +15,7 @@ impl TensorSlice for usize {
         let shape = tensor.shape().slice(1..);
         let len : usize = shape.size();
 
-        tensor.subslice(self * len, len, shape)
+        tensor.subslice_flat(self * len, len, shape)
     }
 }
 
@@ -27,7 +29,7 @@ impl TensorSlice for (usize, usize) {
         let len : usize = shape.size();
         let offset = (self.0 * tensor.dim(1) + self.1) * len;
 
-        tensor.subslice(offset, len, shape)
+        tensor.subslice_flat(offset, len, shape)
     }
 }
 

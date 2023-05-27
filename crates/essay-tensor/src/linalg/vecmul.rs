@@ -52,10 +52,11 @@ pub fn outer_product(
         for size in a.shape().as_subslice(1..) {
             o_shape.push(*size);
         }
+        o_shape.reverse();
 
         //.next_binop(&b, out.init(), o_shape, OuterProduct)
         //todo!()
-        Tensor::from_uninit(out, Shape::from(o_shape))
+        Tensor::from_uninit(out, o_shape)
     }
 }
 

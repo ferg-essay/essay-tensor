@@ -5,7 +5,7 @@
 
 use core::fmt;
 
-use crate::{Tensor, flow::FlowData, tensor::Dtype};
+use crate::{Tensor, flow::{FlowData, Source, VecSource}, tensor::Dtype};
 
 use super::Dataset;
 
@@ -31,7 +31,8 @@ impl<T: Dtype> From<Tensor<T>> for Dataset<Tensor<T>> {
     
         Dataset::from_flow(|builder| {
             builder.source(move || {
-                vec.clone()
+                // TODO: cleanup so vec.clone() is sufficient
+                VecSource::from(vec.clone())
             }, &())
         })
     }
@@ -43,7 +44,7 @@ impl<T: Dtype> From<&Tensor<T>> for Dataset<Tensor<T>> {
     
         Dataset::from_flow(|builder| {
             builder.source(move || {
-                vec.clone()
+                VecSource::from(vec.clone())
             }, &())
         })
     }
@@ -55,8 +56,8 @@ impl<T: Dtype> From<Vec<Tensor<T>>> for Dataset<Tensor<T>> {
         vec.reverse();
     
         Dataset::from_flow(|builder| {
-            builder.source(move || {
-                vec.clone()
+            builder.source::<(), Tensor<T>>(move || {
+                VecSource::from(vec.clone())
             }, &())
         })
     }

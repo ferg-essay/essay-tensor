@@ -18,7 +18,14 @@ pub struct BackTrace {
 }
 
 pub(crate) fn backprop_graph(forward: &Graph, target: TensorId) -> Graph {
-    let backtrace = build_backtrace(forward, target).unwrap();
+    let backtrace = build_backtrace(forward, target);
+    
+    assert!(backtrace.is_some(), "Can't build backtrace for {:?}\n{:?}", 
+        forward.node(target),
+        forward,
+    );
+
+    let backtrace = backtrace.unwrap();
 
     let mut graph = Graph::default();
 

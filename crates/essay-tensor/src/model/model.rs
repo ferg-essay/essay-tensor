@@ -1,8 +1,21 @@
 use std::any::Any;
 
-use crate::{Tensor, layer::Layer, tensor::Bundle, optimizer::Optimizer, loss::Loss};
+use crate::{Tensor, layer::Layer, tensor::Tensors, optimizer::Optimizer, loss::Loss};
 
-pub trait Model<In:Bundle<Item=In>, Out:Bundle<Item=Out>> {
+pub trait Model {
+    fn call(&mut self, input: Tensor) -> Tensor;
+}
+
+impl<F> Model for F
+where
+    F: FnMut(Tensor) -> Tensor
+{
+    fn call(&mut self, input: Tensor) -> Tensor {
+        self(input)
+    }
+}
+
+pub trait ModelTensorflow<In:Tensors<Item=In>, Out:Tensors<Item=Out>> {
     fn call(&self, input: In) -> Out;
 
     // fn compile(&self) -> CompileBuilder;

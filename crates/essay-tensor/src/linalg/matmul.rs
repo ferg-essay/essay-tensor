@@ -11,21 +11,17 @@ pub enum Transpose {
 pub trait TransposeMatmul {
     fn mkn(
         &self, 
-        a_dim: [usize; 2], 
-        b_dim: [usize; 2], 
+        a: &Tensor,
+        b: &Tensor,
     ) -> (usize, usize, usize);
 
     unsafe fn sgemm(
         &self, 
-        a_dim: [usize; 2], b_dim: [usize; 2],
+        a: &Tensor, b: &Tensor,
         a_ptr: *const f32,
         b_ptr: *const f32,
         o_ptr: *mut f32,
     );
-
-    fn a_stride(&self, a_dim: [usize; 2]) -> [usize; 2];
-
-    fn b_stride(&self, b_dim: [usize; 2]) -> [usize; 2];
 }
 
 #[derive(Debug, Clone)]
@@ -50,14 +46,11 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
     assert!(a.rank() > 1, "matrix multiplication requires rank >= 2");
     assert_eq!(&a.shape().as_subslice(2..), &b.shape().as_subslice(2..), "matmul batch shape must match");
 
-    let a_dim = [a.shape()[0], a.shape()[1]];
-    let b_dim = [b.shape()[0], b.shape()[1]];
+    let (m, _, n) = transpose.mkn(a, b);
 
-    let (m, _, n) = transpose.mkn(a_dim, b_dim);
-
-    let batch_len : usize = a.shape().sublen(2..);
-    let a_size = a_dim[0] * a_dim[1];
-    let b_size = b_dim[0] * b_dim[1];
+    let batch_len : usize = a.shape().sublen(0..a.rank() - 2);
+    let a_size = a.rows() * a.cols();
+    let b_size = b.rows() * b.cols();
     let o_size = m * n;
 
     unsafe {
@@ -68,7 +61,7 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
             let b_ptr = b.as_ptr().add(b_size * batch);
             let c_ptr = out.as_ptr().add(o_size * batch);
         
-            transpose.sgemm(a_dim, b_dim, a_ptr, b_ptr, c_ptr);
+            transpose.sgemm(a, b, a_ptr, b_ptr, c_ptr);
         }
 
         let mut o_shape = Vec::from(b.shape().as_slice());
@@ -84,25 +77,33 @@ impl TransposeMatmul for Transpose {
     #[inline]
     fn mkn(
         &self, 
-        a: [usize; 2], 
-        b: [usize; 2],
+        a: &Tensor,
+        b: &Tensor,
     ) -> (usize, usize, usize) {
         match self {
             Transpose::None => {
-                assert_eq!(a[0], b[1], "left columns must match right rows");
-                (a[1], a[0], b[0])
+                assert_eq!(a.cols(), b.rows(), "matmul shape does not match. A={:?} B={:?}",
+                    a.shape().as_slice(), b.shape().as_slice());
+
+                (a.rows(), a.cols(), b.cols())
             },
             Transpose::TransposeA => {
-                assert_eq!(a[1], b[1], "left rows must match right rows {:?}", &self);
-                (a[0], a[1], b[0])
+                assert_eq!(a.rows(), b.rows(), "matmul shape does not match. A={:?} B={:?} for {:?}", 
+                    a.shape().as_slice(), b.shape().as_slice(), &self);
+
+                (a.cols(), a.rows(), b.cols())
             },
             Transpose::TransposeB => {
-                assert_eq!(a[0], b[0], "left columns must match right columns {:?}", &self);
-                (a[0], a[1], b[1])
+                assert_eq!(a.cols(), b.cols(), "matmul shape does not match. A={:?} B={:?} for {:?}", 
+                    a.shape().as_slice(), b.shape().as_slice(), &self);
+
+                (a.rows(), a.rows(), b.rows())
             },
             Transpose::TransposeAB => {
-                assert_eq!(a[1], b[0], "left rows must match right columns {:?}", &self);
-                (a[0], a[1], b[1])
+                assert_eq!(a.rows(), b.cols(), "matmul shape does not match. A={:?} B={:?} for {:?}", 
+                    a.shape().as_slice(), b.shape().as_slice(), &self);
+
+                (a.cols(), a.rows(), b.rows())
             },
         }
     }
@@ -110,7 +111,8 @@ impl TransposeMatmul for Transpose {
     #[inline]
     unsafe fn sgemm(
         &self, 
-        a_dim: [usize; 2], b_dim: [usize; 2],
+        a: &Tensor,
+        b: &Tensor,
         a_ptr: *const f32,
         b_ptr: *const f32,
         o_ptr: *mut f32,
@@ -118,46 +120,45 @@ impl TransposeMatmul for Transpose {
         match self {
             Transpose::None => {
                 sgemm(
-                    a_dim[1], a_dim[0], b_dim[0],
+                    a.rows(), a.cols(), b.cols(),
                     1.,
-                    a_ptr, a_dim[0], 1,
-                    b_ptr, b_dim[0], 1,
+                    a_ptr, a.cols(), 1,
+                    b_ptr, b.cols(), 1,
                     0.,
-                    o_ptr, b_dim[0], 1,
+                    o_ptr, b.cols(), 1,
+                );
+            }
+            Transpose::TransposeA => {
+                sgemm(
+                    a.cols(), a.rows(), b.cols(),
+                    1.,
+                    a_ptr, 1, a.cols(),
+                    b_ptr, b.cols(), 1,
+                    0.,
+                    o_ptr, b.cols(), 1,
+                );
+            }
+            Transpose::TransposeB => {
+                sgemm(
+                    a.rows(), a.cols(), b.rows(),
+                    1.,
+                    a_ptr, a.cols(), 1,
+                    b_ptr, 1, b.cols(),
+                    0.,
+                    o_ptr, b.rows(), 1,
+                );
+            }
+            Transpose::TransposeAB => {
+                sgemm(
+                    a.cols(), a.rows(), b.rows(),
+                    1.,
+                    a_ptr, 1, a.cols(),
+                    b_ptr, 1, b.cols(),
+                    0.,
+                    o_ptr, b.rows(), 1,
                 );
             }
             _ => todo!(),
-        }
-    }
-
-    /*
-    #[inline]
-    fn o_stride(&self, a: [usize; 2], b: [usize; 2]) -> [usize; 2] {
-        match self {
-            Transpose::None => [b[0], a[1]],
-            Transpose::TransposeA => [b[0], a[0]],
-            Transpose::TransposeB => [b[1], a[1]],
-            Transpose::TransposeAB => [b[1], a[1]],
-        }
-    }
-    */
-
-    fn a_stride(&self, a: [usize; 2]) -> [usize; 2] {
-        match self {
-            Transpose::None => [a[0], 1],
-            Transpose::TransposeA => [a[0], 1],
-            Transpose::TransposeB => [1, a[0]],
-            Transpose::TransposeAB => [1, a[0]],
-        }
-    }
-
-    fn b_stride(&self, b: [usize; 2]) -> [usize; 2]
-    {
-        match self {
-            Transpose::None => [b[0], 1],
-            Transpose::TransposeA => [b[0], 1],
-            Transpose::TransposeB => [1, b[0]],
-            Transpose::TransposeAB => [1, b[0]],
         }
     }
 }
@@ -245,6 +246,14 @@ mod test {
         let b = tensor!([[10., 20.]]);
 
         assert_eq!(a.matmul_t(&b, Transpose::TransposeB), tensor!([[50.]]));
+    }
+
+    #[test]
+    fn matmul_transpose_ab() {
+        let a = tensor!([[1.], [2.]]);
+        let b = tensor!([[10., 20.]]);
+
+        assert_eq!(a.matmul_t(&b, Transpose::TransposeAB), tensor!([[50.]]));
     }
 
     #[test]

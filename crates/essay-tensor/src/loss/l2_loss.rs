@@ -35,4 +35,12 @@ mod test {
         assert_eq!(tensor!(2.).l2_loss(), tensor!(2.));
         assert_eq!(tensor!(3.).l2_loss(), tensor!(4.5));
     }
+
+    #[test]
+    fn l2_loss_rank2() {
+        assert_eq!(tf32!([[1.]]).l2_loss(), tf32!(0.5));
+        assert_eq!(tf32!([[0.], [1.]]).l2_loss(), tf32!(0.5));
+        assert_eq!(tf32!([[0., 1.]]).l2_loss(), tf32!(0.5));
+        assert_eq!(tf32!([[1., 0.], [0., 1.]]).l2_loss(), tf32!(1.0));
+    }
 }

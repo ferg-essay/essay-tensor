@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use crate::{Tensor, tensor::{NodeId, TensorId, Bundle}};
+use crate::{Tensor, tensor::{NodeId, TensorId, Tensors}};
 
 
 use super::{Var, TensorCache, Graph, NodeOp};
@@ -24,8 +24,8 @@ thread_local! {
 impl Tape {
     pub fn build<F, In, Out>(init: In, fun: F) -> Tape
     where
-        In: Bundle<Item=In>,
-        Out: Bundle<Item=Out>,
+        In: Tensors<Item=In>,
+        Out: Tensors<Item=Out>,
         F: FnOnce(In) -> Out,
     {
         let mut tape = Tape {

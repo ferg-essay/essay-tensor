@@ -55,8 +55,8 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         let a = args[0];
 
         let shape = a.shape();
-        let o_shape = if shape.size() > 1 {
-            shape.slice(1..)
+        let o_shape = if shape.rank() > 0 {
+            shape.slice(0..shape.rank() - 1)
         } else {
             Shape::scalar()
         };

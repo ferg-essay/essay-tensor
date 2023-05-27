@@ -41,7 +41,12 @@ impl fmt::Debug for NodeOp {
                 f.debug_tuple("Var").field(arg0).field(arg1).finish()
             },
             Self::Op(id, op, args) => {
-                f.debug_tuple("Op").field(id).field(&op.name().to_string()).field(args).finish()
+                //f.debug_tuple("Op").field(id).field(&op.name()).field(args).finish()
+                write!(f, "{}({}){:?}", 
+                    id.index(), 
+                    op.name().rsplit_once("").unwrap().1,
+                    args,
+                )
             },
             Self::BackConst(arg0, arg1) => {
                 f.debug_tuple("BackConst").field(arg0).field(arg1).finish()
@@ -50,6 +55,18 @@ impl fmt::Debug for NodeOp {
                 f.debug_tuple("BackOp").field(arg0).field(&op.name().to_string()).field(arg2).field(arg3).finish()
             },
         }
+    }
+}
+
+impl fmt::Debug for Graph {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Graph {{\n")?;
+
+        for op in &self.nodes {
+            write!(f, "  #{} {:?}\n", op.id().index(), op)?;
+        }
+
+        write!(f, "}}")
     }
 }
 
@@ -109,7 +126,7 @@ impl Graph {
             .or_insert(TensorId(len));
 
         if id.index() == len {
-            let op = NodeOp::Const(id);
+            let op = NodeOp::Var(id, name.to_string());
             debug!("GraphVar {} {:?}", name, op);
             self.nodes.push(op);
             self.tensors.push(Some(tensor.clone()));
@@ -271,12 +288,10 @@ impl NodeOp {
         tensors: &TensorCache,
         fwd_tensors: &TensorCache,
     ) -> Tensor {
-        match self {
+        let value = match self {
             NodeOp::None => todo!(),
             NodeOp::Const(id) => tensors[*id].clone(),
-            NodeOp::Var(_, _) => {
-                panic!()
-            },
+            NodeOp::Var(id, _) => tensors[*id].clone(),
             NodeOp::Op(id, op, args) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| tensors.get(*id).unwrap())
@@ -295,7 +310,11 @@ impl NodeOp {
 
                 op.df(&t_args, tensors.get(*prev).unwrap())
             },
-        }
+        };
+
+        println!("Eval {:?}", value);
+
+        value
     }
 
     fn constant(tensor: &Tensor) -> TensorId {

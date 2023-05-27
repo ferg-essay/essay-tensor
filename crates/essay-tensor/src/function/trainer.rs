@@ -1,10 +1,10 @@
-use crate::{Tensor, tensor::{TensorId, Bundle}};
+use crate::{Tensor, tensor::{TensorId, Tensors}};
 
 use super::{TensorCache, Var, Graph, Tape, backprop::backprop_graph};
 
-pub struct _Loss<Out:Bundle<Item=Out>>(Tensor, Out);
+pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
 
-pub struct Trainer<In: Bundle, Out: Bundle> {
+pub struct Trainer<In: Tensors, Out: Tensors> {
     _vars: Vec<(String, TensorId)>,
     fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
 
@@ -12,7 +12,7 @@ pub struct Trainer<In: Bundle, Out: Bundle> {
     gradients: Vec<(String, Graph)>,
 }
 
-pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
+pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
     module: &'a Trainer<In, Out>,
     tensors: TensorCache,
     out: Out,
@@ -20,8 +20,8 @@ pub struct Train<'a, In: Bundle<Item=In>, Out: Bundle<Item=Out>> {
 
 impl<In, Out> Trainer<In, Out>
 where
-    In: Bundle<Item=In>,
-    Out: Bundle<Item=Out>,
+    In: Tensors<Item=In>,
+    Out: Tensors<Item=Out>,
 {
     pub fn compile<F>(input: In, fun: F) -> Trainer<In, Out>
     where
@@ -80,7 +80,7 @@ where
     }
 }
 
-impl<In:Bundle<Item=In>,Out:Bundle<Item=Out>> Train<'_, In, Out> {
+impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
     pub fn value(&self) -> Out {
         self.out.clone()
     }

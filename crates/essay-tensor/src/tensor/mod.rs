@@ -9,7 +9,7 @@ pub use data::{
 };
 
 pub use bundle::{
-    Bundle,
+    Tensors,
 };
 
 pub use tensor::{

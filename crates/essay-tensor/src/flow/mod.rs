@@ -24,7 +24,7 @@ pub use flow_single::{
 };
     
 pub use source::{
-    SourceId, Source, SourceFactory, Out, Result,
+    SourceId, Source, SourceFactory, Out, Result, VecSource,
 };
 
 pub use flow::{

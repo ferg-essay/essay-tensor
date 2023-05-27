@@ -307,9 +307,29 @@ where
     }
 }
 
-impl<T: FlowData> Source<(), T> for Vec<T> {
-    fn next(&mut self, _input: &mut ()) -> Result<Out<T>> {
-        Ok(Out::from(self.pop()))
+pub struct VecSource<T: FlowData> {
+    vec: Vec<T>,
+    index: usize,
+}
+
+impl<T: FlowData + Clone> Source<(), T> for VecSource<T> {
+    fn next(&mut self, input: &mut ()) -> Result<Out<T>> {
+        let index = self.index;
+        self.index += 1;
+        println!("Vec[{index}]: {:?} ", &self.vec);
+        match self.vec.get(index) {
+            Some(value) => Ok(Out::Some(value.clone())),
+            None => Ok(Out::None),
+        }
+    }
+}
+
+impl<T: FlowData> From<Vec<T>> for VecSource<T> {
+    fn from(value: Vec<T>) -> Self {
+        VecSource {
+            vec: value,
+            index: 0,
+        }
     }
 }
 

@@ -94,7 +94,10 @@ impl<T: Copy + 'static> Tensor<T> {
         let shape = shape.into();
         let len: usize = max(1, shape.size());
 
-        assert_eq!(len, data.len());        
+        assert_eq!(
+            data.len(), len, 
+            "Tensor data len={} must match shape size {:?}", data.len(), shape.as_slice()
+        );        
         //data.checkcast::<T>(len);
 
         Self {
@@ -194,6 +197,21 @@ impl<T> Tensor<T> {
         self.shape.broadcast_min(a_min, b.shape(), b_min)
     }
 
+    pub fn reshape(&self, shape: impl Into<Shape>) -> Tensor<T> {
+        let shape = shape.into();
+
+        assert_eq!(self.len(), shape.size());
+
+        Tensor {
+            shape,
+            offset: self.offset,
+            len: self.len,
+
+            data: self.data.clone(),
+
+            node_id: self.node_id.clone(), // TODO: check if new node needed
+        }
+    }
     /*
     #[inline]
     pub fn data(&self) -> &Arc<TensorData> {
@@ -248,7 +266,7 @@ impl<T> Tensor<T> {
         }
     }
 
-    pub fn subslice(&self, offset: usize, len: usize, shape: impl Into<Shape>) -> Self {
+    pub fn subslice_flat(&self, offset: usize, len: usize, shape: impl Into<Shape>) -> Self {
         assert!(offset <= self.len);
         assert!(offset + len <= self.len);
 
@@ -264,6 +282,21 @@ impl<T> Tensor<T> {
             data: self.data.clone(),
             node_id: NodeId::None,
         }
+    }
+
+    // TODO: reparam to use range
+    pub fn subslice(&self, offset: usize, len: usize) -> Self {
+        let dim_0 = self.dim(0);
+
+        assert!(offset <= dim_0);
+        assert!(offset + len <= dim_0);
+
+        let size : usize = self.shape().as_slice()[1..].iter().product();
+
+        let mut shape = Vec::from(self.shape.as_slice());
+        shape[0] = len;
+
+        self.subslice_flat(offset * size, len * size, shape)
     }
 }
 
@@ -305,7 +338,7 @@ impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Tensor<{}> {{", type_name::<T>())?;
 
-        if self.shape.size() > 1 {
+        if self.shape.rank() > 1 {
             write!(f, "\n")?;
         }
 
@@ -334,7 +367,7 @@ fn fmt_tensor_rec<T:fmt::Debug>(
         1 => {
             write!(f, "[")?;
 
-            for j in 0..tensor.dim(0) {
+            for j in 0..tensor.cols() {
                 if j > 0 {
                     write!(f, " ")?;
                 }
@@ -349,8 +382,8 @@ fn fmt_tensor_rec<T:fmt::Debug>(
 
             let shape = tensor.shape();
 
-            let stride = shape[0];
-            for j in 0..shape[1] {
+            let stride = shape.cols();
+            for j in 0..shape.rows() {
                 if j > 0 {
                     write!(f, ",\n ")?;
                 }
@@ -360,18 +393,19 @@ fn fmt_tensor_rec<T:fmt::Debug>(
 
             write!(f, "]")
         },
-        rank => {
+        n => {
             write!(f, "[")?;
 
             let shape = tensor.shape();
+            let rank = shape.rank();
             // TODO:
-            let stride : usize = shape.sublen(0..rank - 1);
-            for j in 0..shape[rank - 1] {
+            let stride : usize = shape.sublen((rank - n)..rank - 1);
+            for j in 0..shape.dim_rev(n - 1) {
                 if j > 0 {
                     write!(f, ",\n\n  ")?;
                 }
 
-                fmt_tensor_rec::<T>(tensor, f, rank - 1, offset + j * stride)?;
+                fmt_tensor_rec::<T>(tensor, f, n - 1, offset + j * stride)?;
             }
 
             write!(f, "]")
@@ -599,6 +633,11 @@ impl Shape {
     }
 
     #[inline]
+    pub fn dim_rev(&self, i: usize) -> usize {
+        self.dims[self.dims.len() - 1 - i]
+    }
+
+    #[inline]
     pub fn dim_tail(&self) -> usize {
         let rank = self.rank();
 
@@ -645,7 +684,11 @@ impl Shape {
     pub fn broadcast(&self, b: &Shape) -> usize {
         let min_rank = cmp::min(self.rank(), b.rank());
         for i in 0..min_rank {
-            assert_eq!(self.dims[i], b.dims[i], "broadcast ranks must match");
+            assert_eq!(
+                self.dim_rev(i), b.dim_rev(i), 
+                "broadcast ranks must match a={:?} b={:?}",
+                self.as_slice(), b.as_slice(),
+            );
         }
 
         if self.rank() < b.rank() { b.size() } else { self.size() }

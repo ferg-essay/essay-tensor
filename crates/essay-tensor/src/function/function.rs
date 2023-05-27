@@ -1,7 +1,7 @@
 use super::{Var, Graph, TensorCache, Tape};
-use crate::tensor::{TensorId, Bundle};
+use crate::tensor::{TensorId, Tensors};
 
-pub struct Function<In: Bundle, Out: Bundle> {
+pub struct Function<In: Tensors, Out: Tensors> {
     _vars: Vec<(Var, TensorId)>,
     fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
 
@@ -10,8 +10,8 @@ pub struct Function<In: Bundle, Out: Bundle> {
 
 impl<In, Out> Function<In, Out>
 where
-    In: Bundle<Item=In>,
-    Out: Bundle<Item=Out>,
+    In: Tensors<Item=In>,
+    Out: Tensors<Item=Out>,
 {
     pub fn compile<F>(input: In, fun: F) -> Function<In, Out>
     where
