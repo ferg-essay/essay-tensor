@@ -48,6 +48,14 @@ impl<D: Dtype> Var<D> {
     }
 }
 
+impl Var<f32> {
+    pub(crate) fn assign_sub(&self, grad: Tensor) -> &Self {
+        self.tensor.lock().unwrap().assign_sub(grad);
+
+        self
+    }
+}
+
 impl Var {
     pub fn tensor(&self) -> Tensor {
         Tape::var(&self)
@@ -189,6 +197,12 @@ impl<D> TensorShare<D> {
 
     fn set(&mut self, tensor: Tensor<D>) {
         self.0 = tensor;
+    }
+}
+
+impl TensorShare<f32> {
+    fn assign_sub(&mut self, tensor: Tensor<f32>) {
+        self.0 = &self.0 - &tensor;
     }
 }
 

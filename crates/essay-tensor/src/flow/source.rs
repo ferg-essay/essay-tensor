@@ -316,7 +316,7 @@ impl<T: FlowData + Clone> Source<(), T> for VecSource<T> {
     fn next(&mut self, input: &mut ()) -> Result<Out<T>> {
         let index = self.index;
         self.index += 1;
-        println!("Vec[{index}]: {:?} ", &self.vec);
+
         match self.vec.get(index) {
             Some(value) => Ok(Out::Some(value.clone())),
             None => Ok(Out::None),

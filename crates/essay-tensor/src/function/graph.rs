@@ -15,43 +15,41 @@ pub struct Graph {
     tensors: TensorCache,
 }
 
-#[derive(Clone)]
-pub struct TensorCache {
-    tensors: Vec<Option<Tensor>>,
-}
-
 pub enum NodeOp {
     None,
+    Arg(TensorId),
     Const(TensorId),
     Var(TensorId, VarId, String),
     Op(TensorId, BoxForwardOp, Vec<TensorId>),
 
-    BackConst(TensorId, TensorId),
-    BackOp(TensorId, BoxBackOp, Vec<TensorId>, TensorId),
+    GradConst(TensorId, TensorId),
+    GradOp(TensorId, BoxBackOp, Vec<TensorId>, TensorId),
 }
 
 impl fmt::Debug for NodeOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::None => write!(f, "None"),
-            Self::Const(arg0) => {
-                f.debug_tuple("Const").field(arg0).finish()
+            Self::Arg(id) => {
+                f.debug_tuple("Arg").field(id).finish()
             },
-            Self::Var(id, var_id, name) => {
-                write!(f, "Var({})[{}, {}]", id.index(), var_id.index(), name)
+            Self::Const(id) => {
+                f.debug_tuple("Const").field(id).finish()
             },
-            Self::Op(id, op, args) => {
+            Self::Var(_id, var_id, name) => {
+                write!(f, "Var[{}: {}]", name, var_id.index())
+            },
+            Self::Op(_id, op, args) => {
                 //f.debug_tuple("Op").field(id).field(&op.name()).field(args).finish()
-                write!(f, "{}({}){:?}", 
-                    id.index(), 
-                    op.name().rsplit_once("").unwrap().1,
+                write!(f, "{}{:?}", 
+                    op.name().rsplit_once("::").unwrap().1,
                     args,
                 )
             },
-            Self::BackConst(arg0, arg1) => {
+            Self::GradConst(arg0, arg1) => {
                 f.debug_tuple("BackConst").field(arg0).field(arg1).finish()
             },
-            Self::BackOp(arg0, op, arg2, arg3) => {
+            Self::GradOp(arg0, op, arg2, arg3) => {
                 f.debug_tuple("BackOp").field(arg0).field(&op.name().to_string()).field(arg2).field(arg3).finish()
             },
         }
@@ -147,8 +145,24 @@ impl Graph {
         var_item.tensor()
     }
 
+    pub(crate) fn get_var(&self, id: VarId) -> &Var {
+        match self.var_map.get(&id) {
+            Some(item) => item.var(),
+            None => todo!(),
+        }
+    }
+
     pub(crate) fn tracked_vars(&self) -> &Vec<Var> {
         &self.tracked_vars
+    }
+
+    pub(crate) fn arg(&mut self, tensor: Tensor) -> TensorId {
+        let id = self.alloc_id();
+
+        self.set_tensor(id, tensor.clone());
+        self.set_node(id, NodeOp::Arg(id));
+
+        id
     }
 
     pub(crate) fn constant(&mut self, tensor: Tensor) -> TensorId {
@@ -163,7 +177,7 @@ impl Graph {
     pub(crate) fn _constant_id(&mut self, forward_id: TensorId) -> TensorId {
         let back_id = self.alloc_id();
 
-        self.set_node(back_id, NodeOp::BackConst(back_id, forward_id));
+        self.set_node(back_id, NodeOp::GradConst(back_id, forward_id));
 
         back_id
     }
@@ -178,14 +192,14 @@ impl Graph {
         id
     }
 
-    pub(crate) fn add_back_op(
+    pub(crate) fn add_grad_op(
         &mut self, 
         into_op: impl IntoBack,
         args: &[TensorId],
         prev: TensorId,
     ) -> TensorId {
         let id = self.alloc_id();
-        self.set_node(id, NodeOp::BackOp(id, into_op.to_op(), args.into(), prev));
+        self.set_node(id, NodeOp::GradOp(id, into_op.to_op(), args.into(), prev));
         id
     }
 
@@ -229,7 +243,7 @@ impl Graph {
         // let mut tensors_out = self.tensors.clone();
             // TODO: fill args
         for node in self.nodes.iter() {
-            let tensor = node.eval(&out, &fwd_tensors);
+            let tensor = node.eval(&self, &out, &fwd_tensors);
 
             // TODO: 
             out.set(node.id(), tensor);
@@ -260,7 +274,7 @@ impl Default for Graph {
 impl NodeOp {
     pub fn new(args: &[&Tensor], op: BoxForwardOp) -> TensorId {
         if ! Tape::is_active() {
-            return TensorId::None;
+            return TensorId::NONE;
         }
 
         let node_args : Vec<TensorId> = args.iter().map(|tensor| 
@@ -274,7 +288,7 @@ impl NodeOp {
         let id = Tape::alloc_id();
 
         if id.is_none() {
-            return TensorId::None;
+            return TensorId::NONE;
         }
 
         let id = id.unwrap();
@@ -288,25 +302,28 @@ impl NodeOp {
 
     fn eval(
         &self, 
+        graph: &Graph,
         tensors: &TensorCache,
         fwd_tensors: &TensorCache,
     ) -> Tensor {
         let value = match self {
             NodeOp::None => todo!(),
-            NodeOp::Const(id) => tensors[*id].clone(),
-            NodeOp::Var(id, var_id, _) => tensors[*id].clone(),
+            NodeOp::Arg(id) => tensors[*id].clone(),
+            NodeOp::Const(id) => tensors[*id].clone(), // TODO: fwd_tensors?
+            NodeOp::Var(id, var_id, _) => graph.get_tensor_by_var(*var_id),
             NodeOp::Op(id, op, args) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| tensors.get(*id).unwrap())
                     .collect();
 
-                op.forward(&t_args, *id)
+                let value = op.forward(&t_args, *id);
+                value
             },
 
-            NodeOp::BackConst(_, forward_id) => {
+            NodeOp::GradConst(_id, forward_id) => {
                 fwd_tensors[*forward_id].clone()
             },
-            NodeOp::BackOp(_, op, args, prev) => {
+            NodeOp::GradOp(_id, op, args, prev) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| fwd_tensors.get(*id).unwrap())
                     .collect();
@@ -314,8 +331,6 @@ impl NodeOp {
                 op.df(&t_args, tensors.get(*prev).unwrap())
             },
         };
-
-        println!("Eval {:?}", value);
 
         value
     }
@@ -332,13 +347,19 @@ impl NodeOp {
     fn id(&self) -> TensorId {
         match self {
             NodeOp::None => todo!(),
+            NodeOp::Arg(id) => *id,
             NodeOp::Const(id) => *id,
-            NodeOp::BackConst(id, _) => *id,
+            NodeOp::GradConst(id, _) => *id,
             NodeOp::Var(id, _, _) => *id,
             NodeOp::Op(id, _, _) => *id,
-            NodeOp::BackOp(id, _, _, _) => *id,
+            NodeOp::GradOp(id, _, _, _) => *id,
         }
     }
+}
+
+#[derive(Clone)]
+pub struct TensorCache {
+    tensors: Vec<Option<Tensor>>,
 }
 
 impl TensorCache {
@@ -349,7 +370,12 @@ impl TensorCache {
     pub(crate) fn get(&self, id: TensorId) -> Option<&Tensor> {
         match &self.tensors[id.index()] {
             Some(tensor) => Some(tensor),
-            None => None,
+            None => {
+                panic!(
+                    "No saved tensor at {:?} with len={}",
+                    id, self.tensors.len()
+                )
+            }
         }
     }
 

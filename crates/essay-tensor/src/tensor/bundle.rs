@@ -24,7 +24,7 @@ impl Tensors for Tensor {
 
     fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
         let id = TensorId(index);
-
+        
         out.set(id, item.clone().with_id(id));
 
         index + 1

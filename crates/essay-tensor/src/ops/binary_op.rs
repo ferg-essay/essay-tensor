@@ -1,4 +1,4 @@
-use std::{any::type_name};
+use std::{any::type_name, cmp};
 
 use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, graph::GradientOp}, Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}
@@ -85,8 +85,8 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
         prev: TensorId,
     ) -> TensorId {
         match i {
-            0 => graph.add_back_op(BinopDx(self.0.clone()), &[args[0], args[1]], prev),
-            1 => graph.add_back_op(BinopDy(self.0.clone()), &[args[0], args[1]], prev),
+            0 => graph.add_grad_op(BinopDx(self.0.clone()), &[args[0], args[1]], prev),
+            1 => graph.add_grad_op(BinopDy(self.0.clone()), &[args[0], args[1]], prev),
             _ => unimplemented!(),
         }
     }
@@ -102,32 +102,43 @@ impl<Op:BinaryKernel<f32>> GradientOp for BinopDx<Op> {
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {
-        let x = &args[0];
-        let y = &args[1];
-        let len = x.len();
+        let x = args[0];
+        let y = args[1];
+        let o_len = x.len();
+        let y_len = y.len();
+
+        let max_len = cmp::max(y_len, o_len);
+        assert_eq!(max_len, prev.len());
+
+        let batch = max_len / o_len;
         
         unsafe {
-            let mut data = TensorUninit::<f32>::new(len);
+            let mut out = TensorUninit::<f32>::new(o_len);
 
             let x_ptr = x.as_ptr();
-            let y_ptr = y.as_ptr();
             let prev = prev.as_ptr();
 
-            let o_ptr = data.as_mut_ptr();
-
+            let o_ptr = out.as_mut_ptr();
+    
             let op = &self.0;
-        
-            for i in 0..len {
+
+            for i in 0..o_len {
+                let mut dl_dx = 0.0f32;
+
                 let x = *x_ptr.add(i);
-                let y = *y_ptr.add(i);
 
-                let df_dx = op.df_dx(x, y);
-                let prev_df = *prev.add(i);
+                for n in 0..batch {
+                    let y = *y.as_wrap_ptr(i + n * o_len);
 
-                *o_ptr.add(i) = df_dx * prev_df;
+                    let dl_df = *prev.add(i + n * o_len);
+
+                    dl_dx += op.df_dx(x, y) * dl_df;
+                }
+
+                *o_ptr.add(i) = dl_dx;
             }
     
-            Tensor::from_uninit(data, x.shape())
+            Tensor::from_uninit(out, x.shape())
         }
     }
 }
@@ -142,32 +153,41 @@ impl<Op:BinaryKernel<f32>> GradientOp for BinopDy<Op> {
         args: &[&Tensor],
         prev: &Tensor,
     ) -> Tensor {
-        let x = &args[0];
-        let y = &args[1];
-        let len = x.len();
+        let x = args[0];
+        let y = args[1];
+        let x_len = x.len();
+        let o_len = y.len();
+
+        let max_len = cmp::max(x_len, o_len);
+        let batch = max_len / o_len;
         
         unsafe {
-            let mut out = TensorUninit::<f32>::new(len);
+            let mut out = TensorUninit::<f32>::new(o_len);
 
-            let x_ptr = x.as_ptr();
             let y_ptr = y.as_ptr();
             let prev = prev.as_ptr();
 
             let o_ptr = out.as_mut_ptr();
     
             let op = &self.0;
-        
-            for i in 0..len {
-                let x = *x_ptr.add(i);
+
+            for i in 0..o_len {
+                let mut dl_dy = 0.0f32;
+
                 let y = *y_ptr.add(i);
 
-                let df_dx = op.df_dy(x, y);
-                let prev_df = *prev.add(i);
+                for n in 0..batch {
+                    let x = *x.as_wrap_ptr(i + n * o_len);
 
-                *o_ptr.add(i) = df_dx * prev_df;
+                    let dl_df = *prev.add(i + n * o_len);
+
+                    dl_dy += op.df_dy(x, y) * dl_df;
+                }
+
+                *o_ptr.add(i) = dl_dy;
             }
     
-            Tensor::from_uninit(out, x.shape())
+            Tensor::from_uninit(out, y.shape())
         }
     }
 }
@@ -190,45 +210,45 @@ where F: Fn(D, D) -> D + Send + Sync + 'static + Clone + Copy {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::{*}, ops::binary_op};
+    use crate::{prelude::{*}, ops::binary_op, function::Var};
 
     #[test]
     fn binop_broadcast() {
-        let a = tensor!([1., 2., 3.]);
-        let b = tensor!(1.);
+        let a = tf32!([1., 2., 3.]);
+        let b = tf32!(1.);
 
         assert_eq!(
             binary_op(&a, &b, |a, b| 100. * a + b),
-            tensor!([101., 201., 301.])
+            tf32!([101., 201., 301.])
         );
 
         assert_eq!(
             binary_op(&b, &a, |a, b| 100. * a + b),
-            tensor!([101., 102., 103.])
+            tf32!([101., 102., 103.])
         );
 
-        let a = tensor!([1., 2.]);
-        let b = tensor!([[1., 2.], [3., 4.]]);
+        let a = tf32!([1., 2.]);
+        let b = tf32!([[1., 2.], [3., 4.]]);
 
         assert_eq!(
             binary_op(&a, &b, |a, b| 100. * a + b),
-            tensor!([[101., 202.], [103., 204.]])
+            tf32!([[101., 202.], [103., 204.]])
         );
 
         assert_eq!(
             binary_op(&b, &a, |a, b| 100. * a + b),
-            tensor!([[101., 202.], [301., 402.]])
+            tf32!([[101., 202.], [301., 402.]])
         );
 
-        let a = tensor!([1., 2.]);
-        let b = tensor!([
+        let a = tf32!([1., 2.]);
+        let b = tf32!([
             [[1., 2.], [3., 4.]],
             [[10., 20.], [30., 40.]],
         ]);
 
         assert_eq!(
             binary_op(&a, &b, |a, b| 100. * a + b),
-            tensor!([
+            tf32!([
                 [[101., 202.], [103., 204.]],
                 [[110., 220.], [130., 240.]],
             ])
@@ -236,10 +256,53 @@ mod test {
 
         assert_eq!(
             binary_op(&b, &a, |a, b| 100. * a + b),
-            tensor!([
+            tf32!([
                 [[101., 202.], [301., 402.]],
                 [[1001., 2002.], [3001., 4002.]],
             ]),
         );
+    }
+
+    #[test]
+    fn binop_df() {
+        let x = Var::new("x", tensor!([1., 2.]));
+        let y = Var::new("y", tensor!([3., 4.]));
+
+        let module = Trainer::compile((), |()| {
+            &x + &y
+        });
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!([4., 6.]));
+        assert_eq!(train.gradient(&x), tensor!([1., 1.]));
+        assert_eq!(train.gradient(&y), tensor!([1., 1.]));
+    }
+
+    #[test]
+    fn binop_df_dx_batch() {
+        let x = Var::new("x", tensor!([3.]));
+        let y = tf32!([[1.], [2.]]);
+
+        let module = Trainer::compile((), |()| {
+            &x + &y
+        });
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!([[4.], [5.]]));
+        assert_eq!(train.gradient(&x), tensor!([2.]));
+    }
+
+    #[test]
+    fn binop_df_dy_batch() {
+        let x = tf32!([[1.], [2.]]);
+        let y = Var::new("y", tensor!([3.]));
+
+        let module = Trainer::compile((), |()| {
+            &x + &y
+        });
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!([[4.], [5.]]));
+        assert_eq!(train.gradient(&y), tensor!([2.]));
     }
 }

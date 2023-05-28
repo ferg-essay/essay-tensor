@@ -38,12 +38,19 @@ impl Fit<'_> {
         let x = x.unwrap();
         let y = y.unwrap();
 
-        let x_ptr = x.clone();
-        let y_ptr = y.clone();
+        // let x_ptr = x.clone();
+        // let y_ptr = y.clone();
 
         let train = self.trainer.train((x, y));
 
-        println!("Step! {:?} {:?} loss={:?}", x_ptr, y_ptr, train.value());
+
+        let rate = 0.1f32;
+
+        for (id, grad) in train.gradients() {
+            let var = self.trainer.get_var(id);
+
+            var.assign_sub(rate * grad);
+        }
 
         true
     }
@@ -178,10 +185,11 @@ mod test {
         let a = Var::new("a", tf32!([[1.]]));
         let b = Var::new("b", tf32!([1.]));
 
-        // let model : Box<dyn Model> = Box::new(move 
+        let a_ptr = a.clone();
+        let b_ptr = b.clone();
 
         let mut builder = FitBuilder::new_tensor(
-            move |x| a.matvec(&x) + &b,
+            move |x| &a_ptr.matvec(&x) + &b_ptr,
             &train_x, 
             &train_y,
             ().epochs(2)
@@ -190,5 +198,13 @@ mod test {
         let mut fit = builder.build();
 
         fit.step();
+
+        assert_eq!(a.tensor(), tf32!([[1.2]]));
+        assert_eq!(b.tensor(), tf32!([1.1]));
+
+        fit.step();
+
+        assert_eq!(a.tensor(), tf32!([[1.5899999]]));
+        assert_eq!(b.tensor(), tf32!([1.23]));
     }
 }

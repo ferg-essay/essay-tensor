@@ -29,7 +29,9 @@ impl Tensor<f32> {
 pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
     let node = NodeOp::new(&[a, b], Matvec.to_op());
 
-    matvec_t_op(a, b, Transpose::None, node)
+    let value = matvec_t_op(a, b, Transpose::None, node);
+
+    Tape::set_tensor(value)
 }
 
 pub fn matvec_t(
@@ -39,18 +41,20 @@ pub fn matvec_t(
 ) -> Tensor<f32> {
     let node = NodeOp::new(&[a, x], Matvec.to_op());
 
-    matvec_t_op(a, x, _transpose, node)
+    let value = matvec_t_op(a, x, _transpose, node);
+
+    Tape::set_tensor(value)
 }
 
 fn matvec_t_op(
     a: &Tensor<f32>,
     x: &Tensor<f32>,
     transpose: impl TransposeMatvec,
-    node: TensorId,
+    id: TensorId,
 ) -> Tensor<f32> {
     assert!(a.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", a.rank());
     
-    let n : usize = a.broadcast_min(2, &x, cmp::min(2, x.rank()));
+    let batch : usize = a.broadcast_min(2, &x, cmp::min(2, x.rank()));
 
     let a_size = a.cols() * a.rows();
 
@@ -61,12 +65,12 @@ fn matvec_t_op(
     let o_size = o_cols * o_rows;
 
     unsafe {
-        let mut out = TensorUninit::<f32>::new(o_size * n);
+        let mut out = TensorUninit::<f32>::new(o_size * batch);
 
-        for block in 0..n {
-            let a_ptr = a.as_wrap_ptr(block * a_size);
-            let x_ptr = x.as_wrap_ptr(block * x_size);
-            let o_ptr = out.as_mut_ptr().add(block * o_size);
+        for n in 0..batch {
+            let a_ptr = a.as_wrap_ptr(n * a_size);
+            let x_ptr = x.as_wrap_ptr(n * x_size);
+            let o_ptr = out.as_mut_ptr().add(n * o_size);
 
             transpose.sgemm(a, x, o_cols, o_rows, a_ptr, x_ptr, o_ptr);
         }
@@ -74,9 +78,10 @@ fn matvec_t_op(
         let mut o_shape = Vec::from(x.shape().as_slice());
         let len = o_shape.len();
         o_shape[len - 1] = o_cols;
-        let tensor = Tensor::from_uninit_with_id(out, o_shape, node);
+        let tensor = Tensor::from_uninit_with_id(out, o_shape, id);
 
-        Tape::set_tensor(tensor)
+        // Tape::set_tensor(tensor)
+        tensor
     }
 }
 
@@ -172,9 +177,11 @@ impl Operation for Matvec {
     fn forward(
         &self,
         args: &[&Tensor],
-        _node: TensorId,
+        node: TensorId,
     ) -> Tensor {
-        matvec(args[0], args[1])
+        let value = matvec_t_op(args[0], args[1], Transpose::None, node);
+
+        value
     }
 
     fn back(
@@ -187,11 +194,11 @@ impl Operation for Matvec {
     ) -> TensorId {
         match i {
             0 => {
-                graph.add_back_op(MatvecBackLeft, &[args[1]], prev)
+                graph.add_grad_op(MatvecBackLeft, &[args[1]], prev)
             },
             1 => {
                 // let left = graph.constant_id(args[0]);
-                graph.add_back_op(MatvecBackRight, &[args[0]], prev)
+                graph.add_grad_op(MatvecBackRight, &[args[0]], prev)
             }
             _ => panic!("invalid argument")
         }
@@ -218,6 +225,7 @@ impl GradientOp for MatvecBackLeft {
             prev = prev.reshape([1, prev.cols()]);
         }
         //args[0].outer_product(prev)
+        // TODO: matmul_t_op
         x.matmul_t(&prev, Transpose::TransposeA)
     }
 }
@@ -305,6 +313,28 @@ mod test {
         assert_eq!(train.value(), tensor!([20.]));
         assert_eq!(train.gradient(&a), tensor!([[2.0]]));
         assert_eq!(train.gradient(&x), tensor!([10.0]));
+    }
+
+    #[test]
+    fn matvec_1x1_by_1x1() {
+        // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
+        
+        let a = tf32!([[10.]]);
+        let x = tf32!([[2.]]);
+
+        assert_eq!(a.matvec(&x), tf32!([[20.]]));
+
+        let a = Var::new("a", tf32!([[10.]]));
+        let x = Var::new("x", tf32!([[2.]]));
+
+        let module = Trainer::compile((), |()| {
+            a.matvec(&x)
+        }); // .training(&[&a, &x]);
+        let train = module.train(());
+
+        assert_eq!(train.value(), tensor!([[20.]]));
+        assert_eq!(train.gradient(&a), tensor!([[2.0]]));
+        assert_eq!(train.gradient(&x), tensor!([[10.0]]));
     }
 
     #[test]

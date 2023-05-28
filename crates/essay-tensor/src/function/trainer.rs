@@ -6,7 +6,7 @@ pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
 
 pub struct Trainer<In: Tensors, Out: Tensors> {
     _vars: Vec<(VarId, TensorId)>,
-    fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
+    fun: Box<dyn Fn(&Graph, In, &TensorCache) -> (Out, TensorCache)>,
 
     graph: Graph,
     gradients: Vec<(VarId, Graph)>,
@@ -53,7 +53,7 @@ where
                 let mut index = 0;
                 let value = Out::make_out(&out, &out_ids, &mut index);
 
-                value
+                (value, out)
             }),
 
             graph: tape.take_graph().unwrap(),
@@ -64,19 +64,23 @@ where
     pub fn call(&self, input: In) -> Out {
         let tensors = self.graph.tensors().clone();
 
-        (self.fun)(&self.graph, input, &tensors)
+        let (value, _out_tensors) = (self.fun)(&self.graph, input, &tensors);
+
+        value
     }
 
     pub fn train(&self, input: In) -> Train<In, Out> {
-        let tensors = self.graph.tensors().clone();
-
-        let out = (self.fun)(&self.graph, input, &tensors);
+        let (out, tensors) = (self.fun)(&self.graph, input, &self.graph.tensors());
 
         Train {
             module: self,
             out,
             tensors,
         }
+    }
+
+    pub(crate) fn get_var(&self, id: VarId) -> &Var {
+        self.graph.get_var(id)
     }
 }
 
@@ -97,6 +101,20 @@ impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
         }
 
         panic!("{:?} is an unknown gradient", var);
+    }
+
+    pub(crate) fn gradients(&self) -> Vec<(VarId, Tensor)> {
+        let mut vec = Vec::new();
+
+        for (id, grad_graph) in &self.module.gradients {
+            let mut out = grad_graph.tensors().clone();
+
+            grad_graph.apply(&mut out, &self.tensors);
+        
+            vec.push((*id, out.last()))
+        }
+
+        vec
     }
 
 }

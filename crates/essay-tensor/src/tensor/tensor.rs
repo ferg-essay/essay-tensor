@@ -25,7 +25,7 @@ impl<T: 'static> Tensor<T> {
         assert!(len > 0);
 
         unsafe {
-            Self::from_data(TensorData::from_vec(vec), shape, TensorId::None)
+            Self::from_data(TensorData::from_vec(vec), shape, TensorId::NONE)
         }
     }
 
@@ -57,7 +57,7 @@ impl<T: Clone + 'static> Tensor<T> {
         assert!(data.len() > 0);
 
         Self {
-            id: TensorId::None,
+            id: TensorId::NONE,
 
             shape: Shape::from(data.len()),
             offset: 0,
@@ -70,7 +70,7 @@ impl<T: Clone + 'static> Tensor<T> {
 
 impl<T: Copy + 'static> Tensor<T> {
     pub fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
-        Self::from_uninit_with_id(data, shape, TensorId::None)
+        Self::from_uninit_with_id(data, shape, TensorId::NONE)
     }
 
     pub fn from_uninit_with_id(
@@ -195,7 +195,7 @@ impl<T> Tensor<T> {
 
     #[inline]
     pub fn get(&self, offset: usize) -> Option<&T> {
-        unsafe { self.data.get(offset) }
+        unsafe { self.data.get(self.offset + offset) }
     }
 
     #[inline]
@@ -226,9 +226,9 @@ impl<T> Tensor<T> {
     #[inline]
     pub unsafe fn as_wrap_ptr(&self, offset: usize) -> *const T {
         if offset < self.len {
-            self.data.as_ptr().add(offset)
+            self.data.as_ptr().add(self.offset + offset)
         } else {
-            self.data.as_ptr().add(offset % self.len)
+            self.data.as_ptr().add(self.offset + offset % self.len)
         }
     }
 
@@ -242,7 +242,7 @@ impl<T> Tensor<T> {
         assert!(shape_len == len || shape.size() == 0 && len == 1);
 
         Self {
-            id: TensorId::None,
+            id: TensorId::NONE,
 
             shape,
 
@@ -581,7 +581,8 @@ impl<T: 'static> From<&Tensor<T>> for RawTensor {
 */
 
 impl TensorId {
-    pub const None : TensorId = TensorId(usize::MAX);
+    pub const NONE : TensorId = TensorId(usize::MAX);
+
     #[inline]
     pub fn index(&self) -> usize {
         self.0
@@ -589,16 +590,16 @@ impl TensorId {
 
     #[inline]
     pub fn is_some(&self) -> bool {
-        self != &Self::None
+        self != &Self::NONE
     }
 
     #[inline]
     pub fn is_none(&self) -> bool {
-        self == &Self::None
+        self == &Self::NONE
     }
 
     pub fn unset() -> TensorId {
-        Self::None
+        Self::NONE
     }
 }
 

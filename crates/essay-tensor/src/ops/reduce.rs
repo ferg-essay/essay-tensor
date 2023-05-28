@@ -144,7 +144,7 @@ where
     ) -> TensorId {
         assert!(i == 0);
 
-        graph.add_back_op(self.clone(), &[args[0]], prev)
+        graph.add_grad_op(self.clone(), &[args[0]], prev)
     }
 }
 

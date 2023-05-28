@@ -37,14 +37,14 @@ impl Tape {
             graph: Some(Default::default()),
         };
 
-        let len = In::push_arg(tape.tensors_mut(), 0, &init);
+        let arg_len = In::push_arg(tape.tensors_mut(), 0, &init);
 
         // Tensors in args now have their id set.
         let mut index = 0;
         let args = In::make_arg(&tape.tensors(), &mut index);
 
-        for id in 0..len {
-            tape.constant(tape.get_tensor(TensorId(id)).unwrap().clone());
+        for id in 0..arg_len {
+            tape.arg(tape.get_tensor(TensorId(id)).unwrap().clone());
         }
 
         // TODO: add RAII guard?
@@ -202,7 +202,7 @@ impl Tape {
         &self.out_ids
     }
 
-    fn constant(&mut self, tensor: Tensor) -> TensorId {
-        self.graph_mut().constant(tensor)
+    fn arg(&mut self, tensor: Tensor) -> TensorId {
+        self.graph_mut().arg(tensor)
     }
 }

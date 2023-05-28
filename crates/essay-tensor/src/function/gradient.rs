@@ -67,6 +67,9 @@ fn node_backprop(
 ) -> TensorId {
     match forward.node(id) {
         NodeOp::None => todo!(),
+        NodeOp::Arg(_) => {
+            panic!("unexpected arg");
+        }
         NodeOp::Const(_) => {
             panic!("unexpected const");
         }
@@ -76,8 +79,8 @@ fn node_backprop(
         NodeOp::Op(_, op, args) => {
             op.back(forward, back, i, args, prev)
         },
-        NodeOp::BackConst(_, _) => panic!("BackConst is invalid when generating backtrace"),
-        NodeOp::BackOp(_, _, _, _) => panic!("BackOp is invalid when generating backtrace"),
+        NodeOp::GradConst(_, _) => panic!("BackConst is invalid when generating backtrace"),
+        NodeOp::GradOp(_, _, _, _) => panic!("BackOp is invalid when generating backtrace"),
     }
 }
 
@@ -103,6 +106,7 @@ fn build_backtrace_rec(
     } else {
         match &graph.node(id) {
             NodeOp::None => None,
+            NodeOp::Arg(_) => None,
             NodeOp::Const(_) => None,
             NodeOp::Var(_, _, _) => None,
             NodeOp::Op(_, _, args) => {
@@ -126,10 +130,10 @@ fn build_backtrace_rec(
                 }
 
             },
-            NodeOp::BackConst(_, _) => {
+            NodeOp::GradConst(_, _) => {
                 panic!("BackConst is invalid in this context");
             },
-            NodeOp::BackOp(_, _, _, _) => {
+            NodeOp::GradOp(_, _, _, _) => {
                 panic!("BackOp is invalid in this context");
             },
         }

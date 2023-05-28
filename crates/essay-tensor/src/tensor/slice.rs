@@ -98,4 +98,16 @@ mod test {
         assert_eq!(t1.len(), 2);
         assert_eq!(t1.as_slice(), &[50., 60.]);
     }
+
+    #[test]
+    fn slice_with_broadcast() {
+        let t = tf32!([1., 2., 3., 4.]);
+        assert_eq!(t.shape().as_slice(), &[4]);
+
+        let t1 = t.slice(1);
+        assert_eq!(t1.shape().as_slice(), &[]);
+        assert_eq!(t1.as_slice(), &[2.]);
+
+        assert_eq!(&t1 + tf32!([[1.], [2.]]), tf32!([[3.], [4.]]));
+    }
 }
