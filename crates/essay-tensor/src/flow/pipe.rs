@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{mem, sync::{mpsc::{self}, Mutex, Arc}, any::type_name};
+use std::{sync::{mpsc::{self}, Mutex, Arc}};
 
 use super::{data::FlowData, dispatch::{InnerWaker}, source::{NodeId, SourceId, Out}};
 
@@ -243,8 +243,8 @@ impl<T: FlowData> PipeSingle<T> {
             src_id,
             src_index,
 
-            dst_id,
-            dst_index,
+            _dst_id: dst_id,
+            _dst_index: dst_index,
 
             value: Out::None,
 
@@ -300,7 +300,7 @@ impl<T: FlowData> PipeIn<T> for PipeSingle<T> {
         self.pipe.lock().unwrap().init()
     }
 
-    fn fill(&mut self, waker: &mut dyn InnerWaker) -> bool {
+    fn fill(&mut self, _waker: &mut dyn InnerWaker) -> bool {
         todo!()
     }
 
@@ -319,8 +319,8 @@ pub struct PipeInner<T: FlowData> {
     src_id: SourceId<T>,
     src_index: usize,
 
-    dst_id: NodeId,
-    dst_index: usize,
+    _dst_id: NodeId,
+    _dst_index: usize,
 
     value: Out<T>,
 

@@ -27,7 +27,7 @@ pub struct Fit<'a> {
 }
 
 impl Fit<'_> {
-    fn step(&mut self) -> bool {
+    pub fn step(&mut self) -> bool {
         let x = self.train_x.next();
         let y = self.train_y.next();
 

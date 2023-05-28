@@ -1,6 +1,6 @@
 use reduce::{ReduceOpt, ReduceKernel};
 
-use crate::{Tensor, ops::{fold_op, Fold, reduce_op, reduce}};
+use crate::{Tensor, ops::{reduce_op, reduce}};
 
 #[derive(Debug, Copy, Clone)]
 pub struct L2Loss;

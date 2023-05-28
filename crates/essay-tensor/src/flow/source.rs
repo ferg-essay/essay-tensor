@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{marker::PhantomData, sync::{Arc, Mutex}, mem, collections::VecDeque};
 
-use super::{FlowIn, FlowData, In, flow};
+use super::{FlowIn, FlowData, In};
 
 
 pub trait Source<I, O> : Send + 'static
@@ -313,7 +313,7 @@ pub struct VecSource<T: FlowData> {
 }
 
 impl<T: FlowData + Clone> Source<(), T> for VecSource<T> {
-    fn next(&mut self, input: &mut ()) -> Result<Out<T>> {
+    fn next(&mut self, _input: &mut ()) -> Result<Out<T>> {
         let index = self.index;
         self.index += 1;
 

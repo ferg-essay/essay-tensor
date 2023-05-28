@@ -112,7 +112,7 @@ impl FlowIn<()> for () {
         ()
     }
 
-    fn export(inputs: &Self::Input, node_map: &HashMap<NodeId, NodeId>) -> Self::Nodes {
+    fn export(_inputs: &Self::Input, _node_map: &HashMap<NodeId, NodeId>) -> Self::Nodes {
         ()
     }
 }

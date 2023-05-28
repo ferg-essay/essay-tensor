@@ -843,7 +843,7 @@ where
         src_nodes: &I::Nodes,
         builder: &mut impl FlowSourcesBuilder,
     ) -> Self {
-        let mut source_infos = Vec::new();
+        let source_infos = Vec::new();
         /*
         let input = I::new_input(
             id.id(), 
@@ -918,9 +918,9 @@ mod test {
     use source::Source;
 
     use crate::flow::{
-        pipe::{In}, SourceFactory, FlowIn, flow_pool::{self, PoolFlowBuilder}, 
+        pipe::{In}, SourceFactory, FlowIn, flow_pool::{PoolFlowBuilder}, 
         flow::{Flow, FlowSourcesBuilder},
-        FlowOutputBuilder, source::{self, Out}, FlowData,
+        FlowOutputBuilder, source::{self, Out},
     };
 
     #[test]
@@ -1127,13 +1127,13 @@ mod test {
         }), &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_1 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
+        let _n_1 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }), &n_0);
 
         let ptr = vec.clone();
-        let n_2 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
+        let _n_2 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }), &n_0);
@@ -1272,31 +1272,6 @@ mod test {
 
         vec.join(", ")
     }
-    /*
-    impl<I, O, F> From<F> for Box<dyn SourceFactory<I, O>>
-    where
-        I: FlowIn<I> + 'static,
-        O: FlowData,
-        F: FnMut(&mut I::Input) -> source::Result<Out<O>> + Send + 'static
-    {
-        fn from(value: F) -> Self {
-            let mut item = Some(Box::new(value));
-            Box::new(move || item.take().unwrap())
-        }
-    }
-    */
-    /*
-    impl<I, O, F> SourceFactory<I, O> for F
-    where
-        I: FlowIn<I> + 'static,
-        O: FlowData,
-        F: FnMut(&mut I::Input) -> source::Result<Out<O>> + Send + 'static
-    {
-        fn new(&mut self) -> Box<dyn source::Source<I, O>> {
-            Box::new(self.clone());    
-        }
-    }
-    */
 
     struct Wrap<I: FlowIn<I>, O: FlowIn<O>> {
         source: Option<Box<dyn Source<I, O>>>,

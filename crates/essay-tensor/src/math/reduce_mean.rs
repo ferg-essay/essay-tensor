@@ -1,4 +1,4 @@
-use crate::{Tensor, ops::{reduce_op, ReduceKernel, ReduceOpt, self, reduce}};
+use crate::{Tensor, ops::{reduce_op, ReduceKernel, ReduceOpt, reduce}};
 
 #[derive(Debug, Copy, Clone)]
 pub struct ReduceMean;

@@ -160,7 +160,7 @@ impl<Op: ReduceKernel<S>, S: State> GradientOp for ReduceCpu<Op, S> {
     ) -> Tensor {
         let a = args[0];
 
-        let (o_shape, batch, a_len, inner) = self.output_shape(a.shape());
+        let (_, batch, a_len, inner) = self.output_shape(a.shape());
         
         let len = a.len();
         

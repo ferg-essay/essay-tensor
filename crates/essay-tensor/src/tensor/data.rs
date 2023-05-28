@@ -2,19 +2,13 @@ use core::{slice};
 use std::{
     ptr::{NonNull, self}, 
     alloc::Layout, alloc, 
-    ops::{Index, self, IndexMut, RangeBounds}, 
+    ops::{Index, self, IndexMut}, 
     slice::SliceIndex, 
-    any::TypeId, 
 };
 
 pub(crate) struct TensorData<T> {
-    // type_id: TypeId,
     len: usize,
-    // item_size: usize,
-
     data: NonNull<T>,
-
-    // drop: Option<Box<dyn Fn(&NonNull<u8>)>>,
 }
 
 impl<T> TensorData<T> {
@@ -32,72 +26,27 @@ impl<T> TensorData<T> {
                 i += 1;
             }
 
-            // Self::new_with_drop::<T>(data, len)
             Self::new(data, len)
         }
     }
 
     fn new(data: NonNull<T>, len: usize) -> Self {
         Self {
-            // type_id: TypeId::of::<T>(),
             len,
 
             data,
         }
     }
-
-    /*
-    fn new_with_drop(data: NonNull<u8>, len: usize) -> Self {
-        Self {
-            type_id: TypeId::of::<T>(),
-            len,
-
-            data,
-            drop: Self::box_drop::<T>()
-        }
-    }
-
-    fn box_drop() -> Option<Box<dyn Fn(&NonNull<u8>)>> {
-        Some(Box::new(|data: &NonNull<u8>| {
-            unsafe {
-                ptr::drop_in_place(data.cast::<T>().as_ptr())
-            }
-        }))
-    }
-    */
 
     #[inline]
     pub fn len(&self) -> usize {
         self.len
     }
 
-    pub fn checkcast(&self, len: usize) {
-        // assert_eq!(self.type_id, TypeId::of::<T>());
-        assert_eq!(self.len, len);
-    }
-
     #[inline(always)]
     pub unsafe fn as_ptr(&self) -> *const T {
         //self.data.cast::<T>().as_ptr()
         self.data.as_ptr()
-    }
-
-    // Returns a possibly-wrapped pointer at the offset to support
-    // broadcast
-    #[inline]
-    pub unsafe fn as_wrap_ptr(&self, offset: usize) -> *const T {
-        if offset < self.len {
-            self.as_ptr().add(offset)
-        } else {
-            self.as_ptr().add(offset % self.len)
-        }
-    }
-
-    #[inline]
-    pub unsafe fn as_slice(&self) -> &[T] {
-        ptr::slice_from_raw_parts(self.as_ptr(), self.len())
-            .as_ref()
-            .unwrap()
     }
 
     #[inline]
@@ -108,37 +57,6 @@ impl<T> TensorData<T> {
         ptr::slice_from_raw_parts(self.as_ptr().add(offset), len)
             .as_ref()
             .unwrap()
-    }
-
-    #[inline]
-    pub unsafe fn as_wrap_slice(&self, range: impl RangeBounds<usize>) -> &[T] {
-        use ops::Bound::*;
-    
-        match (range.start_bound(), range.end_bound()) {
-            (Included(offset), Unbounded) => {
-                let offset = if *offset < self.len() { 
-                    *offset 
-                } else { 
-                    *offset % self.len() 
-                };
-
-                self.as_sub_slice(offset, self.len() - offset)
-            }
-            (Included(offset), Excluded(tail)) => {
-                let offset = if *offset < self.len() { 
-                    *offset 
-                } else { 
-                    *offset % self.len() 
-                };
-
-                assert!(offset < *tail);
-                assert!(*tail <= self.len());
-
-                self.as_sub_slice(offset, *tail - offset)
-            }
-            (Unbounded, Unbounded) => self.as_slice(),
-            _ => unimplemented!(),
-        }
     }
 
     #[inline]
@@ -166,49 +84,13 @@ impl<T:Clone> TensorData<T> {
             Self::new(data, value.len())            
         }
     }
-
 }
-
-impl<T:Copy> TensorData<T> {
-    #[inline]
-    pub unsafe fn get_unchecked(&self, offset: usize) -> T {
-        *self.as_ptr().add(offset)
-    }
-
-    #[inline]
-    pub unsafe fn get_wrap(&self, offset: usize) -> Option<T> {
-        if offset < self.len {
-            Some(self.get_unchecked(offset))
-        } else {
-            Some(self.get_unchecked(offset % self.len))
-        }
-    }
-
-    #[inline]
-    pub unsafe fn read_wrap(&self, offset: usize) -> T {
-        if offset < self.len {
-            self.get_unchecked(offset)
-        } else {
-            self.get_unchecked(offset % self.len)
-        }
-    }
-}
-/*
-impl<T: Drop> Drop for TensorData<T> {
-    fn drop(&mut self) {
-        if let Some(drop) = &self.drop {
-            (drop)(&self.data)
-        }
-    }
-}
-*/
 
 // unsafe: TensorData is read-only
 unsafe impl<T: Send> Send for TensorData<T> {}
 unsafe impl<T: Sync> Sync for TensorData<T> {}
 
 pub struct TensorUninit<T=f32> {
-    type_id: TypeId,
     len: usize,
     // item_size: usize,
 
@@ -220,7 +102,6 @@ impl<T:'static + Copy> TensorUninit<T> {
         let layout = Layout::array::<T>(len).unwrap();
         
         Self {
-            type_id: TypeId::of::<T>(),
             len,
 
             data: NonNull::<T>::new_unchecked(alloc::alloc(layout).cast::<T>()),
@@ -321,7 +202,7 @@ impl<T, I: SliceIndex<[T]>> IndexMut<I> for TensorUninit<T> {
 
 #[cfg(test)]
 mod test {
-    use std::{rc::Rc, cell::RefCell, sync::{Arc, Mutex}};
+    use std::{sync::{Arc, Mutex}};
 
     use crate::{prelude::*, tensor::{Dtype, tensor::Shape}};
 

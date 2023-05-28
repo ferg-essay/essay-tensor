@@ -2,13 +2,13 @@ mod slice;
 mod index;
 mod data;
 mod tensor;
-mod bundle;
+mod tensors;
 
 pub use data::{
     TensorUninit,
 };
 
-pub use bundle::{
+pub use tensors::{
     Tensors,
 };
 

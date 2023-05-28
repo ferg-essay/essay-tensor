@@ -310,7 +310,7 @@ impl NodeOp {
             NodeOp::None => todo!(),
             NodeOp::Arg(id) => tensors[*id].clone(),
             NodeOp::Const(id) => tensors[*id].clone(), // TODO: fwd_tensors?
-            NodeOp::Var(id, var_id, _) => graph.get_tensor_by_var(*var_id),
+            NodeOp::Var(_id, var_id, _) => graph.get_tensor_by_var(*var_id),
             NodeOp::Op(id, op, args) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| tensors.get(*id).unwrap())

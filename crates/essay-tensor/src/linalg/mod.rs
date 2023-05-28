@@ -1,8 +1,7 @@
 mod blas_naive;
 mod blas;
-mod vecmul;
-mod matvec;
 mod matmul;
+mod matvec;
 
 pub use matmul::{
     matmul,
@@ -10,10 +9,5 @@ pub use matmul::{
 
 pub use matvec::{
     matvec, matvec_t,
-};
-
-pub use vecmul::{
-    // inner_product, 
-    outer_product,
 };
 

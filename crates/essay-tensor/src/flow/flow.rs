@@ -256,13 +256,13 @@ mod test {
         }), &()); // builder.nil());
 
         let ptr = vec.clone();
-        let n_1 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
+        let _n_1 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }), &n_0);
 
         let ptr = vec.clone();
-        let n_2 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
+        let _n_2 = builder.source::<usize, usize>(s(move |x: &mut In<usize>| {
             ptr.lock().unwrap().push(format!("N-1[{}]", x.next().unwrap()));
             Ok(Out::None)
         }), &n_0);

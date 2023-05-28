@@ -35,7 +35,7 @@ where
     I: FlowIn<I>,
     O: FlowIn<O>,
 {
-    fn next(&mut self, count: u64) -> Option<O> {
+    fn next(&mut self, _count: u64) -> Option<O> {
         self.sources[self.tail_id.index()].borrow_mut().execute(self);
 
         self.output.take()
@@ -127,7 +127,7 @@ where
     input_pipes: Vec<Box<dyn PipeSingleTrait>>,
     output_pipes: Vec<PipeSingle<O>>,
 
-    is_done: bool,
+    _is_done: bool,
 }
 
 impl<I, O> SourceSingle<I, O>
@@ -202,7 +202,7 @@ where
         self.input_request(flow);
 
         match self.source.next(&mut self.inputs) {
-            Ok(Out::Some(value)) => {
+            Ok(Out::Some(_)) => {
                 return;
             }
             Ok(Out::None) => {
@@ -232,22 +232,6 @@ where
     }
 }
 
-pub struct ExportBuilder {
-}
-
-impl ExportBuilder {
-    fn add_factory<I, O>(
-        &mut self, 
-        factory: Box<dyn SourceFactory<I, O>>, 
-        in_nodes: &I::Nodes
-    ) -> SourceId<O>
-    where
-        I: FlowIn<I>,
-        O: FlowData 
-    {
-        todo!();
-    }
-}
 //
 // FlowBuilder single builder
 //
@@ -270,10 +254,6 @@ impl<I: FlowIn<I>> FlowBuilderSingle<I> {
             inputs,
             sources: sources_builder,
         }
-    }
-
-    fn get_pipe(&self, src_id: NodeId, src_index: usize) -> Box<dyn PipeSingleTrait> {
-        self.sources.sources[src_id.index()].get_pipe(src_index)
     }
 
     pub(crate) fn sources(&mut self) -> &mut FlowInBuilderSingle {
@@ -544,7 +524,7 @@ where
             input_pipes: self.input_pipes.drain(..).collect(),
             output_pipes: self.output_pipes.drain(..).collect(),
     
-            is_done: false,
+            _is_done: false,
         };
 
         sources.push(RefCell::new(Box::new(source)));

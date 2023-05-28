@@ -158,7 +158,6 @@ impl TransposeMatmul for Transpose {
                     o_ptr, b.rows(), 1,
                 );
             }
-            _ => todo!(),
         }
     }
 }
