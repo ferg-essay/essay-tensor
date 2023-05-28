@@ -1,7 +1,7 @@
 use std::{any::type_name, cmp};
 
 use crate::{
-    tensor::{Tensor, TensorId, TensorUninit, NodeId}, 
+    tensor::{Tensor, TensorId, TensorUninit}, 
     function::{Operation, Graph, graph::GradientOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
 };
 
@@ -46,7 +46,7 @@ fn matvec_t_op(
     a: &Tensor<f32>,
     x: &Tensor<f32>,
     transpose: impl TransposeMatvec,
-    node: NodeId,
+    node: TensorId,
 ) -> Tensor<f32> {
     assert!(a.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", a.rank());
     
@@ -74,7 +74,7 @@ fn matvec_t_op(
         let mut o_shape = Vec::from(x.shape().as_slice());
         let len = o_shape.len();
         o_shape[len - 1] = o_cols;
-        let tensor = Tensor::from_uninit_node(out, o_shape, node);
+        let tensor = Tensor::from_uninit_with_id(out, o_shape, node);
 
         Tape::set_tensor(tensor)
     }
@@ -172,7 +172,7 @@ impl Operation for Matvec {
     fn forward(
         &self,
         args: &[&Tensor],
-        _node: NodeId,
+        _node: TensorId,
     ) -> Tensor {
         matvec(args[0], args[1])
     }

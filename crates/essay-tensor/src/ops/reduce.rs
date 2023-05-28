@@ -3,7 +3,7 @@ use std::{any::type_name, marker::PhantomData};
 
 use crate::{
     Tensor, 
-    tensor::{Dtype, TensorId, TensorUninit, NodeId}, 
+    tensor::{Dtype, TensorId, TensorUninit}, 
     function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::GradientOp}, prelude::Shape
 };
 
@@ -13,18 +13,20 @@ pub trait ReduceKernel<S: State, D: Dtype=f32> : Clone + Copy + Send + Sync + 's
     fn df_dx(&self, a: D) -> D;
 }
 
-pub fn reduce_op<Op, S>(a: &Tensor, op: Op, opt: impl ReduceOpt) -> Tensor
+pub fn reduce_op<Op, S>(a: impl Into<Tensor>, op: Op, opt: impl ReduceOpt) -> Tensor
 where
     Op: ReduceKernel<S>,
     S: State<Value=f32>,
 {
+    let a = a.into();
+
     let reduce_op = ReduceCpu {
         op: op.clone(), 
         options: opt.into(),
         marker: PhantomData,
     };
 
-    let node = NodeOp::new(&[a], reduce_op.to_op());
+    let node = NodeOp::new(&[&a], reduce_op.to_op());
 
     let tensor = reduce_op.forward(&[&a], node);
 
@@ -95,7 +97,7 @@ where
     fn forward(
         &self,
         args: &[&Tensor],
-        node: NodeId,
+        node: TensorId,
     ) -> Tensor {
         assert!(args.len() == 1);
 
@@ -128,7 +130,7 @@ where
                 }
             }
 
-            Tensor::from_uninit_node(o_data, o_shape, node)
+            Tensor::from_uninit_with_id(o_data, o_shape, node)
         }
     }
 

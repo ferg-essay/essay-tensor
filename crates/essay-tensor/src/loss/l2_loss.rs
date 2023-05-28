@@ -5,11 +5,11 @@ use crate::{Tensor, ops::{fold_op, Fold, reduce_op, reduce}};
 #[derive(Debug, Copy, Clone)]
 pub struct L2Loss;
 
-pub fn l2_loss(a: &Tensor) -> Tensor {
+pub fn l2_loss(a: impl Into<Tensor>) -> Tensor {
     l2_loss_opt(a, ())
 }
 
-pub fn l2_loss_opt(a: &Tensor, opt: impl ReduceOpt) -> Tensor {
+pub fn l2_loss_opt(a: impl Into<Tensor>, opt: impl ReduceOpt) -> Tensor {
     reduce_op(a, L2Loss, opt)
 }
 

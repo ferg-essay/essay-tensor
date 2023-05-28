@@ -1,7 +1,7 @@
 use std::{any::type_name};
 
 use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, graph::GradientOp}, Tensor, 
-    tensor::{Dtype, TensorId, TensorUninit, NodeId}
+    tensor::{Dtype, TensorId, TensorUninit}
 };
 
 pub trait BinaryKernel<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -38,7 +38,7 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
     fn forward(
         &self,
         args: &[&Tensor],
-        node: NodeId,
+        node: TensorId,
     ) -> Tensor {
         let a = args[0];
         let b = args[1];
@@ -72,7 +72,7 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
                 }
             }
 
-            Tensor::from_uninit_node(out, shape, node)
+            Tensor::from_uninit_with_id(out, shape, node)
         }
     }
 

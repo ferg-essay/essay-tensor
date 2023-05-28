@@ -2,7 +2,7 @@ use core::fmt;
 use std::{any::type_name};
 
 use crate::{function::{IntoForward, NodeOp, Tape, Operation, Graph, graph::GradientOp}, Tensor, 
-    tensor::{Dtype, TensorUninit, TensorId, NodeId}
+    tensor::{Dtype, TensorUninit, TensorId}
 };
 
 pub trait UnaryKernel<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + Send + 'static
@@ -36,7 +36,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
     fn forward(
         &self,
         args: &[&Tensor],
-        node: NodeId,
+        node: TensorId,
     ) -> Tensor {
         let a = args[0];
         let len = a.len();
@@ -52,7 +52,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
                 *o_ptr.add(i) = op.f(*a_ptr.add(i));
             }
     
-            Tensor::from_uninit_node(out, a.shape(), node)
+            Tensor::from_uninit_with_id(out, a.shape(), node)
         }
     }
 

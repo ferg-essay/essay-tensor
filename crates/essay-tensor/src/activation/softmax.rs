@@ -2,7 +2,7 @@ use std::any::type_name;
 
 use crate::{
     Tensor, 
-    tensor::{Dtype, TensorUninit, NodeId, TensorId}, 
+    tensor::{Dtype, TensorUninit, TensorId}, 
     function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::GradientOp}
 };
 
@@ -79,7 +79,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
     fn forward(
         &self,
         args: &[&Tensor],
-        node: NodeId,
+        id: TensorId,
     ) -> Tensor {
         assert!(args.len() == 1);
 
@@ -131,7 +131,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
                 }
             }
 
-            Tensor::from_uninit_node(o_data, shape, node)
+            Tensor::from_uninit_with_id(o_data, shape, id)
         }
     }
 

@@ -9,25 +9,12 @@ pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {}
 pub struct TensorId(pub usize);
 
 pub struct Tensor<T=f32> {
+    id: TensorId,
     shape: Shape,
     offset: usize,
     len: usize,
 
     data: Arc<TensorData<T>>,
-
-    node_id: NodeId,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Shape {
-    dims: Vec<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum NodeId {
-    None,
-    Var(String),
-    Id(TensorId),
 }
 
 impl<T: 'static> Tensor<T> {
@@ -38,14 +25,14 @@ impl<T: 'static> Tensor<T> {
         assert!(len > 0);
 
         unsafe {
-            Tensor::from_data(TensorData::from_vec(vec), shape, NodeId::None)
+            Self::from_data(TensorData::from_vec(vec), shape, TensorId::None)
         }
     }
 
     pub(crate) unsafe fn from_data(
         data: TensorData<T>, 
         shape: impl Into<Shape>, 
-        node: NodeId
+        id: TensorId,
     ) -> Self {
         let shape = shape.into();
         let len: usize = shape.size();
@@ -54,13 +41,13 @@ impl<T: 'static> Tensor<T> {
         // data.checkcast::<T>(len);
 
         Self {
+            id,
+
             shape,
             offset: 0,
             len,
 
             data: Arc::new(data),
-
-            node_id: node,
         }
     }
 }
@@ -70,26 +57,26 @@ impl<T: Clone + 'static> Tensor<T> {
         assert!(data.len() > 0);
 
         Self {
+            id: TensorId::None,
+
             shape: Shape::from(data.len()),
             offset: 0,
             len: data.len(),
 
             data: Arc::new(TensorData::from_slice(data)),
-
-            node_id: NodeId::None,
         }
     }
 }
 
 impl<T: Copy + 'static> Tensor<T> {
     pub fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
-        Self::from_uninit_node(data, shape, NodeId::None)
+        Self::from_uninit_with_id(data, shape, TensorId::None)
     }
 
-    pub fn from_uninit_node(
+    pub fn from_uninit_with_id(
         data: TensorUninit<T>, 
         shape: impl Into<Shape>,
-        node: NodeId,
+        id: TensorId,
     ) -> Self {
         let shape = shape.into();
         let len: usize = max(1, shape.size());
@@ -101,40 +88,25 @@ impl<T: Copy + 'static> Tensor<T> {
         //data.checkcast::<T>(len);
 
         Self {
+            id,
+
             shape,
             offset: 0,
             len,
 
             data: Arc::new(unsafe { data.init() }),
-
-            node_id: node,
         }
     }
 }
 
 impl<T> Tensor<T> {
-    pub(crate) fn with_id_node(self, id: TensorId) -> Tensor<T> {
-        Tensor {
-            node_id: NodeId::Id(id),
-
-            .. self
-        }
+    pub(crate) fn with_id(self, id: TensorId) -> Tensor<T> {
+        Self { id, ..self }
     }
 
-    pub(crate) fn with_var_node(self, name: &str) -> Tensor<T> {
-        Self {
-            node_id: NodeId::Var(name.to_string()),
-
-            .. self
-        }
-    }
-
-    pub fn with_node(self, node: NodeId) -> Self {
-        Self {
-            node_id: node,
-
-            .. self
-        }
+    #[inline]
+    pub fn id(&self) -> TensorId {
+        self.id
     }
 
     #[inline]
@@ -202,14 +174,16 @@ impl<T> Tensor<T> {
 
         assert_eq!(self.len(), shape.size());
 
+        // TODO: reshape should probably have Op
+
         Tensor {
+            id: self.id,
+
             shape,
             offset: self.offset,
             len: self.len,
 
             data: self.data.clone(),
-
-            node_id: self.node_id.clone(), // TODO: check if new node needed
         }
     }
     /*
@@ -218,14 +192,6 @@ impl<T> Tensor<T> {
         &self.data
     }
     */
-
-    pub fn op(&self) -> &NodeId {
-        &self.node_id
-    }
-
-    pub(crate) fn node_id(&self) -> &NodeId {
-        &self.node_id
-    }
 
     #[inline]
     pub fn get(&self, offset: usize) -> Option<&T> {
@@ -276,11 +242,14 @@ impl<T> Tensor<T> {
         assert!(shape_len == len || shape.size() == 0 && len == 1);
 
         Self {
+            id: TensorId::None,
+
             shape,
+
             offset: self.offset + offset,
             len,
+
             data: self.data.clone(),
-            node_id: NodeId::None,
         }
     }
 
@@ -317,13 +286,14 @@ impl<T> Deref for Tensor<T> {
 impl<T> Clone for Tensor<T> {
     fn clone(&self) -> Self {
         Self { 
+            id: self.id,
+
             shape: self.shape.clone(), 
-            len: self.len,
+
             offset: self.offset,
+            len: self.len,
 
             data: self.data.clone(),
-
-            node_id: self.node_id.clone(),
         }
     }
 }
@@ -347,8 +317,8 @@ impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
         write!(f, ", shape: {:?}", &self.shape.dims)?;
         // write!(f, ", dtype: {}", type_name::<T>())?;
 
-        if f.alternate() {
-            write!(f, ", graph: {:#?}", &self.node_id)?;
+        if f.alternate() && self.id().is_some() {
+            write!(f, ", id: {:#?}", &self.id)?;
         }
 
         write!(f, "}}")?;
@@ -609,6 +579,33 @@ impl<T: 'static> From<&Tensor<T>> for RawTensor {
     }
 }
 */
+
+impl TensorId {
+    pub const None : TensorId = TensorId(usize::MAX);
+    #[inline]
+    pub fn index(&self) -> usize {
+        self.0
+    }
+
+    #[inline]
+    pub fn is_some(&self) -> bool {
+        self != &Self::None
+    }
+
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        self == &Self::None
+    }
+
+    pub fn unset() -> TensorId {
+        Self::None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Shape {
+    dims: Vec<usize>,
+}
 
 impl Shape {
     pub fn scalar() -> Self {

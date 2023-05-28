@@ -2,7 +2,7 @@ use std::any::type_name;
 
 use crate::{
     Tensor, 
-    tensor::{Dtype, TensorId, TensorUninit, NodeId}, 
+    tensor::{Dtype, TensorId, TensorUninit}, 
     function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::GradientOp}, prelude::Shape
 };
 
@@ -48,7 +48,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
     fn forward(
         &self,
         args: &[&Tensor],
-        node: NodeId,
+        node: TensorId,
     ) -> Tensor {
         assert!(args.len() == 1);
 
@@ -85,7 +85,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
                 *o_ptr.add(i) = v;
             }
 
-            Tensor::from_uninit_node(o_data, o_shape, node)
+            Tensor::from_uninit_with_id(o_data, o_shape, node)
         }
     
     }

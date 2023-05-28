@@ -1,15 +1,15 @@
 use crate::{Tensor, tensor::{TensorId, Tensors}};
 
-use super::{TensorCache, Var, Graph, Tape, gradient::backprop_graph};
+use super::{TensorCache, Var, Graph, Tape, gradient::backprop_graph, var::VarId};
 
 pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
 
 pub struct Trainer<In: Tensors, Out: Tensors> {
-    _vars: Vec<(String, TensorId)>,
+    _vars: Vec<(VarId, TensorId)>,
     fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
 
     graph: Graph,
-    gradients: Vec<(String, Graph)>,
+    gradients: Vec<(VarId, Graph)>,
 }
 
 pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
@@ -31,14 +31,14 @@ where
 
         let out_ids = tape.out_ids().clone();
         
-        let mut backprop_graphs : Vec<(String, Graph)> = Vec::new();
+        let mut backprop_graphs : Vec<(VarId, Graph)> = Vec::new();
 
         for var in tape.tracked_vars() {
-            let id = tape.graph().find_var(var);
+            let id = tape.graph().get_id_by_var(var.id());
 
             let graph = backprop_graph(&tape.graph(), id);
 
-            backprop_graphs.push((var.clone(), graph));
+            backprop_graphs.push((var.id(), graph));
         } 
 
         Self {
@@ -87,7 +87,7 @@ impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
 
     pub fn gradient(&self, var :&Var) -> Tensor {
         for (grad_var, grad_graph) in &self.module.gradients {
-            if var.name() == grad_var {
+            if &var.id() == grad_var {
                 let mut out = grad_graph.tensors().clone();
 
                 grad_graph.apply(&mut out, &self.tensors);

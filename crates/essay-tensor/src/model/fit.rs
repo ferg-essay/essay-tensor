@@ -20,7 +20,7 @@ pub struct Fit<'a> {
     train_x: DatasetIter<'a>,
     train_y: DatasetIter<'a>,
 
-    trainer: Trainer<(Tensor, Tensor), Tensor>,
+    trainer: Trainer<(Tensor, Tensor), (Tensor, Tensor)>,
 
     // validation_x: Option<Dataset>,
     // validation_y: Option<Dataset>,
@@ -147,8 +147,9 @@ impl FitBuilder {
         let trainer = Trainer::compile((x, y), |(x, y)| {
             let model = self.model.take().unwrap();
             let y_pred = model(x);
+            let loss = l2_loss(&y - &y_pred);
 
-            l2_loss(&(&y - &y_pred))
+            (y_pred, loss)
         });
 
         Fit {
@@ -180,7 +181,7 @@ mod test {
         // let model : Box<dyn Model> = Box::new(move 
 
         let mut builder = FitBuilder::new_tensor(
-            move |x| &a.matvec(&x) + &b,
+            move |x| a.matvec(&x) + &b,
             &train_x, 
             &train_y,
             ().epochs(2)

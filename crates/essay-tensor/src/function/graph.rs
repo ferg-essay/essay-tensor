@@ -3,13 +3,13 @@ use std::{collections::{HashMap}, ops::{self}};
 
 use log::debug;
 
-use crate::{Tensor, tensor::{NodeId, TensorId}};
+use crate::{Tensor, tensor::{TensorId}};
 
-use super::{Var, Tape};
+use super::{Var, Tape, var::VarId};
 
 pub struct Graph {
-    var_map: HashMap<String, TensorId>,
-    tracked_vars: Vec<String>,
+    var_map: HashMap<VarId, VarItem>,
+    tracked_vars: Vec<Var>,
 
     nodes: Vec<NodeOp>,
     tensors: TensorCache,
@@ -23,7 +23,7 @@ pub struct TensorCache {
 pub enum NodeOp {
     None,
     Const(TensorId),
-    Var(TensorId, String),
+    Var(TensorId, VarId, String),
     Op(TensorId, BoxForwardOp, Vec<TensorId>),
 
     BackConst(TensorId, TensorId),
@@ -37,8 +37,8 @@ impl fmt::Debug for NodeOp {
             Self::Const(arg0) => {
                 f.debug_tuple("Const").field(arg0).finish()
             },
-            Self::Var(arg0, arg1) => {
-                f.debug_tuple("Var").field(arg0).field(arg1).finish()
+            Self::Var(id, var_id, name) => {
+                write!(f, "Var({})[{}, {}]", id.index(), var_id.index(), name)
             },
             Self::Op(id, op, args) => {
                 //f.debug_tuple("Op").field(id).field(&op.name()).field(args).finish()
@@ -76,7 +76,7 @@ pub trait Operation : Send + Sync + 'static {
     fn forward(
         &self,
         args: &[&Tensor],
-        node: NodeId,
+        id: TensorId,
     ) -> Tensor;
 
     fn back(
@@ -119,32 +119,35 @@ pub trait IntoBack {
 pub type BoxBackOp = Box<dyn GradientOp>;
 
 impl Graph {
-    pub(crate) fn var(&mut self, name: &str, tensor: &Tensor) -> TensorId {
+    pub(crate) fn var(&mut self, var: &Var) -> Tensor {
         let len = self.nodes.len();
-        let id = *self.var_map
-            .entry(name.to_string())
-            .or_insert(TensorId(len));
 
-        if id.index() == len {
-            let op = NodeOp::Var(id, name.to_string());
-            debug!("GraphVar {} {:?}", name, op);
+        let item = self.var_map
+            .entry(var.id())
+            .or_insert_with(|| VarItem::new(TensorId(len), var));
+
+        if item.id().index() == len {
+            let op = NodeOp::Var(item.id(), var.id(), var.name().to_string());
+            debug!("GraphVar {:?}", op);
             self.nodes.push(op);
-            self.tensors.push(Some(tensor.clone()));
-            self.tracked_vars.push(name.to_string());
+            self.tensors.push(None);
+            self.tracked_vars.push(var.clone());
         }
 
-        id
+        var.tensor_with_id(item.id())
     }
 
-    pub(crate) fn find_var(&self, name: &str) -> TensorId {
-        *self.var_map.get(name).unwrap()
+    pub(crate) fn get_id_by_var(&self, id: VarId) -> TensorId {
+        self.var_map.get(&id).unwrap().id()
     }
 
-    pub(crate) fn _get_var(&self, var: &Var) -> TensorId {
-        *self.var_map.get(var.name()).unwrap()
+    pub(crate) fn get_tensor_by_var(&self, id: VarId) -> Tensor {
+        let var_item = self.var_map.get(&id).unwrap();
+
+        var_item.tensor()
     }
 
-    pub(crate) fn tracked_vars(&self) -> &Vec<String> {
+    pub(crate) fn tracked_vars(&self) -> &Vec<Var> {
         &self.tracked_vars
     }
 
@@ -255,23 +258,23 @@ impl Default for Graph {
 }
 
 impl NodeOp {
-    pub fn new(args: &[&Tensor], op: BoxForwardOp) -> NodeId {
+    pub fn new(args: &[&Tensor], op: BoxForwardOp) -> TensorId {
         if ! Tape::is_active() {
-            return NodeId::None;
+            return TensorId::None;
         }
 
         let node_args : Vec<TensorId> = args.iter().map(|tensor| 
-            match tensor.op() {
-                NodeId::None => Self::constant(tensor),
-                NodeId::Id(id) => *id,
-                NodeId::Var(name) => Tape::find_var(name),
+            if tensor.id().is_none() {
+                Self::constant(tensor)
+            } else {
+                tensor.id()
             }
         ).collect();
 
         let id = Tape::alloc_id();
 
         if id.is_none() {
-            return NodeId::None;
+            return TensorId::None;
         }
 
         let id = id.unwrap();
@@ -280,7 +283,7 @@ impl NodeOp {
 
         Tape::set_node(id, node);
 
-        NodeId::Id(id)
+        id
     }
 
     fn eval(
@@ -291,13 +294,13 @@ impl NodeOp {
         let value = match self {
             NodeOp::None => todo!(),
             NodeOp::Const(id) => tensors[*id].clone(),
-            NodeOp::Var(id, _) => tensors[*id].clone(),
+            NodeOp::Var(id, var_id, _) => tensors[*id].clone(),
             NodeOp::Op(id, op, args) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| tensors.get(*id).unwrap())
                     .collect();
 
-                op.forward(&t_args, NodeId::Id(*id))
+                op.forward(&t_args, *id)
             },
 
             NodeOp::BackConst(_, forward_id) => {
@@ -331,7 +334,7 @@ impl NodeOp {
             NodeOp::None => todo!(),
             NodeOp::Const(id) => *id,
             NodeOp::BackConst(id, _) => *id,
-            NodeOp::Var(id, _) => *id,
+            NodeOp::Var(id, _, _) => *id,
             NodeOp::Op(id, _, _) => *id,
             NodeOp::BackOp(id, _, _, _) => *id,
         }
@@ -379,9 +382,30 @@ impl Default for TensorCache {
     }
 }
 
-impl TensorId {
+struct VarItem {
+    id: TensorId,
+    var: Var,
+}
+
+impl VarItem {
+    fn tensor(&self) -> Tensor {
+        self.var.tensor_with_id(self.id)
+    }
+
+    fn new(id: TensorId, var: &Var) -> VarItem {
+        Self {
+            id,
+            var: var.clone(),
+        }
+    }
+
     #[inline]
-    pub fn index(&self) -> usize {
-        self.0
+    fn id(&self) -> TensorId {
+        self.id
+    }
+
+    #[inline]
+    fn var(&self) -> &Var {
+        &self.var
     }
 }

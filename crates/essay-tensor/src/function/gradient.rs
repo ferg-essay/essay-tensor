@@ -1,6 +1,6 @@
 use std::{collections::HashSet, any::type_name};
 
-use crate::{Tensor, tensor::{NodeId, TensorId}};
+use crate::{Tensor, tensor::{TensorId}};
 
 use super::{Graph, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
     graph::{IntoBack, GradientOp, BoxBackOp}
@@ -70,7 +70,7 @@ fn node_backprop(
         NodeOp::Const(_) => {
             panic!("unexpected const");
         }
-        NodeOp::Var(_, _) => {
+        NodeOp::Var(_, _, _) => {
             prev
         }
         NodeOp::Op(_, op, args) => {
@@ -104,7 +104,7 @@ fn build_backtrace_rec(
         match &graph.node(id) {
             NodeOp::None => None,
             NodeOp::Const(_) => None,
-            NodeOp::Var(_, _) => None,
+            NodeOp::Var(_, _, _) => None,
             NodeOp::Op(_, _, args) => {
                 visited.insert(id);
 
@@ -144,7 +144,7 @@ impl<Op:EvalOp> Operation for Op {
     fn forward(
         &self,
         args: &[&Tensor],
-        _node: NodeId,
+        _node: TensorId,
     ) -> Tensor {
         (self as &dyn EvalOp).eval(args)
     }

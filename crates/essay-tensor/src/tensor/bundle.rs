@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{NodeId, TensorId}, function::TensorCache};
+use crate::{Tensor, tensor::{TensorId}, function::TensorCache};
 
 pub trait Tensors : Clone {
     type Item;
@@ -17,7 +17,7 @@ impl Tensors for Tensor {
     fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
         let id = TensorId(index);
 
-        out.push(Some(item.clone().with_id_node(id)));
+        out.push(Some(item.clone().with_id(id)));
 
         index + 1
     }
@@ -25,7 +25,7 @@ impl Tensors for Tensor {
     fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
         let id = TensorId(index);
 
-        out.set(id, item.clone().with_id_node(id));
+        out.set(id, item.clone().with_id(id));
 
         index + 1
     }
@@ -40,10 +40,8 @@ impl Tensors for Tensor {
     }
 
     fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
-        match &item.op() {
-            NodeId::None => todo!(),
-            NodeId::Var(_name) => panic!("output of var not supported {:?}", &item.op()),
-            NodeId::Id(id) => out.push(*id)
+        if item.id().is_some() {
+            out.push(item.id())
         }
     }
 

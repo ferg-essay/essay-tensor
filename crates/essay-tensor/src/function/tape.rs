@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use crate::{Tensor, tensor::{NodeId, TensorId, Tensors}};
+use crate::{Tensor, tensor::{TensorId, Tensors}};
 
 
 use super::{Var, TensorCache, Graph, NodeOp};
@@ -105,10 +105,10 @@ impl Tape {
     }
 
     pub(crate) fn set_tensor(tensor: Tensor) -> Tensor {
-        if let NodeId::Id(id) = tensor.node_id() {
+        if tensor.id().is_some() {
             TAPE.with(|f| {
                 if let Some(tape) = f.borrow_mut().as_mut() {
-                    tape.graph_mut().set_tensor(*id, tensor.clone());
+                    tape.graph_mut().set_tensor(tensor.id(), tensor.clone());
                 }
             })
         }
@@ -124,16 +124,17 @@ impl Tape {
         })
     }
 
-    pub fn var(var: &Var) -> TensorId {
+    pub fn var(var: &Var) -> Tensor {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.set_var_inner(var.name(), var.tensor_raw())
+                tape.var_inner(var)
             } else {
-                panic!("Tape::var without context")
+                var.tensor_raw()
             }
         })
     }
 
+    /*
     pub fn find_var(name: &str) -> TensorId {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
@@ -143,8 +144,10 @@ impl Tape {
             }
         })
     }
+    */
 
-    pub fn set_var(var: &str, tensor: &Tensor) -> TensorId {
+    /*
+    pub fn x_set_var(var: &str, tensor: &Tensor) -> TensorId {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
                 tape.set_var_inner(var, tensor)
@@ -153,16 +156,19 @@ impl Tape {
             }
         })
     }
+    */
 
+    /*
     pub fn find_var_inner(&mut self, new_var: &str) -> TensorId {
         self.graph().find_var(new_var)
     }
+    */
 
-    pub fn set_var_inner(&mut self, name: &str, tensor: &Tensor) -> TensorId {
-        self.graph_mut().var(name, tensor)
+    pub fn var_inner(&mut self, var: &Var) -> Tensor {
+        self.graph_mut().var(var)
     }
 
-    pub(crate) fn tracked_vars(&self) -> &Vec<String> {
+    pub(crate) fn tracked_vars(&self) -> &Vec<Var> {
         self.graph().tracked_vars()
     }
 

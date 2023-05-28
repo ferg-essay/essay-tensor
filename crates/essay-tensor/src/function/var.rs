@@ -1,25 +1,36 @@
 use core::fmt;
-use std::{ops::{Deref, self}, rc::Rc, cell::RefCell};
+use std::{ops::{Deref, self}, cell::{UnsafeCell}, sync::{atomic::{AtomicU64, Ordering}, Mutex, Arc}};
 
-use crate::{tensor::{Dtype}, Tensor};
+use crate::{tensor::{Dtype, TensorId}, Tensor};
 
 use super::Tape;
 
-pub struct Var<D:Dtype=f32> {
+pub struct Var<D: Dtype=f32> {
+    id: VarId,
     name: String,
-    tensor_share: Rc<RefCell<Tensor<D>>>,
-    tensor: Tensor<D>,
+    tensor: Arc<Mutex<TensorShare<D>>>,
+    last_tensor: UnsafeCell<Tensor<D>>, // to allow deref
 }
 
-impl<D:Dtype> Var<D> {
+impl<D: Dtype> Var<D> {
     pub fn new(name: &str, tensor: impl Into<Tensor<D>>) -> Self {
-        let tensor = Into::into(tensor).with_var_node(name);
+        let id = VarId::alloc();
+
+        let tensor = Into::into(tensor); // .with_var(id);
+
+        let last_tensor = tensor.clone();
 
         Self {
-            tensor_share: Rc::new(RefCell::new(tensor.clone())),
-            tensor: tensor,
+            id,
+            tensor: Arc::new(Mutex::new(TensorShare(tensor))),
             name: name.to_string(),
+            last_tensor: UnsafeCell::new(last_tensor),
         }
+    }
+
+    #[inline]
+    pub fn id(&self) -> VarId {
+        self.id
     }
 
     pub fn name(&self) -> &str {
@@ -27,23 +38,23 @@ impl<D:Dtype> Var<D> {
     }
 
     pub fn set(&mut self, tensor: impl Into<Tensor<D>>) {
-        let tensor = Into::into(tensor).with_var_node(&self.name);
+        let tensor = Into::into(tensor); // .with_var(self.id);
 
-        self.tensor = tensor.clone();
-        self.tensor_share.replace(tensor);
+        self.tensor.lock().unwrap().set(tensor);
+    }
+
+    pub(crate) fn tensor_with_id(&self, id: TensorId) -> Tensor<D> {
+        self.tensor.lock().unwrap().get_with_id(id)
     }
 }
 
 impl Var {
-    pub fn tensor(&self) -> &Tensor {
-        // Tape::set_var(&self.name, &self.tensor);
-        Tape::var(&self);
-    
-        &self.tensor
+    pub fn tensor(&self) -> Tensor {
+        Tape::var(&self)
     }
 
-    pub(crate) fn tensor_raw(&self) -> &Tensor {
-        &self.tensor
+    pub(crate) fn tensor_raw(&self) -> Tensor {
+        self.tensor.lock().unwrap().get()
     }
 }
 
@@ -52,23 +63,22 @@ impl Deref for Var {
 
     fn deref(&self) -> &Self::Target {
         // Tape::set_var(&self.name, &self.tensor);
-        Tape::var(&self);
+        let tensor = Tape::var(&self);
 
-        &self.tensor
-    }
-}
+        unsafe {
+            *self.last_tensor.get() = tensor;
 
-impl Tensor {
-    pub fn as_var(self, name: &str) -> Var {
-        Var::new(name, self)
+            &self.last_tensor.get().as_ref().unwrap()
+        }
     }
 }
 
 impl fmt::Debug for Var {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Var")
+            .field("id", &self.id)
             .field("name", &self.name)
-            .field("tensor", &self.tensor)
+            .field("tensor", &self.tensor.lock().unwrap().get())
             .finish()
     }
 }
@@ -76,18 +86,25 @@ impl fmt::Debug for Var {
 impl Clone for Var {
     fn clone(&self) -> Self {
         Self {
+            id: self.id,
             name: self.name.clone(),
-            tensor_share: self.tensor_share.clone(),
             tensor: self.tensor.clone(),
+            last_tensor: unsafe { 
+                UnsafeCell::new(self.last_tensor.get().as_ref().unwrap().clone()) 
+            },
         }
     }
 }
 
 impl From<Var> for Tensor {
     fn from(var: Var) -> Self {
-        Tape::set_var(&var.name(), &var.tensor);
+        Tape::var(&var)
+    }
+}
 
-        var.tensor.clone()
+impl From<&Var> for Tensor {
+    fn from(var: &Var) -> Self {
+        Tape::var(var)
     }
 }
 
@@ -139,16 +156,52 @@ var_ops!(Add, add);
 var_ops!(Sub, sub);
 var_ops!(Mul, mul);
 
+static VAR_ID: AtomicU64 = AtomicU64::new(0);
+
+///
+/// VarId is globally unique to avoid name collisions.
+///
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct VarId(u64);
+
+impl VarId {
+    fn alloc() -> VarId {
+        let id = VAR_ID.fetch_add(1, Ordering::SeqCst);
+
+        VarId(id)
+    }
+
+    pub fn index(&self) -> u64 {
+        self.0
+    }
+}
+
+struct TensorShare<D>(Tensor<D>);
+
+impl<D> TensorShare<D> {
+    fn get(&self) -> Tensor<D> {
+        self.0.clone()
+    }
+
+    fn get_with_id(&self, id: TensorId) -> Tensor<D> {
+        self.0.clone().with_id(id)
+    }
+
+    fn set(&mut self, tensor: Tensor<D>) {
+        self.0 = tensor;
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::{prelude::*, function::Var};
 
     #[test]
     fn test_var() {
         let t1 = tensor!([1., 2., 3.]);
-        let v1 = t1.as_var("t1");
+        let v1 = Var::new("t1", t1);
 
-        let t2 = v1.exp();
+        let t2 = &v1.exp();
         println!("t2: {:#?}", t2);
 
         println!("t2: {:#?}", v1);
