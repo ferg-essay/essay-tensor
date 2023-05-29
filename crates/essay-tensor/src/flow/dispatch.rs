@@ -352,11 +352,11 @@ pub struct SourceRequest(NodeId, usize, u64);
 #[derive(Debug)]
 enum Wake {
     RequestSource(NodeId, usize, u64),
-    ReadySource(NodeId, usize, u64),
-    Execute(NodeId),
-    PostExecute(NodeId, bool),
+    //ReadySource(NodeId, usize, u64),
+    //Execute(NodeId),
+    //PostExecute(NodeId, bool),
 }
-
+/*
 pub struct Dispatcher {
     outer_commands: Vec<Wake>,
     inner_commands: Vec<Wake>,
@@ -479,3 +479,4 @@ impl InnerWaker for DispatcherInner<'_> {
         self.outer_commands.push(Wake::PostExecute(node, is_done));
     }
 }
+*/

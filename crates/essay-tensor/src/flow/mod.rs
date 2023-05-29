@@ -17,6 +17,7 @@ pub use pipe::{
 
 pub use flow_pool::{
 //    SourceId, Source, SourceFactory, Result,
+    FlowPool, PoolFlowBuilder,
 };
 
 pub use flow_single::{

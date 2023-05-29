@@ -699,7 +699,7 @@ impl<In: FlowIn<In>> PoolFlowBuilder<In> {
         builder
     }
 
-    pub(crate) fn push_source<I, O>(
+    pub fn push_source<I, O>(
         &mut self, 
         source: BoxSource<I, O>,
         in_nodes: &I::Nodes,

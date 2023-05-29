@@ -1,0 +1,16 @@
+[package]
+name = "essay-plot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+env_logger = { version = "0.10.0" }
+log = { version = "0.4.17" }
+plotly = { version = "0.8" }
+essay-tensor = { path = "../essay-tensor" }
+
+[lib]
+doctest = false
+
+#[workspace.dependencies]
+#essay-mind = { path="crates/ticker" }
