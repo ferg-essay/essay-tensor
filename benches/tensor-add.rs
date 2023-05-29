@@ -92,16 +92,22 @@ fn main() {
         let b = Tensor::ones([256, 256]);
 
         let start = Instant::now();
-        let _c = &a.matmul(&b);
+        for _ in 0.. k {
+            let _c = &a.matmul(&b);
+        }
         let time_matmul = start.elapsed();
 
         let a = Tensor::zeros([256, 8192]);
-        let b = Tensor::ones([4, 8192]);
+        let b = Tensor::ones([8, 8192]);
         //let a = Tensor::zeros([1, 1]);
         //let b = Tensor::ones([1, 1]);
 
         let start = Instant::now();
-        let _c = &a.matvec(&b);
+
+        for _ in 0..k {
+            let _c = &a.matvec(&b);
+        }
+        //println!("Shape {:?}", _c.shape());
         let time_matvec = start.elapsed();
 
         let a = Tensor::zeros([1024]);
@@ -110,7 +116,7 @@ fn main() {
         let _c = &a.softmax();
         let softmax_matvec = start.elapsed();
 
-        println!("null={time_null:?} zeros={time_zeros:?} sum={time_sum:?}, tsum={t_sum:?}");
-        //println!("null={time_null:?} sum={time_sum:?}, mul={time_mul:?}, matmul={time_matmul:?} matvec={time_matvec:?} softmax={softmax_matvec:?}");
+        //println!("null={time_null:?} zeros={time_zeros:?} sum={time_sum:?}, tsum={t_sum:?}");
+        println!("null={time_null:?} sum={time_sum:?}, mul={time_mul:?}, matmul={time_matmul:?} matvec={time_matvec:?} softmax={softmax_matvec:?}");
     }
 }
