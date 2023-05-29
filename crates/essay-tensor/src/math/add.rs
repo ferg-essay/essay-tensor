@@ -20,6 +20,14 @@ impl BinaryKernel for Add {
     fn df_dy(&self, _x: f32, _y: f32) -> f32 {
         1.
     }
+
+    /*
+    unsafe fn batch_f(&self, n: usize, a: *const f32, b: *const f32, o: *mut f32) {
+        for k in 0..n {
+            *o.add(k) = self.f(*a.add(k), *b.add(k));
+        }
+    }
+    */
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

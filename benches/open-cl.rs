@@ -143,8 +143,8 @@ pub fn trivial_exploded(src: &str) {
 
     let program = context.program(src);
 
-    //let len = 64 * 1024;
-    let len = 16;
+    let len = 64 * 1024;
+    //let len = 16;
 
     let a = Tensor::ones([len]);
     let b = Tensor::ones([len]);
@@ -234,7 +234,6 @@ pub fn trivial_exploded(src: &str) {
     //println!("Value [{}] is {}", 3000, out[3000]);
 }
 
-#[test]
-fn test() {
+fn main() {
     trivial_exploded(_BI_SRC);
 }

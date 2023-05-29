@@ -18,17 +18,6 @@ pub struct Tensor<T=f32> {
 }
 
 impl<T: 'static> Tensor<T> {
-    pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
-        let shape = shape.into();
-        let len = vec.len();
-
-        assert!(len > 0);
-
-        unsafe {
-            Self::from_data(TensorData::from_vec(vec), shape, TensorId::NONE)
-        }
-    }
-
     pub(crate) unsafe fn from_data(
         data: TensorData<T>, 
         shape: impl Into<Shape>, 
@@ -66,6 +55,20 @@ impl<T: Clone + 'static> Tensor<T> {
             data: Arc::new(TensorData::from_slice(data)),
         }
     }
+
+    pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
+        assert!(vec.len() > 0);
+
+        Self {
+            id: TensorId::NONE,
+
+            shape: shape.into(),
+            offset: 0,
+            len: vec.len(),
+
+            data: Arc::new(TensorData::from_vec(vec)),
+        }
+    }
 }
 
 impl<T: Copy + 'static> Tensor<T> {
@@ -79,7 +82,7 @@ impl<T: Copy + 'static> Tensor<T> {
         id: TensorId,
     ) -> Self {
         let shape = shape.into();
-        let len: usize = max(1, shape.size());
+        let len: usize = data.len(); // max(1, shape.size());
 
         assert_eq!(
             data.len(), len, 
@@ -94,7 +97,7 @@ impl<T: Copy + 'static> Tensor<T> {
             offset: 0,
             len,
 
-            data: Arc::new(unsafe { data.init() }),
+            data: Arc::new(data.init()),
         }
     }
 }

@@ -88,20 +88,17 @@ impl<Op: BinaryKernel<f32>> Operation for BinopImpl<Op> {
         let batch = self.batch;
 
         let shape = self.shape.clone();
-
+        
         unsafe {
             let mut out = TensorUninit::<f32>::new(size);
 
-            let o = out.as_mut_ptr();
-
             for n in 0..batch {
-                let a = a.as_wrap_ptr(n * inner);
-                let b = b.as_wrap_ptr(n * inner);
-                let o = o.add(n * inner);
+                let a = a.as_wrap_slice(n * inner);
+                let b = b.as_wrap_slice(n * inner);
+                let o = out.as_sub_slice(n * inner, inner);
 
-                //op.batch_f(inner, a, b, o);
                 for k in 0..inner {
-                    *o.add(k) = op.f(*a.add(k), *b.add(k));
+                    o[k] = op.f(a[k], b[k]);
                 }
             }
 

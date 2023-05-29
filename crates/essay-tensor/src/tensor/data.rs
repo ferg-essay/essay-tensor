@@ -3,38 +3,20 @@ use std::{
     ptr::{NonNull, self}, 
     alloc::Layout, alloc, 
     ops::{Index, self, IndexMut}, 
-    slice::SliceIndex, 
+    slice::SliceIndex, mem, 
 };
 
 pub(crate) struct TensorData<T> {
-    len: usize,
     data: NonNull<T>,
+    len: usize,
 }
 
 impl<T> TensorData<T> {
-    pub fn from_vec(mut vec: Vec<T>) -> Self {
-        let len = vec.len();
-        let layout = Layout::array::<T>(len).unwrap();
-
-        unsafe {
-            let data = NonNull::<T>::new_unchecked(alloc::alloc(layout).cast::<T>());
-
-            let ptr = data.cast::<T>().as_ptr();
-            let mut i = 0;
-            for value in vec.drain(..) {
-                ptr::write(ptr.add(i), value);
-                i += 1;
-            }
-
-            Self::new(data, len)
-        }
-    }
-
+    #[inline]
     fn new(data: NonNull<T>, len: usize) -> Self {
         Self {
-            len,
-
             data,
+            len,
         }
     }
 
@@ -84,6 +66,19 @@ impl<T:Clone> TensorData<T> {
             Self::new(data, value.len())            
         }
     }
+
+    pub fn from_vec(vec: Vec<T>) -> Self {
+        Self::from_slice(vec.as_slice())
+    }
+}
+
+impl<T> Drop for TensorData<T> {
+    fn drop(&mut self) {
+        unsafe {
+            let layout = Layout::array::<T>(self.len()).unwrap();
+            alloc::dealloc(self.data.as_ptr().cast::<u8>(), layout);
+        }
+    }
 }
 
 // unsafe: TensorData is read-only
@@ -108,18 +103,10 @@ impl<T:'static + Copy> TensorUninit<T> {
         }
     }
 
-    pub(crate) unsafe fn init(self) -> TensorData<T> {
-        TensorData::new(self.data, self.len)
-        /*
-        TensorData {
-            type_id: self.type_id,
-            len: self.len,
-
-            data: self.data,
-
-            drop: None,
-        }
-        */
+    #[inline]
+    pub(crate) fn init(self) -> TensorData<T> {
+        let ptr = mem::ManuallyDrop::new(self);
+        TensorData::new(ptr.data, ptr.len)
     }
 }
 
@@ -166,6 +153,18 @@ impl<T> TensorUninit<T> {
                 .unwrap()
         }
     }
+
+    #[inline]
+    pub fn as_sub_slice(&mut self, offset: usize, len: usize) -> &mut [T] {
+        unsafe {
+            assert!(offset <= self.len);
+            assert!(offset + len <= self.len);
+
+            ptr::slice_from_raw_parts_mut(self.as_mut_ptr().add(offset), len)
+                .as_mut()
+                .unwrap()
+        }
+    }
 }
 
 impl<T:Copy> TensorUninit<T> {
@@ -200,11 +199,20 @@ impl<T, I: SliceIndex<[T]>> IndexMut<I> for TensorUninit<T> {
     }
 }
 
+impl<T> Drop for TensorUninit<T> {
+    fn drop(&mut self) {
+        unsafe {
+            let layout = Layout::array::<T>(self.len()).unwrap();
+            alloc::dealloc(self.data.as_ptr().cast::<u8>(), layout);
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::{sync::{Arc, Mutex}};
 
-    use crate::{prelude::*, tensor::{Dtype, tensor::Shape}};
+    use crate::{prelude::*, tensor::{Dtype, tensor::Shape, TensorUninit}};
 
     #[test]
     fn test_drop() {
@@ -227,6 +235,15 @@ mod test {
         };
 
         assert_eq!(take(&ptr), "Drop[2]");
+    }
+
+    #[test]
+    fn test_drop_uninit() {
+        unsafe {
+            let mut uninit = TensorUninit::<u32>::new(1);
+            uninit[0] = 3;
+            //uninit.init()
+        };
     }
 
     #[test]

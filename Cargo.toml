@@ -13,6 +13,9 @@ log = { version = "0.4.17" }
 essay-tensor = { path = "crates/essay-tensor" }
 #essay-opencl = { path = "crates/essay-opencl" }
 #essay-nn = { path = "crates/essay-nn" }
+dfdx = {version ="0.11"}
+ndarray = "0.15"
+ocl = "0.19"
 
 [workspace]
 members = [
@@ -24,4 +27,16 @@ members = [
 
 [[bench]]
 name = "tensor-add"
+harness = false
+
+[[bench]]
+name = "open-cl"
+harness = false
+
+[[bench]]
+name = "dfdx"
+harness = false
+
+[[bench]]
+name = "ndarray"
 harness = false
