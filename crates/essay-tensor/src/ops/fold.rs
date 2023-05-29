@@ -23,7 +23,7 @@ where
 
     let node = NodeOp::new(&[a], fold_op.to_op());
 
-    let tensor = fold_op.forward(&[&a], node);
+    let tensor = fold_op.f(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
@@ -45,7 +45,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         type_name::<Op>()
     }
 
-    fn forward(
+    fn f(
         &self,
         args: &[&Tensor],
         node: TensorId,
@@ -90,7 +90,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
     
     }
 
-    fn back(
+    fn df(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

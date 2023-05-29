@@ -117,16 +117,8 @@ impl From<&Var> for Tensor {
 }
 
 macro_rules! var_ops {
-    ($op:ident, $fun:ident) => {
-        impl ops::$op<&Tensor> for &Var {
-            type Output = Tensor;
-        
-            fn $fun(self, rhs: &Tensor) -> Self::Output {
-                self.deref().$fun(rhs)
-            }
-        }
-
-        impl ops::$op<Tensor> for &Var {
+    ($ty:ty, $op:ident, $fun:ident) => {
+        impl ops::$op<Tensor<$ty>> for &Var<$ty> {
             type Output = Tensor;
         
             fn $fun(self, rhs: Tensor) -> Self::Output {
@@ -134,35 +126,61 @@ macro_rules! var_ops {
             }
         }
 
-        impl ops::$op<&Var> for &Tensor {
-            type Output = Tensor;
+        impl ops::$op<&Tensor<$ty>> for &Var<$ty> {
+            type Output = Tensor<$ty>;
         
-            fn $fun(self, rhs: &Var) -> Self::Output {
+            fn $fun(self, rhs: &Tensor<$ty>) -> Self::Output {
+                self.deref().$fun(rhs)
+            }
+        }
+
+        impl ops::$op<&Var<$ty>> for Tensor<$ty> {
+            type Output = Tensor<$ty>;
+        
+            fn $fun(self, rhs: &Var<$ty>) -> Self::Output {
                 self.$fun(rhs.deref())
             }
         }
 
-        impl ops::$op<&Var> for Tensor {
+        impl ops::$op<&Var<$ty>> for &Tensor<$ty> {
             type Output = Tensor;
         
-            fn $fun(self, rhs: &Var) -> Self::Output {
+            fn $fun(self, rhs: &Var<$ty>) -> Self::Output {
                 self.$fun(rhs.deref())
             }
         }
 
-        impl ops::$op<&Var> for &Var {
+        impl ops::$op<&Var<$ty>> for &Var<$ty> {
             type Output = Tensor;
         
-            fn $fun(self, rhs: &Var) -> Self::Output {
+            fn $fun(self, rhs: &Var<$ty>) -> Self::Output {
                 self.$fun(rhs.deref())
+            }
+        }
+
+        impl ops::$op<&Var<$ty>> for $ty {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: &Var<$ty>) -> Self::Output {
+                Tensor::<$ty>::from(self).$fun(rhs.deref())
+            }
+        }
+
+        impl ops::$op<$ty> for &Var<$ty> {
+            type Output = Tensor;
+        
+            fn $fun(self, rhs: $ty) -> Self::Output {
+                self.deref().$fun(Tensor::<$ty>::from(rhs))
             }
         }
     }
 }
 
-var_ops!(Add, add);
-var_ops!(Sub, sub);
-var_ops!(Mul, mul);
+var_ops!(f32, Add, add);
+var_ops!(f32, Sub, sub);
+var_ops!(f32, Mul, mul);
+var_ops!(f32, Div, div);
+var_ops!(f32, Rem, rem);
 
 static VAR_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -223,5 +241,16 @@ mod test {
         let t3 = tensor!([1., 2., 3.]);
         let t3 = t3.exp();
         println!("t3: {:#?}", t3);
+    }
+
+    #[test]
+    fn var_sum() {
+        let v1 = Var::new("t1", tf32!([1., 2., 3.]));
+
+        assert_eq!(&v1 + 2., tf32!([3., 4., 5.]));
+        assert_eq!(2. + &v1, tf32!([3., 4., 5.]));
+
+        assert_eq!(&v1 * 2., tf32!([2., 4., 6.]));
+        assert_eq!(2. * &v1, tf32!([2., 4., 6.]));
     }
 }

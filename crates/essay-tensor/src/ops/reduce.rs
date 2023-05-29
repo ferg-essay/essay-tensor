@@ -28,7 +28,7 @@ where
 
     let node = NodeOp::new(&[&a], reduce_op.to_op());
 
-    let tensor = reduce_op.forward(&[&a], node);
+    let tensor = reduce_op.f(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
@@ -94,7 +94,7 @@ where
         type_name::<Op>()
     }
 
-    fn forward(
+    fn f(
         &self,
         args: &[&Tensor],
         node: TensorId,
@@ -120,10 +120,7 @@ where
                     let mut state = S::default();
 
                     for k in 0..a_len {
-                        state = op.f(
-                            state, 
-                            *a_ptr.add(k * inner), 
-                        );
+                        state = op.f(state, *a_ptr.add(k * inner));
                     }
 
                     *o_ptr.add(n * inner + i) = state.value();
@@ -134,7 +131,7 @@ where
         }
     }
 
-    fn back(
+    fn df(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

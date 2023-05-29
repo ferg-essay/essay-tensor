@@ -71,13 +71,13 @@ impl fmt::Debug for Graph {
 pub trait Operation : Send + Sync + 'static {
     fn name(&self) -> &str;
 
-    fn forward(
+    fn f(
         &self,
         args: &[&Tensor],
         id: TensorId,
     ) -> Tensor;
 
-    fn back(
+    fn df(
         &self,
         forward: &Graph,
         back: &mut Graph,
@@ -316,7 +316,7 @@ impl NodeOp {
                     .map(|id| tensors.get(*id).unwrap())
                     .collect();
 
-                let value = op.forward(&t_args, *id);
+                let value = op.f(&t_args, *id);
                 value
             },
 

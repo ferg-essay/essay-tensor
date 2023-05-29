@@ -3,11 +3,14 @@ use crate::{Tensor, tensor::{TensorId}, function::TensorCache};
 pub trait Tensors : Clone {
     type Item;
 
-    fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
-    fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
+    //fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
+    fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self) -> usize;
+    //fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
+    fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self) -> usize;
     fn make_arg(tensors: &TensorCache, index: &mut usize) -> Self::Item;
 
-    fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item);
+    //fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item);
+    fn out_ids(out: &mut Vec<TensorId>, item: &Self);
     fn make_out(cache: &TensorCache, out: &Vec<TensorId>, index: &mut usize) -> Self::Item;
 }
 
@@ -52,6 +55,52 @@ impl Tensors for Tensor {
     }
 }
 
+impl Tensors for &Tensor {
+    type Item = Tensor;
+
+    //fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+    fn push_arg(out: &mut TensorCache, index: usize, item: &Self) -> usize {
+        let item = *item;
+        let id = TensorId(index);
+
+        out.push(Some(item.clone().with_id(id)));
+
+        index + 1
+    }
+
+    //fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+    fn set_arg(out: &mut TensorCache, index: usize, item: &Self) -> usize {
+        let item = *item;
+        let id = TensorId(index);
+        
+        out.set(id, item.clone().with_id(id));
+
+        index + 1
+    }
+
+    fn make_arg(cache: &TensorCache, index: &mut usize) -> Self::Item {
+        let id = TensorId(*index);
+        *index += 1;
+
+        let tensor = cache.get(id).unwrap().clone();
+
+        tensor
+    }
+
+    //fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
+    fn out_ids(out: &mut Vec<TensorId>, item: &Self) {
+        if item.id().is_some() {
+            out.push(item.id())
+        }
+    }
+
+    fn make_out(cache: &TensorCache, ids: &Vec<TensorId>, index: &mut usize) -> Self::Item {
+        let value = cache.get(ids[*index]).unwrap();
+        *index += 1;
+        value.clone()
+    }
+}
+
 impl Tensors for () {
     type Item = ();
 
@@ -79,10 +128,11 @@ macro_rules! bundle_tuple {
     ($( $id:ident ),*) => {
 
     #[allow(non_snake_case)]
-    impl<$($id: Tensors<Item=$id>,)*> Tensors for ($($id,)*) {
-        type Item = ($($id,)*);
+    impl<$($id: Tensors,)*> Tensors for ($($id,)*) {
+        type Item = ($($id::Item,)*);
 
-        fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+        //fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+        fn push_arg(out: &mut TensorCache, index: usize, item: &Self) -> usize {
             let ($($id,)*) = item;
 
             $(
@@ -92,7 +142,8 @@ macro_rules! bundle_tuple {
             index
         }
 
-        fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+        //fn set_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
+        fn set_arg(out: &mut TensorCache, index: usize, item: &Self) -> usize {
             let ($($id,)*) = item;
 
             $(
@@ -110,7 +161,8 @@ macro_rules! bundle_tuple {
             )
         }
 
-        fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
+        //fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
+        fn out_ids(out: &mut Vec<TensorId>, item: &Self) {
             let ($($id,)*) = item;
 
             $(

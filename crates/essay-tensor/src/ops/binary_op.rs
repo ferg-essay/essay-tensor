@@ -1,82 +1,115 @@
 use std::{any::type_name, cmp};
 
 use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, graph::GradientOp}, Tensor, 
-    tensor::{Dtype, TensorId, TensorUninit}
+    tensor::{Dtype, TensorId, TensorUninit}, prelude::Shape
 };
 
-pub trait BinaryKernel<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
+use super::UnaryKernel;
+
+pub trait BinaryKernel<D:Dtype + Copy=f32> : Clone + Copy + Send + Sync + 'static {
     fn f(&self, x: D, y: D) -> D;
 
     fn df_dx(&self, x: D, y: D) -> D;
     fn df_dy(&self, x: D, y: D) -> D;
+
+    fn with_left_scalar<Op: UnaryKernel<D>>(&self, _lhs: D) -> Option<Op> {
+        None
+    }
+
+    fn with_right_scalar<Op: UnaryKernel<D>>(&self, _rhs: D) -> Option<Op> {
+        None
+    }
+
+    unsafe fn batch_f(&self, n: usize, a: *const D, b: *const D, o: *mut D) {
+        for k in 0..n {
+            *o.add(k) = self.f(*a.add(k), *b.add(k));
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct BinopImpl<Op:BinaryKernel>(Op);
+pub struct BinopImpl<Op: BinaryKernel> {
+    op: Op,
+    size: usize,
+    batch: usize,
+    inner: usize,
+    shape: Shape,
+}
 
 #[derive(Debug, Clone)]
-pub struct BinopDx<Op:BinaryKernel>(Op);
+pub struct BinopDx<Op: BinaryKernel>(Op);
 
 #[derive(Debug, Clone)]
-pub struct BinopDy<Op:BinaryKernel>(Op);
+pub struct BinopDy<Op: BinaryKernel>(Op);
 
-pub fn binary_op<Op:BinaryKernel<f32>>(a: &Tensor, b: &Tensor<f32>, op: Op) -> Tensor {
-    let binop = BinopImpl(op.clone());
+pub fn binary_op<Op: BinaryKernel<f32>>(a: &Tensor<f32>, b: &Tensor<f32>, op: Op) -> Tensor {
+    let size = a.broadcast(b);
+    let inner = a.len().min(b.len());
+    let batch = size / inner;
+
+    let shape = if a.rank() < b.rank() { 
+        b.shape().clone() 
+    } else { 
+        a.shape().clone() 
+    };
+
+    let binop = BinopImpl {
+        op: op.clone(),
+        size,
+        batch,
+        inner,
+        shape,
+    };
 
     let node = NodeOp::new(&[a, b], binop.to_op());
 
-    let tensor = binop.forward(&[a, b], node);
+    let tensor = binop.f(&[a, b], node);
 
     Tape::set_tensor(tensor)
 }
 
-impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
+impl<Op: BinaryKernel<f32>> Operation for BinopImpl<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
     
-    fn forward(
+    fn f(
         &self,
         args: &[&Tensor],
-        node: TensorId,
+        id: TensorId,
     ) -> Tensor {
         let a = args[0];
         let b = args[1];
 
-        let size = a.broadcast(b);
-        let inner = a.len().min(b.len());
-        let batch = size / inner;
+        let op = self.op;
 
-        let shape = if a.rank() < b.rank() { 
-            b.shape().clone() 
-        } else { 
-            a.shape().clone() 
-        };
+        let size = self.size;
+        let inner = self.inner;
+        let batch = self.batch;
+
+        let shape = self.shape.clone();
 
         unsafe {
             let mut out = TensorUninit::<f32>::new(size);
 
-            let op = self.0;
-
-            let o_ptr = out.as_mut_ptr();
+            let o = out.as_mut_ptr();
 
             for n in 0..batch {
-                let a_ptr = a.as_wrap_ptr(n * inner);
-                let b_ptr = b.as_wrap_ptr(n * inner);
+                let a = a.as_wrap_ptr(n * inner);
+                let b = b.as_wrap_ptr(n * inner);
+                let o = o.add(n * inner);
 
-                for i in 0..inner {
-                    *o_ptr.add(n * inner + i) = op.f(
-                        *a_ptr.add(i), 
-                        *b_ptr.add(i)
-                    );
+                //op.batch_f(inner, a, b, o);
+                for k in 0..inner {
+                    *o.add(k) = op.f(*a.add(k), *b.add(k));
                 }
             }
 
-            Tensor::from_uninit_with_id(out, shape, node)
+            Tensor::from_uninit_with_id(out, shape, id)
         }
     }
 
-    fn back(
+    fn df(
         &self,
         _forward: &Graph,
         graph: &mut Graph,
@@ -85,8 +118,8 @@ impl<Op:BinaryKernel<f32>> Operation for BinopImpl<Op> {
         prev: TensorId,
     ) -> TensorId {
         match i {
-            0 => graph.add_grad_op(BinopDx(self.0.clone()), &[args[0], args[1]], prev),
-            1 => graph.add_grad_op(BinopDy(self.0.clone()), &[args[0], args[1]], prev),
+            0 => graph.add_grad_op(BinopDx(self.op.clone()), &[args[0], args[1]], prev),
+            1 => graph.add_grad_op(BinopDy(self.op.clone()), &[args[0], args[1]], prev),
             _ => unimplemented!(),
         }
     }
@@ -193,7 +226,7 @@ impl<Op:BinaryKernel<f32>> GradientOp for BinopDy<Op> {
 }
 
 // TODO: debug seems wrong
-impl<F, D:Dtype> BinaryKernel<D> for F
+impl<F, D:Dtype + Copy> BinaryKernel<D> for F
 where F: Fn(D, D) -> D + Send + Sync + 'static + Clone + Copy {
     fn f(&self, x: D, y: D) -> D {
         (self)(x, y)

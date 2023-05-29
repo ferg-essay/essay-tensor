@@ -174,7 +174,7 @@ impl Operation for Matvec {
         type_name::<Self>()
     }
     
-    fn forward(
+    fn f(
         &self,
         args: &[&Tensor],
         node: TensorId,
@@ -184,7 +184,7 @@ impl Operation for Matvec {
         value
     }
 
-    fn back(
+    fn df(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

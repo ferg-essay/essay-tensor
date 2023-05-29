@@ -77,7 +77,7 @@ fn node_backprop(
             prev
         }
         NodeOp::Op(_, op, args) => {
-            op.back(forward, back, i, args, prev)
+            op.df(forward, back, i, args, prev)
         },
         NodeOp::GradConst(_, _) => panic!("BackConst is invalid when generating backtrace"),
         NodeOp::GradOp(_, _, _, _) => panic!("BackOp is invalid when generating backtrace"),
@@ -145,7 +145,7 @@ impl<Op:EvalOp> Operation for Op {
         type_name::<Op>()
     }
 
-    fn forward(
+    fn f(
         &self,
         args: &[&Tensor],
         _node: TensorId,
@@ -153,7 +153,7 @@ impl<Op:EvalOp> Operation for Op {
         (self as &dyn EvalOp).eval(args)
     }
 
-    fn back(
+    fn df(
         &self,
         _forward: &Graph,
         _graph: &mut Graph,

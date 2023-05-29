@@ -395,6 +395,13 @@ impl<T:Dtype> From<T> for Tensor<T> {
     }
 }
 
+impl<T: Dtype> From<()> for Tensor<T> {
+    // TODO: possible conflict with Tensors
+    fn from(_value: ()) -> Self {
+        Tensor::from_vec(vec![], [0])
+    }
+}
+
 impl<T:Dtype> From<Vec<T>> for Tensor<T> {
     fn from(value: Vec<T>) -> Self {
         let len = value.len();
@@ -549,36 +556,6 @@ impl<T:Dtype + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<T
         Tensor::from(&vec)
     }
 }
-/*
-impl<T: 'static> From<&RawTensor> for Tensor<T> {
-    fn from(raw: &RawTensor) -> Self {
-        raw.data.checkcast::<T>(raw.len);
-
-        Self {
-            shape: raw.shape.clone(),
-            offset: raw.offset,
-            len: raw.len,
-
-            data: Arc::clone(&raw.data),
-
-            node_id: NodeId::None,
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<T: 'static> From<&Tensor<T>> for RawTensor {
-    fn from(tensor: &Tensor<T>) -> Self {
-        Self {
-            shape: tensor.shape.clone(),
-            offset: tensor.offset,
-            len: tensor.len,
-
-            data: Arc::clone(&tensor.data),
-        }
-    }
-}
-*/
 
 impl TensorId {
     pub const NONE : TensorId = TensorId(usize::MAX);

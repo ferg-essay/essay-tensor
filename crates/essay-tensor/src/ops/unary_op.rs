@@ -23,7 +23,7 @@ where
 
     let node = NodeOp::new(&[a], uop.to_op());
 
-    let tensor = uop.forward(&[&a], node);
+    let tensor = uop.f(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
@@ -33,7 +33,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
         type_name::<Op>()
     }
     
-    fn forward(
+    fn f(
         &self,
         args: &[&Tensor],
         node: TensorId,
@@ -56,7 +56,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
         }
     }
 
-    fn back(
+    fn df(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

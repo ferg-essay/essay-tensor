@@ -59,7 +59,7 @@ where
 
     let node = NodeOp::new(&[a], softmax_op.to_op());
 
-    let tensor = softmax_op.forward(&[&a], node);
+    let tensor = softmax_op.f(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
@@ -76,7 +76,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
         type_name::<Op>()
     }
 
-    fn forward(
+    fn f(
         &self,
         args: &[&Tensor],
         id: TensorId,
@@ -135,7 +135,7 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
         }
     }
 
-    fn back(
+    fn df(
         &self,
         _forward: &Graph,
         graph: &mut Graph,

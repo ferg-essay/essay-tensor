@@ -1,7 +1,6 @@
 use crate::{
-    ops::BinaryKernel
+    ops::{BinaryKernel, UnaryKernel}
 };
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Add;
@@ -23,14 +22,35 @@ impl BinaryKernel for Add {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AddScalar(f32);
+
+impl UnaryKernel<f32> for AddScalar {
+    #[inline]
+    fn f(&self, x: f32) -> f32 {
+        x + self.0
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: f32) -> f32 {
+        1.
+    }
+}
+
+impl AddScalar {
+    pub fn new(value: f32) -> Self {
+        AddScalar(value)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{prelude::*, function::{Var, Trainer}};
 
     #[test]
     fn test_add() {
-        assert_eq!(tensor!(2.) + tensor!(3.), tensor!(5.));
-        assert_eq!(tensor!([3., 4.]) + tensor!([1., 2.]), tensor!([4., 6.]));
+        assert_eq!(tf32!(2.) + tf32!(3.), tf32!(5.));
+        assert_eq!(tf32!([3., 4.]) + tf32!([1., 2.]), tf32!([4., 6.]));
     }
 
     #[test]
@@ -52,5 +72,19 @@ mod test {
         assert_eq!(train.value(), tensor!([4., 6.]));
         assert_eq!(train.gradient(&x), tensor!([1., 1.]));
         assert_eq!(train.gradient(&y), tensor!([1., 1.]));
+    }
+
+    #[test]
+    fn op_tensor_x_f32() {
+        assert_eq!(tf32!(2.) + tf32!(3.), tf32!(5.));
+        assert_eq!(tf32!(2.) + &tf32!(3.), tf32!(5.));
+        assert_eq!(&tf32!(2.) + tf32!(3.), tf32!(5.));
+        assert_eq!(&tf32!(2.) + &tf32!(3.), tf32!(5.));
+
+        assert_eq!(tf32!(2.) + 3., tf32!(5.));
+        assert_eq!(3. + tf32!(2.), tf32!(5.));
+
+        assert_eq!(&tf32!(2.) + 3., tf32!(5.));
+        assert_eq!(3. + &tf32!(2.), tf32!(5.));
     }
 }
