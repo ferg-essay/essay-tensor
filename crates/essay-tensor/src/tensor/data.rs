@@ -212,7 +212,7 @@ impl<T> Drop for TensorUninit<T> {
 mod test {
     use std::{sync::{Arc, Mutex}};
 
-    use crate::{prelude::*, tensor::{Dtype, tensor::Shape, TensorUninit}};
+    use crate::{prelude::*, tensor::{Dtype, TensorUninit}};
 
     #[test]
     fn test_drop() {

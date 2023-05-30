@@ -1,6 +1,7 @@
-mod slice;
-mod index;
 mod data;
+mod index;
+mod slice;
+mod shape;
 mod tensor;
 mod tensors;
 
@@ -8,10 +9,14 @@ pub use data::{
     TensorUninit,
 };
 
-pub use tensors::{
-    Tensors,
+pub use shape::{
+    Shape,
 };
 
 pub use tensor::{
-    Dtype, Tensor, TensorId, Shape,
+    Dtype, Tensor, TensorId,
+};
+
+pub use tensors::{
+    Tensors,
 };
