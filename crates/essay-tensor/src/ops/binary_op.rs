@@ -19,12 +19,6 @@ pub trait BinaryKernel<D:Dtype + Copy=f32> : Clone + Copy + Send + Sync + 'stati
     fn with_right_scalar<Op: UnaryKernel<D>>(&self, _rhs: D) -> Option<Op> {
         None
     }
-
-    unsafe fn batch_f(&self, n: usize, a: *const D, b: *const D, o: *mut D) {
-        for k in 0..n {
-            *o.add(k) = self.f(*a.add(k), *b.add(k));
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -86,8 +80,6 @@ impl<Op: BinaryKernel<f32>> Operation for BinopImpl<Op> {
         let size = self.size;
         let inner = self.inner;
         let batch = self.batch;
-
-        let shape = self.shape.clone();
         
         unsafe {
             let mut out = TensorUninit::<f32>::new(size);
@@ -102,7 +94,7 @@ impl<Op: BinaryKernel<f32>> Operation for BinopImpl<Op> {
                 }
             }
 
-            Tensor::from_uninit_with_id(out, shape, id)
+            Tensor::from_uninit_with_id(out, self.shape.clone(), id)
         }
     }
 

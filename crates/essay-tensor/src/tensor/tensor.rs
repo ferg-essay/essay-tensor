@@ -57,7 +57,7 @@ impl<T: Clone + 'static> Tensor<T> {
     }
 
     pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
-        assert!(vec.len() > 0);
+        //assert!(vec.len() > 0);
 
         Self {
             id: TensorId::NONE,
@@ -372,7 +372,7 @@ fn fmt_tensor_rec<T:fmt::Debug>(
             let shape = tensor.shape();
             let rank = shape.rank();
             // TODO:
-            let stride : usize = shape.sublen((rank - n + 1)..rank - 1);
+            let stride : usize = shape.sublen((rank - n + 1)..);
             for j in 0..shape.dim_rev(n - 1) {
                 if j > 0 {
                     write!(f, ",\n\n  ")?;

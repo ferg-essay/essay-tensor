@@ -36,7 +36,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
     fn f(
         &self,
         args: &[&Tensor],
-        node: TensorId,
+        id: TensorId,
     ) -> Tensor {
         let a = args[0];
         let len = a.len();
@@ -52,7 +52,7 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
                 *o_ptr.add(i) = op.f(*a_ptr.add(i));
             }
     
-            Tensor::from_uninit_with_id(out, a.shape(), node)
+            Tensor::from_uninit_with_id(out, a.shape(), id)
         }
     }
 

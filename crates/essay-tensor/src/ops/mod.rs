@@ -1,11 +1,16 @@
-mod unary_op;
 mod binary_op;
-pub mod reduce;
 mod fold;
 mod fold_2;
+mod init_op;
+mod unary_op;
+pub mod reduce;
 
 pub use unary_op::{
     unary_op, UnaryKernel,
+};
+
+pub use init_op::{
+    init_op, InitKernel,
 };
 
 pub use binary_op::{

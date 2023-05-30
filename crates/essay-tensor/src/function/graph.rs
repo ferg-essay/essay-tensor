@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::{HashMap}, ops::{self}};
+use std::{collections::{HashMap}, ops::{self}, any::type_name};
 
 use log::debug;
 
@@ -69,7 +69,9 @@ impl fmt::Debug for Graph {
 }
 
 pub trait Operation : Send + Sync + 'static {
-    fn name(&self) -> &str;
+    fn name(&self) -> &str {
+        type_name::<Self>()
+    }
 
     fn f(
         &self,

@@ -1,3 +1,4 @@
+mod linspace;
 mod fill;
 mod ones;
 mod zeros;
