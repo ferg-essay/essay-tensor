@@ -5,16 +5,6 @@ use crate::{function::{IntoForward, NodeOp, Tape, Operation, Graph, graph::Gradi
     tensor::{Dtype, TensorUninit, TensorId}, prelude::Shape
 };
 
-pub trait InitKernel<D:Dtype> : fmt::Debug + Clone + PartialEq + Sync + Send + 'static
-{
-    type State : Default;
-
-    fn f(&self, state: &mut Self::State) -> D;
-}
-
-#[derive(Clone, PartialEq)]
-pub struct InitCpu<Op:InitKernel<f32>>(Op, Shape);
-
 pub fn init_op<Op>(op: Op, shape: impl Into<Shape>) -> Tensor
 where
     Op: InitKernel<f32>
@@ -30,7 +20,19 @@ where
     Tape::set_tensor(tensor)
 }
 
-impl<Op:InitKernel<f32>> Operation for InitCpu<Op> {
+pub trait InitKernel<D:Dtype> : fmt::Debug + Clone + PartialEq + Sync + Send + 'static
+{
+    type State;
+
+    fn init(&self, shape: &Shape) -> Self::State;
+
+    fn f(&self, state: &mut Self::State) -> D;
+}
+
+#[derive(Clone, PartialEq)]
+pub struct InitCpu<Op:InitKernel<f32>>(Op, Shape);
+
+impl<Op: InitKernel<f32>> Operation for InitCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -49,7 +51,7 @@ impl<Op:InitKernel<f32>> Operation for InitCpu<Op> {
             let op = &self.0;
             let o_ptr = out.as_mut_ptr();
 
-            let mut state = Op::State::default();
+            let mut state = op.init(&shape);
         
             for i in 0..len {
                 *o_ptr.add(i) = op.f(&mut state);

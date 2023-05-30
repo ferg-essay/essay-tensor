@@ -1,12 +1,40 @@
 use crate::{Tensor, prelude::Shape};
+use crate::ops::{init_op, InitKernel};
 
 pub fn ones(shape: impl Into<Shape>) -> Tensor {
-    Tensor::fill(1., shape)
+    init_op(Ones, shape)
 }
 
 impl Tensor {
     pub fn ones(shape: impl Into<Shape>) -> Tensor {
-        Tensor::fill(1., shape)
+        ones(shape)
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Ones;
+
+impl InitKernel<f32> for Ones {
+    type State = ();
+
+    fn init(&self, _shape: &Shape) -> Self::State {
+        ()
+    }
+
+    fn f(&self, _state: &mut Self::State) -> f32 {
+        1.
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::*;
+    use crate::init::ones;
+
+    #[test]
+    fn test_ones() {
+        assert_eq!(ones([1]), tf32!([1.]));
+        assert_eq!(ones([3]), tf32!([1., 1., 1.]));
+        assert_eq!(ones([2, 3]), tf32!([[1., 1., 1.], [1., 1., 1.]]));
+    }
+}
