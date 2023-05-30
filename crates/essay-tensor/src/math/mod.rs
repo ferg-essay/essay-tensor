@@ -1,4 +1,3 @@
-mod reduce_mean;
 mod sin;
 mod neg;
 mod ln;
@@ -10,9 +9,12 @@ mod powf;
 mod min;
 mod max;
 mod log;
-mod sub;
+mod reduce_mean;
 mod reduce_sum;
+mod reduce_std;
+mod reduce_variance;
 mod rem;
+mod sub;
 mod mul;
 mod div;
 mod atan2;
@@ -42,6 +44,9 @@ tensor_binop!(powf, powf::Powf);
 tensor_binop!(powi, powi::Powi);
 
 pub use reduce_sum::{reduce_sum, reduce_sum_opt};
+pub use reduce_mean::{reduce_mean};
+pub use reduce_variance::{reduce_variance};
+pub use reduce_std::{reduce_std};
 
 //
 // overloaded operations: Add, Sub, Mul
