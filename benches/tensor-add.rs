@@ -1,4 +1,4 @@
-use std::{time::Instant, sync::Arc, rc::Rc};
+use std::{time::Instant};
 
 use essay_tensor::{Tensor, function::Function, tensor::TensorUninit};
 
@@ -40,7 +40,7 @@ fn main() {
                 Tensor::<f32>::from_uninit(uninit, [len]);
             }
         }
-        let time_zeros = start.elapsed();
+        let _time_zeros = start.elapsed();
 
         let _add = Function::compile((a.clone(), b.clone()),
             |(x, y)| x + y
@@ -50,7 +50,7 @@ fn main() {
         //let _c = &a + &b;
         let c = a.clone();
         for _ in 0..k {
-            let c = &c + &b;
+            let _c = &c + &b;
             //let _c = _add.call((a.clone(), b.clone()));
         }
         let time_sum = start.elapsed();
@@ -73,14 +73,13 @@ fn main() {
             let sa = v_a.as_slice(); // ptr(); // .as_slice();
             let sb = v_b.as_slice(); // .as_slice();
             let sc = v_c.as_mut_slice(); // as_mut_slice();
-            unsafe {
+
             for i in 0..len {
                 sc[i] = sa[i] + sb[i];
             }
-        }
             //let _c = _add.call((a.clone(), b.clone()));
         }
-        let t_sum = start.elapsed();
+        let _t_sum = start.elapsed();
 
         let start = Instant::now();
         for _ in 0..k {

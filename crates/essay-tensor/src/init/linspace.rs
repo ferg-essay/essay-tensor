@@ -1,9 +1,9 @@
-use std::{any::type_name, cmp};
+use std::{cmp};
 
 use crate::{
     Tensor, 
-    tensor::{Dtype, TensorUninit, TensorId}, 
-    function::{NodeOp, Tape, Operation, IntoForward, Graph, graph::GradientOp}, prelude::Shape
+    tensor::{TensorUninit, TensorId}, 
+    function::{NodeOp, Tape, Operation, Graph}, prelude::Shape
 };
 
 #[derive(Clone, Copy, PartialEq)]

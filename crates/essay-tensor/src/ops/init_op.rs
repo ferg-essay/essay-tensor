@@ -82,8 +82,8 @@ impl<Op: InitKernel<f32>> GradientOp for InitCpu<Op> {
 
     fn df(
         &self,
-        args: &[&Tensor],
-        prev: &Tensor,
+        _args: &[&Tensor],
+        _prev: &Tensor,
     ) -> Tensor {
         todo!()
     }

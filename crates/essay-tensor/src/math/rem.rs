@@ -51,7 +51,7 @@ impl UnaryKernel<f32> for RemTS {
     }
 
     #[inline]
-    fn df_dx(&self, x: f32) -> f32 {
+    fn df_dx(&self, _x: f32) -> f32 {
         self.0.recip()
     }
 }

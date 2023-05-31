@@ -16,7 +16,7 @@ pub struct Tensor<T=f32> {
 
     data: Arc<TensorData<T>>,
 }
-
+/*
 impl<T: 'static> Tensor<T> {
     pub(crate) unsafe fn from_data(
         data: TensorData<T>, 
@@ -40,6 +40,7 @@ impl<T: 'static> Tensor<T> {
         }
     }
 }
+*/
 
 impl<T: Clone + 'static> Tensor<T> {
     pub fn from_slice(data: &[T]) -> Self {

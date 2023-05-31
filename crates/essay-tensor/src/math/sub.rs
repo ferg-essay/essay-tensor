@@ -30,7 +30,7 @@ impl UnaryKernel<f32> for SubST {
     }
 
     #[inline]
-    fn df_dx(&self, x: f32) -> f32 {
+    fn df_dx(&self, _x: f32) -> f32 {
         - 1.
     }
 }
@@ -51,7 +51,7 @@ impl UnaryKernel<f32> for SubTS {
     }
 
     #[inline]
-    fn df_dx(&self, x: f32) -> f32 {
+    fn df_dx(&self, _x: f32) -> f32 {
         1.
     }
 }
