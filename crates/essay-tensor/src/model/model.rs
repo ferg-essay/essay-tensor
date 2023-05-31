@@ -27,7 +27,7 @@ pub trait ModelTensorflow<In:Tensors<Item=In>, Out:Tensors<Item=Out>> {
     // (input, target)
     fn fit(&self, x: Option<Tensor>, y: Option<Tensor>, epochs: usize);
 
-    fn get_layer(&self, name: &str) -> Box<dyn Layer>;
+    fn get_layer(&self, name: &str) -> Box<dyn Layer<In, Out>>;
 
     fn get_weight_paths(&self);
 

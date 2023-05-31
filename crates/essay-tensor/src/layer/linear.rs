@@ -1,6 +1,10 @@
-use crate::function::Var;
+use essay_opt::derive_opt;
 
-pub struct _Linear {
+use crate::{function::Var, Tensor};
+
+use super::Layer;
+
+pub struct Linear {
     var_a : Var,
     var_b : Option<Var>,
 
@@ -16,4 +20,14 @@ pub struct _Linear {
     // activity_regularizer
     // kernel_constraint
     // bias_constraint
+}
+
+impl Layer<Tensor, Tensor> for Linear {
+    
+}
+
+#[derive_opt(LinearOpt)]
+#[derive(Default)]
+pub struct LinearArg {
+    use_bias: Option<bool>,
 }

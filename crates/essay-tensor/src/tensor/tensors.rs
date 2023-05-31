@@ -3,13 +3,10 @@ use crate::{Tensor, tensor::{TensorId}, function::TensorCache};
 pub trait Tensors : Clone {
     type Item;
 
-    //fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
     fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self) -> usize;
-    //fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self::Item) -> usize;
     fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self) -> usize;
     fn make_arg(tensors: &TensorCache, index: &mut usize) -> Self::Item;
 
-    //fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item);
     fn out_ids(out: &mut Vec<TensorId>, item: &Self);
     fn make_out(cache: &TensorCache, out: &Vec<TensorId>, index: &mut usize) -> Self::Item;
 }

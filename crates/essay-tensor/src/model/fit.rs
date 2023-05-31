@@ -1,5 +1,7 @@
 use std::ops::Deref;
 
+use essay_opt::derive_opt;
+
 use crate::{
     prelude::Dataset, 
     dataset::{DatasetIter, rebatch}, Tensor, loss::l2_loss,
@@ -65,19 +67,19 @@ pub struct FitBuilder {
     steps_per_epoch: usize,
 }
 
-pub trait FitOpt {
-    fn epochs(self, epochs: usize) -> FitArgs;
-
-    fn into(self) -> FitArgs;
-}
+//pub trait FitOpt {
+//    fn epochs(self, epochs: usize) -> FitArgs;
+//
+//    fn into(self) -> FitArgs;
+//}
 
 #[derive(Default)]
-// #[derive_options(FitOpt)]
+#[derive_opt(FitOpt)]
 pub struct FitArgs {
     epochs: usize,
     steps_per_epoch: usize,
 }
-
+/*
 //derive_arg!(FitOpt, FitArg);
 impl FitOpt for FitArgs {
     fn epochs(self, epochs: usize) -> FitArgs {
@@ -98,6 +100,7 @@ impl FitOpt for () {
         FitArgs::default()
     }
 }
+*/
 
 fn test(opt: impl FitOpt) {
 
@@ -117,7 +120,7 @@ impl FitBuilder {
         let train_x = train_x.into();
         let train_y = train_y.into();
 
-        let options = options.into();
+        let options = options.into_arg();
 
         assert_eq!(train_x.dim(0), train_y.dim(0));
 

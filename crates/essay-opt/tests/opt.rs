@@ -11,7 +11,7 @@ pub struct Test {}
 #[test]
 fn test() {
     assert_eq!(test_opt(()), "None");
-    assert_eq!(test_opt(().name(Some("name-a".to_string()))), "name-a");
+    assert_eq!(test_opt(().name("name-a")), "name-a");
 }
 
 fn test_opt(opt: impl TestOpt) -> String {

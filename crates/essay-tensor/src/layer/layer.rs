@@ -1,4 +1,10 @@
-pub trait Layer {
+use crate::prelude::Tensors;
+
+pub trait Layer<I, O>
+where
+    I: Tensors<Item=I>,
+    O: Tensors<Item=O>,
+{
     // trainable: bool
     // name
     // trainable_weights -> Var
@@ -36,4 +42,4 @@ pub trait Layer {
     // __call__
 }
 
-pub type BoxLayer = Box<dyn Layer>;
+pub type BoxLayer<I, O> = Box<dyn Layer<I, O>>;

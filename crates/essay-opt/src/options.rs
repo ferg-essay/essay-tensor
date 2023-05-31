@@ -1,7 +1,7 @@
 use proc_macro::{self};
 use syn::{DeriveInput, parse_macro_input, DataStruct, Result, 
     parse::{ParseStream, Parse}, 
-    Fields, Ident
+    Fields, Ident, Type
 };
 use quote::{*, __private::TokenStream};
 
@@ -106,9 +106,19 @@ fn trait_methods(fields: &Fields, arg: &Ident) -> TokenStream {
                 let name = &field.ident;
                 let ty = &field.ty;
 
-                quote! {
-                    fn #name(self, value: #ty) -> #arg;
+                match option_type(ty) {
+                    Some(ty) => {
+                        quote! {
+                            fn #name(self, value: impl Into<#ty>) -> #arg;
+                        }
+                    },
+                    None => {
+                        quote! {
+                            fn #name(self, value: #ty) -> #arg;
+                        }
+                    }
                 }
+                
             });
 
             quote! { #(#iter)* }
@@ -124,11 +134,23 @@ fn arg_methods(fields: &Fields) -> TokenStream {
                 let name = &field.ident;
                 let ty = &field.ty;
 
-                quote! {
-                    fn #name(self, #name: #ty) -> Self {
-                        Self { #name: #name.into(), ..self }
+                match option_type(ty) {
+                    Some(ty) => {
+                        quote! {
+                            fn #name(self, #name: impl Into<#ty>) -> Self {
+                                Self { #name: Some(#name.into()), ..self }
+                            }
+                        }
+                    },
+                    None => {
+                        quote! {
+                            fn #name(self, #name: #ty) -> Self {
+                                Self { #name: #name.into(), ..self }
+                            }
+                        }
                     }
                 }
+
             });
 
             quote! { #(#iter)* }
@@ -144,9 +166,20 @@ fn nil_methods(fields: &Fields, arg: &Ident) -> TokenStream {
                 let name = &field.ident;
                 let ty = &field.ty;
 
-                quote! {
-                    fn #name(self, #name: #ty) -> #arg {
-                        #arg::default().#name(#name)
+                match option_type(ty) {
+                    Some(ty) => {
+                        quote! {
+                            fn #name(self, #name: impl Into<#ty>) -> #arg {
+                                #arg::default().#name(#name)
+                            }
+                        }
+                    },
+                    None => {
+                        quote! {
+                            fn #name(self, #name: #ty) -> #arg {
+                                #arg::default().#name(#name)
+                            }
+                        }
                     }
                 }
             });
@@ -155,4 +188,49 @@ fn nil_methods(fields: &Fields, arg: &Ident) -> TokenStream {
         }
         _ => quote! {}
     }
+}
+
+
+fn _trait_type(ty: &Type) -> Type {
+    if let Type::Path(path) = ty {
+        if let Some(value) = path.path.get_ident() {
+            println!("\nValue {:?}", value.to_string());
+            if value.to_string() == "Option" {
+                if let Some(qself) = &path.qself {
+                    return *qself.ty.clone()
+                }
+            }
+        }
+    }
+
+    ty.clone()
+}
+
+fn option_type(ty: &Type) -> Option<Type> {
+    if let syn::Type::Path(syn::TypePath { qself: None, path }) = ty {
+        let path_str = &path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join(":");
+
+        if path_str == "Option" {
+            if let Some(tail) = path.segments.last() {
+                match &tail.arguments {
+                    syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
+                        args,
+                        ..
+                    }) => {
+                        if let Some(syn::GenericArgument::Type(ty)) = args.first() {
+                            return Some(ty.clone())
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    None
 }
