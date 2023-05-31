@@ -5,17 +5,17 @@ pub struct Function<In: Tensors, Out: Tensors> {
     _vars: Vec<(Var, TensorId)>,
     fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
 
-    graph: Graph,
+    program: Graph,
 }
 
 impl<In, Out> Function<In, Out>
 where
-    In: Tensors<Item=In>,
-    Out: Tensors<Item=Out>,
+    In: Tensors<Out=In>,
+    Out: Tensors<Out=Out>,
 {
     pub fn compile<F>(input: In, fun: F) -> Function<In, Out>
     where
-        F: FnOnce(In) -> Out,
+        F: FnOnce(In::In<'_>) -> Out,
     {
         let mut tape = Tape::build(input, fun);
 
@@ -36,14 +36,14 @@ where
                 value
             }),
 
-            graph: tape.take_graph().unwrap(),
+            program: tape.take_graph().unwrap(),
         }
     }
 
     pub fn call(&self, input: In) -> Out {
-        let tensors = self.graph.tensors().clone();
+        let tensors = self.program.tensors().clone();
 
-        (self.fun)(&self.graph, input, &tensors)
+        (self.fun)(&self.program, input, &tensors)
     }
 }
 
@@ -115,7 +115,7 @@ mod test {
 
         let m_a = Function::compile(
             tensor!([2., 1., 2.]), 
-            |x| &a * &x
+            |x| &a * x
         );
 
         let value = m_a.call(tensor!([2., 1., 2.]));
@@ -131,7 +131,7 @@ mod test {
 
         let m_a = Function::compile(
             (tensor!([1., 1.]), tensor!([1., 1.])),
-            |(x, y)| &x - &y
+            |(x, y)| x - y
         );
 
         let value = m_a.call((tensor!([2., 1.]), tensor!([1., 2.])));

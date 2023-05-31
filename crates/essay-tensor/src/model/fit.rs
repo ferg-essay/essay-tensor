@@ -8,7 +8,7 @@ use crate::{
     function::Trainer,
 };
 
-use super::model::Model;
+//use super::layer::Model;
 
 pub struct Fit<'a> {
     // model: model
@@ -156,8 +156,8 @@ impl FitBuilder {
 
         let trainer = Trainer::compile((x, y), |(x, y)| {
             let model = self.model.take().unwrap();
-            let y_pred = model(x);
-            let loss = l2_loss(&y - &y_pred);
+            let y_pred = model(x.clone());
+            let loss = l2_loss(y - &y_pred);
 
             (y_pred, loss)
         });
@@ -176,7 +176,7 @@ impl FitBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::{model::{fit::FitBuilder, model::Model}, function::Var};
+    use crate::{model::{fit::FitBuilder, }, function::Var};
     pub use crate::prelude::*;
     pub use crate::model::prelude::*;
 

@@ -9,6 +9,12 @@ pub fn random_uniform(
     init_op(opt.into_arg(), shape)
 }
 
+pub fn random_uniform_initializer(
+    opt: impl UniformOpt<RandomUniform>,
+) -> RandomUniform {
+    opt.into_arg()
+}
+
 impl Tensor {
     pub fn random_uniform(shape: impl Into<Shape>, opt: impl UniformOpt<RandomUniform>) -> Tensor {
         random_uniform(shape, opt)

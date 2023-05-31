@@ -1,6 +1,8 @@
 use crate::{Tensor, prelude::Shape};
 use crate::ops::{init_op, InitKernel};
 
+use super::initializer::Initializer;
+
 pub fn ones(shape: impl Into<Shape>) -> Tensor {
     init_op(Ones, shape)
 }
@@ -23,6 +25,12 @@ impl InitKernel<f32> for Ones {
 
     fn f(&self, _state: &mut Self::State) -> f32 {
         1.
+    }
+}
+
+impl Initializer for Ones {
+    fn init(&self, shape: &Shape) -> Tensor {
+        init_op(self.clone(), shape)
     }
 }
 

@@ -4,11 +4,19 @@ use crate::random::RandomSource;
 use crate::{Tensor, prelude::Shape};
 use crate::ops::{init_op, InitKernel};
 
+use super::initializer::Initializer;
+
 pub fn random_normal(
     shape: impl Into<Shape>,
     opt: impl NormalOpt<RandomNormal>,
 ) -> Tensor {
     init_op(opt.into_arg(), shape)
+}
+
+pub fn random_normal_initializer(
+    opt: impl NormalOpt<RandomNormal>,
+) -> RandomNormal {
+    opt.into_arg()
 }
 
 impl Tensor {
@@ -51,6 +59,12 @@ impl Default for RandomNormal {
             stddev: 1.,
             seed: None,
         }
+    }
+}
+
+impl Initializer for RandomNormal {
+    fn init(&self, shape: &Shape) -> Tensor {
+        init_op(self.clone(), shape)
     }
 }
 

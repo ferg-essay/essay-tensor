@@ -1,6 +1,6 @@
 use std::{any::type_name, cmp};
 
-use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, graph::GradientOp}, Tensor, 
+use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, program::GradientOp}, Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, prelude::Shape
 };
 

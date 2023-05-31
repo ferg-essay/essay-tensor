@@ -9,7 +9,7 @@ pub struct Var<D: Dtype=f32> {
     id: VarId,
     name: String,
     tensor: Arc<Mutex<TensorShare<D>>>,
-    last_tensor: UnsafeCell<Tensor<D>>, // to allow deref
+    last_tensor: UnsafeCell<Tensor<D>>, // clone() to allow deref
 }
 
 impl<D: Dtype> Var<D> {

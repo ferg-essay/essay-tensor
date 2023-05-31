@@ -1,8 +1,14 @@
 use crate::{Tensor, prelude::Shape};
 use crate::ops::{init_op, InitKernel};
 
+use super::initializer::Initializer;
+
 pub fn zeros(shape: impl Into<Shape>) -> Tensor {
     init_op(Zeros, shape)
+}
+
+pub fn zeros_initializer() -> Box<dyn Initializer> {
+    Box::new(Zeros)
 }
 
 impl Tensor {
@@ -23,6 +29,12 @@ impl InitKernel<f32> for Zeros {
 
     fn f(&self, _state: &mut Self::State) -> f32 {
         0.
+    }
+}
+
+impl Initializer for Zeros {
+    fn init(&self, shape: &Shape) -> Tensor {
+        init_op(self.clone(), shape)
     }
 }
 

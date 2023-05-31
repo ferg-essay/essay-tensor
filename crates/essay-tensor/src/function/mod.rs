@@ -3,7 +3,7 @@ mod tape;
 mod function;
 mod gradient;
 mod var;
-pub(crate) mod graph;
+pub(crate) mod program;
 
 pub use var::{
     Var,
@@ -21,7 +21,7 @@ pub(crate) use tape::{
     Tape
 };
 
-pub use graph::{
+pub use program::{
     Graph, NodeOp, EvalOp, Operation, IntoForward, BoxForwardOp,
     // BackOp, BoxBackOp,
     TensorCache,

@@ -149,6 +149,10 @@ impl Shape {
         }
     }
 
+    pub(crate) fn extend_dims(&self, units: usize) -> Shape {
+        self.insert(units)
+    }
+
     #[inline]
     pub fn sublen<I>(&self, range: I) -> usize
     where

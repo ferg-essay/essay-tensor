@@ -1,3 +1,4 @@
+mod initializer;
 mod random_normal;
 mod random_uniform;
 mod linspace;
@@ -5,16 +6,20 @@ mod fill;
 mod ones;
 mod zeros;
 
+pub use initializer::Initializer;
+
 pub use ones::ones;
 pub use fill::fill;
-pub use zeros::zeros;
+pub use zeros::{
+    zeros, zeros_initializer,
+};
 
 pub use random_uniform::{
-    random_uniform, UniformOpt
+    random_uniform, random_uniform_initializer, UniformOpt
 };
 
 pub use random_normal::{
-    random_normal, NormalOpt
+    random_normal, random_normal_initializer, NormalOpt
 };
 
 pub use linspace::linspace;

@@ -3,7 +3,7 @@ use std::{collections::HashSet, any::type_name};
 use crate::{Tensor, tensor::{TensorId}};
 
 use super::{Graph, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
-    graph::{IntoBack, GradientOp, BoxBackOp}
+    program::{IntoBack, GradientOp, BoxBackOp}
 };
 
 

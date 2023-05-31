@@ -190,32 +190,9 @@ fn nil_methods(fields: &Fields, arg: &Ident) -> TokenStream {
     }
 }
 
-
-fn _trait_type(ty: &Type) -> Type {
-    if let Type::Path(path) = ty {
-        if let Some(value) = path.path.get_ident() {
-            println!("\nValue {:?}", value.to_string());
-            if value.to_string() == "Option" {
-                if let Some(qself) = &path.qself {
-                    return *qself.ty.clone()
-                }
-            }
-        }
-    }
-
-    ty.clone()
-}
-
 fn option_type(ty: &Type) -> Option<Type> {
     if let syn::Type::Path(syn::TypePath { qself: None, path }) = ty {
-        let path_str = &path
-            .segments
-            .iter()
-            .map(|segment| segment.ident.to_string())
-            .collect::<Vec<_>>()
-            .join(":");
-
-        if path_str == "Option" {
+        if path_to_string(&path) == "Option" {
             if let Some(tail) = path.segments.last() {
                 match &tail.arguments {
                     syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
@@ -233,4 +210,13 @@ fn option_type(ty: &Type) -> Option<Type> {
     }
 
     None
+}
+
+fn path_to_string(path: &syn::Path) -> String {
+    path
+        .segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect::<Vec<_>>()
+        .join(":")
 }

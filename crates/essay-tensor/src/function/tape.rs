@@ -18,15 +18,15 @@ pub struct Tape {
 pub enum TapeError {}
 
 thread_local! {
-    pub static TAPE: RefCell<Option<Tape>>   = RefCell::new(None);
+    pub static TAPE: RefCell<Option<Tape>> = RefCell::new(None);
 }
 
 impl Tape {
     pub fn build<F, In, Out>(init: In, fun: F) -> Tape
     where
-        In: Tensors<Item=In>,
-        Out: Tensors<Item=Out>,
-        F: FnOnce(In) -> Out,
+        In: Tensors<Out=In>,
+        Out: Tensors<Out=Out>,
+        F: FnOnce(In::In<'_>) -> Out,
     {
         let mut tape = Tape {
             _args: Default::default(),
@@ -37,14 +37,16 @@ impl Tape {
             graph: Some(Default::default()),
         };
 
+        let mut index = 0;
+        // TODO: check that the clone and &Tensor work together
+        let tensors_clone = tape.tensors().clone();
+        let args = In::make_arg(&tensors_clone, &mut index);
+
         let arg_len = In::push_arg(tape.tensors_mut(), 0, &init);
 
-        // Tensors in args now have their id set.
-        let mut index = 0;
-        let args = In::make_arg(&tape.tensors(), &mut index);
-
         for id in 0..arg_len {
-            tape.arg(tape.get_tensor(TensorId(id)).unwrap().clone());
+            let tensor = tape.get_tensor(TensorId(id)).unwrap().clone();
+            tape.arg(tensor);
         }
 
         // TODO: add RAII guard?

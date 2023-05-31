@@ -2,7 +2,7 @@ use crate::{Tensor, tensor::{TensorId, Tensors}};
 
 use super::{TensorCache, Var, Graph, Tape, gradient::backprop_graph, var::VarId};
 
-pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
+pub struct _Loss<Out:Tensors<Out=Out>>(Tensor, Out);
 
 pub struct Trainer<In: Tensors, Out: Tensors> {
     _vars: Vec<(VarId, TensorId)>,
@@ -12,7 +12,7 @@ pub struct Trainer<In: Tensors, Out: Tensors> {
     gradients: Vec<(VarId, Graph)>,
 }
 
-pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
+pub struct Train<'a, In: Tensors<Out=In>, Out: Tensors<Out=Out>> {
     module: &'a Trainer<In, Out>,
     tensors: TensorCache,
     out: Out,
@@ -20,12 +20,12 @@ pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
 
 impl<In, Out> Trainer<In, Out>
 where
-    In: Tensors<Item=In>,
-    Out: Tensors<Item=Out>,
+    In: Tensors<Out=In>,
+    Out: Tensors<Out=Out>,
 {
     pub fn compile<F>(input: In, fun: F) -> Trainer<In, Out>
     where
-        F: FnOnce(In) -> Out,
+        F: FnOnce(In::In<'_>) -> Out,
     {
         let mut tape = Tape::build(input, fun);
 
@@ -84,7 +84,7 @@ where
     }
 }
 
-impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
+impl<In:Tensors<Out=In>,Out:Tensors<Out=Out>> Train<'_, In, Out> {
     pub fn value(&self) -> Out {
         self.out.clone()
     }
@@ -186,7 +186,7 @@ mod test {
 
         let m_a = Trainer::compile(
             tensor!([2., 1., 2.]), 
-            |x| &a * &x
+            |x| &a * x
         );
 
         let value = m_a.call(tensor!([2., 1., 2.]));
@@ -202,7 +202,7 @@ mod test {
 
         let m_a = Trainer::compile(
             (tensor!([1., 1.]), tensor!([1., 1.])),
-            |(x, y)| &x - &y
+            |(x, y)| x - y
         );
 
         let value = m_a.call((tensor!([2., 1.]), tensor!([1., 2.])));
