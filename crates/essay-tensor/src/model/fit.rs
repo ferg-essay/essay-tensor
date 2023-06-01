@@ -5,7 +5,7 @@ use essay_opt::derive_opt;
 use crate::{
     prelude::Dataset, 
     dataset::{DatasetIter, rebatch}, Tensor, loss::l2_loss,
-    function::Trainer,
+    model::Trainer,
 };
 
 //use super::layer::Model;
@@ -176,7 +176,7 @@ impl FitBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::{model::{fit::FitBuilder, }, function::Var};
+    use crate::{model::{fit::FitBuilder, }, model::Var};
     pub use crate::prelude::*;
     pub use crate::model::prelude::*;
 

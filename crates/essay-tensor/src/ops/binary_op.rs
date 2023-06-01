@@ -1,6 +1,6 @@
 use std::{any::type_name, cmp};
 
-use crate::{function::{Graph, Operation, IntoForward, NodeOp, Tape, program::GradientOp}, Tensor, 
+use crate::{model::{Graph, Operation, IntoForward, NodeOp, Tape, program::GradientOp}, Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, prelude::Shape
 };
 
@@ -232,7 +232,7 @@ where F: Fn(D, D) -> D + Send + Sync + 'static + Clone + Copy {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::{*}, ops::binary_op, function::Var};
+    use crate::{prelude::{*}, ops::binary_op, model::Var};
 
     #[test]
     fn binop_broadcast() {

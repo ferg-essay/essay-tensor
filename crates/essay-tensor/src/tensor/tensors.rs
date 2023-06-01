@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{TensorId}, function::TensorCache};
+use crate::{Tensor, tensor::{TensorId}, model::TensorCache};
 
 pub trait Tensors : Clone {
     type In<'a>;

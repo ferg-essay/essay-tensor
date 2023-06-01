@@ -1,4 +1,4 @@
-use crate::{function::Var, Tensor, prelude::Shape};
+use crate::{model::Var, Tensor, prelude::Shape};
 
 pub trait Optimizer {
     fn minimize(&self, loss: &Tensor<f32>, vars: &Var<String>, tape: Option<String>);

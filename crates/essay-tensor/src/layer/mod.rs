@@ -1,5 +1,4 @@
 mod input;
-mod model;
 mod linear;
 mod layer;
 

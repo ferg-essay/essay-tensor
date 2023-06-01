@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, function::{EvalOp}, linalg::blas::sgemm};
+use crate::{tensor::{Tensor, TensorUninit}, model::{EvalOp}, linalg::blas::sgemm};
 
 #[derive(Clone, Debug)]
 pub enum Transpose {

@@ -226,7 +226,7 @@ impl TensorShare<f32> {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, function::Var};
+    use crate::{prelude::*, model::Var};
 
     #[test]
     fn test_var() {

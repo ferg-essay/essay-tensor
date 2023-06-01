@@ -32,7 +32,7 @@ impl ReduceKernel<f32> for L2Loss {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, function::Var};
+    use crate::{prelude::*, model::Var};
 
     #[test]
     fn l2_loss() {

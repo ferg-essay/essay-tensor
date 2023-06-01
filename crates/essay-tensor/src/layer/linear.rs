@@ -1,8 +1,9 @@
 use essay_opt::derive_opt;
 
-use crate::{function::Var, Tensor, prelude::{Tensors, Shape}, init::{Initializer, zeros_initializer}};
+use crate::{model::{Var, CallMode, LayerIn}, Tensor, prelude::{Tensors, Shape}, init::{Initializer, zeros_initializer}};
 
-use super::{Layer, input::InputSpec, model::{Model, CallMode, ModelIn, ModelBuilder}, layer::{LayerBuilder, LayerIn, LayersIn}};
+use super::{Layer, input::InputSpec, 
+    layer::{LayerBuilder}};
 
 pub struct Linear {
     // var_a : Var,
@@ -49,13 +50,13 @@ impl Linear {
     */
 }
 
-impl Layer<Tensor, Tensor> for Linear {
+impl Layer for Linear {
     fn call(&self, input: Tensor, mode: CallMode) -> Tensor {
         todo!()
     }
 }
 
-impl LayerBuilder<LayerIn, LayerIn> for Linear {
+impl LayerBuilder for Linear {
     fn build(&self, input: &LayerIn) -> LayerIn {
         let a = Var::new("a", self.init.init(&input.shape().extend_dims(self.units)));
         let b = Var::new("b",self.bias_init.init(&self.units.into()));
@@ -64,16 +65,6 @@ impl LayerBuilder<LayerIn, LayerIn> for Linear {
             a.matvec(&x) + &b
         })
     }
-    /*
-    fn compile<In: Tensors>(&self, input: &mut ModelBuilder<In, Tensor>) -> ModelBuilder<In, Tensor> {
-        let a = Var::new("a", self.init.init(&input.shape().extend_dims(self.units)));
-        let b = Var::new("b",self.bias_init.init(&self.units.into()));
-
-        input.add_layer(|x, _mode| {
-            a.matvec(&x) + &b
-        })
-    }
-    */
 }
 
 pub struct LinearModel {

@@ -2,7 +2,7 @@ use std::{any::type_name, cmp};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit}, 
-    function::{Operation, Graph, program::GradientOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
+    model::{Operation, Graph, program::GradientOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
 };
 
 use super::matmul::Transpose;
@@ -246,7 +246,7 @@ impl GradientOp for MatvecBackRight {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, function::{Var, Trainer}, linalg::matmul::Transpose, tf32};
+    use crate::{tensor, Tensor, model::{Var, Trainer}, linalg::matmul::Transpose, tf32};
 
     #[test]
     fn test_matvec_1_1() {

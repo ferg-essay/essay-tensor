@@ -4,7 +4,7 @@ use std::{any::type_name, marker::PhantomData};
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, 
-    function::{NodeOp, Tape, Operation, IntoForward, Graph, program::GradientOp}, prelude::Shape
+    model::{NodeOp, Tape, Operation, IntoForward, Graph, program::GradientOp}, prelude::Shape
 };
 
 pub trait ReduceKernel<S: State, D: Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -246,7 +246,7 @@ impl<T: Dtype + Clone + Default + fmt::Debug> State for T {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, function::Var};
+    use crate::{prelude::*, model::Var};
 
     #[test]
     fn reduce_sum_n() {

@@ -123,11 +123,11 @@ impl<In:Tensors<Out=In>,Out:Tensors<Out=Out>> Train<'_, In, Out> {
 mod test {
     use log::LevelFilter;
 
-    use crate::function::{Tape};
+    use crate::model::{Tape};
 
     use crate::tensor::TensorId;
     use crate::{
-        function::{Trainer, Var},
+        model::{Trainer, Var},
         tensor, Tensor,
     };
 

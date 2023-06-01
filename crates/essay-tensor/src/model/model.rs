@@ -1,6 +1,6 @@
-use crate::{prelude::{Tensors, Shape}, function::Var};
+use std::marker::PhantomData;
 
-use super::Layer;
+use crate::{prelude::{Tensors, Shape}, model::Var, Tensor, tensor::Dtype, layer::Layer};
 
 pub struct Model<I: Tensors, O: Tensors> {
     fun: Box<dyn FnMut(I, CallMode) -> O>,
@@ -168,11 +168,88 @@ impl<I: Tensors, O: Tensors> ModelBuilder<I, O> {
         todo!()
     }
 
-    pub(crate) fn input(&self) -> super::layer::LayerIn {
+    pub(crate) fn input(&self) -> LayerIn {
         todo!()
     }
 
-    pub(crate) fn output(&self, mb_out: &super::layer::LayerIn) -> bool {
+    pub(crate) fn output(&self, mb_out: &LayerIn) -> bool {
+        todo!()
+    }
+}
+
+pub struct LayerIn<T=f32> {
+    marker: PhantomData<T>,
+}
+impl LayerIn {
+    pub(crate) fn shape(&self) -> Shape {
+        todo!()
+    }
+
+    fn build<'a, I: LayersIn, O: LayersIn>(
+        input: I::In<'a>,
+        fun: impl FnMut(I::Tin<'_>) -> O::Tout
+    ) -> O::Out {
+        todo!();
+    }
+}
+
+pub trait LayersIn {
+    type In<'a>;
+    type Out;
+    type Tin<'a>;
+    type Tout;
+
+    fn build<'a, O: LayersIn>(
+        input: Self::In<'a>,
+        fun: impl FnMut(Self::Tin<'a>) -> O::Tout
+    ) -> O::Out;
+}
+
+impl<T: Dtype> LayersIn for LayerIn<T> {
+    type In<'a> = &'a LayerIn<T>;
+    type Out = LayerIn<T>;
+    type Tin<'a> =&'a Tensor<T>;
+    type Tout = Tensor<T>;
+
+    fn build<'a, O: LayersIn>(
+        input: Self::In<'a>,
+        fun: impl FnMut(Self::Tin<'a>) -> O::Tout
+    ) -> O::Out {
+        todo!()
+    }
+}
+
+impl<L1, L2> LayersIn for (L1, L2)
+where
+    L1: LayersIn,
+    L2: LayersIn,
+{
+    type In<'a> = (L1::In<'a>, L2::In<'a>);
+    type Out = (L1::Out, L2::Out);
+    type Tin<'a> = (L1::Tin<'a>, L2::Tin<'a>);
+    type Tout = (L1::Tout, L2::Tout);
+
+    fn build<'a, O: LayersIn>(
+        input: Self::In<'a>,
+        fun: impl FnMut(Self::Tin<'a>) -> O::Tout
+    ) -> O::Out {
+        todo!()
+    }
+}
+
+impl<L> LayersIn for Vec<L>
+where
+    L: LayersIn,
+{
+    type In<'a> = Vec<L::In<'a>>;
+    type Out = Vec<L::Out>;
+    type Tin<'a> = Vec<L::Tin<'a>>;
+    type Tout = Vec<L::Tout>;
+
+    fn build<'a, O: LayersIn>(
+        input: Self::In<'a>,
+        fun: impl FnMut(Self::Tin<'a>) -> O::Tout
+    ) -> O::Out {
         todo!()
     }
 }

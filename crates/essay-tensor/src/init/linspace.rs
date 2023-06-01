@@ -3,7 +3,7 @@ use std::{cmp};
 use crate::{
     Tensor, 
     tensor::{TensorUninit, TensorId}, 
-    function::{NodeOp, Tape, Operation, Graph}, prelude::Shape
+    model::{NodeOp, Tape, Operation, Graph}, prelude::Shape
 };
 
 #[derive(Clone, Copy, PartialEq)]
