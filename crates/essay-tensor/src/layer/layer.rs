@@ -66,29 +66,22 @@ pub trait LayerBuilder<I: ModelsIn = ModelIn, O: ModelsIn = ModelIn> {
 
 #[cfg(test)]
 mod test {
-    use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn}};
+    use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn, model_builder}};
 
     use super::{LayerBuilder};
 
     fn test() {
-        let mb = ModelBuilder::<Tensor, Tensor>::new();
+        let mb = model_builder(Tensor::zeros([8]));
         let input = mb.input();
 
-        let l = Split;
+        let (a, b) = Split.build(&input);
 
-        let (a, b) = l.build(&input);
+        let a = Plain.build(&a);
+        let b = Plain.build(&b);
 
-        let la = Plain;
-        let lb = Plain;
+        let mb_out = Sum.build(vec![&a, &b]);
 
-        let a = la.build(&a);
-        let b = lb.build(&b);
-
-        let lsum = Sum;
-
-        let mb_out = lsum.build(vec![&a, &b]);
-
-        let model = mb.output(&mb_out);
+        let model = mb.output(mb_out);
 
     }
 

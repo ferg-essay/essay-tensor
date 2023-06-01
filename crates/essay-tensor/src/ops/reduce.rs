@@ -4,7 +4,7 @@ use std::{any::type_name, marker::PhantomData};
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, 
-    model::{NodeOp, Tape, Operation, IntoForward, Graph, program::GradientOp}, prelude::Shape
+    model::{NodeOp, Tape, Operation, IntoForward, Program, program::GradientOp}, prelude::Shape
 };
 
 pub trait ReduceKernel<S: State, D: Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -133,8 +133,8 @@ where
 
     fn df(
         &self,
-        _forward: &Graph,
-        graph: &mut Graph,
+        _forward: &Program,
+        graph: &mut Program,
         i: usize,
         args: &[TensorId],
         prev: TensorId,

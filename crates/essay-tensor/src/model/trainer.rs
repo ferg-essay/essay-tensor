@@ -1,18 +1,18 @@
 use crate::{Tensor, tensor::{TensorId}};
 
-use super::{TensorCache, Var, Graph, Tape, gradient::backprop_graph, var::VarId, Tensors};
+use super::{TensorCache, Var, Program, Tape, gradient::backprop_graph, var::VarId, Tensors, model::ModelId};
 
-pub struct _Loss<Out:Tensors<Out=Out>>(Tensor, Out);
+pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
 
 pub struct Trainer<In: Tensors, Out: Tensors> {
     _vars: Vec<(VarId, TensorId)>,
-    fun: Box<dyn Fn(&Graph, In, &TensorCache) -> (Out, TensorCache)>,
+    fun: Box<dyn Fn(&Program, In, &TensorCache) -> (Out, TensorCache)>,
 
-    graph: Graph,
-    gradients: Vec<(VarId, Graph)>,
+    graph: Program,
+    gradients: Vec<(VarId, Program)>,
 }
 
-pub struct Train<'a, In: Tensors<Out=In>, Out: Tensors<Out=Out>> {
+pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
     module: &'a Trainer<In, Out>,
     tensors: TensorCache,
     out: Out,
@@ -20,18 +20,20 @@ pub struct Train<'a, In: Tensors<Out=In>, Out: Tensors<Out=Out>> {
 
 impl<In, Out> Trainer<In, Out>
 where
-    In: Tensors<Out=In>,
-    Out: Tensors<Out=Out>,
+    In: Tensors<Item=In>,
+    Out: Tensors<Item=Out>,
 {
     pub fn compile<F>(input: In, fun: F) -> Trainer<In, Out>
     where
-        F: FnOnce(In::In<'_>) -> Out,
+        F: FnOnce(In::Item) -> Out,
     {
-        let mut tape = Tape::build(input, fun);
+        let id = ModelId::alloc();
+
+        let mut tape = Tape::build(id, input, fun);
 
         let out_ids = tape.out_ids().clone();
         
-        let mut backprop_graphs : Vec<(VarId, Graph)> = Vec::new();
+        let mut backprop_graphs : Vec<(VarId, Program)> = Vec::new();
 
         for var in tape.tracked_vars() {
             let id = tape.graph().get_id_by_var(var.id());
@@ -43,7 +45,7 @@ where
 
         Self {
             _vars: Default::default(),
-            fun: Box::new(move |graph: &Graph, input, fwd_tensors| { 
+            fun: Box::new(move |graph: &Program, input, fwd_tensors| { 
                 let mut out = graph.tensors().clone();
 
                 In::set_arg(&mut out, 0, &input);
@@ -84,7 +86,7 @@ where
     }
 }
 
-impl<In:Tensors<Out=In>,Out:Tensors<Out=Out>> Train<'_, In, Out> {
+impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
     pub fn value(&self) -> Out {
         self.out.clone()
     }
@@ -136,8 +138,8 @@ mod test {
         assert_eq!(Tape::alloc_id(), None);
 
         let _trainer = Trainer::compile((), |()| {
-            assert_eq!(Tape::alloc_id(), Some(TensorId(0)));
-            assert_eq!(Tape::alloc_id(), Some(TensorId(1)));
+            assert_eq!(Tape::alloc_id(), Some(TensorId::new(0, 0)));
+            assert_eq!(Tape::alloc_id(), Some(TensorId::new(0, 1)));
 
             tensor!(0.)
         });

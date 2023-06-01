@@ -1,29 +1,31 @@
-use super::{Var, Graph, TensorCache, Tape, Tensors};
+use super::{Var, Program, TensorCache, Tape, Tensors, model::ModelId};
 use crate::tensor::{TensorId};
 
 pub struct Function<In: Tensors, Out: Tensors> {
     _vars: Vec<(Var, TensorId)>,
-    fun: Box<dyn Fn(&Graph, In, &TensorCache) -> Out>,
+    fun: Box<dyn Fn(&Program, In, &TensorCache) -> Out>,
 
-    program: Graph,
+    program: Program,
 }
 
 impl<In, Out> Function<In, Out>
 where
-    In: Tensors<Out=In>,
-    Out: Tensors<Out=Out>,
+    In: Tensors<Item=In>,
+    Out: Tensors<Item=Out>,
 {
     pub fn compile<F>(input: In, fun: F) -> Function<In, Out>
     where
-        F: FnOnce(In::In<'_>) -> Out,
+        F: FnOnce(In::Item) -> Out,
     {
-        let mut tape = Tape::build(input, fun);
+        let id = ModelId::alloc();
+
+        let mut tape = Tape::build(id, input, fun);
 
         let out_ids = tape.out_ids().clone();
 
         Self {
             _vars: Default::default(),
-            fun: Box::new(move |graph: &Graph, input, fwd_tensors| { 
+            fun: Box::new(move |graph: &Program, input, fwd_tensors| { 
                 let mut out = graph.tensors().clone();
 
                 In::set_arg(&mut out, 0, &input);
@@ -65,8 +67,8 @@ mod test {
         assert_eq!(Tape::alloc_id(), None);
 
         let _module = Function::compile((), |()| {
-            assert_eq!(Tape::alloc_id(), Some(TensorId(0)));
-            assert_eq!(Tape::alloc_id(), Some(TensorId(1)));
+            assert_eq!(Tape::alloc_id(), Some(TensorId::new(0, 0)));
+            assert_eq!(Tape::alloc_id(), Some(TensorId::new(0, 1)));
 
             tensor!(0.)
         });

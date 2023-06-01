@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorUninit, TensorId}, 
-    model::{NodeOp, Tape, Operation, IntoForward, Graph, program::GradientOp}
+    model::{NodeOp, Tape, Operation, IntoForward, Program, program::GradientOp}
 };
 
 pub trait Softmax<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -137,8 +137,8 @@ impl<Op:Softmax> Operation for SoftmaxCpu<Op> {
 
     fn df(
         &self,
-        _forward: &Graph,
-        graph: &mut Graph,
+        _forward: &Program,
+        graph: &mut Program,
         i: usize,
         args: &[TensorId],
         prev: TensorId,

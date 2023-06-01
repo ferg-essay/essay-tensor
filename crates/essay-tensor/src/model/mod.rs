@@ -21,7 +21,7 @@ pub use trainer::{
 };
 
 pub use model::{
-    ModelBuilder, ModelIn, ModelsIn, CallMode,
+    model_builder, ModelBuilder, ModelIn, ModelsIn, CallMode,
 };
 
 pub(crate) use tape::{
@@ -33,7 +33,7 @@ pub use tensors::{
 };
 
 pub use program::{
-    Graph, NodeOp, EvalOp, Operation, IntoForward, BoxForwardOp,
+    Program, NodeOp, EvalOp, Operation, IntoForward, BoxForwardOp,
     // BackOp, BoxBackOp,
     TensorCache,
 };

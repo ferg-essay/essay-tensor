@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{model::{IntoForward, NodeOp, Tape, Operation, Graph, program::GradientOp}, Tensor, 
+use crate::{model::{IntoForward, NodeOp, Tape, Operation, Program, program::GradientOp}, Tensor, 
     tensor::{Dtype, TensorUninit, TensorId}
 };
 
@@ -58,8 +58,8 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
 
     fn df(
         &self,
-        _forward: &Graph,
-        graph: &mut Graph,
+        _forward: &Program,
+        graph: &mut Program,
         i: usize,
         args: &[TensorId],
         prev: TensorId,

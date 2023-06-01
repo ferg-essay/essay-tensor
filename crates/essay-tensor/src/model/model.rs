@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::atomic::{AtomicU32, Ordering}};
 
 use crate::{prelude::{Shape}, model::Var, Tensor, tensor::Dtype, layer::Layer};
 
@@ -147,6 +147,11 @@ pub struct NameScope;
 //
 //}
 
+/// ModelBuilder is created with sample input
+pub fn model_builder<In: Tensors<Item=In>>(input: In) -> ModelBuilder<In, In> {
+    todo!()
+}
+
 pub struct ModelBuilder<I: Tensors, O: Tensors> {
     fun: Box<dyn FnMut(I, CallMode) -> O>,
 
@@ -155,10 +160,6 @@ pub struct ModelBuilder<I: Tensors, O: Tensors> {
 }
 
 impl<I: Tensors, O: Tensors> ModelBuilder<I, O> {
-    pub fn new() -> Self {
-        todo!()
-    }
-
     pub fn add_layer<O1: Tensors>(
         &mut self,
         builder: impl FnMut(O, CallMode) -> O1
@@ -174,7 +175,7 @@ impl<I: Tensors, O: Tensors> ModelBuilder<I, O> {
         todo!()
     }
 
-    pub(crate) fn output(&self, mb_out: &ModelIn) -> bool {
+    pub(crate) fn output<M: ModelsIn>(&self, mb_out: M) -> Model<I, M::Tout> {
         todo!()
     }
 }
@@ -200,7 +201,7 @@ pub trait ModelsIn {
     type In<'a>;
     type Out;
     type Tin<'a>;
-    type Tout;
+    type Tout : Tensors<Item=Self::Tout>;
 
     fn build<'a, O: ModelsIn>(
         input: Self::In<'a>,
@@ -208,11 +209,11 @@ pub trait ModelsIn {
     ) -> O::Out;
 }
 
-impl<T: Dtype> ModelsIn for ModelIn<T> {
-    type In<'a> = &'a ModelIn<T>;
-    type Out = ModelIn<T>;
-    type Tin<'a> =&'a Tensor<T>;
-    type Tout = Tensor<T>;
+impl ModelsIn for ModelIn<f32> {
+    type In<'a> = &'a ModelIn<f32>;
+    type Out = ModelIn<f32>;
+    type Tin<'a> =&'a Tensor<f32>;
+    type Tout = Tensor<f32>;
 
     fn build<'a, O: ModelsIn>(
         input: Self::In<'a>,
@@ -280,13 +281,36 @@ where
 }
 */
 
+static MODEL_ID: AtomicU32 = AtomicU32::new(0);
+
+///
+/// VarId is globally unique to avoid name collisions.
+///
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ModelId(u32);
+
+impl ModelId {
+    pub(crate) fn alloc() -> ModelId {
+        let id = MODEL_ID.fetch_add(1, Ordering::SeqCst);
+
+        ModelId(id)
+    }
+
+    #[inline]
+    pub fn index(&self) -> usize {
+        self.0 as usize
+    }
+}
+
 
 #[cfg(test)]
 mod test {
     use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn}, layer::LayerBuilder};
 
+    use super::model_builder;
+
     fn test_layer() {
-        let mb = ModelBuilder::<Tensor, Tensor>::new();
+        let mb = model_builder(Tensor::zeros([8]));
         let input = mb.input();
 
         let l = Split;
@@ -303,7 +327,7 @@ mod test {
 
         let mb_out = lsum.build(vec![&a, &b]);
 
-        let model = mb.output(&mb_out);
+        let model = mb.output(mb_out);
 
     }
 

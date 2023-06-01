@@ -2,7 +2,7 @@ use std::{any::type_name, cmp};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit}, 
-    model::{Operation, Graph, program::GradientOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
+    model::{Operation, Program, program::GradientOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
 };
 
 use super::matmul::Transpose;
@@ -186,8 +186,8 @@ impl Operation for Matvec {
 
     fn df(
         &self,
-        _forward: &Graph,
-        graph: &mut Graph,
+        _forward: &Program,
+        graph: &mut Program,
         i: usize,
         args: &[TensorId],
         prev: TensorId,

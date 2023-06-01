@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use crate::{Tensor, tensor::{TensorId}};
 
 
-use super::{Var, TensorCache, Graph, NodeOp, Tensors};
+use super::{Var, TensorCache, Program, NodeOp, Tensors, model::ModelId};
 
 pub struct Tape {
     _args: Vec<TensorId>,
@@ -11,7 +11,7 @@ pub struct Tape {
     //_tail: Option<Tensor>,
     out_ids: Vec<TensorId>,
 
-    graph: Option<Graph>,
+    expr: Option<Program>,
 }
 
 #[derive(Debug)]
@@ -22,19 +22,19 @@ thread_local! {
 }
 
 impl Tape {
-    pub fn build<F, In, Out>(init: In, fun: F) -> Tape
+    pub fn build<F, In, Out>(id: ModelId, init: In, fun: F) -> Tape
     where
-        In: Tensors<Out=In>,
-        Out: Tensors<Out=Out>,
-        F: FnOnce(In::In<'_>) -> Out,
+        In: Tensors<Item=In>,
+        Out: Tensors<Item=Out>,
+        F: FnOnce(In::Item) -> Out,
     {
         let mut tape = Tape {
             _args: Default::default(),
             _vars: Default::default(),
-            tensors: Default::default(),
+            tensors: TensorCache::new(id),
             out_ids: Default::default(),
 
-            graph: Some(Default::default()),
+            expr: Some(Program::new(id)),
         };
 
         let mut index = 0;
@@ -44,8 +44,10 @@ impl Tape {
 
         let arg_len = In::push_arg(tape.tensors_mut(), 0, &init);
 
-        for id in 0..arg_len {
-            let tensor = tape.get_tensor(TensorId(id)).unwrap().clone();
+        for arg_id in 0..arg_len {
+            let arg_id = TensorId::new(id.index() as u32, arg_id as u32);
+
+            let tensor = tape.tensors.get(arg_id).unwrap().clone();
             tape.arg(tensor);
         }
 
@@ -82,7 +84,7 @@ impl Tape {
     }
 
     pub fn alloc_id_inner(&mut self) -> TensorId {
-        match &mut self.graph {
+        match &mut self.expr {
             Some(graph) => graph.alloc_id(),
             None => panic!(),
         }
@@ -182,22 +184,22 @@ impl Tape {
         &mut self.tensors
     }
 
-    pub(crate) fn graph(&self) -> &Graph {
-        match &self.graph {
+    pub(crate) fn graph(&self) -> &Program {
+        match &self.expr {
             Some(graph) => graph,
             None => panic!(),
         }
     }
 
-    pub(crate) fn graph_mut(&mut self) -> &mut Graph {
-        match &mut self.graph {
+    pub(crate) fn graph_mut(&mut self) -> &mut Program {
+        match &mut self.expr {
             Some(graph) => graph,
             None => panic!(),
         }
     }
 
-    pub(crate) fn take_graph(&mut self) -> Option<Graph> {
-        self.graph.take()
+    pub(crate) fn take_graph(&mut self) -> Option<Program> {
+        self.expr.take()
     }
 
     pub(crate) fn out_ids(&self) -> &Vec<TensorId> {

@@ -5,9 +5,6 @@ use super::{data::TensorData, TensorUninit, slice::TensorSlice, Shape};
 
 pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TensorId(pub usize);
-
 pub struct Tensor<T=f32> {
     id: TensorId,
     shape: Shape,
@@ -561,12 +558,25 @@ impl<T:Dtype + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<T
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TensorId(u32, u32);
+
 impl TensorId {
-    pub const NONE : TensorId = TensorId(usize::MAX);
+    pub const NONE : TensorId = TensorId(u32::MAX, u32::MAX);
+
+    #[inline]
+    pub(crate) fn new(model_index: u32, tensor_index: u32) -> TensorId {
+        TensorId(model_index, tensor_index)
+    }
 
     #[inline]
     pub fn index(&self) -> usize {
-        self.0
+        self.1 as usize
+    }
+
+    #[inline]
+    pub fn model_index(&self) -> usize {
+        self.0 as usize
     }
 
     #[inline]
@@ -581,6 +591,16 @@ impl TensorId {
 
     pub fn unset() -> TensorId {
         Self::NONE
+    }
+}
+
+impl fmt::Debug for TensorId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_none() {
+            write!(f, "TensorId(None)")
+        } else {
+            write!(f, "TensorId({}:{})", self.0, self.1)
+        }
     }
 }
 

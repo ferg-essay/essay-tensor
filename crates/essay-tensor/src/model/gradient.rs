@@ -1,8 +1,8 @@
 use std::{collections::HashSet, any::type_name};
 
-use crate::{Tensor, tensor::{TensorId}};
+use crate::{Tensor, tensor::{TensorId}, model::model::ModelId};
 
-use super::{Graph, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
+use super::{Program, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
     program::{IntoBack, GradientOp, BoxBackOp}
 };
 
@@ -17,7 +17,7 @@ pub struct BackTrace {
     pub args: Vec<ArgTrace>,
 }
 
-pub(crate) fn backprop_graph(forward: &Graph, target: TensorId) -> Graph {
+pub(crate) fn backprop_graph(forward: &Program, target: TensorId) -> Program {
     let backtrace = build_backtrace(forward, target);
     
     assert!(backtrace.is_some(), "Can't build backtrace for {:?}\n{:?}", 
@@ -27,20 +27,20 @@ pub(crate) fn backprop_graph(forward: &Graph, target: TensorId) -> Graph {
 
     let backtrace = backtrace.unwrap();
 
-    let mut graph = Graph::default();
+    let mut grad_expr = Program::new(ModelId::alloc());
 
     let tail = forward.tensor(forward.tail_id()).unwrap();
 
-    let tail = graph.constant(Tensor::ones(tail.shape()));
+    let tail = grad_expr.constant(Tensor::ones(tail.shape()));
 
-    backprop_graph_rec(forward, &mut graph, &backtrace, tail);
+    backprop_graph_rec(forward, &mut grad_expr, &backtrace, tail);
 
-    graph
+    grad_expr
 }
 
 pub(crate) fn backprop_graph_rec(
-    forward: &Graph,
-    back: &mut Graph,
+    forward: &Program,
+    back: &mut Program,
     backtrace: &BackTrace,
     prev: TensorId,
 ) {
@@ -59,8 +59,8 @@ pub(crate) fn backprop_graph_rec(
 }
 
 fn node_backprop(
-    forward: &Graph,
-    back: &mut Graph,
+    forward: &Program,
+    back: &mut Program,
     i: usize,
     id: TensorId,
     prev: TensorId
@@ -84,14 +84,14 @@ fn node_backprop(
     }
 }
 
-pub(crate) fn build_backtrace(graph: &Graph, target: TensorId) -> Option<BackTrace> {
+pub(crate) fn build_backtrace(graph: &Program, target: TensorId) -> Option<BackTrace> {
     let tail_id = graph.tail_id();
 
     build_backtrace_rec(graph, target, tail_id, &mut HashSet::new())
 }
 
 fn build_backtrace_rec(
-    graph: &Graph, 
+    graph: &Program, 
     target: TensorId,
     id: TensorId,
     visited: &mut HashSet<TensorId>,
@@ -155,8 +155,8 @@ impl<Op:EvalOp> Operation for Op {
 
     fn df(
         &self,
-        _forward: &Graph,
-        _graph: &mut Graph,
+        _forward: &Program,
+        _graph: &mut Program,
         _i: usize,
         _args: &[TensorId],
         _prev: TensorId,
