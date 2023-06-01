@@ -53,10 +53,6 @@ impl Expr {
         var.tensor_with_id(item.id())
     }
 
-    pub(crate) fn get_id_by_var(&self, id: VarId) -> TensorId {
-        self.var_map.get(&id).unwrap().id()
-    }
-
     pub(crate) fn get_tensor_by_var(&self, id: VarId) -> Tensor {
         let var_item = self.var_map.get(&id).unwrap();
 
@@ -68,10 +64,6 @@ impl Expr {
             Some(item) => item.var(),
             None => todo!(),
         }
-    }
-
-    pub(crate) fn tracked_vars(&self) -> &Vec<Var> {
-        &self.tracked_vars
     }
 
     pub(crate) fn arg(&mut self, tensor: Tensor) -> Tensor {

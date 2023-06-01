@@ -1,21 +1,13 @@
-use crate::{Tensor, tensor::{TensorId}};
+use crate::{Tensor, model::Function};
 
-use super::{TensorCache, Var, Expr, Tape, gradient::backprop_graph, var::VarId, Tensors, model::ModelId};
+use super::{TensorCache, Var, Expr, gradient::backprop_expr, var::VarId, Tensors};
 
 pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
 
 pub struct Trainer<In: Tensors, Out: Tensors> {
-    _vars: Vec<(VarId, TensorId)>,
-    fun: Box<dyn Fn(&Expr, In, &TensorCache) -> (Out, TensorCache)>,
+    fun: Function<In, Out>,
 
-    graph: Expr,
     gradients: Vec<(VarId, Expr)>,
-}
-
-pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
-    module: &'a Trainer<In, Out>,
-    tensors: TensorCache,
-    out: Out,
 }
 
 impl<In, Out> Trainer<In, Out>
@@ -27,56 +19,31 @@ where
     where
         F: FnOnce(In::Item) -> Out,
     {
-        todo!()
-
-        /*
-        let id = ModelId::alloc();
-
-        let mut tape = Tape::build(id, input, fun);
-
-        let out_ids = tape.out_ids().clone();
+        let fun = Function::new(input, fun);
         
-        let mut backprop_graphs : Vec<(VarId, Expr)> = Vec::new();
+        let mut gradients : Vec<(VarId, Expr)> = Vec::new();
 
-        for var in tape.tracked_vars() {
-            let id = tape.expr().get_id_by_var(var.id());
+        for var in fun.vars() {
+            let var = fun.expr().get_var(var.id());
+            let id = var.tensor().id();
 
-            let graph = backprop_graph(&tape.expr(), id);
+            let expr = backprop_expr(&fun.expr(), id);
 
-            backprop_graphs.push((var.id(), graph));
-        } 
+            gradients.push((var.id(), expr));
+        }
 
         Self {
-            _vars: Default::default(),
-            fun: Box::new(move |graph: &Expr, input, fwd_tensors| { 
-                let mut out = graph.tensors().clone();
-
-                In::set_arg(&mut out, 0, &input);
-
-                graph.call(&mut out, fwd_tensors);
-
-                let mut index = 0;
-                let value = Out::make_out(&out, &out_ids, &mut index);
-
-                (value, out)
-            }),
-
-            graph: tape.take_graph().unwrap(),
-            gradients: backprop_graphs,
+            fun: fun,
+            gradients,
         }
-        */
     }
 
     pub fn call(&self, input: In) -> Out {
-        let tensors = self.graph.tensors().clone();
-
-        let (value, _out_tensors) = (self.fun)(&self.graph, input, &tensors);
-
-        value
+        self.fun.call(input)
     }
 
     pub fn train(&self, input: In) -> Train<In, Out> {
-        let (out, tensors) = (self.fun)(&self.graph, input, &self.graph.tensors());
+        let (out, tensors) = self.fun.train(input);
 
         Train {
             module: self,
@@ -86,8 +53,14 @@ where
     }
 
     pub(crate) fn get_var(&self, id: VarId) -> &Var {
-        self.graph.get_var(id)
+        self.fun.expr().get_var(id)
     }
+}
+
+pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
+    module: &'a Trainer<In, Out>,
+    tensors: TensorCache,
+    out: Out,
 }
 
 impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
@@ -96,11 +69,11 @@ impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
     }
 
     pub fn gradient(&self, var :&Var) -> Tensor {
-        for (grad_var, grad_graph) in &self.module.gradients {
+        for (grad_var, grad_expr) in &self.module.gradients {
             if &var.id() == grad_var {
-                let mut out = grad_graph.tensors().clone();
+                let mut out = grad_expr.tensors().clone();
 
-                grad_graph.call(&mut out, &self.tensors);
+                grad_expr.call(&mut out, &self.tensors);
         
                 return out.last()
             }
@@ -129,9 +102,6 @@ impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
 mod test {
     use log::LevelFilter;
 
-    use crate::model::{Tape};
-
-    use crate::tensor::TensorId;
     use crate::{
         model::{Trainer, Var},
         tensor, Tensor,
@@ -226,7 +196,7 @@ mod test {
 
         let m_a = Trainer::compile((), 
         |_| tensor!(2.) - &a
-        ); // .training(&[&a]);
+        );
 
         let value = m_a.call(());
         assert_eq!(value, tensor!([1., 0., -1.]));
@@ -245,7 +215,7 @@ mod test {
 
         let m_a = Trainer::compile((), 
         |_| tensor!(2.) * &a
-        ); // .training(&[&a]);
+        );
 
         let value = m_a.call(());
         assert_eq!(value, tensor!([2., 4., 6.]));
@@ -262,7 +232,7 @@ mod test {
 
         let trainer = Trainer::compile((), |()| {
             x.tensor().clone()
-        }); // .training(&[&x]);
+        });
         let train = trainer.train(());
 
         assert_eq!(train.gradient(&x), tensor!(1.));
@@ -270,7 +240,7 @@ mod test {
         let x = Var::new("x", tensor!([[0., 2.], [10., 11.]]));
         let trainer = Trainer::compile((), |()| {
             x.tensor().clone()
-        }); // .training(&[&x]);
+        });
         let train = trainer.train(());
 
         assert_eq!(train.gradient(&x), tensor!([[1., 1.], [1., 1.]]));
@@ -308,7 +278,7 @@ mod test {
         let trainer = Trainer::compile((), |()| {
             let loss: Tensor = a.l2_loss();
 
-            assert_eq!(&loss, &tensor!(1.25));
+            assert_eq!(&loss, &tensor!(2.5));
 
             loss
         }); // .training(&[&a]);

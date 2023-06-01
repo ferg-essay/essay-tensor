@@ -17,7 +17,7 @@ pub struct BackTrace {
     pub args: Vec<ArgTrace>,
 }
 
-pub(crate) fn backprop_graph(forward: &Expr, target: TensorId) -> Expr {
+pub(crate) fn backprop_expr(forward: &Expr, target: TensorId) -> Expr {
     let backtrace = build_backtrace(forward, target);
     
     assert!(backtrace.is_some(), "Can't build backtrace for {:?}\n{:?}", 

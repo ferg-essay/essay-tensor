@@ -44,7 +44,7 @@ impl<D: Dtype> Var<D> {
     }
 
     pub(crate) fn tensor_with_id(&self, id: TensorId) -> Tensor<D> {
-        self.tensor.lock().unwrap().get_with_id(id)
+        self.tensor.lock().unwrap().tensor_with_id(id)
     }
 }
 
@@ -209,8 +209,12 @@ impl<D> TensorShare<D> {
         self.0.clone()
     }
 
-    fn get_with_id(&self, id: TensorId) -> Tensor<D> {
-        self.0.clone().with_id(id)
+    fn tensor_with_id(&mut self, id: TensorId) -> Tensor<D> {
+        self.0 = self.0.clone().with_id(id);
+
+        assert!(self.0.id().is_some());
+
+        self.0.clone()
     }
 
     fn set(&mut self, tensor: Tensor<D>) {

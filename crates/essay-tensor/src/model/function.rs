@@ -3,9 +3,11 @@ use crate::{tensor::{TensorId}, Tensor};
 use std::cell::RefCell;
 
 pub struct Function<In: Tensors, Out: Tensors> {
-    fun: Box<dyn Fn(&Expr, In, &TensorCache) -> Out>,
+    fun: Box<dyn Fn(&Expr, In, &TensorCache) -> (Out, TensorCache)>,
 
     expr: Expr,
+
+    vars: Vec<Var>,
 }
 
 impl<In, Out> Function<In, Out>
@@ -27,6 +29,7 @@ where
         let Tape {
             expr,
             tensors: _tensors,
+            vars,
             out_ids,
         } = Tape::build(expr, tensors, input, fun);
 
@@ -41,14 +44,31 @@ where
                 let mut index = 0;
                 let value = Out::make_out(&out, &out_ids, &mut index);
 
-                value
+                (value, out)
             }),
 
             expr,
+            vars,
         }
     }
 
+    pub(crate) fn expr(&self) -> &Expr {
+        &self.expr
+    }
+
+    pub fn vars(&self) -> &Vec<Var> {
+        &self.vars
+    }
+
     pub fn call(&self, input: In) -> Out {
+        let tensors = self.expr.tensors().clone();
+
+        let (value, out) = (self.fun)(&self.expr, input, &tensors);
+
+        value
+    }
+
+    pub(crate) fn train(&self, input: In) -> (Out, TensorCache) {
         let tensors = self.expr.tensors().clone();
 
         (self.fun)(&self.expr, input, &tensors)
@@ -61,6 +81,8 @@ pub struct Tape {
     tensors: TensorCache,
 
     out_ids: Vec<TensorId>,
+
+    vars: Vec<Var>,
 }
 
 impl Tape {
@@ -74,6 +96,7 @@ impl Tape {
             expr,
             tensors,
             out_ids: Default::default(),
+            vars: Default::default(),
         };
 
         // TODO: add RAII guard?
@@ -110,6 +133,7 @@ impl Tape {
     pub(crate) fn var(var: &Var) -> Tensor {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
+                tape.vars.push(var.clone());
                 tape.expr.var(var)
             } else {
                 var.tensor_raw()
@@ -147,7 +171,7 @@ pub enum TapeError {}
 
 #[cfg(test)]
 mod test {
-    use log::LevelFilter;
+    // use log::LevelFilter;
 
     use crate::{
         model::{function::Function, Var},
