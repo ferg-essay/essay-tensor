@@ -168,24 +168,25 @@ impl<I: Tensors, O: Tensors> ModelBuilder<I, O> {
         todo!()
     }
 
-    pub(crate) fn input(&self) -> LayerIn {
+    pub(crate) fn input(&self) -> ModelIn {
         todo!()
     }
 
-    pub(crate) fn output(&self, mb_out: &LayerIn) -> bool {
+    pub(crate) fn output(&self, mb_out: &ModelIn) -> bool {
         todo!()
     }
 }
 
-pub struct LayerIn<T=f32> {
+pub struct ModelIn<T=f32> {
     marker: PhantomData<T>,
 }
-impl LayerIn {
+
+impl ModelIn {
     pub(crate) fn shape(&self) -> Shape {
         todo!()
     }
 
-    fn build<'a, I: LayersIn, O: LayersIn>(
+    fn build<'a, I: ModelsIn, O: ModelsIn>(
         input: I::In<'a>,
         fun: impl FnMut(I::Tin<'_>) -> O::Tout
     ) -> O::Out {
@@ -193,25 +194,25 @@ impl LayerIn {
     }
 }
 
-pub trait LayersIn {
+pub trait ModelsIn {
     type In<'a>;
     type Out;
     type Tin<'a>;
     type Tout;
 
-    fn build<'a, O: LayersIn>(
+    fn build<'a, O: ModelsIn>(
         input: Self::In<'a>,
         fun: impl FnMut(Self::Tin<'a>) -> O::Tout
     ) -> O::Out;
 }
 
-impl<T: Dtype> LayersIn for LayerIn<T> {
-    type In<'a> = &'a LayerIn<T>;
-    type Out = LayerIn<T>;
+impl<T: Dtype> ModelsIn for ModelIn<T> {
+    type In<'a> = &'a ModelIn<T>;
+    type Out = ModelIn<T>;
     type Tin<'a> =&'a Tensor<T>;
     type Tout = Tensor<T>;
 
-    fn build<'a, O: LayersIn>(
+    fn build<'a, O: ModelsIn>(
         input: Self::In<'a>,
         fun: impl FnMut(Self::Tin<'a>) -> O::Tout
     ) -> O::Out {
@@ -219,17 +220,17 @@ impl<T: Dtype> LayersIn for LayerIn<T> {
     }
 }
 
-impl<L1, L2> LayersIn for (L1, L2)
+impl<L1, L2> ModelsIn for (L1, L2)
 where
-    L1: LayersIn,
-    L2: LayersIn,
+    L1: ModelsIn,
+    L2: ModelsIn,
 {
     type In<'a> = (L1::In<'a>, L2::In<'a>);
     type Out = (L1::Out, L2::Out);
     type Tin<'a> = (L1::Tin<'a>, L2::Tin<'a>);
     type Tout = (L1::Tout, L2::Tout);
 
-    fn build<'a, O: LayersIn>(
+    fn build<'a, O: ModelsIn>(
         input: Self::In<'a>,
         fun: impl FnMut(Self::Tin<'a>) -> O::Tout
     ) -> O::Out {
@@ -237,16 +238,16 @@ where
     }
 }
 
-impl<L> LayersIn for Vec<L>
+impl<L> ModelsIn for Vec<L>
 where
-    L: LayersIn,
+    L: ModelsIn,
 {
     type In<'a> = Vec<L::In<'a>>;
     type Out = Vec<L::Out>;
     type Tin<'a> = Vec<L::Tin<'a>>;
     type Tout = Vec<L::Tout>;
 
-    fn build<'a, O: LayersIn>(
+    fn build<'a, O: ModelsIn>(
         input: Self::In<'a>,
         fun: impl FnMut(Self::Tin<'a>) -> O::Tout
     ) -> O::Out {
@@ -254,8 +255,6 @@ where
     }
 }
 
-pub trait ModelIn<O: Tensors>  {
-}
 /*
 impl<I, O> ModelIn<O> for ModelBuilder<I, O> 
 where

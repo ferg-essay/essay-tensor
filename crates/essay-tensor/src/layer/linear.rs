@@ -1,6 +1,6 @@
 use essay_opt::derive_opt;
 
-use crate::{model::{Var, CallMode, LayerIn}, Tensor, prelude::{Tensors, Shape}, init::{Initializer, zeros_initializer}};
+use crate::{model::{Var, CallMode, ModelIn}, Tensor, prelude::{Tensors, Shape}, init::{Initializer, zeros_initializer}};
 
 use super::{Layer, input::InputSpec, 
     layer::{LayerBuilder}};
@@ -57,7 +57,7 @@ impl Layer for Linear {
 }
 
 impl LayerBuilder for Linear {
-    fn build(&self, input: &LayerIn) -> LayerIn {
+    fn build(&self, input: &ModelIn) -> ModelIn {
         let a = Var::new("a", self.init.init(&input.shape().extend_dims(self.units)));
         let b = Var::new("b",self.bias_init.init(&self.units.into()));
 

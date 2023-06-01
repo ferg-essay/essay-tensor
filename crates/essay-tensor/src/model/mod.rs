@@ -20,7 +20,7 @@ pub use trainer::{
 };
 
 pub use model::{
-    ModelBuilder, LayerIn, LayersIn, CallMode,
+    ModelBuilder, ModelIn, ModelsIn, CallMode,
 };
 
 pub(crate) use tape::{

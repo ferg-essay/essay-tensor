@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{prelude::{Tensors, Shape}, flow::FlowIn, Tensor, tensor::Dtype, model::{CallMode, LayersIn, LayerIn}};
+use crate::{prelude::{Tensors, Shape}, flow::FlowIn, Tensor, tensor::Dtype, model::{CallMode, ModelsIn, ModelIn}};
 
 pub trait Layer<I: Tensors = Tensor, O: Tensors = Tensor> {
     fn call(&self, input: I, mode: CallMode) -> O;
@@ -49,7 +49,7 @@ pub trait LayerTrait {
 pub type BoxLayer = Box<dyn LayerTrait>;
 
 
-pub trait LayerBuilder<I: LayersIn = LayerIn, O: LayersIn = LayerIn> {
+pub trait LayerBuilder<I: ModelsIn = ModelIn, O: ModelsIn = ModelIn> {
     fn build<'a>(
         &self, 
         input: I::In<'a>,
@@ -66,7 +66,7 @@ pub trait LayerBuilder<I: LayersIn = LayerIn, O: LayersIn = LayerIn> {
 
 #[cfg(test)]
 mod test {
-    use crate::{Tensor, prelude::Shape, model::{ModelBuilder, LayerIn}};
+    use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn}};
 
     use super::{LayerBuilder};
 
@@ -94,24 +94,24 @@ mod test {
 
     pub struct Split;
 
-    impl LayerBuilder<LayerIn, (LayerIn, LayerIn)> for Split {
-        fn build(&self, input: &LayerIn) -> (LayerIn, LayerIn) {
+    impl LayerBuilder<ModelIn, (ModelIn, ModelIn)> for Split {
+        fn build(&self, input: &ModelIn) -> (ModelIn, ModelIn) {
             Self::build_model(input, |x| { (x.clone(), x.clone()) })
         }
     }
 
     pub struct Plain;
 
-    impl LayerBuilder<LayerIn, LayerIn> for Plain {
-        fn build(&self, input: &LayerIn) -> LayerIn {
+    impl LayerBuilder<ModelIn, ModelIn> for Plain {
+        fn build(&self, input: &ModelIn) -> ModelIn {
             Self::build_model(input, |x| x.clone())
         }
     }
 
     pub struct Sum;
 
-    impl LayerBuilder<Vec<LayerIn>, LayerIn> for Sum {
-        fn build(&self, input: Vec<&LayerIn>) -> LayerIn {
+    impl LayerBuilder<Vec<ModelIn>, ModelIn> for Sum {
+        fn build(&self, input: Vec<&ModelIn>) -> ModelIn {
             Self::build_model(input, |x: Vec<&Tensor>| {
                 x[0].clone()
             })
