@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::{prelude::{Tensors, Shape}, model::Var, Tensor, tensor::Dtype, layer::Layer};
+use crate::{prelude::{Shape}, model::Var, Tensor, tensor::Dtype, layer::Layer};
+
+use super::Tensors;
 
 pub struct Model<I: Tensors, O: Tensors> {
     fun: Box<dyn FnMut(I, CallMode) -> O>,
@@ -278,3 +280,56 @@ where
 }
 */
 
+
+#[cfg(test)]
+mod test {
+    use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn}, layer::LayerBuilder};
+
+    fn test_layer() {
+        let mb = ModelBuilder::<Tensor, Tensor>::new();
+        let input = mb.input();
+
+        let l = Split;
+
+        let (a, b) = l.build(&input);
+
+        let la = Plain;
+        let lb = Plain;
+
+        let a = la.build(&a);
+        let b = lb.build(&b);
+
+        let lsum = Sum;
+
+        let mb_out = lsum.build(vec![&a, &b]);
+
+        let model = mb.output(&mb_out);
+
+    }
+
+    pub struct Split;
+
+    impl LayerBuilder<ModelIn, (ModelIn, ModelIn)> for Split {
+        fn build(&self, input: &ModelIn) -> (ModelIn, ModelIn) {
+            Self::build_model(input, |x| { (x.clone(), x.clone()) })
+        }
+    }
+
+    pub struct Plain;
+
+    impl LayerBuilder<ModelIn, ModelIn> for Plain {
+        fn build(&self, input: &ModelIn) -> ModelIn {
+            Self::build_model(input, |x| x.clone())
+        }
+    }
+
+    pub struct Sum;
+
+    impl LayerBuilder<Vec<ModelIn>, ModelIn> for Sum {
+        fn build(&self, input: Vec<&ModelIn>) -> ModelIn {
+            Self::build_model(input, |x: Vec<&Tensor>| {
+                x[0].clone()
+            })
+        }
+    }
+}

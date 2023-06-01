@@ -21,7 +21,7 @@ pub use tensor::Tensor;
 pub mod prelude {
     pub use crate::{tensor, tf32};
     pub use crate::tensor::{
-        Tensors, Shape,
+        Shape,
     };
     pub use crate::Tensor;
     pub use crate::model::{

@@ -3,6 +3,7 @@ mod tape;
 mod function;
 mod gradient;
 mod fit;
+mod tensors;
 mod model;
 mod var;
 pub(crate) mod program;
@@ -25,6 +26,10 @@ pub use model::{
 
 pub(crate) use tape::{
     Tape
+};
+
+pub use tensors::{
+    Tensors,
 };
 
 pub use program::{

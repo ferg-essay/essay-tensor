@@ -1,8 +1,8 @@
 use std::cell::RefCell;
-use crate::{Tensor, tensor::{TensorId, Tensors}};
+use crate::{Tensor, tensor::{TensorId}};
 
 
-use super::{Var, TensorCache, Graph, NodeOp};
+use super::{Var, TensorCache, Graph, NodeOp, Tensors};
 
 pub struct Tape {
     _args: Vec<TensorId>,

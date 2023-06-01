@@ -1,6 +1,6 @@
 use essay_opt::derive_opt;
 
-use crate::{model::{Var, CallMode, ModelIn}, Tensor, prelude::{Tensors, Shape}, init::{Initializer, zeros_initializer}};
+use crate::{model::{Var, CallMode, ModelIn}, Tensor, prelude::{Shape}, init::{Initializer, zeros_initializer}};
 
 use super::{Layer, input::InputSpec, 
     layer::{LayerBuilder}};

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{prelude::{Tensors, Shape}, flow::FlowIn, Tensor, tensor::Dtype, model::{CallMode, ModelsIn, ModelIn}};
+use crate::{prelude::{Shape}, flow::FlowIn, Tensor, tensor::Dtype, model::{CallMode, ModelsIn, ModelIn, Tensors}};
 
 pub trait Layer<I: Tensors = Tensor, O: Tensors = Tensor> {
     fn call(&self, input: I, mode: CallMode) -> O;
