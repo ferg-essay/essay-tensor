@@ -2,7 +2,7 @@ use crate::{Tensor, model::Function};
 
 use super::{TensorCache, Var, Expr, gradient::backprop_expr, var::VarId, Tensors};
 
-pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
+pub struct _Loss<Out:Tensors>(Tensor, Out);
 
 pub struct Trainer<In: Tensors, Out: Tensors> {
     fun: Function<In, Out>,
@@ -12,12 +12,12 @@ pub struct Trainer<In: Tensors, Out: Tensors> {
 
 impl<In, Out> Trainer<In, Out>
 where
-    In: Tensors<Item=In>,
-    Out: Tensors<Item=Out>,
+    In: Tensors,
+    Out: Tensors,
 {
     pub fn compile<F>(input: In, fun: F) -> Trainer<In, Out>
     where
-        F: FnOnce(In::Item) -> Out,
+        F: FnOnce(In) -> Out,
     {
         let fun = Function::new(input, fun);
         
@@ -57,13 +57,13 @@ where
     }
 }
 
-pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
+pub struct Train<'a, In: Tensors, Out: Tensors> {
     module: &'a Trainer<In, Out>,
     tensors: TensorCache,
     out: Out,
 }
 
-impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
+impl<In:Tensors, Out:Tensors> Train<'_, In, Out> {
     pub fn value(&self) -> Out {
         self.out.clone()
     }

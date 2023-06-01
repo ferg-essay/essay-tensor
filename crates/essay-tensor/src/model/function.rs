@@ -12,12 +12,12 @@ pub struct Function<In: Tensors, Out: Tensors> {
 
 impl<In, Out> Function<In, Out>
 where
-    In: Tensors<Item=In>,
-    Out: Tensors<Item=Out>,
+    In: Tensors,
+    Out: Tensors,
 {
     pub fn new<F>(input: In, fun: F) -> Function<In, Out>
     where
-        F: FnOnce(In::Item) -> Out,
+        F: FnOnce(In) -> Out,
     {
         let id = ModelId::alloc();
 
@@ -84,9 +84,9 @@ pub struct Tape {
 impl Tape {
     fn build<F, In, Out>(expr: Expr, tensors: TensorCache, input: In, fun: F) -> Tape
     where
-        In: Tensors<Item=In>,
-        Out: Tensors<Item=Out>,
-        F: FnOnce(In::Item) -> Out,
+        In: Tensors,
+        Out: Tensors,
+        F: FnOnce(In) -> Out,
     {
         let tape = Tape {
             expr,

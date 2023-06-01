@@ -99,7 +99,7 @@ pub struct Model<I: Tensors, O: Tensors> {
 
 }
 
-impl<I: Tensors<Item=I>, O: Tensors<Item=O>> Model<I, O> {
+impl<I: Tensors, O: Tensors> Model<I, O> {
     pub(crate) fn new(fun: Function<I, O>) -> Self
     {
         Self {
