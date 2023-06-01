@@ -1,5 +1,5 @@
 mod trainer;
-mod tape;
+//mod tape;
 mod function;
 mod gradient;
 mod fit;
@@ -13,7 +13,7 @@ pub use var::{
 };
 
 pub use function::{
-    Function,
+    Function, Tape
 };
 
 pub use trainer::{
@@ -23,11 +23,11 @@ pub use trainer::{
 pub use model::{
     model_builder, ModelBuilder, ModelIn, ModelsIn, CallMode,
 };
-
+/*
 pub(crate) use tape::{
     Tape
 };
-
+*/
 pub use tensors::{
     Tensors,
 };

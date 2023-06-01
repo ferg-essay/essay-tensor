@@ -1,5 +1,6 @@
-use super::{Var, Expr, TensorCache, Tape, Tensors, model::ModelId};
-use crate::tensor::{TensorId};
+use super::{Var, Expr, TensorCache, Tensors, model::ModelId, Operation};
+use crate::{tensor::{TensorId}, Tensor};
+use std::cell::RefCell;
 
 pub struct Function<In: Tensors, Out: Tensors> {
     fun: Box<dyn Fn(&Expr, In, &TensorCache) -> Out>,
@@ -12,15 +13,22 @@ where
     In: Tensors<Item=In>,
     Out: Tensors<Item=Out>,
 {
-    pub fn compile<F>(input: In, fun: F) -> Function<In, Out>
+    pub fn new<F>(input: In, fun: F) -> Function<In, Out>
     where
         F: FnOnce(In::Item) -> Out,
     {
         let id = ModelId::alloc();
 
-        let mut tape = Tape::build(id, input, fun);
+        let mut expr = Expr::new(id);
+        let mut tensors = TensorCache::new(id);
+    
+        let input = In::fun_in(&mut expr, &mut tensors, &input);
 
-        let out_ids = tape.out_ids().clone();
+        let Tape {
+            expr,
+            tensors: _tensors,
+            out_ids,
+        } = Tape::build(expr, tensors, input, fun);
 
         Self {
             fun: Box::new(move |expr: &Expr, input, fwd_tensors| { 
@@ -36,7 +44,7 @@ where
                 value
             }),
 
-            expr: tape.take_graph().unwrap(),
+            expr,
         }
     }
 
@@ -47,46 +55,119 @@ where
     }
 }
 
+pub struct Tape {
+    expr: Expr,
+
+    tensors: TensorCache,
+
+    out_ids: Vec<TensorId>,
+}
+
+impl Tape {
+    fn build<F, In, Out>(expr: Expr, tensors: TensorCache, input: In, fun: F) -> Tape
+    where
+        In: Tensors<Item=In>,
+        Out: Tensors<Item=Out>,
+        F: FnOnce(In::Item) -> Out,
+    {
+        let tape = Tape {
+            expr,
+            tensors,
+            out_ids: Default::default(),
+        };
+
+        // TODO: add RAII guard?
+        TAPE.with(|f| {
+            assert!(f.borrow().is_none());
+            f.borrow_mut().replace(tape);
+        });
+
+        let out = fun(input);
+
+        let mut tape = TAPE.with(|f| f.borrow_mut().take().unwrap());
+
+        Out::out_ids(&mut tape.out_ids, &out);
+
+        tape
+    }
+
+    pub(crate) fn is_active() -> bool {
+        TAPE.with(|f| f.borrow().is_some())
+    }
+
+    pub(crate) fn set_tensor(tensor: Tensor) -> Tensor {
+        if tensor.id().is_some() {
+            TAPE.with(|f| {
+                if let Some(tape) = f.borrow_mut().as_mut() {
+                    tape.expr.set_tensor(tensor.id(), tensor.clone());
+                }
+            })
+        }
+
+        tensor
+    }
+
+    pub(crate) fn var(var: &Var) -> Tensor {
+        TAPE.with(|f| {
+            if let Some(tape) = f.borrow_mut().as_mut() {
+                tape.expr.var(var)
+            } else {
+                var.tensor_raw()
+            }
+        })
+    }
+
+    pub(crate) fn constant(tensor: &Tensor) -> Tensor {
+        TAPE.with(|f| {
+            if let Some(tape) = f.borrow_mut().as_mut() {
+                tape.expr.constant(tensor.clone())
+            } else {
+                tensor.clone()
+            }
+        })
+    }
+
+    pub(crate) fn op(op: Box<dyn Operation>, node_args: Vec<TensorId>) -> TensorId {
+        TAPE.with(|f| {
+            if let Some(tape) = f.borrow_mut().as_mut() {
+                tape.expr.op(op, node_args)
+            } else {
+                TensorId::NONE
+            }
+        })
+    }
+}
+
+thread_local! {
+    pub static TAPE: RefCell<Option<Tape>>  = RefCell::new(None);
+}
+
+#[derive(Debug)]
+pub enum TapeError {}
+
 #[cfg(test)]
 mod test {
     use log::LevelFilter;
 
-    use crate::model::{Tape};
-
     use crate::{
         model::{function::Function, Var},
-        tensor::{TensorId},
         tensor,
         Tensor,
     };
-
-    #[test]
-    fn test_alloc() {
-        assert_eq!(Tape::alloc_id(), None);
-
-        let _module = Function::compile((), |()| {
-            assert_eq!(Tape::alloc_id(), Some(TensorId::new(0, 0)));
-            assert_eq!(Tape::alloc_id(), Some(TensorId::new(0, 1)));
-
-            tensor!(0.)
-        });
-        
-        assert_eq!(Tape::alloc_id(), None);
-    }
 
     #[test]
     fn var() {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([2.]));
 
-        let m_a = Function::compile((), 
+        let m_a = Function::new((), 
             |_| a.tensor().clone()
         );
 
         let value = m_a.call(());
         assert_eq!(value, tensor!([[1.]]));
 
-        let m_x = Function::compile((), 
+        let m_x = Function::new((), 
             |_| x.tensor().clone()
         );
 
@@ -99,7 +180,7 @@ mod test {
     fn binop_mul() {
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
-        let m_a = Function::compile((), 
+        let m_a = Function::new((), 
         |_| &a * tensor!(2.)
         );
 
@@ -109,11 +190,11 @@ mod test {
 
     #[test]
     fn single_arg() {
-        env_logger::builder().filter_level(LevelFilter::Debug).init();
+        // env_logger::builder().filter_level(LevelFilter::Debug).init();
 
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
-        let m_a = Function::compile(
+        let m_a = Function::new(
             tensor!([2., 1., 2.]), 
             |x| &a * x
         );
@@ -129,7 +210,7 @@ mod test {
     fn dual_arg() {
         // env_logger::builder().filter_level(LevelFilter::Debug).init();
 
-        let m_a = Function::compile(
+        let m_a = Function::new(
             (tensor!([1., 1.]), tensor!([1., 1.])),
             |(x, y)| x - y
         );
@@ -145,7 +226,7 @@ mod test {
     fn dual_out() {
         // env_logger::builder().filter_level(LevelFilter::Debug).init();
 
-        let m_a = Function::compile(
+        let m_a = Function::new(
             (tensor!([1., 1.]), tensor!([1., 1.])),
             |(x, y)| (y.clone(), x.clone())
         );

@@ -292,6 +292,8 @@ pub(crate) struct BuilderInner {
 
 impl BuilderInner {
     fn arg(&mut self, tensor: &Tensor) -> TensorId {
+        todo!();
+        /*
         match &mut self.expr {
             Some(expr) => {
                 let id = expr.arg(tensor.clone());
@@ -303,6 +305,7 @@ impl BuilderInner {
             }
             None => panic!("expression alreay taken")
         }
+        */
     }
 
     fn shape(&self, id: TensorId) -> &Shape {

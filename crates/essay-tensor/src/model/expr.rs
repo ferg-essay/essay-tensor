@@ -74,21 +74,25 @@ impl Expr {
         &self.tracked_vars
     }
 
-    pub(crate) fn arg(&mut self, tensor: Tensor) -> TensorId {
-        let id = self.alloc_id();
+    pub(crate) fn arg(&mut self, tensor: Tensor) -> Tensor {
+        let tensor = tensor.with_id(self.alloc_id());
 
-        self.set_tensor(id, tensor.clone());
-        self.set_node(id, NodeOp::Arg(id));
+        self.set_node(tensor.id(), NodeOp::Arg(tensor.id()));
 
-        id
+        tensor
     }
 
-    pub(crate) fn constant(&mut self, tensor: Tensor) -> TensorId {
+    pub(crate) fn constant(&mut self, tensor: Tensor) -> Tensor {
+        let tensor = tensor.with_id(self.alloc_id());
+
+        self.set_node(tensor.id(), NodeOp::Const(tensor.id(), tensor.clone()));
+
+        tensor
+    }
+
+    pub(crate) fn op(&mut self, op: Box<dyn Operation>, node_args: Vec<TensorId>) -> TensorId {
         let id = self.alloc_id();
-
-        self.set_tensor(id, tensor.clone());
-        self.set_node(id, NodeOp::Const(id));
-
+        self.set_node(id, NodeOp::Op(id, op, node_args));
         id
     }
 
@@ -198,7 +202,7 @@ impl fmt::Debug for Expr {
 pub enum NodeOp {
     None,
     Arg(TensorId),
-    Const(TensorId),
+    Const(TensorId, Tensor),
     Var(TensorId, VarId, String),
     Op(TensorId, BoxForwardOp, Vec<TensorId>),
 
@@ -213,7 +217,7 @@ impl fmt::Debug for NodeOp {
             Self::Arg(id) => {
                 f.debug_tuple("Arg").field(id).finish()
             },
-            Self::Const(id) => {
+            Self::Const(id, _tensor) => {
                 f.debug_tuple("Const").field(id).finish()
             },
             Self::Var(_id, var_id, name) => {
@@ -226,11 +230,11 @@ impl fmt::Debug for NodeOp {
                     args,
                 )
             },
-            Self::GradConst(arg0, arg1) => {
-                f.debug_tuple("BackConst").field(arg0).field(arg1).finish()
+            Self::GradConst(id, arg1) => {
+                f.debug_tuple("BackConst").field(id).field(arg1).finish()
             },
-            Self::GradOp(arg0, op, arg2, arg3) => {
-                f.debug_tuple("BackOp").field(arg0).field(&op.name().to_string()).field(arg2).field(arg3).finish()
+            Self::GradOp(id, op, arg2, arg3) => {
+                f.debug_tuple("BackOp").field(id).field(&op.name().to_string()).field(arg2).field(arg3).finish()
             },
         }
     }
@@ -294,12 +298,15 @@ impl NodeOp {
 
         let node_args : Vec<TensorId> = args.iter().map(|tensor| 
             if tensor.id().is_none() {
-                Self::constant(tensor)
+                Tape::constant(tensor).id()
             } else {
+                // TODO: validate tensor id from current function
                 tensor.id()
             }
         ).collect();
 
+        Tape::op(op, node_args)
+        /*
         let id = Tape::alloc_id();
 
         if id.is_none() {
@@ -313,19 +320,20 @@ impl NodeOp {
         Tape::set_node(id, node);
 
         id
+        */
     }
 
     fn eval(
         &self, 
-        graph: &Expr,
+        expr: &Expr,
         tensors: &TensorCache,
         fwd_tensors: &TensorCache,
     ) -> Tensor {
         let value = match self {
             NodeOp::None => todo!(),
             NodeOp::Arg(id) => tensors[*id].clone(),
-            NodeOp::Const(id) => tensors[*id].clone(), // TODO: fwd_tensors?
-            NodeOp::Var(_id, var_id, _) => graph.get_tensor_by_var(*var_id),
+            NodeOp::Const(_id, tensor) => tensor.clone(), // TODO: fwd_tensors?
+            NodeOp::Var(_id, var_id, _) => expr.get_tensor_by_var(*var_id),
             NodeOp::Op(id, op, args) => {
                 let t_args: Vec<&Tensor> = args.iter()
                     .map(|id| tensors.get(*id).unwrap())
@@ -350,20 +358,25 @@ impl NodeOp {
         value
     }
 
+    /*
     fn constant(tensor: &Tensor) -> TensorId {
         let id = Tape::alloc_id().unwrap();
 
         Tape::set_tensor_id(id, tensor);
-        Tape::set_node(id, NodeOp::Const(id));
+        Tape::set_node(id, NodeOp::Const(id, tensor.clone()));
+
+        todo!();
 
         id
+
     }
+    */
 
     fn id(&self) -> TensorId {
         match self {
             NodeOp::None => todo!(),
             NodeOp::Arg(id) => *id,
-            NodeOp::Const(id) => *id,
+            NodeOp::Const(id, _) => *id,
             NodeOp::GradConst(id, _) => *id,
             NodeOp::Var(id, _, _) => *id,
             NodeOp::Op(id, _, _) => *id,

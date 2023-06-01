@@ -1,6 +1,6 @@
 use crate::{Tensor, tensor::{TensorId}, model::TensorCache, prelude::Shape};
 
-use super::{ModelIn, model::ModelInner};
+use super::{ModelIn, model::ModelInner, Expr};
 
 pub trait Tensors : Clone {
     type Item;
@@ -10,6 +10,8 @@ pub trait Tensors : Clone {
     fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self) -> usize;
     fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self) -> usize;
     fn make_arg(tensors: &TensorCache, index: &mut usize) -> Self::Item;
+
+    fn fun_in(expr: &mut Expr, tensors: &mut TensorCache, input: &Self) -> Self;
 
     fn out_ids(out: &mut Vec<TensorId>, item: &Self);
     fn make_out(cache: &TensorCache, out: &Vec<TensorId>, index: &mut usize) -> Self::Item;
@@ -53,6 +55,15 @@ impl Tensors for Tensor<f32> {
         builder.arg(input)
     }
 
+    fn fun_in(expr: &mut Expr, tensors: &mut TensorCache, input: &Self) -> Self {
+        let tensor = expr.arg(input.clone());
+
+        let index = tensors.push(Some(tensor.clone()));
+        assert_eq!(tensor.id().index(), index);
+
+        tensor
+    }
+
     fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
         assert!(item.id().is_some());
 
@@ -71,7 +82,7 @@ impl Tensors for Tensor<f32> {
         value.clone()
     }
 }
-
+/*
 impl Tensors for &Tensor {
     type Item = Tensor;
     type Shape = Shape;
@@ -127,7 +138,7 @@ impl Tensors for &Tensor {
         value.clone()
     }
 }
-
+*/
 impl Tensors for () {
     type Item = ();
     type Shape = ();
@@ -150,6 +161,10 @@ impl Tensors for () {
     }
 
     fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
+    }
+
+    fn fun_in(expr: &mut Expr, tensors: &mut TensorCache, input: &Self) -> Self {
+        ()
     }
 
     fn out_ids(_out: &mut Vec<TensorId>, _item: &Self::Item) {
@@ -182,6 +197,10 @@ impl<T: Tensors> Tensors for Vec<T> {
     }
 
     fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
+    }
+
+    fn fun_in(expr: &mut Expr, tensors: &mut TensorCache, input: &Self) -> Self {
+        todo!()
     }
 
     fn out_ids(_out: &mut Vec<TensorId>, _item: &Self) {
@@ -242,6 +261,16 @@ macro_rules! bundle_tuple {
             )
         }
 
+        fn fun_in(expr: &mut Expr, tensors: &mut TensorCache, input: &Self) -> Self {
+            let ($($id,)*) = input;
+
+            (
+                $(
+                    $id::fun_in(expr, tensors, $id),
+                )*
+            )
+        }
+
         fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
             let ($($id,)*) = item;
     
@@ -249,7 +278,7 @@ macro_rules! bundle_tuple {
                 $id::model_out(out, $id);
             )*
         }
-        
+            
         //fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
         fn out_ids(out: &mut Vec<TensorId>, item: &Self) {
             let ($($id,)*) = item;

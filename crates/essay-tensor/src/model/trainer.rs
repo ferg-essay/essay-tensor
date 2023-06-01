@@ -27,6 +27,9 @@ where
     where
         F: FnOnce(In::Item) -> Out,
     {
+        todo!()
+
+        /*
         let id = ModelId::alloc();
 
         let mut tape = Tape::build(id, input, fun);
@@ -36,9 +39,9 @@ where
         let mut backprop_graphs : Vec<(VarId, Expr)> = Vec::new();
 
         for var in tape.tracked_vars() {
-            let id = tape.graph().get_id_by_var(var.id());
+            let id = tape.expr().get_id_by_var(var.id());
 
-            let graph = backprop_graph(&tape.graph(), id);
+            let graph = backprop_graph(&tape.expr(), id);
 
             backprop_graphs.push((var.id(), graph));
         } 
@@ -61,6 +64,7 @@ where
             graph: tape.take_graph().unwrap(),
             gradients: backprop_graphs,
         }
+        */
     }
 
     pub fn call(&self, input: In) -> Out {
@@ -132,20 +136,6 @@ mod test {
         model::{Trainer, Var},
         tensor, Tensor,
     };
-
-    #[test]
-    fn test_alloc() {
-        assert_eq!(Tape::alloc_id(), None);
-
-        let _trainer = Trainer::compile((), |()| {
-            assert_eq!(Tape::alloc_id(), Some(TensorId::new(0, 0)));
-            assert_eq!(Tape::alloc_id(), Some(TensorId::new(0, 1)));
-
-            tensor!(0.)
-        });
-        
-        assert_eq!(Tape::alloc_id(), None);
-    }
 
     #[test]
     fn var() {

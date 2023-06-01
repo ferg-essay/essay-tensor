@@ -33,7 +33,7 @@ pub(crate) fn backprop_graph(forward: &Expr, target: TensorId) -> Expr {
 
     let tail = grad_expr.constant(Tensor::ones(tail.shape()));
 
-    backprop_graph_rec(forward, &mut grad_expr, &backtrace, tail);
+    backprop_graph_rec(forward, &mut grad_expr, &backtrace, tail.id());
 
     grad_expr
 }
@@ -70,7 +70,7 @@ fn node_backprop(
         NodeOp::Arg(_) => {
             panic!("unexpected arg");
         }
-        NodeOp::Const(_) => {
+        NodeOp::Const(_, _) => {
             panic!("unexpected const");
         }
         NodeOp::Var(_, _, _) => {
@@ -107,7 +107,7 @@ fn build_backtrace_rec(
         match &graph.node(id) {
             NodeOp::None => None,
             NodeOp::Arg(_) => None,
-            NodeOp::Const(_) => None,
+            NodeOp::Const(_, _) => None,
             NodeOp::Var(_, _, _) => None,
             NodeOp::Op(_, _, args) => {
                 visited.insert(id);

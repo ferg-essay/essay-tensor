@@ -42,7 +42,7 @@ fn main() {
         }
         let _time_zeros = start.elapsed();
 
-        let _add = Function::compile((a.clone(), b.clone()),
+        let _add = Function::new((a.clone(), b.clone()),
             |(x, y)| x + y
         );
 
