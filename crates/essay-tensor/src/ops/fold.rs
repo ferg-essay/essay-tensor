@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, 
-    model::{NodeOp, Tape, Operation, IntoForward, Program, program::GradientOp}, prelude::Shape
+    model::{NodeOp, Tape, Operation, IntoForward, Program, expr::GradientOp}, prelude::Shape
 };
 
 pub trait Fold<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {

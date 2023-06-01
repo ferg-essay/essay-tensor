@@ -6,7 +6,7 @@ mod fit;
 mod tensors;
 mod model;
 mod var;
-pub(crate) mod program;
+pub(crate) mod expr;
 
 pub use var::{
     Var,
@@ -32,7 +32,7 @@ pub use tensors::{
     Tensors,
 };
 
-pub use program::{
+pub use expr::{
     Program, NodeOp, EvalOp, Operation, IntoForward, BoxForwardOp,
     // BackOp, BoxBackOp,
     TensorCache,

@@ -1,6 +1,6 @@
 use std::{any::type_name, cmp};
 
-use crate::{model::{Program, Operation, IntoForward, NodeOp, Tape, program::GradientOp}, Tensor, 
+use crate::{model::{Program, Operation, IntoForward, NodeOp, Tape, expr::GradientOp}, Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, prelude::Shape
 };
 

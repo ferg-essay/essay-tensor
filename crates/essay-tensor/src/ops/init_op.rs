@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{model::{IntoForward, NodeOp, Tape, Operation, Program, program::GradientOp}, Tensor, 
+use crate::{model::{IntoForward, NodeOp, Tape, Operation, Program, expr::GradientOp}, Tensor, 
     tensor::{Dtype, TensorUninit, TensorId}, prelude::Shape
 };
 
