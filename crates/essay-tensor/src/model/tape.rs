@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use crate::{Tensor, tensor::{TensorId}};
 
 
-use super::{Var, TensorCache, Program, NodeOp, Tensors, model::ModelId};
+use super::{Var, TensorCache, Expr, NodeOp, Tensors, model::ModelId};
 
 pub struct Tape {
     _args: Vec<TensorId>,
@@ -11,7 +11,7 @@ pub struct Tape {
     //_tail: Option<Tensor>,
     out_ids: Vec<TensorId>,
 
-    expr: Option<Program>,
+    expr: Option<Expr>,
 }
 
 #[derive(Debug)]
@@ -34,7 +34,7 @@ impl Tape {
             tensors: TensorCache::new(id),
             out_ids: Default::default(),
 
-            expr: Some(Program::new(id)),
+            expr: Some(Expr::new(id)),
         };
 
         let mut index = 0;
@@ -101,13 +101,6 @@ impl Tape {
         })
     }
 
-    pub fn get_tensor(&self, id: TensorId) -> Option<&Tensor> {
-        match &self.tensors.get(id) {
-            Some(tensor) => Some(tensor),
-            None => None,
-        }
-    }
-
     pub(crate) fn set_tensor(tensor: Tensor) -> Tensor {
         if tensor.id().is_some() {
             TAPE.with(|f| {
@@ -138,36 +131,6 @@ impl Tape {
         })
     }
 
-    /*
-    pub fn find_var(name: &str) -> TensorId {
-        TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.find_var_inner(name)
-            } else {
-                panic!("Tape::var without context")
-            }
-        })
-    }
-    */
-
-    /*
-    pub fn x_set_var(var: &str, tensor: &Tensor) -> TensorId {
-        TAPE.with(|f| {
-            if let Some(tape) = f.borrow_mut().as_mut() {
-                tape.set_var_inner(var, tensor)
-            } else {
-                panic!("Tape::set_var without context")
-            }
-        })
-    }
-    */
-
-    /*
-    pub fn find_var_inner(&mut self, new_var: &str) -> TensorId {
-        self.graph().find_var(new_var)
-    }
-    */
-
     pub fn var_inner(&mut self, var: &Var) -> Tensor {
         self.graph_mut().var(var)
     }
@@ -184,21 +147,21 @@ impl Tape {
         &mut self.tensors
     }
 
-    pub(crate) fn graph(&self) -> &Program {
+    pub(crate) fn graph(&self) -> &Expr {
         match &self.expr {
             Some(graph) => graph,
             None => panic!(),
         }
     }
 
-    pub(crate) fn graph_mut(&mut self) -> &mut Program {
+    pub(crate) fn graph_mut(&mut self) -> &mut Expr {
         match &mut self.expr {
             Some(graph) => graph,
             None => panic!(),
         }
     }
 
-    pub(crate) fn take_graph(&mut self) -> Option<Program> {
+    pub(crate) fn take_graph(&mut self) -> Option<Expr> {
         self.expr.take()
     }
 

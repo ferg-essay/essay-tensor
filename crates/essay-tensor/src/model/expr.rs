@@ -7,7 +7,7 @@ use crate::{Tensor, tensor::{TensorId}};
 
 use super::{Var, Tape, var::VarId, model::ModelId};
 
-pub struct Program {
+pub struct Expr {
     id: ModelId,
     
     var_map: HashMap<VarId, VarItem>,
@@ -17,7 +17,7 @@ pub struct Program {
     tensors: TensorCache,
 }
 
-impl Program {
+impl Expr {
     pub(crate) fn new(id: ModelId) -> Self {
         Self {
             id,
@@ -154,7 +154,7 @@ impl Program {
         self.tensors.set(id, tensor);
     }
 
-    pub(crate) fn apply(
+    pub(crate) fn call(
         &self, 
         out: &mut TensorCache,
         fwd_tensors: &TensorCache, 
@@ -183,7 +183,7 @@ impl Program {
     }
 }
 
-impl fmt::Debug for Program {
+impl fmt::Debug for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Graph {{\n")?;
 
@@ -249,8 +249,8 @@ pub trait Operation : Send + Sync + 'static {
 
     fn df(
         &self,
-        forward: &Program,
-        back: &mut Program,
+        forward: &Expr,
+        back: &mut Expr,
         i: usize,
         args: &[TensorId],
         prev: TensorId,
@@ -317,7 +317,7 @@ impl NodeOp {
 
     fn eval(
         &self, 
-        graph: &Program,
+        graph: &Expr,
         tensors: &TensorCache,
         fwd_tensors: &TensorCache,
     ) -> Tensor {
@@ -391,8 +391,9 @@ impl TensorCache {
         TensorId::new(self.id.index() as u32, index as u32)
     }
 
-    pub(crate) fn push(&mut self, tensor: Option<Tensor>) {
-        self.tensors.push(tensor)
+    pub(crate) fn push(&mut self, tensor: Option<Tensor>) -> usize {
+        self.tensors.push(tensor);
+        self.tensors.len() - 1
     }
 
     pub(crate) fn get(&self, id: TensorId) -> Option<&Tensor> {

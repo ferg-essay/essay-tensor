@@ -1,11 +1,10 @@
-use super::{Var, Program, TensorCache, Tape, Tensors, model::ModelId};
+use super::{Var, Expr, TensorCache, Tape, Tensors, model::ModelId};
 use crate::tensor::{TensorId};
 
 pub struct Function<In: Tensors, Out: Tensors> {
-    _vars: Vec<(Var, TensorId)>,
-    fun: Box<dyn Fn(&Program, In, &TensorCache) -> Out>,
+    fun: Box<dyn Fn(&Expr, In, &TensorCache) -> Out>,
 
-    program: Program,
+    expr: Expr,
 }
 
 impl<In, Out> Function<In, Out>
@@ -24,13 +23,12 @@ where
         let out_ids = tape.out_ids().clone();
 
         Self {
-            _vars: Default::default(),
-            fun: Box::new(move |graph: &Program, input, fwd_tensors| { 
-                let mut out = graph.tensors().clone();
+            fun: Box::new(move |expr: &Expr, input, fwd_tensors| { 
+                let mut out = expr.tensors().clone();
 
                 In::set_arg(&mut out, 0, &input);
 
-                graph.apply(&mut out, fwd_tensors);
+                expr.call(&mut out, fwd_tensors);
 
                 let mut index = 0;
                 let value = Out::make_out(&out, &out_ids, &mut index);
@@ -38,14 +36,14 @@ where
                 value
             }),
 
-            program: tape.take_graph().unwrap(),
+            expr: tape.take_graph().unwrap(),
         }
     }
 
     pub fn call(&self, input: In) -> Out {
-        let tensors = self.program.tensors().clone();
+        let tensors = self.expr.tensors().clone();
 
-        (self.fun)(&self.program, input, &tensors)
+        (self.fun)(&self.expr, input, &tensors)
     }
 }
 

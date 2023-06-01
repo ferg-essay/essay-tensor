@@ -1,14 +1,15 @@
-use std::{marker::PhantomData, sync::atomic::{AtomicU32, Ordering}};
+use core::fmt;
+use std::{marker::PhantomData, sync::atomic::{AtomicU32, Ordering}, rc::Rc, cell::RefCell};
 
-use crate::{prelude::{Shape}, model::Var, Tensor, tensor::Dtype, layer::Layer};
+use crate::{prelude::{Shape}, model::{Var, Function}, Tensor, layer::Layer, tensor::TensorId};
 
-use super::Tensors;
+use super::{Tensors, Expr, TensorCache};
 
 pub struct Model<I: Tensors, O: Tensors> {
-    fun: Box<dyn FnMut(I, CallMode) -> O>,
+    expr: Function<I, O>,
 
-    variables: Vec<Var>,
-    name_scope: NameScope,
+    //variables: Vec<Var>,
+    //name_scope: NameScope,
 
     // layers
     // metrics_names
@@ -98,14 +99,16 @@ pub struct Model<I: Tensors, O: Tensors> {
 
 }
 
-pub enum CallMode {
-    Eval,
-    Train,
-}
+impl<I: Tensors<Item=I>, O: Tensors<Item=O>> Model<I, O> {
+    pub(crate) fn new(fun: Function<I, O>) -> Self
+    {
+        Self {
+            expr: fun,
+        }
+    }
 
-impl<I: Tensors, O: Tensors> Model<I, O> {
     pub fn call(&mut self, input: I) -> O {
-        (self.fun)(input, CallMode::Eval)
+        self.expr.call(input)
     }
 
     pub fn build(layers: impl Layer<I, O>) -> Self {
@@ -141,25 +144,67 @@ impl<I: Tensors, O: Tensors> Model<I, O> {
     // train_step
 }
 
+pub enum CallMode {
+    Eval,
+    Train,
+}
+
 pub struct NameScope;
 
 //impl<I: Tensors, O: Tensors, L: Layer> From<L> Model<I, O> {
 //
 //}
 
-/// ModelBuilder is created with sample input
-pub fn model_builder<In: Tensors<Item=In>>(input: In) -> ModelBuilder<In, In> {
-    todo!()
-}
-
 pub struct ModelBuilder<I: Tensors, O: Tensors> {
-    fun: Box<dyn FnMut(I, CallMode) -> O>,
-
-    variables: Vec<Var>,
-    name_scope: NameScope,
+    id: ModelId,
+    inner: ModelInner,
+    input: I::ModelIn,
+    marker: PhantomData<(I, O)>,
 }
 
-impl<I: Tensors, O: Tensors> ModelBuilder<I, O> {
+/// ModelBuilder is created with sample input
+pub fn model_builder<In: Tensors>(input: In) -> ModelBuilder<In, In> {
+    let id = ModelId::alloc();
+
+    /*
+    let mut expr = Expr::new(id);
+
+    let mut index = 0;
+    // TODO: check that the clone and &Tensor work together
+    let mut tensors = expr.tensors().clone();
+    let args = In::make_arg(&tensors, &mut index);
+
+    let arg_len = In::push_arg(&mut tensors, 0, &input);
+
+    for arg_id in 0..arg_len {
+        let arg_id = TensorId::new(id.index() as u32, arg_id as u32);
+
+        let tensor = tensors.get(arg_id).unwrap().clone();
+        expr.arg(tensor);
+    }
+    */
+
+    let inner = Rc::new(RefCell::new(BuilderInner {
+        id: id,
+        expr: Some(Expr::new(id)),
+        tensors: TensorCache::new(id),
+    }));
+
+    let inner = ModelInner(inner);
+
+    let model_input = In::model_in(&inner, &input);
+
+    let builder = ModelBuilder {
+        id,
+        inner,
+        input: model_input,
+        marker: PhantomData,
+    };
+
+    builder
+}
+
+impl<I: Tensors<Item=I>, O: Tensors> ModelBuilder<I, O> {
     pub fn add_layer<O1: Tensors>(
         &mut self,
         builder: impl FnMut(O, CallMode) -> O1
@@ -171,22 +216,139 @@ impl<I: Tensors, O: Tensors> ModelBuilder<I, O> {
         todo!()
     }
 
-    pub(crate) fn input(&self) -> ModelIn {
-        todo!()
+    pub(crate) fn input(&self) -> &I::ModelIn {
+        &self.input
     }
 
-    pub(crate) fn output<M: ModelsIn>(&self, mb_out: M) -> Model<I, M::Tout> {
+    pub(crate) fn output<Out: Tensors<Item=Out>>(&self, out: &Out::ModelIn) -> Model<I, Out> {
+        // let out = fun(args);
+
+        let mut out_ids : Vec<TensorId> = Vec::new();
+        Out::model_out(&mut out_ids, &out);
+
+        let expr = self.inner.expr_clone();
+
+        //let fun = Function::<I, Out>::new(expr, out_ids);
+        /*
+        Self {
+            _vars: Default::default(),
+            fun: Box::new(move |graph: &Expr, input, fwd_tensors| { 
+                let mut out = graph.tensors().clone();
+
+                In::set_arg(&mut out, 0, &input);
+
+                graph.apply(&mut out, fwd_tensors);
+
+                let mut index = 0;
+                let value = Out::make_out(&out, &out_ids, &mut index);
+
+                value
+            }),
+
+            program: tape.take_graph().unwrap(),
+        }
+        */
+
+        //Model::new(fun)
         todo!()
+    }
+}
+
+#[derive(Clone)]
+pub struct ModelInner(Rc<RefCell<BuilderInner>>);
+
+impl ModelInner {
+    pub(crate) fn arg(&self, tensor: &Tensor) -> ModelIn {
+        let id = self.0.borrow_mut().arg(tensor);
+
+        ModelIn::new(id, &self)
+    }
+
+    fn shape(&self, id: TensorId) -> Shape {
+        self.0.borrow().shape(id).clone()
+    }
+
+    fn tensor(&self, id: TensorId) -> Tensor {
+        self.0.borrow().tensor(id).clone()
+    }
+
+    fn expr_clone(&self) -> Expr {
+        self.0.borrow_mut().take_expr()
+    }
+}
+/*
+impl Clone for ModelInner {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+*/
+
+pub(crate) struct BuilderInner {
+    id: ModelId,
+    expr: Option<Expr>,
+    tensors: TensorCache,
+}
+
+impl BuilderInner {
+    fn arg(&mut self, tensor: &Tensor) -> TensorId {
+        match &mut self.expr {
+            Some(expr) => {
+                let id = expr.arg(tensor.clone());
+
+                let index = self.tensors.push(Some(tensor.clone()));
+                assert_eq!(id.index(), index);
+        
+                id
+            }
+            None => panic!("expression alreay taken")
+        }
+    }
+
+    fn shape(&self, id: TensorId) -> &Shape {
+        match self.tensors.get(id) {
+            Some(tensor) => tensor.shape(),
+            None => panic!("Tensor is not set for shape"),
+        }
+    }
+
+    fn tensor(&self, id: TensorId) -> &Tensor {
+        match self.tensors.get(id) {
+            Some(tensor) => tensor,
+            None => panic!("Tensor is not set for shape"),
+        }
+    }
+
+    fn take_expr(&mut self) -> Expr {
+        self.expr.take().unwrap()
     }
 }
 
 pub struct ModelIn<T=f32> {
+    id: TensorId,
+    builder: ModelInner,
     marker: PhantomData<T>,
 }
 
 impl ModelIn {
-    pub(crate) fn shape(&self) -> Shape {
-        todo!()
+    fn new(id: TensorId, builder: &ModelInner) -> Self {
+        Self {
+            id,
+            builder: builder.clone(),
+            marker: PhantomData,
+        }
+    }
+
+    pub fn id(&self) -> TensorId {
+        self.id
+    }
+
+    pub fn shape(&self) -> Shape {
+        self.builder.shape(self.id)
+    }
+
+    pub fn tensor(&self) -> Tensor {
+        self.builder.tensor(self.id)
     }
 
     fn build<'a, I: ModelsIn, O: ModelsIn>(
@@ -194,6 +356,14 @@ impl ModelIn {
         fun: impl FnMut(I::Tin<'_>) -> O::Tout
     ) -> O::Out {
         todo!();
+    }
+}
+
+impl fmt::Debug for ModelIn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ModelIn")
+            .field("id", &self.id)
+            .finish()
     }
 }
 
@@ -305,10 +475,34 @@ impl ModelId {
 
 #[cfg(test)]
 mod test {
-    use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn}, layer::LayerBuilder};
+    use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn}, layer::LayerBuilder, tensor::TensorId, init::random_normal};
 
     use super::model_builder;
 
+    #[test]
+    fn model_builder_single_input() {
+        let mb = model_builder(Tensor::zeros([8]));
+        let input = mb.input();
+
+        assert_eq!(input.id(), TensorId::new(0, 0));
+        assert_eq!(input.shape(), Shape::from([8]));
+        assert_eq!(input.tensor(), Tensor::zeros([8]));
+    }
+
+    #[test]
+    fn model_builder_identity() {
+        let mb = model_builder(Tensor::zeros([8]));
+        let input = mb.input();
+        let mut model = mb.output::<Tensor>(input);
+
+        assert_eq!(model.call(Tensor::zeros([8])), Tensor::zeros([8]));
+        assert_eq!(model.call(Tensor::ones([8])), Tensor::ones([8]));
+
+        let values = random_normal([8], ());
+        assert_eq!(model.call(values.clone()), values);
+    }
+
+    #[test]
     fn test_layer() {
         let mb = model_builder(Tensor::zeros([8]));
         let input = mb.input();
@@ -327,7 +521,7 @@ mod test {
 
         let mb_out = lsum.build(vec![&a, &b]);
 
-        let model = mb.output(mb_out);
+        let model = mb.output::<Tensor>(&mb_out);
 
     }
 

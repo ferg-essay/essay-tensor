@@ -3,7 +3,7 @@ use std::{cmp};
 use crate::{
     Tensor, 
     tensor::{TensorUninit, TensorId}, 
-    model::{NodeOp, Tape, Operation, Program}, prelude::Shape
+    model::{NodeOp, Tape, Operation, Expr}, prelude::Shape
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -87,8 +87,8 @@ impl Operation for LinspaceCpu {
 
     fn df(
         &self,
-        _forward: &Program,
-        _graph: &mut Program,
+        _forward: &Expr,
+        _graph: &mut Expr,
         _i: usize,
         _args: &[TensorId],
         _prev: TensorId,

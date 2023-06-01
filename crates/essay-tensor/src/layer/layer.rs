@@ -81,7 +81,7 @@ mod test {
 
         let mb_out = Sum.build(vec![&a, &b]);
 
-        let model = mb.output(mb_out);
+        let model = mb.output::<Tensor>(&mb_out);
 
     }
 

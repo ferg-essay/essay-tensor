@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{model::{IntoForward, NodeOp, Tape, Operation, Program, expr::GradientOp}, Tensor, 
+use crate::{model::{IntoForward, NodeOp, Tape, Operation, Expr, expr::GradientOp}, Tensor, 
     tensor::{Dtype, TensorUninit, TensorId}, prelude::Shape
 };
 
@@ -63,8 +63,8 @@ impl<Op: InitKernel<f32>> Operation for InitCpu<Op> {
 
     fn df(
         &self,
-        _forward: &Program,
-        graph: &mut Program,
+        _forward: &Expr,
+        graph: &mut Expr,
         i: usize,
         args: &[TensorId],
         prev: TensorId,

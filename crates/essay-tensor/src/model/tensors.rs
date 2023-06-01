@@ -1,8 +1,11 @@
 use crate::{Tensor, tensor::{TensorId}, model::TensorCache, prelude::Shape};
 
+use super::{ModelIn, model::ModelInner};
+
 pub trait Tensors : Clone {
     type Item;
     type Shape;
+    type ModelIn;
 
     fn push_arg(tensors: &mut TensorCache, index: usize, item: &Self) -> usize;
     fn set_arg(tensors: &mut TensorCache, index: usize, item: &Self) -> usize;
@@ -10,11 +13,15 @@ pub trait Tensors : Clone {
 
     fn out_ids(out: &mut Vec<TensorId>, item: &Self);
     fn make_out(cache: &TensorCache, out: &Vec<TensorId>, index: &mut usize) -> Self::Item;
+
+    fn model_in(builder: &ModelInner, input: &Self) -> Self::ModelIn;
+    fn model_out(out: &mut Vec<TensorId>, input: &Self::ModelIn);
 }
 
 impl Tensors for Tensor<f32> {
     type Item = Tensor<f32>;
     type Shape = Shape;
+    type ModelIn = ModelIn<f32>;
 
     fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
         let id = out.new_id(index);
@@ -42,6 +49,16 @@ impl Tensors for Tensor<f32> {
         out.get(id).unwrap().clone()
     }
 
+    fn model_in(builder: &ModelInner, input: &Self) -> Self::ModelIn {
+        builder.arg(input)
+    }
+
+    fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
+        assert!(item.id().is_some());
+
+        out.push(item.id());
+    }
+
     fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
         if item.id().is_some() {
             out.push(item.id())
@@ -58,6 +75,7 @@ impl Tensors for Tensor<f32> {
 impl Tensors for &Tensor {
     type Item = Tensor;
     type Shape = Shape;
+    type ModelIn = ModelIn<f32>;
 
     //fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
     fn push_arg(out: &mut TensorCache, index: usize, item: &Self) -> usize {
@@ -86,6 +104,16 @@ impl Tensors for &Tensor {
         out.get(id).unwrap().clone()
     }
 
+    fn model_in(builder: &ModelInner, input: &Self) -> Self::ModelIn {
+        builder.arg(input)
+    }
+
+    fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
+        assert!(item.id().is_some());
+
+        out.push(item.id());
+    }
+
     //fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
     fn out_ids(out: &mut Vec<TensorId>, item: &Self) {
         if item.id().is_some() {
@@ -103,6 +131,7 @@ impl Tensors for &Tensor {
 impl Tensors for () {
     type Item = ();
     type Shape = ();
+    type ModelIn = ();
 
     fn push_arg(_out: &mut TensorCache, index: usize, _item: &Self::Item) -> usize {
         index
@@ -116,6 +145,13 @@ impl Tensors for () {
         ()
     }
 
+    fn model_in(builder: &ModelInner, input: &Self) -> Self::ModelIn {
+        ()
+    }
+
+    fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
+    }
+
     fn out_ids(_out: &mut Vec<TensorId>, _item: &Self::Item) {
     }
 
@@ -126,18 +162,26 @@ impl Tensors for () {
 
 impl<T: Tensors> Tensors for Vec<T> {
     type Item = Vec<T::Item>;
-    type Shape = ();
+    type Shape = Vec<T::Shape>;
+    type ModelIn = Vec<T::ModelIn>;
 
-    fn push_arg(_out: &mut TensorCache, index: usize, _item: &Self) -> usize {
+    fn push_arg(_out: &mut TensorCache, _index: usize, _item: &Self) -> usize {
         todo!()
     }
 
-    fn set_arg(_out: &mut TensorCache, index: usize, _item: &Self) -> usize {
+    fn set_arg(_out: &mut TensorCache, _index: usize, _item: &Self) -> usize {
         todo!()
     }
 
     fn make_arg<'a>(_cache: &'a TensorCache, _index: &mut usize) -> Self::Item {
         todo!()
+    }
+
+    fn model_in(builder: &ModelInner, input: &Self) -> Self::ModelIn {
+        todo!()
+    }
+
+    fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
     }
 
     fn out_ids(_out: &mut Vec<TensorId>, _item: &Self) {
@@ -156,6 +200,7 @@ macro_rules! bundle_tuple {
     impl<$($id: Tensors,)*> Tensors for ($($id,)*) {
         type Item = ($($id::Item,)*);
         type Shape = ($($id::Shape,)*);
+        type ModelIn = ($($id::ModelIn,)*);
 
         //fn push_arg(out: &mut TensorCache, index: usize, item: &Self::Item) -> usize {
         fn push_arg(out: &mut TensorCache, index: usize, item: &Self) -> usize {
@@ -187,6 +232,24 @@ macro_rules! bundle_tuple {
             )
         }
 
+        fn model_in(builder: &ModelInner, input: &Self) -> Self::ModelIn {
+            let ($($id,)*) = input;
+
+            (
+                $(
+                    $id::model_in(builder, $id),
+                )*
+            )
+        }
+
+        fn model_out(out: &mut Vec<TensorId>, item: &Self::ModelIn) {
+            let ($($id,)*) = item;
+    
+            $(
+                $id::model_out(out, $id);
+            )*
+        }
+        
         //fn out_ids(out: &mut Vec<TensorId>, item: &Self::Item) {
         fn out_ids(out: &mut Vec<TensorId>, item: &Self) {
             let ($($id,)*) = item;

@@ -33,7 +33,7 @@ pub use tensors::{
 };
 
 pub use expr::{
-    Program, NodeOp, EvalOp, Operation, IntoForward, BoxForwardOp,
+    Expr, NodeOp, EvalOp, Operation, IntoForward, BoxForwardOp,
     // BackOp, BoxBackOp,
     TensorCache,
 };

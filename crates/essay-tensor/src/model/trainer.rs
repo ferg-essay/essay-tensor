@@ -1,15 +1,15 @@
 use crate::{Tensor, tensor::{TensorId}};
 
-use super::{TensorCache, Var, Program, Tape, gradient::backprop_graph, var::VarId, Tensors, model::ModelId};
+use super::{TensorCache, Var, Expr, Tape, gradient::backprop_graph, var::VarId, Tensors, model::ModelId};
 
 pub struct _Loss<Out:Tensors<Item=Out>>(Tensor, Out);
 
 pub struct Trainer<In: Tensors, Out: Tensors> {
     _vars: Vec<(VarId, TensorId)>,
-    fun: Box<dyn Fn(&Program, In, &TensorCache) -> (Out, TensorCache)>,
+    fun: Box<dyn Fn(&Expr, In, &TensorCache) -> (Out, TensorCache)>,
 
-    graph: Program,
-    gradients: Vec<(VarId, Program)>,
+    graph: Expr,
+    gradients: Vec<(VarId, Expr)>,
 }
 
 pub struct Train<'a, In: Tensors<Item=In>, Out: Tensors<Item=Out>> {
@@ -33,7 +33,7 @@ where
 
         let out_ids = tape.out_ids().clone();
         
-        let mut backprop_graphs : Vec<(VarId, Program)> = Vec::new();
+        let mut backprop_graphs : Vec<(VarId, Expr)> = Vec::new();
 
         for var in tape.tracked_vars() {
             let id = tape.graph().get_id_by_var(var.id());
@@ -45,12 +45,12 @@ where
 
         Self {
             _vars: Default::default(),
-            fun: Box::new(move |graph: &Program, input, fwd_tensors| { 
+            fun: Box::new(move |graph: &Expr, input, fwd_tensors| { 
                 let mut out = graph.tensors().clone();
 
                 In::set_arg(&mut out, 0, &input);
 
-                graph.apply(&mut out, fwd_tensors);
+                graph.call(&mut out, fwd_tensors);
 
                 let mut index = 0;
                 let value = Out::make_out(&out, &out_ids, &mut index);
@@ -96,7 +96,7 @@ impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
             if &var.id() == grad_var {
                 let mut out = grad_graph.tensors().clone();
 
-                grad_graph.apply(&mut out, &self.tensors);
+                grad_graph.call(&mut out, &self.tensors);
         
                 return out.last()
             }
@@ -111,7 +111,7 @@ impl<In:Tensors<Item=In>,Out:Tensors<Item=Out>> Train<'_, In, Out> {
         for (id, grad_graph) in &self.module.gradients {
             let mut out = grad_graph.tensors().clone();
 
-            grad_graph.apply(&mut out, &self.tensors);
+            grad_graph.call(&mut out, &self.tensors);
         
             vec.push((*id, out.last()))
         }

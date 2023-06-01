@@ -1,6 +1,6 @@
 use std::{any::type_name, cmp};
 
-use crate::{model::{Program, Operation, IntoForward, NodeOp, Tape, expr::GradientOp}, Tensor, 
+use crate::{model::{Expr, Operation, IntoForward, NodeOp, Tape, expr::GradientOp}, Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, prelude::Shape
 };
 
@@ -100,8 +100,8 @@ impl<Op: BinaryKernel<f32>> Operation for BinopImpl<Op> {
 
     fn df(
         &self,
-        _forward: &Program,
-        graph: &mut Program,
+        _forward: &Expr,
+        graph: &mut Expr,
         i: usize,
         args: &[TensorId],
         prev: TensorId,
