@@ -1,9 +1,9 @@
 use essay_opt::derive_opt;
 
-use crate::{model::{Var, CallMode, ModelIn}, Tensor, prelude::{Shape}, init::{Initializer, zeros_initializer}};
+use crate::{model::{Var, CallMode}, Tensor, prelude::{Shape}, init::{Initializer, zeros_initializer}};
 
 use super::{Layer, input::InputSpec, 
-    layer::{LayerBuilder}};
+};
 
 pub struct Linear {
     // var_a : Var,
@@ -55,7 +55,7 @@ impl Layer for Linear {
         todo!()
     }
 }
-
+/*
 impl LayerBuilder for Linear {
     fn build(&self, input: &ModelIn) -> ModelIn {
         let a = Var::new("a", self.init.init(&input.shape().extend_dims(self.units)));
@@ -66,6 +66,7 @@ impl LayerBuilder for Linear {
         })
     }
 }
+*/
 
 pub struct LinearModel {
     input_spec: InputSpec,

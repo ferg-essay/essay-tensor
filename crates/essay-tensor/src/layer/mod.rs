@@ -2,4 +2,4 @@ mod input;
 mod linear;
 mod layer;
 
-pub use layer::{BoxLayer, Layer, LayerBuilder};
+pub use layer::{BoxLayer, Layer};

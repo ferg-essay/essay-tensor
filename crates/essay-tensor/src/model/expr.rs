@@ -5,7 +5,7 @@ use log::debug;
 
 use crate::{Tensor, tensor::{TensorId}};
 
-use super::{Var, Tape, var::VarId, model::ModelId};
+use super::{Var, Tape, var::VarId, ModelId};
 
 pub struct Expr {
     id: ModelId,

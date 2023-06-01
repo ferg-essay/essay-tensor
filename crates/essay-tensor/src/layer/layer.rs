@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{prelude::{Shape}, flow::FlowIn, Tensor, tensor::Dtype, model::{CallMode, ModelsIn, ModelIn, Tensors}};
+use crate::{prelude::{Shape}, flow::FlowIn, Tensor, tensor::Dtype, model::{CallMode, Tensors}};
 
 pub trait Layer<I: Tensors = Tensor, O: Tensors = Tensor> {
     fn call(&self, input: I, mode: CallMode) -> O;
@@ -48,24 +48,9 @@ pub trait LayerTrait {
 
 pub type BoxLayer = Box<dyn LayerTrait>;
 
-
-pub trait LayerBuilder<I: ModelsIn = ModelIn, O: ModelsIn = ModelIn> {
-    fn build<'a>(
-        &self, 
-        input: I::In<'a>,
-    ) -> O::Out;
-
-    fn build_model<'a>(
-        input: I::In<'a>,
-        fun: impl FnMut(I::Tin<'a>) -> O::Tout
-    ) -> O::Out {
-        todo!()
-    }
-    // fn compile<In: Tensors>(&self, input: &mut ModelBuilder<In, I>) -> ModelBuilder<In, O>;
-}
-
 #[cfg(test)]
 mod test {
+    /*
     use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn, model_builder}};
 
     use super::{LayerBuilder};
@@ -110,4 +95,5 @@ mod test {
             })
         }
     }
+    */
 }

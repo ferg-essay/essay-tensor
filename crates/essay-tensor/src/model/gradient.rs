@@ -1,6 +1,6 @@
 use std::{collections::HashSet, any::type_name};
 
-use crate::{Tensor, tensor::{TensorId}, model::model::ModelId};
+use crate::{Tensor, tensor::{TensorId}, model::ModelId};
 
 use super::{Expr, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
     expr::{IntoBack, GradientOp, BoxBackOp}

@@ -1,9 +1,9 @@
-use super::{Var, Expr, TensorCache, Tensors, model::ModelId, Operation};
+use super::{Var, Expr, TensorCache, Tensors, Operation};
 use crate::{tensor::{TensorId}, Tensor};
-use std::cell::RefCell;
+use std::{cell::RefCell, sync::atomic::{AtomicU32, Ordering}};
 
 pub struct Function<In: Tensors, Out: Tensors> {
-    fun: Box<dyn Fn(&Expr, In, &TensorCache) -> (Out, TensorCache)>,
+    fun: Box<dyn Fn(&Expr, In) -> (Out, TensorCache)>,
 
     expr: Expr,
 
@@ -34,12 +34,12 @@ where
         } = Tape::build(expr, tensors, input, fun);
 
         Self {
-            fun: Box::new(move |expr: &Expr, input, fwd_tensors| { 
+            fun: Box::new(move |expr: &Expr, input| { 
                 let mut out = expr.tensors().clone();
 
-                In::set_arg(&mut out, 0, &input);
+                In::set_input(&mut out, 0, &input);
 
-                expr.call(&mut out, fwd_tensors);
+                expr.call(&mut out, expr.tensors());
 
                 let mut index = 0;
                 let value = Out::make_out(&out, &out_ids, &mut index);
@@ -61,17 +61,13 @@ where
     }
 
     pub fn call(&self, input: In) -> Out {
-        let tensors = self.expr.tensors().clone();
-
-        let (value, out) = (self.fun)(&self.expr, input, &tensors);
+        let (value, _out) = (self.fun)(&self.expr, input);
 
         value
     }
 
     pub(crate) fn train(&self, input: In) -> (Out, TensorCache) {
-        let tensors = self.expr.tensors().clone();
-
-        (self.fun)(&self.expr, input, &tensors)
+        (self.fun)(&self.expr, input)
     }
 }
 
@@ -168,6 +164,27 @@ thread_local! {
 
 #[derive(Debug)]
 pub enum TapeError {}
+
+static MODEL_ID: AtomicU32 = AtomicU32::new(0);
+
+///
+/// VarId is globally unique to avoid name collisions.
+///
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ModelId(u32);
+
+impl ModelId {
+    pub(crate) fn alloc() -> ModelId {
+        let id = MODEL_ID.fetch_add(1, Ordering::SeqCst);
+
+        ModelId(id)
+    }
+
+    #[inline]
+    pub fn index(&self) -> usize {
+        self.0 as usize
+    }
+}
 
 #[cfg(test)]
 mod test {

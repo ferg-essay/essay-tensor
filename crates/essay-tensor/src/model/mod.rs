@@ -13,7 +13,7 @@ pub use var::{
 };
 
 pub use function::{
-    Function, Tape
+    Function, Tape, ModelId,
 };
 
 pub use trainer::{
@@ -21,7 +21,7 @@ pub use trainer::{
 };
 
 pub use model::{
-    model_builder, ModelBuilder, ModelIn, ModelsIn, CallMode,
+    Model, CallMode,
 };
 /*
 pub(crate) use tape::{
