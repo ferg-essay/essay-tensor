@@ -42,8 +42,9 @@ fn main() {
         }
         let _time_zeros = start.elapsed();
 
-        let _add = Function::new((a.clone(), b.clone()),
-            |(x, y)| x + y
+        let _add = Function::new(
+            (a.clone(), b.clone()),
+            |(x, y), _| x + y
         );
 
         let start = Instant::now();

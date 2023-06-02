@@ -508,7 +508,6 @@ impl<T:Dtype> FromIterator<T> for Tensor<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let vec : Vec<T> = Vec::from_iter(iter);
         let len = vec.len();
-        assert!(len > 0);
 
         Tensor::from_vec(vec, len)
     }
