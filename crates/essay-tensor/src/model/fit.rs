@@ -12,10 +12,10 @@ pub struct Fit<'a> {
     // model: model
     // optimizer
     // loss
-    epochs: usize,
+    _epochs: usize,
 
     // batch_size: usize,
-    steps_per_epoch: usize,
+    _steps_per_epoch: usize,
 
     train_x: DatasetIter<'a>,
     train_y: DatasetIter<'a>,
@@ -56,7 +56,7 @@ impl Fit<'_> {
     }
 }
 
-pub struct FitBuilder {
+pub struct _FitBuilder {
     model: Option<Box<dyn FnOnce(Tensor) -> Tensor>>,
     train_x: Dataset,
     train_y: Dataset,
@@ -74,8 +74,8 @@ pub struct FitBuilder {
 #[derive(Default)]
 #[derive_opt(FitOpt)]
 pub struct FitArgs {
-    epochs: usize,
-    steps_per_epoch: usize,
+    _epochs: usize,
+    _steps_per_epoch: usize,
 }
 /*
 //derive_arg!(FitOpt, FitArg);
@@ -100,21 +100,13 @@ impl FitOpt for () {
 }
 */
 
-fn test(opt: impl FitOpt) {
-
-}
-
-fn my_test() {
-    test(().epochs(1));
-}
-
-impl FitBuilder {
-    fn new_tensor(
+impl _FitBuilder {
+    fn _new_tensor(
         model: impl FnOnce(Tensor) -> Tensor + 'static,
         train_x: impl Into<Tensor>, 
         train_y: impl Into<Tensor>,
         options: impl FitOpt,
-    ) -> FitBuilder {
+    ) -> _FitBuilder {
         let train_x = train_x.into();
         let train_y = train_y.into();
 
@@ -125,12 +117,12 @@ impl FitBuilder {
         let train_x = rebatch(train_x, 2);
         let train_y = rebatch(train_y, 2);
 
-        FitBuilder {
+        _FitBuilder {
             model: Some(Box::new(model)),
             train_x,
             train_y,
-            epochs: options.epochs,
-            steps_per_epoch: options.steps_per_epoch,
+            epochs: options._epochs,
+            steps_per_epoch: options._steps_per_epoch,
         }
     }
 
@@ -148,7 +140,7 @@ impl FitBuilder {
     }
     */
 
-    fn build(&mut self) -> Fit {
+    fn _build(&mut self) -> Fit {
         let x = self.train_x.get_single_element();
         let y = self.train_y.get_single_element();
 
@@ -166,15 +158,15 @@ impl FitBuilder {
             train_x: self.train_x.iter(),
             train_y: self.train_y.iter(),
 
-            epochs: self.epochs,
-            steps_per_epoch: self.steps_per_epoch,
+            _epochs: self.epochs,
+            _steps_per_epoch: self.steps_per_epoch,
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{model::{fit::FitBuilder, }, model::Var};
+    use crate::{model::{fit::_FitBuilder, }, model::Var};
     pub use crate::prelude::*;
     pub use crate::model::prelude::*;
 
@@ -189,14 +181,14 @@ mod test {
         let a_ptr = a.clone();
         let b_ptr = b.clone();
 
-        let mut builder = FitBuilder::new_tensor(
+        let mut builder = _FitBuilder::_new_tensor(
             move |x| &a_ptr.matvec(&x) + &b_ptr,
             &train_x, 
             &train_y,
-            ().epochs(2)
+            ()._epochs(2)
         );
 
-        let mut fit = builder.build();
+        let mut fit = builder._build();
 
         fit.step();
 

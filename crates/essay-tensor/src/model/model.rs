@@ -1,9 +1,6 @@
-use core::fmt;
-use std::{marker::PhantomData, sync::atomic::{AtomicU32, Ordering}, rc::Rc, cell::RefCell, any::type_name};
+use crate::{model::{Function}, layer::{LayerBuilder}};
 
-use crate::{prelude::{Shape}, model::{Var, Function}, Tensor, layer::{Layer, LayerBuilder}, tensor::TensorId};
-
-use super::{Tensors, Expr, TensorCache};
+use super::{Tensors};
 
 pub struct Model<I: Tensors, O: Tensors> {
     expr: Function<I, O>,
@@ -100,7 +97,7 @@ pub struct Model<I: Tensors, O: Tensors> {
 }
 
 impl<I: Tensors, O: Tensors> Model<I, O> {
-    pub(crate) fn new(fun: Function<I, O>) -> Self
+    pub(crate) fn _new(fun: Function<I, O>) -> Self
     {
         Self {
             expr: fun,
@@ -145,7 +142,7 @@ pub enum CallMode {
     Train,
 }
 
-pub struct NameScope;
+pub struct _NameScope;
 
 pub struct ModelContext;
 
@@ -156,7 +153,7 @@ impl ModelContext {
 
     pub fn with_layer<I, O, L>(
         &mut self, 
-        layer: &L, 
+        _layer: &L, 
         input: &I,
         fun: impl FnOnce(&I, &mut ModelContext) -> O
     ) -> O

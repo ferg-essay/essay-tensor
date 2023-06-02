@@ -605,9 +605,10 @@ impl fmt::Debug for TensorId {
 
 //trait Dtype : Copy {}
 impl Dtype for bool {}
-impl Dtype for f32 {}
+impl Dtype for u8 {}
 impl Dtype for i32 {}
 impl Dtype for usize {}
+impl Dtype for f32 {}
 impl Dtype for String {}
 
 #[cfg(test)]
