@@ -72,7 +72,7 @@ mod test {
         let x = Var::new("x", tensor!([1., 2.]));
         let y = Var::new("y", tensor!([3., 4.]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             &x + &y
         }); // .training(&[&x, &y]);
         let train = module.train(());

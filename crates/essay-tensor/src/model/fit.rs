@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use essay_opt::derive_opt;
 
 use crate::{
@@ -154,7 +152,7 @@ impl FitBuilder {
         let x = self.train_x.get_single_element();
         let y = self.train_y.get_single_element();
 
-        let trainer = Trainer::compile((x, y), |(x, y)| {
+        let trainer = Trainer::compile((x, y), |(x, y), _| {
             let model = self.model.take().unwrap();
             let y_pred = model(x.clone());
             let loss = l2_loss(y - &y_pred);

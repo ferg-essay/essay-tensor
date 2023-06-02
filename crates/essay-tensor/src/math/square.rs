@@ -29,7 +29,7 @@ mod test {
     fn square_df() {
         let x = Var::new("x", tensor!([1., 2., 3.]));
 
-        let module: Trainer<(), Tensor> = Trainer::compile((), |()| {
+        let module: Trainer<(), Tensor> = Trainer::compile((), |(), _| {
             x.square()
         }); // .training(&[&x]);
         let train = module.train(());

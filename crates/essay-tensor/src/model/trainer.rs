@@ -1,6 +1,6 @@
 use crate::{Tensor, model::Function};
 
-use super::{TensorCache, Var, Expr, gradient::backprop_expr, var::VarId, Tensors};
+use super::{TensorCache, Var, Expr, gradient::backprop_expr, var::VarId, Tensors, model::ModelContext};
 
 pub struct _Loss<Out:Tensors>(Tensor, Out);
 
@@ -17,7 +17,7 @@ where
 {
     pub fn compile<F>(input: In, fun: F) -> Trainer<In, Out>
     where
-        F: FnOnce(In) -> Out,
+        F: FnMut(In, &mut ModelContext) -> Out,
     {
         let fun = Function::new(input, fun);
         
@@ -113,14 +113,14 @@ mod test {
         let x = Var::new("x", tensor!([2.]));
 
         let m_a = Trainer::compile((), 
-            |_| a.tensor().clone()
+            |_, _| a.tensor().clone()
         );
 
         let value = m_a.call(());
         assert_eq!(value, tensor!([[1.]]));
 
         let m_x = Trainer::compile((), 
-            |_| x.tensor().clone()
+            |_, _| x.tensor().clone()
         );
 
         let value = m_x.call(());
@@ -133,7 +133,7 @@ mod test {
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
         let m_a = Trainer::compile((), 
-        |_| &a * tensor!(2.)
+        |_, _| &a * tensor!(2.)
         );
 
         let value = m_a.call(());
@@ -148,7 +148,7 @@ mod test {
 
         let m_a = Trainer::compile(
             tensor!([2., 1., 2.]), 
-            |x| &a * x
+            |x, _| &a * x
         );
 
         let value = m_a.call(tensor!([2., 1., 2.]));
@@ -164,7 +164,7 @@ mod test {
 
         let m_a = Trainer::compile(
             (tensor!([1., 1.]), tensor!([1., 1.])),
-            |(x, y)| x - y
+            |(x, y), _| x - y
         );
 
         let value = m_a.call((tensor!([2., 1.]), tensor!([1., 2.])));
@@ -180,7 +180,7 @@ mod test {
 
         let m_a = Trainer::compile(
             (tensor!([1., 1.]), tensor!([1., 1.])),
-            |(x, y)| (y.clone(), x.clone())
+            |(x, y), _| (y.clone(), x.clone())
         );
 
         let (y, x) = m_a.call((tensor!([2., 1.]), tensor!([1., 2.])));
@@ -195,7 +195,7 @@ mod test {
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
         let m_a = Trainer::compile((), 
-        |_| tensor!(2.) - &a
+        |_, _| tensor!(2.) - &a
         );
 
         let value = m_a.call(());
@@ -214,7 +214,7 @@ mod test {
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
         let m_a = Trainer::compile((), 
-        |_| tensor!(2.) * &a
+        |_, _| tensor!(2.) * &a
         );
 
         let value = m_a.call(());
@@ -230,7 +230,7 @@ mod test {
     fn test_var() {
         let x = Var::new("x", tensor!(0.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             x.tensor().clone()
         });
         let train = trainer.train(());
@@ -238,7 +238,7 @@ mod test {
         assert_eq!(train.gradient(&x), tensor!(1.));
 
         let x = Var::new("x", tensor!([[0., 2.], [10., 11.]]));
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             x.tensor().clone()
         });
         let train = trainer.train(());
@@ -250,7 +250,7 @@ mod test {
     fn test_l2_loss() {
         let a = Var::new("a", tensor!(2.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             a.l2_loss()
         }); // .training(&[&a]);
         let train = trainer.train(());
@@ -260,7 +260,7 @@ mod test {
         let a = Var::new("a", tensor!(3.));
         let y = Var::new("y", tensor!(0.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             let loss: Tensor = (&a - &y).l2_loss();
             assert_eq!(loss, tensor!(4.5));
             loss
@@ -275,7 +275,7 @@ mod test {
 
         let a = Var::new("a", tensor!([1., 2.]));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             let loss: Tensor = a.l2_loss();
 
             assert_eq!(&loss, &tensor!(2.5));
@@ -293,7 +293,7 @@ mod test {
         let a = Var::new("a", tensor!(1.));
         let x = Var::new("x", tensor!(0.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             loss
@@ -309,7 +309,7 @@ mod test {
         let a = Var::new("a", tensor!([1., 2.]));
         let x = Var::new("x", tensor!([0., 0.]));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             loss
@@ -325,7 +325,7 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2.], [3., 4.]]));
         let x = Var::new("x", tensor!([[0., 1.], [0., 2.]]));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             let loss: Tensor = (&a - &x) * (&a - &x);
 
             loss
@@ -335,7 +335,7 @@ mod test {
         assert_eq!(train.gradient(&a), tensor!(2.));
         assert_eq!(train.gradient(&x), tensor!(-2.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             (&a - &x) * (&a - &x)
         }); // .training(&[&a, &x]);
         let train = trainer.train(());

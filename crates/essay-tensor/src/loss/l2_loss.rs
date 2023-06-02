@@ -53,7 +53,7 @@ mod test {
     fn l2_loss_df_n() {
         let x = Var::new("x", tf32!([1., 2., 2., 1.]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             2. * x.l2_loss()
         });
         let train = module.train(());

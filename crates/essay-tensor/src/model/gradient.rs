@@ -210,7 +210,7 @@ mod test {
     fn test_var() {
         let x = Var::new("x", tensor!(0.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             x.tensor().clone()
         }); // .training(&[&x]);
         let train = trainer.train(());
@@ -219,7 +219,7 @@ mod test {
 
         let x = Var::new("x", tensor!([[0., 2.], [10., 11.]]));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             x.tensor().clone()
         }); // .training(&[&x]);
         let train = trainer.train(());
@@ -231,7 +231,7 @@ mod test {
     fn test_l2_loss() {
         let x = Var::new("x", tensor!(2.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             let loss: Tensor = x.l2_loss();
 
             loss
@@ -243,7 +243,7 @@ mod test {
 
         let x = Var::new("x", tensor![3.]);
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             x.l2_loss()
         }); // .training(&[&x]);
         let train = trainer.train(());
@@ -253,7 +253,7 @@ mod test {
 
         let x = Var::new("x", tensor!([1., 2., 3.]));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             x.l2_loss()
         }); // .training(&[&x]);
         let train = trainer.train(());
@@ -267,7 +267,7 @@ mod test {
         let x = Var::new("x", tensor!(3.));
         let y = Var::new("y", tensor!(1.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             &x - &y
         }); // .training(&[&x, &y]);
         let train = trainer.train(());
@@ -279,7 +279,7 @@ mod test {
         let x = Var::new("x", tensor!([4., 5., 7.]));
         let y = Var::new("y", tensor!([1., 2., 3.]));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             &x - &y
         }); // .training(&[&x, &y]);
         let train = trainer.train(());
@@ -293,7 +293,7 @@ mod test {
     fn test_mul() {
         let x = Var::new("x", tensor!([1., 2., 3.]));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             tensor!(2.) * &x
         }); // .training(&[&x]);
         let train = trainer.train(());
@@ -306,7 +306,7 @@ mod test {
         let a = Var::new("a", tensor!(3.));
         let y = Var::new("y", tensor!(0.));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             (&a - &y).l2_loss()
         }); // .training(&[&a, &y]);
         let train = trainer.train(());
@@ -318,7 +318,7 @@ mod test {
         let a = Var::new("a", tensor!([1., 2.]));
         let x = Var::new("x", tensor!([0., 0.]));
 
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             (&a - &x).l2_loss()
         }); // .training(&[&a, &x]);
         let train = trainer.train(());

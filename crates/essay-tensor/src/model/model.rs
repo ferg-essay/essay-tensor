@@ -147,6 +147,13 @@ pub enum CallMode {
 
 pub struct NameScope;
 
+pub struct ModelContext;
+
+impl ModelContext {
+    pub fn mode(&self) -> CallMode {
+        CallMode::Eval
+    }
+}
 
 #[cfg(test)]
 mod test {

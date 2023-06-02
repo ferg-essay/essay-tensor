@@ -290,7 +290,7 @@ mod test {
         let x = Var::new("x", tensor!([1., 2.]));
         let y = Var::new("y", tensor!([3., 4.]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             &x + &y
         });
         let train = module.train(());
@@ -305,7 +305,7 @@ mod test {
         let x = Var::new("x", tensor!([3.]));
         let y = tf32!([[1.], [2.]]);
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             &x + &y
         });
         let train = module.train(());
@@ -319,7 +319,7 @@ mod test {
         let x = tf32!([[1.], [2.]]);
         let y = Var::new("y", tensor!([3.]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             &x + &y
         });
         let train = module.train(());

@@ -1,6 +1,6 @@
 use essay_opt::derive_opt;
 
-use crate::{model::{Var, CallMode}, Tensor, prelude::{Shape}, init::{Initializer, zeros_initializer}};
+use crate::{model::{Var, CallMode, Tensors}, Tensor, prelude::{Shape}, init::{Initializer, zeros_initializer}};
 
 use super::{Layer, input::InputSpec, 
 };
@@ -55,18 +55,19 @@ impl Layer for Linear {
         todo!()
     }
 }
-/*
+
 impl LayerBuilder for Linear {
-    fn build(&self, input: &ModelIn) -> ModelIn {
-        let a = Var::new("a", self.init.init(&input.shape().extend_dims(self.units)));
+    fn build(&self, x: Tensor, _mode: CallMode) -> Tensor {
+        let a = Var::new("a", self.init.init(&x.shape().extend_dims(self.units)));
         let b = Var::new("b",self.bias_init.init(&self.units.into()));
 
-        Self::build_model(input, |x| {
-            a.matvec(&x) + &b
-        })
+        a.matvec(&x) + &b
     }
 }
-*/
+
+trait LayerBuilder<In: Tensors = Tensor, Out: Tensors = Tensor> {
+    fn build(&self, input: In, mode: CallMode) -> Out;
+}
 
 pub struct LinearModel {
     input_spec: InputSpec,

@@ -305,7 +305,7 @@ mod test {
         let a = Var::new("a", tf32!([[10.]]));
         let x = Var::new("x", tf32!([2.]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             a.matvec(&x)
         }); // .training(&[&a, &x]);
         let train = module.train(());
@@ -327,7 +327,7 @@ mod test {
         let a = Var::new("a", tf32!([[10.]]));
         let x = Var::new("x", tf32!([[2.]]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             a.matvec(&x)
         }); // .training(&[&a, &x]);
         let train = module.train(());
@@ -351,7 +351,7 @@ mod test {
         let a = Var::new("a", tf32!([[10.]]));
         let x = Var::new("x", tf32!([[1.], [2.]]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             a.matvec(&x)
         }); // .training(&[&a, &x]);
         let train = module.train(());
@@ -371,7 +371,7 @@ mod test {
         let a = Var::new("a", tf32!([[10.]]));
         let x = Var::new("x", tf32!([[[2.]], [[3.]]]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             a.matvec(&x)
         });
         let train = module.train(());
@@ -397,7 +397,7 @@ mod test {
         let a = Var::new("a", tf32!([[1.], [10.]]));
         let x = Var::new("x", tf32!([2.]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             a.matvec(&x)
         }); // .training(&[&a, &x]);
         let train = module.train(());
@@ -419,7 +419,7 @@ mod test {
         let a = Var::new("a", tf32!([[10., 20.]]));
         let x = Var::new("x", tf32!([1., 3.]));
 
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             a.matvec(&x)
         });
         let train = module.train(());
@@ -445,7 +445,7 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             a.matvec(&x)
         }); // .training(&[&a, &x]);
         let train = module.train(());
@@ -457,7 +457,7 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             a.matvec(&x)
         }); // .training(&[&a, &x]);
         let train = module.train(());
@@ -472,7 +472,7 @@ mod test {
         let a = Var::new("a", tensor!([[1.]]));
         let x = Var::new("x", tensor!([1.]));
     
-        let module = Trainer::compile((), |()| {
+        let module = Trainer::compile((), |(), _| {
             let out: Tensor = a.matvec(&x);
 
             out.l2_loss()
@@ -486,7 +486,7 @@ mod test {
         let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
         let x = Var::new("x", tensor!([10., 20., 30.]));
     
-        let trainer = Trainer::compile((), |()| {
+        let trainer = Trainer::compile((), |(), _| {
             let out = a.matvec(&x);
             assert_eq!(out, tensor!([140., 320.]));
 

@@ -1,4 +1,4 @@
-use super::{Var, Expr, TensorCache, Tensors, Operation};
+use super::{Var, Expr, TensorCache, Tensors, Operation, model::ModelContext};
 use crate::{tensor::{TensorId}, Tensor};
 use std::{cell::RefCell, sync::atomic::{AtomicU32, Ordering}};
 
@@ -17,12 +17,14 @@ where
 {
     pub fn new<F>(input: In, fun: F) -> Function<In, Out>
     where
-        F: FnOnce(In) -> Out,
+        F: FnMut(In, &mut ModelContext) -> Out,
     {
         let id = ModelId::alloc();
 
         let mut expr = Expr::new(id);
         let mut tensors = TensorCache::new(id);
+
+        let mut ctx = ModelContext;
     
         let input = In::fun_in(&mut expr, &mut tensors, &input);
 
@@ -31,7 +33,7 @@ where
             tensors: _tensors,
             vars,
             out_ids,
-        } = Tape::build(expr, tensors, input, fun);
+        } = Tape::build(expr, tensors, input, fun, &mut ctx);
 
         Self {
             fun: Box::new(move |expr: &Expr, input| { 
@@ -82,11 +84,17 @@ pub struct Tape {
 }
 
 impl Tape {
-    fn build<F, In, Out>(expr: Expr, tensors: TensorCache, input: In, fun: F) -> Tape
+    fn build<F, In, Out>(
+        expr: Expr, 
+        tensors: TensorCache, 
+        input: In, 
+        fun: F,
+        ctx: &mut ModelContext,
+    ) -> Tape
     where
         In: Tensors,
         Out: Tensors,
-        F: FnOnce(In) -> Out,
+        F: FnOnce(In, &mut ModelContext) -> Out,
     {
         let tape = Tape {
             expr,
@@ -101,7 +109,7 @@ impl Tape {
             f.borrow_mut().replace(tape);
         });
 
-        let out = fun(input);
+        let out = fun(input, ctx);
 
         let mut tape = TAPE.with(|f| f.borrow_mut().take().unwrap());
 
@@ -202,14 +210,14 @@ mod test {
         let x = Var::new("x", tensor!([2.]));
 
         let m_a = Function::new((), 
-            |_| a.tensor().clone()
+            |_, _| a.tensor().clone()
         );
 
         let value = m_a.call(());
         assert_eq!(value, tensor!([[1.]]));
 
         let m_x = Function::new((), 
-            |_| x.tensor().clone()
+            |_, _| x.tensor().clone()
         );
 
         let value = m_x.call(());
@@ -222,7 +230,7 @@ mod test {
         let a = Var::new("a", tensor!([1., 2., 3.]));
 
         let m_a = Function::new((), 
-        |_| &a * tensor!(2.)
+        |_, _| &a * tensor!(2.)
         );
 
         let value = m_a.call(());
@@ -237,7 +245,7 @@ mod test {
 
         let m_a = Function::new(
             tensor!([2., 1., 2.]), 
-            |x| &a * x
+            |x, _| &a * x
         );
 
         let value = m_a.call(tensor!([2., 1., 2.]));
@@ -253,7 +261,7 @@ mod test {
 
         let m_a = Function::new(
             (tensor!([1., 1.]), tensor!([1., 1.])),
-            |(x, y)| x - y
+            |(x, y), _| x - y
         );
 
         let value = m_a.call((tensor!([2., 1.]), tensor!([1., 2.])));
@@ -269,7 +277,7 @@ mod test {
 
         let m_a = Function::new(
             (tensor!([1., 1.]), tensor!([1., 1.])),
-            |(x, y)| (y.clone(), x.clone())
+            |(x, y), _| (y.clone(), x.clone())
         );
 
         let (y, x) = m_a.call((tensor!([2., 1.]), tensor!([1., 2.])));
