@@ -1,39 +1,29 @@
-use std::marker::PhantomData;
+use crate::{Tensor};
 
-use crate::{layer::{BoxLayer, Layer}, prelude::Tensors};
+use super::LayerBuilder;
 
-pub struct Sequential<O>
-where
-    O: Tensors
-{
-    _name: Option<String>,
-    layers: Vec<BoxLayer>,
-    marker: PhantomData<O>,
+pub struct Sequential {
+    layers: Vec<BoxLayerOne>,
 }
 
-impl<O> Sequential<O>
-where
-    O: Tensors
-{
-    pub fn add<O2: Tensors>(self, into_layer: impl IntoLayer<O, O2>) -> Sequential<O2> {
-        let mut layers = self.layers;
-        layers.push(into_layer.into_layer());
+impl Sequential {
+    pub fn push(&mut self, layer: impl LayerBuilder<Tensor, Tensor> + 'static) -> &mut Self {
+        self.layers.push(Box::new(layer));
 
-        Sequential {
-            _name: self._name,
-            layers,
+        self
+    }
+}
 
-            marker: PhantomData,
+type BoxLayerOne = Box<dyn LayerBuilder<Tensor, Tensor>>;
+
+impl LayerBuilder<Tensor, Tensor> for Sequential {
+    fn build(&self, input: &Tensor, ctx: &mut crate::model::ModelContext) -> Tensor {
+        let mut value = input.clone();
+
+        for layer in &self.layers {
+            value = layer.build(&value, ctx);
         }
-    }
-}
 
-impl<L:Layer + 'static> From<L> for BoxLayer {
-    fn from(value: L) -> Self {
-        Box::new(value)
+        value
     }
-}
-
-pub trait IntoLayer<O: Tensors, O2: Tensors> {
-    fn into_layer(self) -> BoxLayer;
 }

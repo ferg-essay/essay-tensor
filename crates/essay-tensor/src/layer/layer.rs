@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 
-use crate::{prelude::{Shape}, flow::FlowIn, Tensor, tensor::Dtype, model::{CallMode, Tensors}};
+use essay_opt::derive_opt;
 
-pub trait Layer<I: Tensors = Tensor, O: Tensors = Tensor> {
-    fn call(&self, input: I, mode: CallMode) -> O;
+use crate::{prelude::{Shape}, flow::FlowIn, Tensor, tensor::Dtype, model::{CallMode, Tensors, ModelContext}};
 
+pub trait Layer<I: Tensors=Tensor, O: Tensors=Tensor> {
     // trainable: bool
     // name
     // trainable_weights -> Var
@@ -42,7 +42,18 @@ pub trait Layer<I: Tensors = Tensor, O: Tensors = Tensor> {
     // __call__
 }
 
+pub trait LayerBuilder<I: Tensors=Tensor, O: Tensors=Tensor> {
+    fn build(&self, input: &I, ctx: &mut ModelContext) -> O;
+}
+
+
 pub trait LayerTrait {
+
+}
+
+#[derive_opt(LayerOpt)]
+#[derive(Default)]
+pub struct LayerArg {
 
 }
 
@@ -50,50 +61,47 @@ pub type BoxLayer = Box<dyn LayerTrait>;
 
 #[cfg(test)]
 mod test {
-    /*
-    use crate::{Tensor, prelude::Shape, model::{ModelBuilder, ModelIn, model_builder}};
+    use crate::{Tensor, model::{Function, ModelContext}};
 
     use super::{LayerBuilder};
 
+    #[test]
     fn test() {
-        let mb = model_builder(Tensor::zeros([8]));
-        let input = mb.input();
+        let fun = Function::new(Tensor::zeros([8]), |x, ctx| {
+            let (a, b) = Split.build(&x, ctx);
 
-        let (a, b) = Split.build(&input);
+            let a = Plain.build(&a, ctx);
+            let b = Plain.build(&b, ctx);
 
-        let a = Plain.build(&a);
-        let b = Plain.build(&b);
-
-        let mb_out = Sum.build(vec![&a, &b]);
-
-        let model = mb.output::<Tensor>(&mb_out);
-
+            Sum.build(&vec![a, b], ctx)
+        });
     }
 
     pub struct Split;
 
-    impl LayerBuilder<ModelIn, (ModelIn, ModelIn)> for Split {
-        fn build(&self, input: &ModelIn) -> (ModelIn, ModelIn) {
-            Self::build_model(input, |x| { (x.clone(), x.clone()) })
+    impl LayerBuilder<Tensor, (Tensor, Tensor)> for Split {
+        fn build(&self, x: &Tensor, ctx: &mut ModelContext) -> (Tensor, Tensor) {
+            let v = ctx.with_layer(self, x, |x, ctx| {
+                (x.clone(), x.clone())
+            });
+
+            (x + v.0, x + v.1)
         }
     }
 
     pub struct Plain;
 
-    impl LayerBuilder<ModelIn, ModelIn> for Plain {
-        fn build(&self, input: &ModelIn) -> ModelIn {
-            Self::build_model(input, |x| x.clone())
+    impl LayerBuilder for Plain {
+        fn build(&self, x: &Tensor, ctx: &mut ModelContext) -> Tensor {
+            x.clone()
         }
     }
 
     pub struct Sum;
 
-    impl LayerBuilder<Vec<ModelIn>, ModelIn> for Sum {
-        fn build(&self, input: Vec<&ModelIn>) -> ModelIn {
-            Self::build_model(input, |x: Vec<&Tensor>| {
-                x[0].clone()
-            })
+    impl LayerBuilder<Vec<Tensor>, Tensor> for Sum {
+        fn build(&self, x: &Vec<Tensor>, ctx: &mut ModelContext) -> Tensor {
+            x[0].clone()
         }
     }
-    */
 }

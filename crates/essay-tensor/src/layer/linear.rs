@@ -1,8 +1,8 @@
 use essay_opt::derive_opt;
 
-use crate::{model::{Var, CallMode, Tensors}, Tensor, prelude::{Shape}, init::{Initializer, zeros_initializer}};
+use crate::{model::{Var, CallMode, Tensors, ModelContext}, Tensor, prelude::{Shape}, init::{Initializer, zeros_initializer}};
 
-use super::{Layer, input::InputSpec, 
+use super::{Layer, input::InputSpec, LayerBuilder, 
 };
 
 pub struct Linear {
@@ -49,25 +49,30 @@ impl Linear {
     }
     */
 }
-
+/*
 impl Layer for Linear {
-    fn call(&self, input: Tensor, mode: CallMode) -> Tensor {
+    fn call(&self, input: Tensor, ctx: &mut ModelContext) -> Tensor {
         todo!()
     }
 }
+*/
 
 impl LayerBuilder for Linear {
-    fn build(&self, x: Tensor, _mode: CallMode) -> Tensor {
-        let a = Var::new("a", self.init.init(&x.shape().extend_dims(self.units)));
-        let b = Var::new("b",self.bias_init.init(&self.units.into()));
+    fn build(&self, x: &Tensor, ctx: &mut ModelContext) -> Tensor {
+        ctx.with_layer(self, x, |x, _| {
+            let a = Var::new("a", self.init.init(&x.shape().extend_dims(self.units)));
+            let b = Var::new("b",self.bias_init.init(&self.units.into()));
 
-        a.matvec(&x) + &b
+            a.matvec(&x) + &b
+        })
     }
 }
-
+/*
 trait LayerBuilder<In: Tensors = Tensor, Out: Tensors = Tensor> {
-    fn build(&self, input: In, mode: CallMode) -> Out;
+    fn build(&self, input: In, ctx: &mut ModelContext) -> Out;
 }
+*/
+
 
 pub struct LinearModel {
     input_spec: InputSpec,

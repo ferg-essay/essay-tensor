@@ -1,7 +1,7 @@
 use core::fmt;
-use std::{marker::PhantomData, sync::atomic::{AtomicU32, Ordering}, rc::Rc, cell::RefCell};
+use std::{marker::PhantomData, sync::atomic::{AtomicU32, Ordering}, rc::Rc, cell::RefCell, any::type_name};
 
-use crate::{prelude::{Shape}, model::{Var, Function}, Tensor, layer::Layer, tensor::TensorId};
+use crate::{prelude::{Shape}, model::{Var, Function}, Tensor, layer::{Layer, LayerBuilder}, tensor::TensorId};
 
 use super::{Tensors, Expr, TensorCache};
 
@@ -152,6 +152,20 @@ pub struct ModelContext;
 impl ModelContext {
     pub fn mode(&self) -> CallMode {
         CallMode::Eval
+    }
+
+    pub fn with_layer<I, O, L>(
+        &mut self, 
+        layer: &L, 
+        input: &I,
+        fun: impl FnOnce(&I, &mut ModelContext) -> O
+    ) -> O
+    where
+        I: Tensors,
+        O: Tensors,
+        L: LayerBuilder<I, O>,
+    {
+        fun(input, self)
     }
 }
 

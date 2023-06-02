@@ -21,7 +21,7 @@ pub use trainer::{
 };
 
 pub use model::{
-    Model, CallMode,
+    Model, CallMode, ModelContext,
 };
 /*
 pub(crate) use tape::{
