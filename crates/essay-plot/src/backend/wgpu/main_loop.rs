@@ -6,6 +6,17 @@ use winit::{
     window::Window,
 };
 
+use super::render::{VertexBuffer, Vertex, path_render};
+
+pub struct State {
+    surface: wgpu::Surface,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    config: wgpu::SurfaceConfiguration,
+    size: winit::dpi::PhysicalSize<u32>,
+    render_pipeline: wgpu::RenderPipeline,
+}
+
 async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
     // event_loop: EventLoop<()>, window: Window) -> EventLoopArgs {
     let size = window.inner_size();
@@ -35,11 +46,13 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         )
         .await
         .expect("Failed to create device");
-
+    /*
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
         source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("shader.wgsl"))),
     });
+    */
+    let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
 
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
@@ -50,13 +63,17 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
     let swapchain_capabilities = surface.get_capabilities(&adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
 
+    let vertex_buffer = VertexBuffer::new(1024, &device);
+
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
             module: &shader,
             entry_point: "vs_main",
-            buffers: &[],
+            buffers: &[
+                vertex_buffer.desc()
+            ],
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader,
@@ -91,6 +108,7 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         queue,
         render_pipeline,
         pipeline_layout,
+        vertex_buffer,
     }
 }
 
@@ -104,6 +122,7 @@ struct EventLoopArgs {
     queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
     pipeline_layout: wgpu::PipelineLayout,
+    vertex_buffer: VertexBuffer,
 }
 
 fn run_event_loop(event_loop: EventLoop<()>, window: Window, args: EventLoopArgs) {
@@ -117,6 +136,7 @@ fn run_event_loop(event_loop: EventLoop<()>, window: Window, args: EventLoopArgs
         queue,
         render_pipeline,
         pipeline_layout,
+        mut vertex_buffer,
     } = args;
 
     event_loop.run(move |event, _, control_flow| {
@@ -134,7 +154,7 @@ fn run_event_loop(event_loop: EventLoop<()>, window: Window, args: EventLoopArgs
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
-                redraw(&surface, &device, &queue, &render_pipeline);
+                render(&surface, &device, &queue, &render_pipeline, &mut vertex_buffer);
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -145,11 +165,12 @@ fn run_event_loop(event_loop: EventLoop<()>, window: Window, args: EventLoopArgs
     });
 }
 
-fn redraw(
+fn render(
     surface: &wgpu::Surface,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    render_pipeline: &wgpu::RenderPipeline
+    render_pipeline: &wgpu::RenderPipeline,
+    vertex_buffer: &mut VertexBuffer,
 ) {
     let frame = surface
         .get_current_texture()
@@ -158,6 +179,8 @@ fn redraw(
     let view = frame
         .texture
         .create_view(&wgpu::TextureViewDescriptor::default());
+
+    let vertex_len = path_render(vertex_buffer.as_slice());
 
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -169,9 +192,9 @@ fn redraw(
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.2,
-                        b: 0.2,
+                        r: 1.0,
+                        g: 1.0,
+                        b: 1.0,
                         a: 1.0,
                     }),
                     store: true,
@@ -180,7 +203,12 @@ fn redraw(
             depth_stencil_attachment: None,
         });
         rpass.set_pipeline(&render_pipeline);
-        rpass.draw(0..3, 0..1);
+
+        //let vertex_len = 3;
+        let size = (vertex_len * vertex_buffer.stride()) as u64;
+        rpass.set_vertex_buffer(0, vertex_buffer.buffer().slice(..size));
+        // rpass.draw(0..self.num_vertices, 0..1);
+        rpass.draw(0..vertex_len as u32, 0..1);
     }
 
     queue.submit(Some(encoder.finish()));

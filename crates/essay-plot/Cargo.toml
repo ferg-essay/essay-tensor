@@ -12,6 +12,7 @@ eframe = "0.22"
 wgpu = "0.16"
 winit = "0.28"
 pollster = "0.3"
+bytemuck = "1.13"
 
 [lib]
 doctest = false
