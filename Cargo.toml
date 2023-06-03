@@ -11,6 +11,7 @@ path = "src/lib.rs"
 env_logger = { version = "0.10.0" }
 log = { version = "0.4.17" }
 essay-tensor = { path = "crates/essay-tensor" }
+essay-plot = { path = "crates/essay-plot" }
 #essay-opencl = { path = "crates/essay-opencl" }
 #essay-nn = { path = "crates/essay-nn" }
 dfdx = {version ="0.11"}

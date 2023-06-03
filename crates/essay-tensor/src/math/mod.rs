@@ -73,7 +73,7 @@ macro_rules! tensor_ops {
             type Output = Tensor<$ty>;
         
             fn $fun(self, rhs: Tensor<$ty>) -> Self::Output {
-                binary_op(&self, &rhs, $binop)
+                binary_op(self, &rhs, $binop)
             }
         }
 
@@ -90,7 +90,7 @@ macro_rules! tensor_ops {
             type Output = Tensor<$ty>;
         
             fn $fun(self, rhs: &Tensor<$ty>) -> Self::Output {
-                binary_op(&self, &rhs, $binop)
+                binary_op(&self, rhs, $binop)
             }
         }
 
@@ -98,7 +98,7 @@ macro_rules! tensor_ops {
             type Output = Tensor<$ty>;
         
             fn $fun(self, rhs: &Tensor<$ty>) -> Self::Output {
-                binary_op(&self, &rhs, $binop)
+                binary_op(self, rhs, $binop)
             }
         }
 

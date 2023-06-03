@@ -48,12 +48,12 @@ macro_rules! tensor_uop {
 #[macro_export]
 macro_rules! tensor_binop {
     ($fun:ident, $op:expr) => {
-        pub fn $fun(a: &Tensor, b: &Tensor) -> Tensor {
+        pub fn $fun(a: impl Into<Tensor>, b: impl Into<Tensor>) -> Tensor {
             binary_op(a, b, $op)
         }
 
         impl Tensor {
-            pub fn $fun(&self, b: &Tensor) -> Tensor {
+            pub fn $fun(&self, b: impl Into<Tensor>) -> Tensor {
                 binary_op(self, b, $op)
             }
         }

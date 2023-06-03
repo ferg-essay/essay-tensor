@@ -1,11 +1,12 @@
-use std::cmp;
+use std::{cmp, f32::consts::PI};
 
 use essay_opt::derive_opt;
 use rustfft::{FftPlanner, num_complex::Complex};
 
 use crate::{Tensor, tensor::TensorUninit};
 
-pub fn rfft_norm(tensor: Tensor, opt: impl FftOpt) -> Tensor {
+pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
+    let tensor = tensor.into();
     let opt = opt.into_arg();
     let len = tensor.cols();
     let batch = tensor.len() / len;
@@ -15,6 +16,8 @@ pub fn rfft_norm(tensor: Tensor, opt: impl FftOpt) -> Tensor {
 
     let mut buffer = Vec::<Complex<f32>>::new();
     buffer.resize(len, Complex { re: 0., im: 0. });
+
+    let window = hann_window(len);
 
     let fft_out = (len / 2) + 1;
     let len_out = match opt.fft_length {
@@ -29,7 +32,7 @@ pub fn rfft_norm(tensor: Tensor, opt: impl FftOpt) -> Tensor {
             let x = tensor.as_wrap_slice(n * len);
 
             for i in 0..len {
-                buffer[i] = Complex { re: x[i], im: 0. };
+                buffer[i] = Complex { re: x[i] * window[i], im: 0. };
             }
         
             fft_fwd.process(&mut buffer);
@@ -51,6 +54,22 @@ pub fn rfft_norm(tensor: Tensor, opt: impl FftOpt) -> Tensor {
         let len = vec.len();
         vec[len - 1] = len_out;
         Tensor::from_uninit(uninit, vec)
+    }
+}
+
+fn hann_window(len: usize) -> Tensor {
+    unsafe {
+        let mut uninit = TensorUninit::<f32>::new(len);
+
+        let step : f32 = PI / len as f32;
+
+        for i in 0..len {
+            let tmp = (step * i as f32).sin();
+
+            uninit[i] = tmp * tmp;
+        }
+
+        Tensor::from_uninit(uninit, [len])
     }
 }
 

@@ -36,8 +36,11 @@ pub struct BinopDx<Op: BinaryKernel>(Op);
 #[derive(Debug, Clone)]
 pub struct BinopDy<Op: BinaryKernel>(Op);
 
-pub fn binary_op<Op: BinaryKernel<f32>>(a: &Tensor<f32>, b: &Tensor<f32>, op: Op) -> Tensor {
-    let size = a.broadcast(b);
+pub fn binary_op<Op: BinaryKernel<f32>>(a: impl Into<Tensor<f32>>, b: impl Into<Tensor<f32>>, op: Op) -> Tensor {
+    let a = a.into();
+    let b = b.into();
+
+    let size = a.broadcast(&b);
     let inner = a.len().min(b.len());
     let batch = size / inner;
 
@@ -55,9 +58,9 @@ pub fn binary_op<Op: BinaryKernel<f32>>(a: &Tensor<f32>, b: &Tensor<f32>, op: Op
         shape,
     };
 
-    let node = NodeOp::new(&[a, b], binop.to_op());
+    let node = NodeOp::new(&[&a, &b], binop.to_op());
 
-    let tensor = binop.f(&[a, b], node);
+    let tensor = binop.f(&[&a, &b], node);
 
     Tape::set_tensor(tensor)
 }

@@ -1,30 +1,47 @@
-use essay_tensor::prelude::*;
-use plotly::{common::{Mode, MarkerSymbol, Marker}, Layout, layout::Axis};
+use essay_tensor::Tensor;
 
-extern crate plotly;
+use crate::figure::Figure;
+
+pub fn plot(
+    x: impl Into<Tensor>, 
+    y: impl Into<Tensor>, 
+    opt: impl Into<PlotOpt>
+) -> Figure {
+    todo!()
+}
 
 pub struct Plot {
-    plot: plotly::Plot,
-    layout: plotly::Layout,
-    x_axis: Option<Axis>,
-    y_axis: Option<Axis>,
+    x: Tensor,
+    y: Tensor,
+    //plot: plotly::Plot,
+    //layout: plotly::Layout,
+    //x_axis: Option<Axis>,
+    //y_axis: Option<Axis>,
 }
 
 impl Plot {
-    pub fn new() -> Self {
+    pub fn new(x: impl Into<Tensor>, y: impl Into<Tensor>) -> Self {
         Self {
-            plot: plotly::Plot::new(),
-            layout: Default::default(),
-            x_axis: Default::default(),
-            y_axis: Default::default(),
+            x: x.into(),
+            y: y.into(),
+            //plot: plotly::Plot::new(),
+            //layout: Default::default(),
+            //x_axis: Default::default(),
+            //y_axis: Default::default(),
         }
+    }
+
+    fn points(&self) -> Vec::<[f64; 2]> {
+        (0..self.x.len()).map(|i| {
+            [self.x[i] as f64, self.y[i] as f64]
+        }).collect()
     }
 
     pub fn plot(
         &mut self, 
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
-        opt: impl PlotOpt
+        opt: impl Into<PlotOpt>
     ) -> &mut Self {
         let x : Tensor = x.into();
         let y : Tensor = y.into();
@@ -34,6 +51,7 @@ impl Plot {
         let x = Vec::from(x.as_slice());
         let y = Vec::from(y.as_slice());
 
+        /*
         let mut trace = plotly::Scatter::new(x, y);
 
         if let Some(name) = &opt.name {
@@ -43,6 +61,7 @@ impl Plot {
         trace = trace.marker(opt.marker);
 
         self.plot.add_trace(trace);
+        */
 
         self
     }
@@ -51,7 +70,7 @@ impl Plot {
         &mut self, 
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
-        opt: impl PlotOpt
+        opt: impl Into<PlotOpt>
     ) -> &mut Self {
         let x : Tensor = x.into();
         let y : Tensor = y.into();
@@ -61,6 +80,7 @@ impl Plot {
         let x = Vec::from(x.as_slice());
         let y = Vec::from(y.as_slice());
 
+        /*
         let mut trace = plotly::Scatter::new(x, y);
 
         trace = trace.mode(Mode::Markers);
@@ -72,10 +92,12 @@ impl Plot {
         trace = trace.marker(opt.marker);
 
         self.plot.add_trace(trace);
+        */
 
         self
     }
 
+        /*
     fn marker(trace: Box<plotly::Scatter<f32, f32>>, format: &str) -> Box<plotly::Scatter<f32, f32>> {
         let mut marker = Marker::new();
         
@@ -88,14 +110,16 @@ impl Plot {
 
         trace.marker(marker)
     }
+        */
 
     pub fn set_title(&mut self, title: &str) -> &mut Self {
-        self.layout = self.layout.clone().title(title.into());
+        //self.layout = self.layout.clone().title(title.into());
 
         self
     }
 
     pub fn set_xlabel(&mut self, label: &str) -> &mut Self {
+        /*
         let axis = match &self.x_axis {
             Some(axis) => axis.clone(),
             None => Axis::new(),
@@ -104,11 +128,13 @@ impl Plot {
         let axis = axis.title(label.into());
 
         self.x_axis = Some(axis);
+        */
 
         self
     }
 
     pub fn set_ylabel(&mut self, label: &str) -> &mut Self {
+        /*
         let axis = match &self.y_axis {
             Some(axis) => axis.clone(),
             None => Axis::new(),
@@ -117,40 +143,26 @@ impl Plot {
         let axis = axis.title(label.into());
 
         self.y_axis = Some(axis);
+        */
 
         self
     }
 
     pub fn show(&mut self) -> &mut Self {
-        let mut layout = self.layout.clone();
+        todo!()
+    }
 
-        if let Some(x_axis) = &self.x_axis {
-            layout = layout.x_axis(x_axis.clone());
-        }
-
-        self.plot.set_layout(layout);
-
-        self.plot.show();
-
-        self
+    fn draw(&self, ui: &mut egui::Ui) {
+        todo!()
     }
 }
 
-pub trait PlotOpt {
-    fn marker(self, marker: &str) -> PlotArg;
-
-    fn label(self, name: &str) -> PlotArg;
-
-    fn into(self) -> PlotArg;
-}
-
 #[derive(Default)]
-pub struct PlotArg {
-    name: Option<String>,
-    marker: Marker,
+pub struct PlotOpt {
 }
 
-impl PlotOpt for PlotArg {
+impl PlotOpt {
+    /*
     fn marker(self, name: &str) -> Self {
         let marker = match name {
             "." => self.marker.symbol(MarkerSymbol::CircleDot),
@@ -161,7 +173,9 @@ impl PlotOpt for PlotArg {
 
         Self { marker, ..self }
     }
+    */
 
+    /*
     fn label(self, name: &str) -> Self {
         Self { name: Some(name.to_owned()), ..self }
     }
@@ -169,80 +183,11 @@ impl PlotOpt for PlotArg {
     fn into(self) -> Self {
         self
     }
+    */    
 }
 
-impl PlotOpt for () {
-    fn marker(self, format: &str) -> PlotArg {
-        PlotArg::default().marker(format)
-    }
-
-    fn label(self, name: &str) -> PlotArg {
-        PlotArg::default().label(name)
-    }
-
-    fn into(self) -> PlotArg {
-        PlotArg::default()
-    }
-}
-
-
-#[cfg(test)]
-mod test {
-    /*
-    extern crate plotly;
-    use plotly::common::Mode;
-    use plotly::{Plot, Scatter};
-
-    fn line_and_scatter_plot() {
-        let trace1 = Scatter::new(vec![1, 2, 3, 4], vec![10, 15, 13, 17])
-            .name("trace1")
-            .mode(Mode::Lines);
-
-        let mut plot = Plot::new();
-        plot.add_trace(trace1);
-        plot.show();
-    }
-    */
-
-    use crate::prelude::*;
-    use essay_tensor::init::linspace;
-    use essay_tensor::prelude::*;
-    use essay_tensor::io::{decode_wav, read_file};
-
-    #[test]
-    fn test() {
-        println!("Hello");
-
-        let mut plot = Plot::new();
-
-        let x = tf32!([1., 2., 3., 4., 5., 6., 7., 8., 9., 10.]);
-        let y = &x * &x + tf32!(1.);
-
-        plot.plot(&x, &y, ().marker("o").label("My Item"));
-        plot.scatter(&x, &x * &x * &x, ().marker(".").label("My Item 3"));
-        plot.set_title("My Title");
-        plot.set_xlabel("My x-axis");
-
-        plot.show();
-    }
-
-    #[test]
-    fn test_wav() {
-        println!("Hello");
-
-        let mut plot = Plot::new();
-
-        let file = read_file("../../assets/audio/book-386/7176-0003.wav").unwrap();
-        let (wav, rate) = decode_wav(file);
-        
-        let x = linspace(0., wav.len() as f32 / rate[0] as f32, wav.len());
-        let y = wav;
-
-        plot.plot(&x, &y, ().marker("o").label("My Item"));
-        //plot.scatter(&x, &x * &x * &x, ().marker(".").label("My Item 3"));
-        plot.set_title("My Title");
-        plot.set_xlabel("My x-axis");
-
-        plot.show();
+impl From<()> for PlotOpt {
+    fn from(_value: ()) -> Self {
+        PlotOpt::default()
     }
 }
