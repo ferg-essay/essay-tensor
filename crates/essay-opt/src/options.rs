@@ -108,8 +108,14 @@ fn trait_methods(fields: &Fields, arg: &Ident) -> TokenStream {
 
                 match option_type(ty) {
                     Some(ty) => {
-                        quote! {
-                            fn #name(self, value: impl Into<#ty>) -> #arg;
+                        if is_into_type(&ty) {
+                            quote! {
+                                fn #name(self, #name: impl Into<#ty>) -> #arg;
+                            }
+                        } else {
+                            quote! {
+                                fn #name(self, #name: #ty) -> #arg;
+                            }
                         }
                     },
                     None => {
@@ -136,16 +142,24 @@ fn arg_methods(fields: &Fields) -> TokenStream {
 
                 match option_type(ty) {
                     Some(ty) => {
-                        quote! {
-                            fn #name(self, #name: impl Into<#ty>) -> Self {
-                                Self { #name: Some(#name.into()), ..self }
+                        if is_into_type(&ty) {
+                            quote! {
+                                fn #name(self, #name: impl Into<#ty>) -> Self {
+                                    Self { #name: Some(#name.into()), ..self }
+                                }
+                            }
+                        } else {
+                            quote! {
+                                fn #name(self, #name: #ty) -> Self {
+                                    Self { #name: Some(#name), ..self }
+                                }
                             }
                         }
                     },
                     None => {
                         quote! {
                             fn #name(self, #name: #ty) -> Self {
-                                Self { #name: #name.into(), ..self }
+                                Self { #name: #name, ..self }
                             }
                         }
                     }
@@ -159,6 +173,18 @@ fn arg_methods(fields: &Fields) -> TokenStream {
     }
 }
 
+fn is_into_type(ty: &Type) -> bool {
+    if let syn::Type::Path(syn::TypePath { qself: None, path }) = ty {
+        let path = path_to_string(&path);
+
+        if path == "usize" {
+            return false;
+        }
+    }
+
+    true
+}
+
 fn nil_methods(fields: &Fields, arg: &Ident) -> TokenStream {
     match fields {
         Fields::Named(ref fields) => {
@@ -168,9 +194,17 @@ fn nil_methods(fields: &Fields, arg: &Ident) -> TokenStream {
 
                 match option_type(ty) {
                     Some(ty) => {
-                        quote! {
-                            fn #name(self, #name: impl Into<#ty>) -> #arg {
-                                #arg::default().#name(#name)
+                        if is_into_type(&ty) {
+                            quote! {
+                                fn #name(self, #name: impl Into<#ty>) -> #arg {
+                                    #arg::default().#name(#name)
+                                }
+                            }
+                        } else {
+                            quote! {
+                                fn #name(self, #name: #ty) -> #arg {
+                                    #arg::default().#name(#name)
+                                }
                             }
                         }
                     },

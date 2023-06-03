@@ -278,6 +278,7 @@ mod test {
 
     #[test]
     fn reduce_sum_1xn_axis_none() {
+        assert_eq!(tf32!([[1.]]).reduce_sum_opt(()), tf32!(1.));
         assert_eq!(tf32!([[1.]]).reduce_sum_opt(().axis(None)), tf32!(1.));
         assert_eq!(tf32!([[1., 10.]]).reduce_sum_opt(().axis(None)), tf32!(11.));
         assert_eq!(tf32!([[10., 1.]]).reduce_sum_opt(().axis(None)), tf32!(11.));

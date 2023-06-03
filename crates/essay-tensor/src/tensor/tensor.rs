@@ -105,6 +105,19 @@ impl<T> Tensor<T> {
         Self { id, ..self }
     }
 
+    pub(crate) fn clone_with_shape(&self, shape: impl Into<Shape>, id: TensorId) -> Tensor<T> {
+        let shape = shape.into();
+        assert_eq!(shape.size(), self.len());
+
+        Self { 
+            id, 
+            shape, 
+            data: self.data.clone(),
+            offset: self.offset,
+            len: self.len,
+        }
+    }
+
     #[inline]
     pub fn id(&self) -> TensorId {
         self.id

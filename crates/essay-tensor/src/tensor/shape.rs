@@ -1,5 +1,9 @@
 use std::{slice::SliceIndex, cmp, ops::Index};
 
+use crate::{model::{Operation, Expr, NodeOp, Tape}, Tensor};
+
+use super::{TensorId};
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Shape {
@@ -157,7 +161,7 @@ impl Shape {
     pub fn sublen<I>(&self, range: I) -> usize
     where
         I: SliceIndex<[usize], Output=[usize]>
-     {
+    {
         self.dims[range].iter().product()
     }
 
@@ -226,15 +230,121 @@ impl Index<usize> for Shape {
     }
 }
 
-/*
-impl<I> Index<I> for Shape 
-where
-    I:SliceIndex<[usize], Output=Vec<usize>>
-{
-    type Output = usize;
+//
+// squeeze operation
+//
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.dim(index)
+pub fn squeeze(x: &Tensor, axis: impl Into<AxisOpt>) -> Tensor {
+    let axis = axis.into();
+    let op = SqueezeOp(axis.axis);
+
+    let node = NodeOp::new(&[x], Box::new(op.clone()));
+
+    let tensor = op.f(&[&x], node);
+
+    Tape::set_tensor(tensor)
+}
+
+impl Tensor {
+    pub fn squeeze(x: &Tensor, axis: impl Into<AxisOpt>) -> Tensor {
+        squeeze(x, axis)
     }
 }
-*/
+
+#[derive(Clone)]
+pub struct SqueezeOp(Option<isize>);
+
+impl SqueezeOp {
+    fn axis(&self) -> &Option<isize> {
+        &self.0
+    }
+}
+
+impl Operation for SqueezeOp {
+    fn f(
+        &self,
+        args: &[&Tensor],
+        id: TensorId,
+    ) -> Tensor {
+        let tensor = args[0];
+
+        let shape_slice = tensor.shape().as_slice();
+        let axis = match self.axis() {
+            None => {
+                usize::MAX
+            },
+            Some(axis) => {
+                let axis = (axis + shape_slice.len() as isize) % shape_slice.len() as isize;
+                axis as usize
+            }
+        };
+
+        let mut vec = Vec::<usize>::new();
+        for (i, dim) in shape_slice.iter().enumerate() {
+            if i != axis || *dim != 1 {
+                vec.push(*dim)
+            }
+        }
+
+        tensor.clone_with_shape(vec, id)
+    }
+
+    fn df(
+        &self,
+        _forward: &Expr,
+        _back: &mut Expr,
+        _i: usize,
+        _args: &[TensorId],
+        _prev: TensorId,
+    ) -> TensorId {
+        todo!()
+    }
+}
+
+#[derive(Default)]
+pub struct AxisOpt {
+    axis: Option<isize>,
+}
+
+impl AxisOpt {
+    pub fn axis(self, axis: isize) -> Self {
+        Self { axis: Some(axis), ..self }
+    }
+}
+
+pub struct Axis;
+
+impl Axis {
+    pub fn axis(axis: isize) -> AxisOpt {
+        AxisOpt::default().axis(axis)
+    }
+}
+
+impl From<Axis> for AxisOpt {
+    fn from(_value: Axis) -> Self {
+        AxisOpt::default()
+    }
+}
+
+impl From<()> for AxisOpt {
+    fn from(_value: ()) -> Self {
+        AxisOpt::default()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{prelude::*, tensor::{squeeze, shape::Axis}};
+    
+    #[test]
+    fn test_squeeze() {
+        assert_eq!(squeeze(&tf32!([[1.]]), ()), tf32!(1.));
+        assert_eq!(squeeze(&tf32!([[1., 2.]]), ()), tf32!([1., 2.]));
+        assert_eq!(squeeze(&tf32!([[[1.], [2.]]]), ()), tf32!([1., 2.]));
+    }
+    
+    #[test]
+    fn test_squeeze_axis() {
+        assert_eq!(squeeze(&tf32!([[[1.], [2.]]]), Axis::axis(-1)), tf32!([[1., 2.]]));
+    }
+}

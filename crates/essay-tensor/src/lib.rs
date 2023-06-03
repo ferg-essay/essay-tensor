@@ -1,3 +1,4 @@
+pub mod signal;
 pub mod io;
 mod optimizer;
 pub mod flow;
@@ -22,7 +23,7 @@ pub use tensor::Tensor;
 pub mod prelude {
     pub use crate::{tensor, tf32};
     pub use crate::tensor::{
-        Shape,
+        Shape, AxisOpt
     };
     pub use crate::Tensor;
     pub use crate::model::{

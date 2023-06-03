@@ -9,7 +9,8 @@ pub use data::{
 };
 
 pub use shape::{
-    Shape,
+    Shape, AxisOpt,
+    squeeze,
 };
 
 pub use tensor::{

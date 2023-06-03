@@ -205,7 +205,9 @@ mod test {
     */
 
     use crate::prelude::*;
+    use essay_tensor::init::linspace;
     use essay_tensor::prelude::*;
+    use essay_tensor::io::{decode_wav, read_file};
 
     #[test]
     fn test() {
@@ -218,6 +220,26 @@ mod test {
 
         plot.plot(&x, &y, ().marker("o").label("My Item"));
         plot.scatter(&x, &x * &x * &x, ().marker(".").label("My Item 3"));
+        plot.set_title("My Title");
+        plot.set_xlabel("My x-axis");
+
+        plot.show();
+    }
+
+    #[test]
+    fn test_wav() {
+        println!("Hello");
+
+        let mut plot = Plot::new();
+
+        let file = read_file("../../assets/audio/book-386/7176-0003.wav").unwrap();
+        let (wav, rate) = decode_wav(file);
+        
+        let x = linspace(0., wav.len() as f32 / rate[0] as f32, wav.len());
+        let y = wav;
+
+        plot.plot(&x, &y, ().marker("o").label("My Item"));
+        //plot.scatter(&x, &x * &x * &x, ().marker(".").label("My Item 3"));
         plot.set_title("My Title");
         plot.set_xlabel("My x-axis");
 
