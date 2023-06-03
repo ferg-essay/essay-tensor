@@ -85,8 +85,7 @@ impl<T: Copy + 'static> Tensor<T> {
         assert_eq!(
             data.len(), len, 
             "Tensor data len={} must match shape size {:?}", data.len(), shape.as_slice()
-        );        
-        //data.checkcast::<T>(len);
+        );
 
         Self {
             id,
@@ -96,6 +95,47 @@ impl<T: Copy + 'static> Tensor<T> {
             len,
 
             data: Arc::new(data.init()),
+        }
+    }
+
+    pub fn from_merge(
+        vec: Vec<Tensor<T>>, 
+        shape: impl Into<Shape>,
+        id: TensorId,
+    ) -> Self {
+        let shape = shape.into();
+
+        let len: usize = vec.iter().map(|t| t.len()).sum();
+
+        assert_eq!(
+            len, shape.size(),
+            "Tensor data len={} must match shape size {:?}", len, shape.as_slice()
+        );
+
+        unsafe {
+            let mut uninit = TensorUninit::<T>::new(len);
+
+            let mut o_ptr = uninit.as_mut_ptr();
+
+            for tensor in vec {
+                let x_ptr = tensor.as_ptr();
+
+                for i in 0..tensor.len() {
+                    *o_ptr.add(i) = *x_ptr.add(i);
+                }
+
+                o_ptr = o_ptr.add(tensor.len());
+            }
+
+            Self {
+                id,
+
+                shape,
+                offset: 0,
+                len,
+
+                data: Arc::new(uninit.init()),
+            }
         }
     }
 }
