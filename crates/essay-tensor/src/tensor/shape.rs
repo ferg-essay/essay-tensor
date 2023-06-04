@@ -315,6 +315,19 @@ impl AxisOpt {
     pub fn axis(self, axis: isize) -> Self {
         Self { axis: Some(axis), ..self }
     }
+
+    pub fn get_axis(self) -> Option<isize> {
+        self.axis
+    }
+
+    pub(crate) fn axis_with_shape(&self, shape: &Shape) -> usize {
+        match self.axis {
+            Some(axis) => {
+                (axis + shape.rank() as isize) as usize % shape.rank()
+            },
+            None => 0
+        }
+    }
 }
 
 pub struct Axis;

@@ -1,5 +1,6 @@
 mod sin;
 mod neg;
+mod clamp;
 mod ln;
 mod exp;
 mod cos;
@@ -202,5 +203,17 @@ impl ops::Neg for &Tensor {
 
     fn neg(self) -> Self::Output {
         unary_op(&self, neg::Neg)
+    }
+}
+
+// clamp
+
+pub fn clamp(x: &Tensor, min: f32, max: f32) -> Tensor {
+    unary_op(x, clamp::ClampScalar::new(min, max))
+}
+
+impl Tensor {
+    pub fn clamp(&self, min: f32, max: f32) -> Tensor {
+        clamp(self, min, max)
     }
 }

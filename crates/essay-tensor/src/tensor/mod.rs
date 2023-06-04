@@ -2,6 +2,7 @@ mod data;
 mod index;
 mod slice;
 mod shape;
+mod stack;
 mod tensor;
 
 pub use data::{
@@ -11,6 +12,10 @@ pub use data::{
 pub use shape::{
     Shape, AxisOpt,
     squeeze,
+};
+
+pub use stack::{
+    stack,
 };
 
 pub use tensor::{

@@ -6,7 +6,7 @@ use winit::{
     window::Window,
 };
 
-use super::render::{VertexBuffer, Vertex, path_render};
+use super::render::{VertexBuffer, Vertex, path_render, write_buffer};
 
 pub struct State {
     surface: wgpu::Surface,
@@ -62,6 +62,7 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
+    //let swapchain_format = wgpu::TextureFormat::Rgba16Float;
 
     let vertex_buffer = VertexBuffer::new(1024, &device);
 
@@ -78,7 +79,23 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         fragment: Some(wgpu::FragmentState {
             module: &shader,
             entry_point: "fs_main",
-            targets: &[Some(swapchain_format.into())],
+            targets: &[
+                Some(wgpu::ColorTargetState {
+                    format: swapchain_format,
+
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add
+                        },
+
+                        alpha: wgpu::BlendComponent::OVER
+                    }),
+
+                    write_mask: wgpu::ColorWrites::ALL,
+                })
+            ],
         }),
         primitive: wgpu::PrimitiveState::default(),
         depth_stencil: None,
@@ -180,7 +197,7 @@ fn render(
         .texture
         .create_view(&wgpu::TextureViewDescriptor::default());
 
-    let vertex_len = path_render(vertex_buffer.as_slice());
+    let vertex_len = path_render(vertex_buffer.as_mut_slice());
 
     let mut encoder =
         device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -202,11 +219,15 @@ fn render(
             })],
             depth_stencil_attachment: None,
         });
+
+        write_buffer(queue, vertex_buffer, vertex_len);
+
         rpass.set_pipeline(&render_pipeline);
 
         //let vertex_len = 3;
         let size = (vertex_len * vertex_buffer.stride()) as u64;
         rpass.set_vertex_buffer(0, vertex_buffer.buffer().slice(..size));
+        
         // rpass.draw(0..self.num_vertices, 0..1);
         rpass.draw(0..vertex_len as u32, 0..1);
     }
