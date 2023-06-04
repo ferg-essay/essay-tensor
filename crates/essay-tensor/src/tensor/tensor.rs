@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{any::type_name, sync::Arc, ops::{Deref}};
+use std::{any::type_name, sync::Arc, ops::{Deref}, slice};
 
 use super::{data::TensorData, TensorUninit, slice::TensorSlice, Shape};
 
@@ -320,6 +320,22 @@ impl<T> Tensor<T> {
         shape[0] = len;
 
         self.subslice_flat(offset * size, len * size, shape)
+    }
+
+    #[inline]
+    pub fn iter(&self) -> slice::Iter<T> {
+        self.as_slice().iter()
+    }
+
+    #[inline]
+    pub fn iter_slice(&self) -> slice::ChunksExact<T> {
+        let dim = self.dim_tail();
+
+        if self.rank() > 1 {
+            self.as_slice().chunks_exact(dim).into_iter()
+        } else {
+            self.as_slice().chunks_exact(1).into_iter()
+        }
     }
 }
 
@@ -660,6 +676,7 @@ impl fmt::Debug for TensorId {
 impl Dtype for bool {}
 impl Dtype for u8 {}
 impl Dtype for i32 {}
+impl Dtype for u32 {}
 impl Dtype for usize {}
 impl Dtype for f32 {}
 impl Dtype for String {}
@@ -668,7 +685,7 @@ impl Dtype for String {}
 mod test {
     use tensor::Shape;
 
-    use crate::tensor;
+    use crate::{tensor, tf32};
 
     use super::{Tensor};
 
@@ -871,5 +888,27 @@ mod test {
         assert_eq!(&t[0], "t1");
         assert_eq!(&t[1], "t2");
         assert_eq!(&t[2], "t3");
+    }
+
+    #[test]
+    fn tensor_iter() {
+        let vec : Vec<u32> = tensor!([1, 2, 3, 4]).iter().map(|v| *v).collect();
+        let vec2 : Vec<u32> = vec!(1, 2, 3, 4);
+        assert_eq!(vec, vec2);
+
+        let vec : Vec<u32> = tensor!([[1, 2], [3, 4]]).iter().map(|v| *v).collect();
+        let vec2 : Vec<u32> = vec!(1, 2, 3, 4);
+        assert!(vec.iter().zip(vec2.iter()).all(|(x, y)| x == y));
+    }
+
+    #[test]
+    fn tensor_iter_slice() {
+        let vec : Vec<Vec<u32>> = tensor!([1, 2, 3, 4]).iter_slice().map(|v| Vec::from(v)).collect();
+        let vec2 : Vec<Vec<u32>> = vec!(vec!(1), vec!(2), vec!(3), vec!(4));
+        assert_eq!(vec, vec2);
+
+        let vec : Vec<Vec<u32>> = tensor!([[1, 2], [3, 4]]).iter_slice().map(|v| Vec::from(v)).collect();
+        let vec2 : Vec<Vec<u32>> = vec!(vec![1, 2], vec![3, 4]);
+        assert_eq!(vec, vec2);
     }
 }

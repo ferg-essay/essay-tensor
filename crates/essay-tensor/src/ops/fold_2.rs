@@ -7,7 +7,7 @@ pub trait BiFold<D:Dtype=f32> : Clone {
 }
 
 impl<D:Dtype + Copy> Tensor<D> {
-    pub fn bi_fold<Op:BiFold<D> + IntoForward>(
+    pub fn bi_fold<Op: BiFold<D> + IntoForward>(
         &self, 
         init: D, 
         op: Op,
