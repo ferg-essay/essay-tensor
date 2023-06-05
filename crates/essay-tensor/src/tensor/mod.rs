@@ -10,7 +10,7 @@ pub use data::{
 };
 
 pub use shape::{
-    Shape, AxisOpt,
+    Shape, AxisOpt, Axis,
     squeeze,
 };
 
@@ -19,5 +19,5 @@ pub use stack::{
 };
 
 pub use tensor::{
-    Dtype, Tensor, TensorId,
+    Dtype, Tensor, TensorId, 
 };

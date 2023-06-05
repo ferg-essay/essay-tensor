@@ -20,11 +20,11 @@ impl<T> Index<(usize, usize)> for Tensor<T> {
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
         let shape = self.shape();
-        let len = shape.size();
+        let len = shape.rank();
 
         assert!(len > 1);
-        assert!(index.0 < shape[len - 2]);
-        assert!(index.1 < shape[len - 1]);
+        assert!(index.0 < shape.idim(-2));
+        assert!(index.1 < shape.idim(-1));
 
         let offset =
             index.1 + shape[len - 1] * index.0;

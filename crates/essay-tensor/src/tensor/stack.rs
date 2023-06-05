@@ -9,7 +9,7 @@ use super::{TensorId, TensorUninit, AxisOpt, Shape};
 // stack operation
 //
 
-pub fn stack(x: &Vec<Tensor>, axis: impl Into<AxisOpt>) -> Tensor {
+pub fn stack(x: &[Tensor], axis: impl Into<AxisOpt>) -> Tensor {
     let axis: AxisOpt = axis.into();
 
     let mut shape : Option<Shape> = None;
@@ -39,8 +39,14 @@ pub fn stack(x: &Vec<Tensor>, axis: impl Into<AxisOpt>) -> Tensor {
 }
 
 impl Tensor {
-    pub fn stack(x: &Vec<Tensor>, axis: impl Into<AxisOpt>) -> Tensor {
-        stack(x, axis)
+    pub fn stack(&self, others: &[Tensor], axis: impl Into<AxisOpt>) -> Tensor {
+        let mut vec = Vec::<Tensor>::new();
+        vec.push(self.clone());
+        for x in others {
+            vec.push(x.clone());
+        }
+
+        stack(&vec, axis)
     }
 }
 

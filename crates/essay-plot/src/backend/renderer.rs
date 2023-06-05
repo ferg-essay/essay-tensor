@@ -1,9 +1,13 @@
 use essay_tensor::Tensor;
 
+use crate::{artist::Path, axes::Affine2d};
+
+use super::GraphicsContext;
+
 pub trait Renderer {
     fn draw_path(
         &mut self, 
-        // gc: &Gc, 
+        // gc: &dyn GraphicsContext, 
         path: &Path, 
         transform: &Affine2d,
     ) -> Result<(), RenderErr> {
@@ -14,12 +18,4 @@ pub trait Renderer {
 #[derive(Debug)]
 pub enum RenderErr {
     NotImplemented,
-}
-
-pub struct Path {
-
-}
-
-pub struct Affine2d {
-    tensor: Tensor,
 }

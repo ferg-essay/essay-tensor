@@ -38,6 +38,13 @@ impl Shape {
     }
 
     #[inline]
+    pub fn idim(&self, i: isize) -> usize {
+        let i = (i + self.rank() as isize) as usize % self.rank();
+        
+        self.dims[i]
+    }
+
+    #[inline]
     pub fn dim_tail(&self) -> usize {
         let rank = self.rank();
 
