@@ -1,12 +1,21 @@
 use essay_plot::{prelude::*, device::{egui::EguiBackend, Backend, wgpu::WgpuBackend}};
-use essay_tensor::prelude::*;
+use essay_tensor::{prelude::*, init::linspace};
 
 fn main() {
     println!("Hello");
 
-    let mut gui = WgpuBackend::new();
+    //let mut gui = WgpuBackend::new();
 
-    gui.main_loop().unwrap();
+
+    let x = linspace(0., 10., 30);
+    let y = x.sin();
+
+    // gui.main_loop().unwrap();
+    let mut figure = Figure::new();
+    let axes = figure.axes(());
+    axes.plot(&x, &y, ());
+    figure.show();
+
     /*
     let mut figure = Figure::new();
 

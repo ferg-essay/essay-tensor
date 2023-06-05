@@ -1,6 +1,6 @@
 use wgpu::{InstanceDescriptor, Instance};
 
-use crate::device::{Backend, Renderer, DeviceErr};
+use crate::{device::{Backend, Renderer, DeviceErr}, figure::FigureInner};
 
 use super::main_loop::main_loop;
 
@@ -21,8 +21,8 @@ impl WgpuBackend {
 }
 
 impl Backend for WgpuBackend {
-    fn main_loop(&mut self) -> Result<(), DeviceErr> {
-        main_loop();
+    fn main_loop(&mut self, figure: FigureInner) -> Result<(), DeviceErr> {
+        main_loop(figure);
 
         Ok(())
     }

@@ -11,8 +11,8 @@ pub struct Path<M: CoordMarker = Data> {
     marker: PhantomData<M>,
 }
 
-impl Path {
-    pub fn new(points: impl Into<Tensor>, codes: Vec<PathCode>) -> Path {
+impl<M: CoordMarker> Path<M> {
+    pub fn new(points: impl Into<Tensor>, codes: Vec<PathCode>) -> Self {
         let points = points.into();
 
         assert_eq!(points.rank(), 2);
@@ -21,15 +21,26 @@ impl Path {
 
         // TODO: validate bezier
 
-        Path {
+        Self {
             points,
             codes,
 
             marker: PhantomData
         }
     }
+
+    #[inline]
+    pub fn points(&self) -> &Tensor {
+        &self.points
+    }
+
+    #[inline]
+    pub fn codes(&self) -> &Vec<PathCode> {
+        &self.codes
+    }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PathCode {
     MoveTo,
     LineTo,

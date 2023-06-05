@@ -1,3 +1,5 @@
+use core::fmt;
+
 use essay_tensor::{prelude::*, tensor::TensorUninit};
 
 pub struct Affine2d {
@@ -118,6 +120,7 @@ impl Affine2d {
         }
     }
 
+    #[inline]
     pub fn transform_point(&self, point: Point) -> Point {
         let mat = self.mat.as_slice();
 
@@ -127,6 +130,12 @@ impl Affine2d {
             x * mat[0] + y * mat[1] + mat[2],
             x * mat[3] + y * mat[4] + mat[5],
         )
+    }
+}
+
+impl fmt::Debug for Affine2d {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Affine2d").field("mat", &self.mat).finish()
     }
 }
 

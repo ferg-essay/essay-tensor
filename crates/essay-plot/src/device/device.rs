@@ -1,6 +1,6 @@
-use crate::axes::{CoordMarker, Bounds};
+use crate::{axes::{CoordMarker, Bounds}, figure::FigureInner};
 
-use super::{Renderer, backend::Backend};
+use super::{Renderer, backend::Backend, wgpu::WgpuBackend};
 
 pub struct Device {
     backend: Box<dyn Backend>,
@@ -17,14 +17,16 @@ impl Device {
         self.backend.renderer()
     }
 
-    pub fn main_loop(&mut self) -> Result<()> {
-        self.backend.main_loop()
+    pub fn main_loop(&mut self, figure: FigureInner) -> Result<()> {
+        self.backend.main_loop(figure)
     }
 }
 
 impl Default for Device {
     fn default() -> Self {
-        let backend = NoneBackend;
+        // let backend = NoneBackend;
+
+        let backend = WgpuBackend::new();
 
         Self { 
             backend: Box::new(backend),

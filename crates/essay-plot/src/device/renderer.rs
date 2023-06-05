@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{artist::Path, axes::{Affine2d, Bounds, Point}};
+use crate::{artist::Path, axes::{Affine2d, Bounds, Point, Data}};
 
 use super::{GraphicsContext, Device};
 
@@ -12,15 +12,16 @@ pub trait Renderer {
         Bounds::new(Point(0., 0.), Point(1., 1.))
     }
 
-    fn new_gc(&self) -> &GraphicsContext {
-        todo!()
+    fn new_gc(&mut self) -> GraphicsContext {
+        GraphicsContext::default()
     }
 
     fn draw_path(
         &mut self, 
         _gc: &GraphicsContext, 
-        _path: &Path<Device>, 
-        _transform: &Affine2d,
+        _path: &Path<Data>, 
+        _to_device: &Affine2d,
+        _clip: &Bounds<Device>,
     ) -> Result<(), RenderErr> {
         Err(RenderErr::NotImplemented)
     }

@@ -6,7 +6,9 @@ use winit::{
     window::Window,
 };
 
-use super::render::{VertexBuffer, Vertex, path_render, write_buffer};
+use crate::{figure::FigureInner, device::{Renderer, Device}, axes::{Bounds, Point}};
+
+use super::render::{VertexBuffer, Vertex, path_render, write_buffer, WgpuRenderer};
 
 pub struct State {
     surface: wgpu::Surface,
@@ -142,7 +144,12 @@ struct EventLoopArgs {
     vertex_buffer: VertexBuffer,
 }
 
-fn run_event_loop(event_loop: EventLoop<()>, window: Window, args: EventLoopArgs) {
+fn run_event_loop(
+    event_loop: EventLoop<()>, 
+    window: Window, 
+    args: EventLoopArgs,
+    figure: FigureInner,
+) {
     let EventLoopArgs {
         instance,
         adapter,
@@ -156,8 +163,20 @@ fn run_event_loop(event_loop: EventLoop<()>, window: Window, args: EventLoopArgs
         mut vertex_buffer,
     } = args;
 
+    let mut figure = figure;
+
     event_loop.run(move |event, _, control_flow| {
-        let _ = (&instance, &adapter, &shader, &pipeline_layout);
+        let _ = (&instance, &adapter, &shader, &pipeline_layout, &figure);
+
+        let mut renderer = WgpuRenderer::new(
+            &surface,
+            // &config,
+            &device,
+            &queue,
+            &render_pipeline,
+            &mut vertex_buffer,
+        );
+
 
         *control_flow = ControlFlow::Wait;
         match event {
@@ -171,7 +190,10 @@ fn run_event_loop(event_loop: EventLoop<()>, window: Window, args: EventLoopArgs
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
-                render(&surface, &device, &queue, &render_pipeline, &mut vertex_buffer);
+                renderer.clear();
+                renderer.set_canvas_bounds(config.width, config.height);
+                figure.draw(&mut renderer);
+                renderer.render();
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -182,68 +204,14 @@ fn run_event_loop(event_loop: EventLoop<()>, window: Window, args: EventLoopArgs
     });
 }
 
-fn render(
-    surface: &wgpu::Surface,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    render_pipeline: &wgpu::RenderPipeline,
-    vertex_buffer: &mut VertexBuffer,
-) {
-    let frame = surface
-        .get_current_texture()
-        .expect("Failed to get next swap chain texture");
 
-    let view = frame
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
-
-    let vertex_len = path_render(vertex_buffer.as_mut_slice());
-
-    let mut encoder =
-        device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-    {
-        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 1.0,
-                        g: 1.0,
-                        b: 1.0,
-                        a: 1.0,
-                    }),
-                    store: true,
-                }
-            })],
-            depth_stencil_attachment: None,
-        });
-
-        write_buffer(queue, vertex_buffer, vertex_len);
-
-        rpass.set_pipeline(&render_pipeline);
-
-        //let vertex_len = 3;
-        let size = (vertex_len * vertex_buffer.stride()) as u64;
-        rpass.set_vertex_buffer(0, vertex_buffer.buffer().slice(..size));
-        
-        // rpass.draw(0..self.num_vertices, 0..1);
-        rpass.draw(0..vertex_len as u32, 0..1);
-    }
-
-    queue.submit(Some(encoder.finish()));
-    frame.present();
-}
-
-
-pub(crate) fn main_loop() {
+pub(crate) fn main_loop(figure: FigureInner) {
     println!("Clip Main");
     let event_loop = EventLoop::new();
     let window = winit::window::Window::new(&event_loop).unwrap();
 
     env_logger::init();
-    let data = pollster::block_on(init_wgpu_args(&window));
+    let wgpu_args = pollster::block_on(init_wgpu_args(&window));
 
-    run_event_loop(event_loop, window, data);
+    run_event_loop(event_loop, window, wgpu_args, figure);
 }

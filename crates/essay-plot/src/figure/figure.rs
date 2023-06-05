@@ -1,23 +1,28 @@
+use std::sync::{Mutex, Arc};
+
 use essay_tensor::Tensor;
 
-use crate::{device::{Backend, Device}, plot::{PlotOpt, Plot}, axes::{Axes, CoordMarker, Bounds, Point}};
+use crate::{device::{Backend, Device, Renderer}, plot::{PlotOpt, Plot}, axes::{Axes, CoordMarker, Bounds, Point}};
 
 use super::gridspec::GridSpec;
 
 pub struct Figure {
     device: Device,
-    gridspec: Option<GridSpec>,
-
-    axes: Vec<Axes>,
+    // inner: Arc<Mutex<FigureInner>>,
+    inner: FigureInner,
 }
 
 impl Figure {
     pub fn new() -> Self {
         Self {
             device: Default::default(),
-            gridspec: None,
-            axes: Default::default(),
+            // inner: Arc::new(Mutex::new(FigureInner::new())),
+            inner: FigureInner::new(),
         }
+    }
+
+    pub fn axes(&mut self, axes: impl Into<Axes>) -> &mut Axes {
+        self.inner.axes(axes)
     }
 
     pub fn plot(
@@ -26,16 +31,59 @@ impl Figure {
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
     ) -> &Axes {
-        let axes = Axes::new(Bounds::<Figure>::new(Point(0., 0.), Point(1., 1.)));
+        let axes = self.axes(());
+        
+        axes.plot(x, y, opt);
+
+        axes
+    }
+
+    pub fn show(self) {
+        // let mut figure = self;
+        let inner = self.inner;
+        let mut device = self.device;
+
+        device.main_loop(inner).unwrap();
+
+        todo!();
+    }
+}
+
+pub struct FigureInner {
+    gridspec: Bounds<GridSpec>,
+
+    axes: Vec<Axes>,
+}
+
+impl FigureInner {
+    fn new() -> Self {
+        Self {
+            gridspec: Bounds::none(),
+            axes: Default::default(),
+        }
+    }
+
+    fn axes(
+        &mut self, 
+        axes: impl Into<Axes>, 
+    ) -> &mut Axes {
+        let axes = Axes::new(Bounds::<Figure>::none());
 
         self.axes.push(axes);
 
         let len = self.axes.len();
-        &self.axes[len - 1]
+        &mut self.axes[len - 1]
     }
 
-    pub fn show(&self) {
+    pub fn draw(&mut self, renderer: &mut dyn Renderer) {
+        let bounds = renderer.get_canvas_bounds();
 
+        for axes in &mut self.axes {
+            axes.bounds(&bounds);
+
+            axes.draw(renderer);
+        }
+        println!("Bounds {:?}", bounds);
     }
 }
 
