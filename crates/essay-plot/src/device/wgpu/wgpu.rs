@@ -1,6 +1,6 @@
 use wgpu::{InstanceDescriptor, Instance};
 
-use crate::backend::{Backend, BackendErr};
+use crate::device::{Backend, Renderer, DeviceErr};
 
 use super::main_loop::main_loop;
 
@@ -21,9 +21,13 @@ impl WgpuBackend {
 }
 
 impl Backend for WgpuBackend {
-    fn main_loop(&mut self) -> Result<(), BackendErr> {
+    fn main_loop(&mut self) -> Result<(), DeviceErr> {
         main_loop();
 
         Ok(())
+    }
+
+    fn renderer(&mut self) -> &dyn Renderer {
+        todo!()
     }
 }

@@ -1,8 +1,14 @@
+use std::marker::PhantomData;
+
 use essay_tensor::Tensor;
 
-pub struct Path {
+use crate::axes::{CoordMarker, Data};
+
+pub struct Path<M: CoordMarker = Data> {
     points: Tensor,
     codes: Vec<PathCode>,
+
+    marker: PhantomData<M>,
 }
 
 impl Path {
@@ -18,6 +24,8 @@ impl Path {
         Path {
             points,
             codes,
+
+            marker: PhantomData
         }
     }
 }

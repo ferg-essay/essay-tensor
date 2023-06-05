@@ -3,20 +3,22 @@ use std::marker::PhantomData;
 
 use essay_tensor::{Tensor, tf32};
 
-use super::{Rect, affine::{Point, Local, CoordMarker}, Affine2d, Device};
+use crate::device::Device;
+
+use super::{Rect, affine::{Point, Data, CoordMarker}, Affine2d};
 
 ///
 /// Boundary box consisting of two unordered points
 /// 
 #[derive(Clone, PartialEq)]
-pub struct BoundBox<M: CoordMarker = Local> {
+pub struct Bounds<M: CoordMarker = Data> {
     p0: Point,
     p1: Point,
 
     marker: PhantomData<M>,
 }
 
-impl<M: CoordMarker> BoundBox<M> {
+impl<M: CoordMarker> Bounds<M> {
     pub fn new(p0: Point, p1: Point) -> Self {
         Self {
             p0,
@@ -30,8 +32,8 @@ impl<M: CoordMarker> BoundBox<M> {
         y0: f32, 
         width: f32, 
         height: f32
-    ) -> BoundBox<M> {
-        BoundBox {
+    ) -> Bounds<M> {
+        Bounds {
             p0: Point(x0, y0),
             p1: Point(x0 + width, x0 + height),
             marker: PhantomData,
@@ -97,20 +99,20 @@ impl<M: CoordMarker> BoundBox<M> {
     }
 }
 
-impl BoundBox<Local> {
+impl Bounds<Data> {
     pub fn unit() -> Self {
         Self::new(Point(0., 0.), Point(1., 1.))
     }
 
-    pub fn to_device(&self, transform: &Affine2d) -> BoundBox<Device> {
-        BoundBox::new(
+    pub fn to_device(&self, transform: &Affine2d) -> Bounds<Device> {
+        Bounds::new(
             transform.transform_point(self.p0),
             transform.transform_point(self.p1),
         )
     }
 }
 
-impl<M: CoordMarker> fmt::Debug for BoundBox<M> {
+impl<M: CoordMarker> fmt::Debug for Bounds<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: add marker to debug?
         f.debug_struct("BoundBox")
@@ -120,9 +122,9 @@ impl<M: CoordMarker> fmt::Debug for BoundBox<M> {
     }
 }
 
-impl From<Rect> for BoundBox {
+impl From<Rect> for Bounds {
     fn from(value: Rect) -> Self {
-        BoundBox::from_bounds(
+        Bounds::from_bounds(
             value.left(), 
             value.bottom(), 
                 value.width(),
@@ -131,16 +133,16 @@ impl From<Rect> for BoundBox {
     }
 }
 
-impl From<[f32; 4]> for BoundBox {
+impl From<[f32; 4]> for Bounds {
     fn from(value: [f32; 4]) -> Self {
-        BoundBox::new(
+        Bounds::new(
             Point(value[0], value[1]),
             Point(value[2], value[3]),
         )
     }
 }
 
-impl From<Tensor> for BoundBox {
+impl From<Tensor> for Bounds {
     fn from(value: Tensor) -> Self {
         assert!(value.rank() == 2);
         assert!(value.cols() == 2);
@@ -159,7 +161,7 @@ impl From<Tensor> for BoundBox {
             y1 = y1.max(point[1]);
         }
 
-        BoundBox {
+        Bounds {
             p0: Point(x0, y0),
             p1: Point(x1, y1),
             marker: PhantomData,
@@ -167,8 +169,8 @@ impl From<Tensor> for BoundBox {
     }
 }
 
-impl From<BoundBox> for Tensor {
-    fn from(value: BoundBox) -> Self {
+impl From<Bounds> for Tensor {
+    fn from(value: Bounds) -> Self {
         value.corners()
     }
 }

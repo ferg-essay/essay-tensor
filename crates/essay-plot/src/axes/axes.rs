@@ -1,29 +1,31 @@
 use core::fmt;
 
-use crate::backend::Renderer;
+use crate::{device::Renderer, figure::Figure};
 
-use super::{rect::Rect, BoundBox};
+use super::{rect::Rect, Bounds};
 
 pub struct Axes {
-    bounds: BoundBox, // rectange in figure coordinates Rect(0,0; 1x1)
+    position: Bounds<Figure>, // position of the Axes in figure coordinates [0, 1]x[0, 1]Rect(0,0; 1x1)
 
-    data_lim: Rect, // rectange in data coordinates
+    data_lim: Rect, // rectangle in data coordinates
     view_lim: Rect, // rectangle in figure coordinates [0., 1.] x [0., 1.]
 }
 
 impl Axes {
-    pub fn new(bounds: impl Into<BoundBox>) -> Self {
+    pub fn new(bounds: impl Into<Bounds<Figure>>) -> Self {
         Self {
-            bounds: bounds.into(),
+            position: bounds.into(),
             view_lim: [0., 0., 1., 1.].into(),
             data_lim: [-1., -1., 1., 1.].into(),
         }
     }
 
+    /*
     /// only includes data extent, not labels or axes
-    pub fn get_window_extent(&self, _renderer: Option<&dyn Renderer>) -> &BoundBox {
-        &self.bounds
+    pub fn get_window_extent(&self, _renderer: Option<&dyn Renderer>) -> &Bounds {
+        &self.position
     }
+    */
 }
 
 impl fmt::Debug for Axes {

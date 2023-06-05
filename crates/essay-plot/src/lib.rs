@@ -2,7 +2,7 @@ pub mod artist;
 pub mod axes;
 pub mod figure;
 pub mod plot;
-pub mod backend;
+pub mod device;
 
 pub mod prelude {
     //pub use crate::plotly::{Plot, PlotOpt};

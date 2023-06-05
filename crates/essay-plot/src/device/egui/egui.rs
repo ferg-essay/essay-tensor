@@ -2,7 +2,7 @@ use essay_tensor::prelude::*;
 
 use egui::{plot, epaint::Hsva};
 
-use crate::backend::{Backend, BackendErr};
+use crate::device::{Backend, DeviceErr, Renderer};
 
 use super::main_loop;
 
@@ -17,13 +17,17 @@ impl EguiBackend {
 }
 
 impl Backend for EguiBackend {
-    fn main_loop(&mut self) -> Result<(), BackendErr> {
+    fn main_loop(&mut self) -> Result<(), DeviceErr> {
         let main_loop = main_loop::MainLoop::new();
 
         main_loop.run(move |ui| {
         }).unwrap();
 
         Ok(())
+    }
+
+    fn renderer(&mut self) -> &dyn Renderer {
+        todo!()
     }
 }
 

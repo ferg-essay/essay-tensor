@@ -1,3 +1,5 @@
+use crate::axes::CoordMarker;
+
 #[derive(Clone, Debug)]
 pub struct GridSpec {
     n_rows: usize,
@@ -37,4 +39,7 @@ impl From<[usize; 2]> for GridSpec {
         GridSpec::new(value[0], value[1])
     }
 }
+
+impl CoordMarker for GridSpec {}
+
 

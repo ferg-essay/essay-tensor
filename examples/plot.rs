@@ -1,4 +1,4 @@
-use essay_plot::{prelude::*, backend::{egui::EguiBackend, Backend, wgpu::WgpuBackend}};
+use essay_plot::{prelude::*, device::{egui::EguiBackend, Backend, wgpu::WgpuBackend}};
 use essay_tensor::prelude::*;
 
 fn main() {

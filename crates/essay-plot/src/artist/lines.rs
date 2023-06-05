@@ -3,7 +3,7 @@ use std::cmp;
 
 use essay_tensor::{Tensor, tensor::Axis};
 
-use crate::{axes::{Rect, Affine2d}, backend::Renderer};
+use crate::{axes::{Rect, Affine2d}, device::Renderer};
 
 use super::Artist;
 

@@ -1,11 +1,16 @@
+mod backend;
 mod gc;
 pub mod wgpu;
 mod renderer;
-mod backend;
+mod device;
 pub mod egui;
 
+pub use device::{
+    Device, DeviceErr, Result
+};
+
 pub use backend::{
-    Backend, BackendErr,
+    Backend, 
 };
 
 pub use gc::{

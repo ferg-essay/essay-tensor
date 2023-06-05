@@ -160,15 +160,9 @@ fn compose(x: &Tensor, y: &Tensor) -> Tensor {
 pub trait CoordMarker {}
 
 #[derive(Clone, Copy, Debug)]
-pub struct Local {}
+pub struct Data {}
 
-impl CoordMarker for Local {
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Device {}
-
-impl CoordMarker for Device {
+impl CoordMarker for Data {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

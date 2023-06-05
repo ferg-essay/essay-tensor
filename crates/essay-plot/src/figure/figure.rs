@@ -1,11 +1,11 @@
 use essay_tensor::Tensor;
 
-use crate::{backend::Backend, plot::{PlotOpt, Plot}, axes::Axes};
+use crate::{device::{Backend, Device}, plot::{PlotOpt, Plot}, axes::{Axes, CoordMarker, Bounds, Point}};
 
 use super::gridspec::GridSpec;
 
 pub struct Figure {
-    backend: Option<Box<dyn Backend>>,
+    device: Device,
     gridspec: Option<GridSpec>,
 
     axes: Vec<Axes>,
@@ -14,7 +14,7 @@ pub struct Figure {
 impl Figure {
     pub fn new() -> Self {
         Self {
-            backend: None,
+            device: Default::default(),
             gridspec: None,
             axes: Default::default(),
         }
@@ -26,7 +26,7 @@ impl Figure {
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
     ) -> &Axes {
-        let axes = Axes::new([0., 0., 1., 1.]);
+        let axes = Axes::new(Bounds::<Figure>::new(Point(0., 0.), Point(1., 1.)));
 
         self.axes.push(axes);
 
@@ -38,3 +38,5 @@ impl Figure {
 
     }
 }
+
+impl CoordMarker for Figure {}
