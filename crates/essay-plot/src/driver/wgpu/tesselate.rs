@@ -2,7 +2,7 @@ use std::ops::Index;
 
 use essay_tensor::Tensor;
 
-use crate::axes::Point;
+use crate::figure::Point;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Triangle(Point, Point, Point);

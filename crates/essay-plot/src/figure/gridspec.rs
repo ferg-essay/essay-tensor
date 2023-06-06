@@ -1,4 +1,4 @@
-use crate::axes::CoordMarker;
+use crate::figure::CoordMarker;
 
 #[derive(Clone, Debug)]
 pub struct GridSpec {

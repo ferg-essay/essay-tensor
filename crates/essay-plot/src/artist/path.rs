@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use essay_tensor::Tensor;
 
-use crate::axes::{CoordMarker, Data};
+use crate::figure::{CoordMarker, Data};
 
 pub struct Path<M: CoordMarker = Data> {
     points: Tensor,

@@ -3,7 +3,7 @@ use std::{cmp, f32::consts::{TAU, PI}};
 
 use essay_tensor::{Tensor, tensor::{Axis, TensorVec}, tf32};
 
-use crate::{axes::{Rect, Affine2d, Bounds, Data}, device::{Renderer, Device}};
+use crate::{figure::{Rect, Affine2d, Bounds, Data}, driver::{Renderer, Device}};
 
 use super::{Artist, Path, PathCode};
 

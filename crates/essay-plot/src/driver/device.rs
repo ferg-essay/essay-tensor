@@ -1,4 +1,4 @@
-use crate::{axes::{CoordMarker, Bounds}, figure::FigureInner};
+use crate::{figure::{CoordMarker, Bounds}, figure::FigureInner};
 
 use super::{Renderer, backend::Backend, wgpu::WgpuBackend};
 

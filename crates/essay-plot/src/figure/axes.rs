@@ -2,9 +2,9 @@ use core::fmt;
 
 use essay_tensor::Tensor;
 
-use crate::{device::{Renderer, Device}, figure::Figure, plot::PlotOpt, artist::{Lines2d, Artist, Collection}};
+use crate::{driver::{Renderer, Device}, plot::PlotOpt, artist::{Lines2d, Artist, Collection}};
 
-use super::{rect::Rect, Bounds, Data, Affine2d};
+use super::{rect::Rect, Bounds, Data, Affine2d, Figure};
 
 pub struct Axes {
     pos_figure: Bounds<Figure>, // position of the Axes in figure grid coordinates

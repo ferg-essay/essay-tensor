@@ -1,6 +1,9 @@
 use wgpu::util::DeviceExt;
 
-use crate::{device::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, axes::{Bounds, Point, Affine2d, Data}, artist::{Path, PathCode}};
+use crate::{
+    driver::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
+    figure::{Bounds, Point, Affine2d, Data}, artist::{Path, PathCode}
+};
 
 use super::vertex::VertexBuffer;
 

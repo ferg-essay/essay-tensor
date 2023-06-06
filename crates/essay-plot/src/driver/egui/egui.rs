@@ -2,7 +2,7 @@ use essay_tensor::prelude::*;
 
 use egui::{plot, epaint::Hsva};
 
-use crate::{device::{Backend, DeviceErr, Renderer}, figure::FigureInner};
+use crate::{driver::{Backend, DeviceErr, Renderer}, figure::FigureInner};
 
 use super::main_loop;
 

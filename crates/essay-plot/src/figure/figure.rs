@@ -2,7 +2,10 @@ use std::sync::{Mutex, Arc};
 
 use essay_tensor::Tensor;
 
-use crate::{device::{Backend, Device, Renderer}, plot::{PlotOpt, Plot}, axes::{Axes, CoordMarker, Bounds, Point}};
+use crate::{
+    driver::{Backend, Device, Renderer}, plot::{PlotOpt, Plot}, 
+    figure::{Axes, CoordMarker, Bounds, Point}
+};
 
 use super::gridspec::GridSpec;
 

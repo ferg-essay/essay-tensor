@@ -1,8 +1,7 @@
 pub mod artist;
-pub mod axes;
 pub mod figure;
 pub mod plot;
-pub mod device;
+pub mod driver;
 
 pub mod prelude {
     //pub use crate::plotly::{Plot, PlotOpt};

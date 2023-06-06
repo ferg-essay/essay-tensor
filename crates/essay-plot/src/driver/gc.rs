@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{axes::{Bounds}, artist::Path};
+use crate::{figure::{Bounds}, artist::Path};
 
 use super::Device;
 

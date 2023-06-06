@@ -3,7 +3,10 @@ use std::cmp;
 
 use essay_tensor::{Tensor, tensor::Axis};
 
-use crate::{axes::{Rect, Affine2d, Bounds, Data}, device::{Renderer, Device}};
+use crate::{
+    figure::{Rect, Affine2d, Bounds, Data}, 
+    driver::{Renderer, Device}
+};
 
 use super::{Artist, Path, PathCode};
 

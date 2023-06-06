@@ -1,4 +1,4 @@
-use crate::{device::{Renderer, Device}, axes::{Bounds, Data, Affine2d}};
+use crate::{driver::{Renderer, Device}, figure::{Bounds, Data, Affine2d}};
 
 pub trait Artist {
     fn get_data_bounds(&self) -> Bounds<Data>;

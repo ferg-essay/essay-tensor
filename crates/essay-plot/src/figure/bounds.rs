@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use essay_tensor::{Tensor, tf32};
 
-use crate::device::Device;
+use crate::driver::Device;
 
 use super::{Rect, affine::{Point, Data, CoordMarker}, Affine2d};
 
