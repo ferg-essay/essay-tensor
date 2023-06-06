@@ -6,6 +6,10 @@ use std::{
     slice::SliceIndex, mem, 
 };
 
+use crate::Tensor;
+
+use super::Shape;
+
 pub(crate) struct TensorData<T> {
     data: NonNull<T>,
     len: usize,
@@ -92,7 +96,7 @@ pub struct TensorUninit<T=f32> {
     data: NonNull<T>,
 }
 
-impl<T:'static + Copy> TensorUninit<T> {
+impl<T: 'static + Copy> TensorUninit<T> {
     pub unsafe fn new(len: usize) -> Self {
         let layout = Layout::array::<T>(len).unwrap();
         
@@ -107,6 +111,11 @@ impl<T:'static + Copy> TensorUninit<T> {
     pub(crate) fn init(self) -> TensorData<T> {
         let ptr = mem::ManuallyDrop::new(self);
         TensorData::new(ptr.data, ptr.len)
+    }
+
+    #[inline]
+    pub fn into_tensor(self, shape: impl Into<Shape>) -> Tensor<T> {
+        Tensor::from_uninit(self, shape)
     }
 }
 
@@ -167,7 +176,7 @@ impl<T> TensorUninit<T> {
     }
 }
 
-impl<T:Copy> TensorUninit<T> {
+impl<T: Copy> TensorUninit<T> {
     #[inline]
     pub unsafe fn get_unchecked(&self, offset: usize) -> T {
         *self.as_ptr().add(offset)

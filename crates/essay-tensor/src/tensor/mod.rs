@@ -4,6 +4,7 @@ mod slice;
 mod shape;
 mod stack;
 mod tensor;
+mod tensor_vec;
 
 pub use data::{
     TensorUninit,
@@ -20,4 +21,8 @@ pub use stack::{
 
 pub use tensor::{
     Dtype, Tensor, TensorId, 
+};
+
+pub use tensor_vec::{
+    TensorVec,
 };

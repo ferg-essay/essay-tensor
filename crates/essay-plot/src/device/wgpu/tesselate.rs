@@ -11,6 +11,7 @@ pub fn tesselate(points: Vec<Point>) -> Vec<Triangle> {
     let mut points = points;
     let mut triangles = Vec::<Triangle>::new();
     
+    println!("Points: {:?}", points);
     let mut index = 0;
     let mut index_start = index;
     while points.len() >= 3 {
@@ -28,11 +29,10 @@ pub fn tesselate(points: Vec<Point>) -> Vec<Triangle> {
             points.remove((index + 1) % len);
 
             index_start = index;
-        } else {
-            assert_ne!(index, index_start);
         }
 
         index = (index + 1) % points.len();
+        assert_ne!(index, index_start);
     }
 
     triangles

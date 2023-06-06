@@ -1,7 +1,7 @@
 use core::fmt;
-use std::cmp;
+use std::{cmp, f32::consts::{TAU, PI}};
 
-use essay_tensor::{Tensor, tensor::Axis, tf32};
+use essay_tensor::{Tensor, tensor::{Axis, TensorVec}, tf32};
 
 use crate::{axes::{Rect, Affine2d, Bounds, Data}, device::{Renderer, Device}};
 
@@ -75,9 +75,11 @@ impl Artist for Collection {
         gc.rgba(0x7f3f00ff);
         gc.linewidth(20.);
         
+        /*
         let path = Path::closed_poly(tf32!([
             [2., 2.], [8., 2.], [8., 8.], [2., 8.],
         ]));
+        */
         
             /*
         let path = Path::closed_poly(tf32!([
@@ -94,6 +96,21 @@ impl Artist for Collection {
             [6., 3.], [5., 3.], [5., 4.], 
         ]));
         */
+
+        let len = 3;
+        let s = 4.0;
+        let q = 0.2;
+        let delta = PI / len as f32;
+        let mut vec = TensorVec::<[f32; 2]>::new();
+        for i in 0..len {
+            let theta = 2. * i as f32 * delta;
+
+            // flipped sin/cos so theta=0 is up
+            vec.push([5. + s * theta.sin(), 5. + s * theta.cos()]);
+            vec.push([5. + s * q * (theta + delta).sin(), 5. + s * q * (theta + delta).cos()]);
+        }
+
+        let path = Path::closed_poly(vec.into_tensor());
 
         renderer.draw_path(&gc, &path, to_device, clip).unwrap();
     }
