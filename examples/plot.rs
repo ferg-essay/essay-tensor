@@ -7,13 +7,14 @@ fn main() {
     //let mut gui = WgpuBackend::new();
 
 
-    let x = linspace(0., 10., 30);
-    let y = x.sin();
+    let x = linspace(0., 10., 3);
+    let y = x.clone();
 
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
     let axes = figure.axes(());
-    axes.plot(&x, &y, ());
+    // axes.plot(&x, &y, ());
+    axes.scatter(&x, &y, ());
     figure.show();
 
     /*

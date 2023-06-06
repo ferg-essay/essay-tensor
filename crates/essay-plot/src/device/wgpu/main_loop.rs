@@ -1,14 +1,12 @@
-use std::borrow::Cow;
-
 use winit::{
     event::{Event, WindowEvent},    
     event_loop::{EventLoop, ControlFlow}, 
     window::Window,
 };
 
-use crate::{figure::FigureInner, device::{Renderer, Device}, axes::{Bounds, Point}};
+use crate::{figure::FigureInner};
 
-use super::render::{VertexBuffer, Vertex, path_render, write_buffer, WgpuRenderer};
+use super::{render::{WgpuRenderer}, vertex::VertexBuffer};
 
 pub struct State {
     surface: wgpu::Surface,

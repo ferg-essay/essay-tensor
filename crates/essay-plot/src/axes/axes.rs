@@ -2,7 +2,7 @@ use core::fmt;
 
 use essay_tensor::Tensor;
 
-use crate::{device::{Renderer, Device}, figure::Figure, plot::PlotOpt, artist::{Lines2d, Artist}};
+use crate::{device::{Renderer, Device}, figure::Figure, plot::PlotOpt, artist::{Lines2d, Artist, Collection}};
 
 use super::{rect::Rect, Bounds, Data, Affine2d};
 
@@ -54,6 +54,17 @@ impl Axes {
         let lines = Lines2d::from_xy(x, y);
 
         self.artist(lines)
+    }
+
+    pub fn scatter(
+        &mut self, 
+        x: impl Into<Tensor>, 
+        y: impl Into<Tensor>, 
+        opt: impl Into<PlotOpt>
+    ) -> &Box<dyn Artist> {
+        let collection = Collection::from_xy(x, y);
+
+        self.artist(collection)
     }
 
     pub fn artist(&mut self, artist: impl Artist + 'static) -> &mut Box<dyn Artist> {

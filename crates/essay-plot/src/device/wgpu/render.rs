@@ -1,6 +1,8 @@
 use wgpu::util::DeviceExt;
 
-use crate::{device::{Renderer, Device, GraphicsContext, renderer::RenderErr}, axes::{Bounds, Point, Affine2d, Data}, artist::{Path, PathCode}};
+use crate::{device::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, axes::{Bounds, Point, Affine2d, Data}, artist::{Path, PathCode}};
+
+use super::vertex::VertexBuffer;
 
 pub struct WgpuRenderer<'a> {
     surface: &'a wgpu::Surface,
@@ -88,6 +90,36 @@ impl<'a> WgpuRenderer<'a> {
         self.vertex_buffer.push(x1 - nx, y1 - ny, color);
         self.vertex_buffer.push(x0 - nx, y0 - ny, color);
     }
+
+    fn draw_closed_path(
+        &mut self, 
+        gc: &GraphicsContext, 
+        path: &Path<Data>, 
+        to_device: &Affine2d,
+        _clip: &Bounds<Device>,
+    ) {
+        let to_unit = self.to_unit.matmul(to_device);
+
+        let mut points = Vec::<Point>::new();
+
+        let xy = path.points();
+
+        for point in xy.iter_slice() {
+            let point = to_unit.transform_point(Point(point[0], point[1]));
+
+            points.push(point);
+        }
+
+        let triangles = tesselate::tesselate(points);
+
+        println!("Triangles {:?}", triangles);
+
+        for triangle in &triangles {
+            self.vertex_buffer.push(triangle[0].x(), triangle[0].y(), 0xc00000ff);
+            self.vertex_buffer.push(triangle[1].x(), triangle[1].y(), 0xc0c000ff);
+            self.vertex_buffer.push(triangle[2].x(), triangle[2].y(), 0xc00000ff);
+        }
+    }
 }
 
 impl Renderer for WgpuRenderer<'_> {
@@ -109,6 +141,10 @@ impl Renderer for WgpuRenderer<'_> {
         to_device: &Affine2d,
         _clip: &Bounds<Device>,
     ) -> Result<(), RenderErr> {
+        if path.is_closed_path() {
+            self.draw_closed_path(gc, path, to_device, _clip);
+            return Ok(());
+        }
         let mut p0 = Point(0.0f32, 0.0f32);
 
         // TODO: thickness in points
@@ -133,6 +169,7 @@ impl Renderer for WgpuRenderer<'_> {
                 }
                 PathCode::BezierQuadratic => todo!(),
                 PathCode::BezierCubic => todo!(),
+                PathCode::ClosePoly => todo!(),
             }
         }
 
@@ -140,126 +177,8 @@ impl Renderer for WgpuRenderer<'_> {
     }
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
-    position: [f32; 2],
-    tex_coord: [f32; 2],
-    color: u32,
-}
-
-impl Vertex {
-    const ATTRS: [wgpu::VertexAttribute; 3] =
-        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2=> Uint32 ];
-
-    pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRS,
-        }
-    }
-}
-
-pub struct VertexBuffer {
-    stride: usize,
-    vec: Vec<Vertex>,
-    buffer: wgpu::Buffer,
-
-    offset: usize,
-}
-
-impl VertexBuffer {
-    pub(crate) fn new(len: usize, device: &wgpu::Device) -> Self {
-        let mut vec = Vec::<Vertex>::new();
-        vec.resize(len, Vertex { position: [0.0, 0.0], tex_coord: [0.0, 0.0], color: 0x00000000 });
-
-        // path_render2(vec.as_mut_slice());
-
-        let buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(vec.as_slice()),
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            }
-        );
-    
-        Self {
-            stride: std::mem::size_of::<Vertex>(),
-            vec,
-            buffer,
-            offset: 0,
-        }
-    }
-
-    pub(crate) fn stride(&self) -> usize {
-        self.stride
-    }
-
-    pub(crate) fn as_slice(&self) -> &[Vertex] {
-        &self.vec
-    }
-
-    pub(crate) fn as_mut_slice(&mut self) -> &mut [Vertex] {
-        &mut self.vec
-    }
-
-    pub(crate) fn buffer(&self) -> &wgpu::Buffer {
-        &self.buffer
-    }
-
-    pub(crate) fn desc(&self) -> wgpu::VertexBufferLayout {
-        Vertex::desc()
-    }
-
-    pub(crate) fn clear(&mut self) {
-        self.offset = 0
-    }
-
-    pub(crate) fn offset(&self) -> usize {
-        self.offset
-    }
-
-    fn push(&mut self, x: f32, y: f32, color: u32) {
-        self.vec[self.offset] = ([x, y], color).into();
-        self.offset += 1;
-    }
-}
-
-pub fn path_render(vertices: &mut VertexBuffer) {
-    vertices.push(0.0, 0.0, 0x0000ffff);
-    vertices.push(0.0, 1.0, 0x0000ffff);
-    vertices.push(1.0, 0.0, 0x0000ffff);
-}
-
-pub fn path_render2(vertices: &mut VertexBuffer) {
-    vertices.push(-1.0, -1.0, 0x0000ffff);
-    vertices.push(-1.0, 0.0, 0x0000ffff);
-    vertices.push(0.0, -1.0, 0x0000ffff);
-    /*
-    vertices[3] = ([0.0, 0.0], [0.5, 0.0], 0xff00ffff).into();
-    vertices[4] = ([0.0, -1.0], [1.0, 1.0], 0x00ffffff).into();
-    vertices[5] = ([-1.0, 0.0], [0.0, 0.0], 0x00ff00ff).into();
-    */
-
-    vertices.push(0.0, 0.0, 0xff0000ff);
-    vertices.push(0.0, -1.0, 0xff0000ff);
-    vertices.push(-1.0, 0.0, 0xff0000ff);
-}
-
 pub fn write_buffer(queue: &wgpu::Queue, vertices: &mut VertexBuffer, len: usize) {
     queue.write_buffer(vertices.buffer(), 0, bytemuck::cast_slice(vertices.as_slice()));
-}
-
-impl From<([f32; 2], u32)> for Vertex {
-    fn from(value: ([f32; 2], u32)) -> Self {
-        Vertex { position: value.0, tex_coord: [0., 0.], color: value.1 }
-    }
-}
-impl From<([f32; 2], [f32; 2], u32)> for Vertex {
-    fn from(value: ([f32; 2], [f32; 2], u32)) -> Self {
-        Vertex { position: value.0, tex_coord: value.1, color: value.2 }
-    }
 }
 //surface: &wgpu::Surface,
 //device: &wgpu::Device,
@@ -305,16 +224,17 @@ impl WgpuRenderer<'_> {
             // rpass.set_viewport(0., 0., 1., 1., 0.0, 1.0);
 
             let vertex_len = self.vertex_buffer.offset();
-            write_buffer(self.queue, self.vertex_buffer, vertex_len);
+            if vertex_len > 0 {
+                write_buffer(self.queue, self.vertex_buffer, vertex_len);
 
-            rpass.set_pipeline(&self.render_pipeline);
+                rpass.set_pipeline(&self.render_pipeline);
 
-        //let vertex_len = 3;
-            println!("Render {}", vertex_len);
-            let size = (vertex_len * self.vertex_buffer.stride()) as u64;
-            rpass.set_vertex_buffer(0, self.vertex_buffer.buffer().slice(..size));
-        // rpass.draw(0..self.num_vertices, 0..1);
-            rpass.draw(0..vertex_len as u32, 0..1);
+                println!("Render {}", vertex_len);
+                let size = (vertex_len * self.vertex_buffer.stride()) as u64;
+                rpass.set_vertex_buffer(0, self.vertex_buffer.buffer().slice(..size));
+        
+                rpass.draw(0..vertex_len as u32, 0..1);
+            }
         }
 
         self.queue.submit(Some(encoder.finish()));

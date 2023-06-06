@@ -187,4 +187,25 @@ impl Point {
     pub fn y(&self) -> f32 {
         self.1
     }
+
+    #[inline]
+    pub fn is_below(&self, p0: &Point, p1: &Point) -> bool {
+        let Point(x, y) = self;
+        let Point(x0, y0) = p0;
+        let Point(x1, y1) = p1;
+
+        if x0 == x1 {
+            false
+        } else if x0 <= x && x < x1 || x1 < x && x <= x0 {
+            let y_line = (y0 * (x1 - x) + y1 * (x - x0)) / (x1 - x0);
+
+            *y < y_line
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn is_x_below(&self, p0: Point, p1: Point) -> bool {
+        todo!()
+    }
 }

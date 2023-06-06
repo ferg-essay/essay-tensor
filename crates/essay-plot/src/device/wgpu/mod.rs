@@ -1,3 +1,4 @@
+mod vertex;
 mod tesselate;
 mod render;
 mod main_loop;
