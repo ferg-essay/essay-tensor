@@ -8,7 +8,7 @@ use crate::{
     driver::{Renderer, Device}
 };
 
-use super::{Artist, Path, PathCode};
+use super::{ArtistTrait, Path, PathCode};
 
 pub struct Lines2d {
     lines: Tensor, // 2d tensor representing a graph
@@ -53,8 +53,8 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
     Path::new(line, codes)
 }
 
-impl Artist for Lines2d {
-    fn get_data_bounds(&self) -> Bounds<Data> {
+impl ArtistTrait for Lines2d {
+    fn get_data_bounds(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
         for point in self.lines.iter_slice() {

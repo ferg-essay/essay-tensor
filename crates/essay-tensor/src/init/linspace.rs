@@ -70,7 +70,7 @@ impl Operation for LinspaceCpu {
 
                 assert!(start <= end);
 
-                let step = if start < end && len > 0 {
+                let step = if len > 1 {
                     (end - start) / (len - 1) as f32
                 } else {
                     0.

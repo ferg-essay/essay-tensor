@@ -1,14 +1,26 @@
+mod container;
+mod color;
+mod markers;
+pub mod patch;
 mod artist;
 mod collection;
 mod lines;
 mod path;
 
 pub use artist::{
-    Artist
+    Artist, ArtistTrait
 };
 
 pub use collection::{
     Collection
+};
+
+pub use container::{
+    Container
+};
+
+pub use color::{
+    Color, ColorCycle,
 };
 
 pub use lines::{
@@ -16,5 +28,5 @@ pub use lines::{
 };
 
 pub use path::{
-    Path, PathCode,
+    Path, Angle, PathCode,
 };

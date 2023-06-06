@@ -67,9 +67,20 @@ impl<T: Clone + 'static> Tensor<T> {
             data: Arc::new(TensorData::from_vec(vec)),
         }
     }
+
+    pub fn append(&self, tensor: impl Into<Tensor<T>>) -> Tensor<T> {
+        let tensor = tensor.into();
+
+        assert_eq!(self.shape().sublen(1..), tensor.shape().sublen(1..));
+
+        let mut vec = Vec::from(self.shape.as_slice());
+        vec[0] = self.dim(0) + tensor.dim(0);
+
+        Tensor::from_merge(vec![self.clone(), tensor], vec, TensorId::NONE)
+    }
 }
 
-impl<T: Copy + 'static> Tensor<T> {
+impl<T: Clone + 'static> Tensor<T> {
     pub fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
         Self::from_uninit_with_id(data, shape, TensorId::NONE)
     }
@@ -118,10 +129,10 @@ impl<T: Copy + 'static> Tensor<T> {
             let mut o_ptr = uninit.as_mut_ptr();
 
             for tensor in vec {
-                let x_ptr = tensor.as_ptr();
+                let x = tensor.as_slice();
 
                 for i in 0..tensor.len() {
-                    *o_ptr.add(i) = *x_ptr.add(i);
+                    *o_ptr.add(i) = x[i].clone();
                 }
 
                 o_ptr = o_ptr.add(tensor.len());
@@ -685,7 +696,7 @@ impl Dtype for String {}
 mod test {
     use tensor::Shape;
 
-    use crate::{tensor, tf32};
+    use crate::{tensor};
 
     use super::{Tensor};
 

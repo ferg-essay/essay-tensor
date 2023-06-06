@@ -92,7 +92,7 @@ impl Affine2d {
         }
     }
 
-    pub fn transform(&self, points: Tensor) -> Tensor {
+    pub fn transform(&self, points: &Tensor) -> Tensor {
         assert!(points.rank() == 2);
         assert!(points.cols() == 2);
 

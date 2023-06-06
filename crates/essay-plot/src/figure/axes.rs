@@ -2,7 +2,7 @@ use core::fmt;
 
 use essay_tensor::Tensor;
 
-use crate::{driver::{Renderer, Device}, plot::PlotOpt, artist::{Lines2d, Artist, Collection}};
+use crate::{driver::{Renderer, Device}, plot::PlotOpt, artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container}, figure::Point};
 
 use super::{rect::Rect, Bounds, Data, Affine2d, Figure};
 
@@ -15,7 +15,7 @@ pub struct Axes {
 
     to_device: Affine2d,
 
-    artists: Vec<Box<dyn Artist>>,
+    artists: Vec<Box<dyn ArtistTrait>>,
 }
 
 impl Axes {
@@ -45,12 +45,53 @@ impl Axes {
         self
     }
 
+    pub fn pie(
+        &mut self, 
+        x: impl Into<Tensor>, 
+        opt: impl Into<PlotOpt>
+    ) { // -> &mut Artist {
+        let x = x.into();
+        
+        assert!(x.rank() == 1, "pie chart must have rank 1 data");
+
+        let sum = x.reduce_sum()[0];
+
+        let x = x / sum;
+
+        let radius = 1.;
+
+        let startangle = 0.;
+        let mut theta1 = startangle / 360.;
+        let center = Point(0., 0.);
+
+        let mut container = Container::new();
+        for frac in x.iter() {
+            let theta2 = (theta1 - frac + 1.) % 1.;
+            let patch = patch::Wedge::new(
+                center, 
+                radius, 
+                Angle(theta1, theta2)
+            );
+            
+            container.push(Artist::new(patch));
+
+            theta1 = theta2;
+        }
+
+        //self.data_lim = Bounds::<Data>::new(
+        //    Point(-1.25 + center.x(), 1.25 + center.y()))
+
+        self.artist(container);
+
+        // todo!()
+    }
+
     pub fn plot(
         &mut self, 
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
-    ) -> &Box<dyn Artist> {
+    ) -> &Box<dyn ArtistTrait> {
         let lines = Lines2d::from_xy(x, y);
 
         self.artist(lines)
@@ -61,13 +102,14 @@ impl Axes {
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
-    ) -> &Box<dyn Artist> {
+    ) -> &Box<dyn ArtistTrait> {
         let collection = Collection::from_xy(x, y);
 
         self.artist(collection)
     }
 
-    pub fn artist(&mut self, artist: impl Artist + 'static) -> &mut Box<dyn Artist> {
+    pub fn artist(&mut self, artist: impl ArtistTrait + 'static) -> &mut Box<dyn ArtistTrait> {
+        let mut artist = artist;
         let bounds = artist.get_data_bounds();
 
         if self.artists.len() == 0 {

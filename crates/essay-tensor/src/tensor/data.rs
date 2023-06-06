@@ -96,7 +96,7 @@ pub struct TensorUninit<T=f32> {
     data: NonNull<T>,
 }
 
-impl<T: 'static + Copy> TensorUninit<T> {
+impl<T: 'static + Clone> TensorUninit<T> {
     pub unsafe fn new(len: usize) -> Self {
         let layout = Layout::array::<T>(len).unwrap();
         

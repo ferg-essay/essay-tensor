@@ -14,7 +14,9 @@ fn main() {
     let mut figure = Figure::new();
     let axes = figure.axes(());
     // axes.plot(&x, &y, ());
-    axes.scatter(&x, &y, ());
+    // axes.scatter(&x, &y, ());
+    let x = tf32!([40., 30., 20., 5., 5.]);
+    axes.pie(x, ());
     figure.show();
 
     /*
