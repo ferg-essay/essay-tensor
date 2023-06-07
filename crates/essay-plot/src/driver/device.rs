@@ -13,9 +13,11 @@ impl Device {
         }
     }
 
+    /*
     pub fn renderer(&mut self) -> &dyn Renderer {
         self.backend.renderer()
     }
+    */
 
     pub fn main_loop(&mut self, figure: FigureInner) -> Result<()> {
         self.backend.main_loop(figure)
@@ -46,7 +48,9 @@ pub type Result<T, E = DeviceErr> = std::result::Result<T, E>;
 struct NoneBackend;
 
 impl Backend for NoneBackend {
+    /*
     fn renderer(&mut self) -> &dyn Renderer {
         todo!()
     }
+    */
 }

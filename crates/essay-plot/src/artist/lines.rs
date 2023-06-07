@@ -7,7 +7,7 @@ use crate::{
     driver::{Renderer, Device}
 };
 
-use super::{ArtistTrait, Path, PathCode};
+use super::{ArtistTrait, Path, PathCode, StyleOpt};
 
 pub struct Lines2d {
     lines: Tensor, // 2d tensor representing a graph
@@ -71,13 +71,14 @@ impl ArtistTrait for Lines2d {
         renderer: &mut dyn Renderer, 
         to_device: &Affine2d,
         clip: &Bounds<Device>,
+        style: &dyn StyleOpt,
     ) {
         let mut gc = renderer.new_gc();
 
         gc.color(0x3fc0ff);
         gc.linewidth(20.);
 
-        renderer.draw_path(&gc, &self.path, to_device, clip).unwrap();
+        renderer.draw_path(style, &self.path, to_device, clip).unwrap();
     }
 }
 
@@ -117,6 +118,7 @@ impl ArtistTrait for Bezier2 {
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
         clip: &Bounds<Device>,
+        style: &dyn StyleOpt,
     ) {
         let codes = vec![
             PathCode::MoveTo(self.0),
@@ -127,7 +129,7 @@ impl ArtistTrait for Bezier2 {
         let mut gc = renderer.new_gc();
         gc.color(0x1f3fc0ff);
 
-        renderer.draw_path(&gc, &path, &to_device, &clip).unwrap();
+        renderer.draw_path(style, &path, &to_device, &clip).unwrap();
 
     }
 }
@@ -144,6 +146,7 @@ impl ArtistTrait for Bezier3 {
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
         clip: &Bounds<Device>,
+        style: &dyn StyleOpt,
     ) {
         let codes = vec![
             PathCode::MoveTo(self.0),
@@ -151,10 +154,8 @@ impl ArtistTrait for Bezier3 {
         ];
 
         let path = Path::<Data>::new(codes);
-        let mut gc = renderer.new_gc();
-        gc.color(0x1fc000ff);
 
-        renderer.draw_path(&gc, &path, &to_device, &clip).unwrap();
+        renderer.draw_path(style, &path, &to_device, &clip).unwrap();
 
     }
 }

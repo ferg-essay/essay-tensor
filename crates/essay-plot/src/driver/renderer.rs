@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{artist::Path, figure::{Affine2d, Bounds, Point, Data}};
+use crate::{artist::{Path, StyleOpt}, figure::{Affine2d, Bounds, Point, Data}};
 
 use super::{GraphicsContext, Device};
 
@@ -18,13 +18,11 @@ pub trait Renderer {
 
     fn draw_path(
         &mut self, 
-        _gc: &GraphicsContext, 
-        _path: &Path<Data>, 
-        _to_device: &Affine2d,
-        _clip: &Bounds<Device>,
-    ) -> Result<(), RenderErr> {
-        Err(RenderErr::NotImplemented)
-    }
+        style: &dyn StyleOpt, 
+        path: &Path<Data>, 
+        to_device: &Affine2d,
+        clip: &Bounds<Device>,
+    ) -> Result<(), RenderErr>;
 }
 
 #[derive(Debug)]

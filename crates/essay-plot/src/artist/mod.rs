@@ -1,3 +1,4 @@
+mod style;
 mod container;
 mod color;
 mod markers;
@@ -30,4 +31,8 @@ pub use lines::{
 
 pub use path::{
     Path, Angle, PathCode,
+};
+
+pub use style::{
+    StyleOpt, Style, JoinStyle,
 };

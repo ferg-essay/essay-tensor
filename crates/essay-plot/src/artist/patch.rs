@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{figure::{Point, Data, Affine2d, Bounds}, driver::{Renderer, Device}};
 
-use super::{Path, path::Angle, ArtistTrait, Color};
+use super::{Path, path::Angle, ArtistTrait, Color, StyleOpt};
 
 pub trait Patch {
     fn get_path(&mut self) -> &Path;
@@ -14,8 +14,6 @@ pub struct Wedge {
     angle: Angle,
 
     path: Option<Path<Data>>,
-
-    color: Option<Color>,
 }
 
 impl Wedge {
@@ -31,13 +29,12 @@ impl Wedge {
             radius,
             angle,
             path: None,
-            color: None,
         }
     }
 
-    pub fn color(&mut self, color: Color) {
-        self.color = Some(color);
-    }
+    //pub fn color(&mut self, color: Color) {
+    //    self.color = Some(color);
+    //}
 }
 
 impl Patch for Wedge {
@@ -72,16 +69,10 @@ impl ArtistTrait for Wedge {
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
         clip: &Bounds<Device>,
+        style: &dyn StyleOpt,
     ) {
         if let Some(path) = &self.path {
-            let mut gc = renderer.new_gc();
-
-            //println!("Points {:?}", path.codes());
-            if let Some(color) = self.color {
-                gc.color(color);
-            }
-
-            renderer.draw_path(&gc, path, to_device, clip).unwrap();
+            renderer.draw_path(style, path, to_device, clip).unwrap();
         }
     }
 }

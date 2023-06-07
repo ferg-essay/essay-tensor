@@ -1,10 +1,8 @@
-use std::sync::{Mutex, Arc};
-
 use essay_tensor::Tensor;
 
 use crate::{
-    driver::{Backend, Device, Renderer}, plot::{PlotOpt, Plot}, 
-    figure::{Axes, CoordMarker, Bounds, Point}
+    driver::{Backend, Device, Renderer}, plot::{PlotOpt}, 
+    figure::{Axes, CoordMarker, Bounds}
 };
 
 use super::gridspec::GridSpec;
@@ -78,7 +76,7 @@ impl FigureInner {
         &mut self.axes[len - 1]
     }
 
-    pub fn draw(&mut self, renderer: &mut dyn Renderer) {
+    pub fn draw(&mut self, renderer: &mut impl Renderer) {
         let bounds = renderer.get_canvas_bounds();
 
         for axes in &mut self.axes {

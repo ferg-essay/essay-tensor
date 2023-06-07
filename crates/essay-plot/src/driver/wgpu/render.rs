@@ -3,7 +3,7 @@ use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text}
 use crate::{
     driver::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
     figure::{Bounds, Point, Affine2d, Data, CoordMarker, FigureInner}, 
-    artist::{Path, PathCode}
+    artist::{Path, PathCode, StyleOpt, Color}
 };
 
 use super::vertex::VertexBuffer;
@@ -157,11 +157,16 @@ impl<'a> FigureRenderer {
 
     fn draw_closed_path(
         &mut self, 
-        gc: &GraphicsContext, 
+        style: &dyn StyleOpt, 
         path: &Path<Unit>, 
         _clip: &Bounds<Device>,
     ) {
-        let rgba = gc.get_color().get_rgba();
+        let color = match style.get_color() {
+            Some(color) => *color,
+            None => Color(0x000000ff),
+        };
+
+        let rgba = color.get_rgba();
 
         let mut points = Vec::<Point>::new();
         let mut prev = Point(0., 0.);
@@ -201,7 +206,7 @@ impl Renderer for FigureRenderer {
 
     fn draw_path(
         &mut self, 
-        gc: &GraphicsContext, 
+        style: &dyn StyleOpt, 
         path: &Path<Data>, 
         to_device: &Affine2d,
         _clip: &Bounds<Device>,
@@ -211,13 +216,21 @@ impl Renderer for FigureRenderer {
         let path = transform_path(path, &to_unit);
 
         if path.is_closed_path() {
-            self.draw_closed_path(gc, &path, _clip);
+            self.draw_closed_path(style, &path, _clip);
             return Ok(());
         }
 
         // TODO: thickness in points
-        let thickness  = 0.5 * gc.get_linewidth() / self.pos_device.height();
-        let color = gc.get_color().get_rgba();
+        let thickness  = match style.get_linewidth() {
+            Some(linewidth) => 0.5 * linewidth / self.pos_device.height(),
+            None => 0.5,
+        };
+
+        let color = match style.get_color() {
+            Some(color) => *color,
+            None => Color(0x000000ff)
+        };
+        let color = color.get_rgba();
 
         let mut p0 = Point(0.0f32, 0.0f32);
         for code in path.codes() {
@@ -391,14 +404,18 @@ impl FigureRenderer {
     pub(crate) fn draw(
         &mut self,
         figure: &mut FigureInner,
+        bounds: (u32, u32),
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
     ) {
+        let (width, height) = bounds;
+
         self.clear();
         self.staging_belt.recall();
 
+        self.set_canvas_bounds(width, height);
         figure.draw(self);
 
         {
@@ -408,12 +425,7 @@ impl FigureRenderer {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 1.0,
-                            g: 1.0,
-                            b: 1.0,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Load,
                         store: true,
                     }
                 })],

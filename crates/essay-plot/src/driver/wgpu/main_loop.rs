@@ -115,14 +115,20 @@ fn run_event_loop(
                 config.width = size.width;
                 config.height = size.height;
                 surface.configure(&device, &config);
-                figure_renderer.set_canvas_bounds(config.width, config.height);
+                // figure_renderer.set_canvas_bounds(config.width, config.height);
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
                 //figure_renderer.clear();
                 //figure.draw(&mut figure_renderer);
                 main_renderer.render(|device, queue, view, encoder| {
-                    figure_renderer.draw(&mut figure, device, queue, view, encoder);
+                    figure_renderer.draw(
+                        &mut figure,
+                        (config.width, config.height),
+                        device, 
+                        queue, 
+                        view, 
+                        encoder);
                 });
             }
             Event::WindowEvent {

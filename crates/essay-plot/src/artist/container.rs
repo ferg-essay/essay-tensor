@@ -1,6 +1,6 @@
 use crate::{figure::{Bounds, Data, Affine2d, Point}, driver::{Renderer, Device}};
 
-use super::{Artist, ArtistTrait};
+use super::{Artist, ArtistTrait, StyleOpt, Style};
 
 pub struct Container {
     artists: Vec<Artist>,
@@ -39,9 +39,13 @@ impl ArtistTrait for Container {
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
         clip: &Bounds<Device>,
+        style: &dyn StyleOpt,
     ) {
+        //let style_cycle = Style::new();
+        //let style = Style::chain(style, &style_cycle);
+
         for artist in &mut self.artists {
-            artist.draw(renderer, to_device, clip);
+            artist.draw(renderer, to_device, clip, style);
         }
     }
 }

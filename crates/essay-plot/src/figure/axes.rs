@@ -3,11 +3,11 @@ use core::fmt;
 use essay_tensor::Tensor;
 
 use crate::{driver::{Renderer, Device}, plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle}, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, 
     figure::Point
 };
 
-use super::{rect::Rect, Bounds, Data, Affine2d, Figure};
+use super::{Bounds, Data, Affine2d, Figure};
 
 pub struct Axes {
     pos_figure: Bounds<Figure>, // position of the Axes in figure grid coordinates
@@ -17,6 +17,7 @@ pub struct Axes {
     view_lim: Bounds<Data>, // rectangle in data coordinates
 
     to_device: Affine2d,
+    style: Style,
 
     artists: Vec<Box<dyn ArtistTrait>>,
 }
@@ -31,6 +32,8 @@ impl Axes {
 
             view_lim: Bounds::<Data>::unit(),
             data_lim: Bounds::<Data>::unit(),
+
+            style: Style::default(),
 
             to_device: Affine2d::eye(),
 
@@ -72,15 +75,15 @@ impl Axes {
         let mut i = 0;
         for frac in x.iter() {
             let theta2 = (theta1 - frac + 1.) % 1.;
-            let mut patch = patch::Wedge::new(
+            let patch = patch::Wedge::new(
                 center, 
                 radius, 
                 Angle(theta1, theta2)
             );
 
-            patch.color(colors[i]);
-
-            let artist = Artist::new(patch);
+            //patch.color(colors[i]);
+            let mut artist = Artist::new(patch);
+            artist.color(colors[i]);
             
             container.push(artist);
 
@@ -155,9 +158,9 @@ impl Axes {
         &mut self.artists[len - 1]
     }
 
-    pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
+    pub(crate) fn draw(&mut self, renderer: &mut impl Renderer) {
         for artist in &mut self.artists {
-            artist.draw(renderer, &self.to_device, &self.pos_device);
+            artist.draw(renderer, &self.to_device, &self.pos_device, &self.style);
         }
     }
 

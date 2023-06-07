@@ -5,7 +5,7 @@ use essay_tensor::{Tensor, tensor::{Axis, TensorVec}};
 
 use crate::{figure::{Affine2d, Bounds, Data, Point}, driver::{Renderer, Device}};
 
-use super::{ArtistTrait, Path, PathCode};
+use super::{ArtistTrait, Path, PathCode, StyleOpt};
 
 pub struct Collection {
     lines: Tensor, // 2d tensor representing a graph
@@ -69,6 +69,7 @@ impl ArtistTrait for Collection {
         renderer: &mut dyn Renderer, 
         to_device: &Affine2d,
         clip: &Bounds<Device>,
+        style: &dyn StyleOpt,
     ) {
         let mut gc = renderer.new_gc();
 
@@ -112,7 +113,7 @@ impl ArtistTrait for Collection {
 
         let path = Path::closed_poly(vec.into_tensor());
 
-        renderer.draw_path(&gc, &path, to_device, clip).unwrap();
+        renderer.draw_path(style, &path, to_device, clip).unwrap();
     }
 }
 

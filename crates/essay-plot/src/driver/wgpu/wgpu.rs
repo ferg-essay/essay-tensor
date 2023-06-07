@@ -19,8 +19,9 @@ impl Backend for WgpuBackend {
 
         Ok(())
     }
-
+    /*
     fn renderer(&mut self) -> &dyn Renderer {
         todo!()
     }
+    */
 }
