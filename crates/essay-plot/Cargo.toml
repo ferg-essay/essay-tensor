@@ -10,6 +10,7 @@ essay-tensor = { path = "../essay-tensor" }
 egui = "0.22"
 eframe = "0.22"
 wgpu = "0.16"
+wgpu_glyph = "0.20"
 winit = "0.28"
 pollster = "0.3"
 bytemuck = "1.13"

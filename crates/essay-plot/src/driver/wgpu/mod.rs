@@ -1,3 +1,5 @@
+mod pipeline;
+mod text;
 mod vertex;
 mod tesselate;
 mod render;

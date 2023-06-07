@@ -6,7 +6,7 @@ use winit::{
 
 use crate::{figure::FigureInner};
 
-use super::{render::{WgpuRenderer}, vertex::VertexBuffer};
+use super::{render::{PlotRenderer}, vertex::VertexBuffer};
 
 async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
     // event_loop: EventLoop<()>, window: Window) -> EventLoopArgs {
@@ -92,7 +92,8 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         format: swapchain_format,
         width: size.width,
         height: size.height,
-        present_mode: wgpu::PresentMode::Fifo,
+        //present_mode: wgpu::PresentMode::Fifo,
+        present_mode: wgpu::PresentMode::AutoVsync,
         alpha_mode: swapchain_capabilities.alpha_modes[0],
         view_formats: vec![],
     };
@@ -211,14 +212,26 @@ fn run_event_loop(
 
     let mut figure = figure;
 
+
+    let mut staging_belt = wgpu::util::StagingBelt::new(1024);
+
     event_loop.run(move |event, _, control_flow| {
         let _ = (&instance, &adapter, &shader, &pipeline_layout, &figure);
 
-        let mut renderer = WgpuRenderer::new(
+        let mut main_renderer = MainRenderer::new(
             &surface,
             // &config,
             &device,
             &queue,
+            config.format,
+        );
+    
+        let mut figure_renderer = PlotRenderer::new(
+            &surface,
+            // &config,
+            &device,
+            &queue,
+            config.format,
             &render_pipeline,
             &mut vertex_buffer,
             &bezier_pipeline,
@@ -226,8 +239,7 @@ fn run_event_loop(
             &bezier_rev_pipeline,
             &mut bezier_rev_vertex,
         );
-
-
+    
         *control_flow = ControlFlow::Wait;
         match event {
             Event::WindowEvent {
@@ -237,13 +249,15 @@ fn run_event_loop(
                 config.width = size.width;
                 config.height = size.height;
                 surface.configure(&device, &config);
+                figure_renderer.set_canvas_bounds(config.width, config.height);
                 window.request_redraw();
             }
             Event::RedrawRequested(_) => {
-                renderer.clear();
-                renderer.set_canvas_bounds(config.width, config.height);
-                figure.draw(&mut renderer);
-                renderer.render();
+                //figure_renderer.clear();
+                //figure.draw(&mut figure_renderer);
+                main_renderer.render(|device, queue, view, encoder| {
+                    figure_renderer.draw(&mut figure, device, queue, view, encoder);
+                });
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -254,6 +268,92 @@ fn run_event_loop(
     });
 }
 
+struct MainRenderer<'a> {
+    surface: &'a wgpu::Surface,
+    device: &'a wgpu::Device,
+    queue: &'a wgpu::Queue,
+    render_format: wgpu::TextureFormat,
+}
+
+impl<'a> MainRenderer<'a> {
+    pub(crate) fn new(
+        surface: &'a wgpu::Surface,
+        device: &'a wgpu::Device,
+        queue: &'a wgpu::Queue,
+        render_format: wgpu::TextureFormat,
+    ) -> Self {
+        Self {
+            surface,
+            device,
+            queue,
+            render_format,
+        }
+    }
+
+    pub(crate) fn render(
+        &mut self, 
+        view_renderer: impl FnOnce(
+            &wgpu::Device,
+            &wgpu::Queue, 
+            &wgpu::TextureView, 
+            &mut wgpu::CommandEncoder
+        )
+    ) {
+        let frame = self.surface
+            .get_current_texture()
+            .expect("Failed to get next swap chain texture");
+
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        // self.vertex_buffer.clear();
+        //path_render(self.vertex_buffer);
+
+        let mut encoder =
+            self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        {
+            // clip 
+            // rpass.set_viewport(0., 0., 1., 1., 0.0, 1.0);
+            
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 1.0,
+                            g: 1.0,
+                            b: 1.0,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    }
+                })],
+                depth_stencil_attachment: None,
+            });
+        }
+
+        view_renderer(&self.device, &self.queue, &view, &mut encoder);
+
+        //self.staging_belt.finish();
+        self.queue.submit(Some(encoder.finish()));
+        frame.present();
+        //self.staging_belt.recall();
+    }
+}
+
+pub trait ViewRenderer {
+    fn render(
+        &mut self,
+        device: &wgpu::Device, 
+        queue: &wgpu::Queue, 
+        view: &wgpu::TextureView, 
+        encoder: &wgpu::CommandEncoder
+    );
+}
 
 pub(crate) fn main_loop(figure: FigureInner) {
     let event_loop = EventLoop::new();

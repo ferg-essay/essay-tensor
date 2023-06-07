@@ -5,7 +5,7 @@ use wgpu::util::DeviceExt;
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     position: [f32; 2],
-    tex_coord: [f32; 2],
+    uv_coord: [f32; 2],
     color: u32,
 }
 
@@ -33,7 +33,7 @@ pub struct VertexBuffer {
 impl VertexBuffer {
     pub(crate) fn new(len: usize, device: &wgpu::Device) -> Self {
         let mut vec = Vec::<Vertex>::new();
-        vec.resize(len, Vertex { position: [0.0, 0.0], tex_coord: [0.0, 0.0], color: 0x00000000 });
+        vec.resize(len, Vertex { position: [0.0, 0.0], uv_coord: [0.0, 0.0], color: 0x00000000 });
 
         // path_render2(vec.as_mut_slice());
 
@@ -94,11 +94,11 @@ impl VertexBuffer {
 
 impl From<([f32; 2], u32)> for Vertex {
     fn from(value: ([f32; 2], u32)) -> Self {
-        Vertex { position: value.0, tex_coord: [0., 0.], color: value.1 }
+        Vertex { position: value.0, uv_coord: [0., 0.], color: value.1 }
     }
 }
 impl From<([f32; 2], [f32; 2], u32)> for Vertex {
     fn from(value: ([f32; 2], [f32; 2], u32)) -> Self {
-        Vertex { position: value.0, tex_coord: value.1, color: value.2 }
+        Vertex { position: value.0, uv_coord: value.1, color: value.2 }
     }
 }

@@ -1,16 +1,19 @@
 use wgpu::util::DeviceExt;
+use wgpu_glyph::{ab_glyph::{self, FontArc}, GlyphBrushBuilder, GlyphBrush, Section, Text};
 
 use crate::{
     driver::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
-    figure::{Bounds, Point, Affine2d, Data, CoordMarker}, artist::{Path, PathCode}
+    figure::{Bounds, Point, Affine2d, Data, CoordMarker, Figure, FigureInner}, 
+    artist::{Path, PathCode}
 };
 
 use super::vertex::VertexBuffer;
 
-pub struct WgpuRenderer<'a> {
+pub struct PlotRenderer<'a> {
     surface: &'a wgpu::Surface,
     device: &'a wgpu::Device,
     queue: &'a wgpu::Queue,
+    //staging_belt: &'a mut wgpu::util::StagingBelt,
 
     render_pipeline: &'a wgpu::RenderPipeline,
     vertex_buffer: &'a mut VertexBuffer,
@@ -19,15 +22,20 @@ pub struct WgpuRenderer<'a> {
     bezier_rev_pipeline: &'a wgpu::RenderPipeline,
     bezier_rev_vertex: &'a mut VertexBuffer,
 
+    glyph: GlyphBrush<()>,
+
     pos_device: Bounds<Device>,
     to_unit: Affine2d,
 }
 
-impl<'a> WgpuRenderer<'a> {
+impl<'a> PlotRenderer<'a> {
     pub(crate) fn new(
         surface: &'a wgpu::Surface,
         device: &'a wgpu::Device,
         queue: &'a wgpu::Queue,
+        //staging_belt: &'a mut wgpu::util::StagingBelt,
+
+        render_format: wgpu::TextureFormat,
 
         render_pipeline: &'a wgpu::RenderPipeline,
         vertex_buffer: &'a mut VertexBuffer,
@@ -36,16 +44,26 @@ impl<'a> WgpuRenderer<'a> {
         bezier_rev_pipeline: &'a wgpu::RenderPipeline,
         bezier_rev_vertex: &'a mut VertexBuffer,
     ) -> Self {
+        let font_palatino = ab_glyph::FontArc::try_from_slice(include_bytes!(
+            "/System/Library/Fonts/Palatino.ttc"
+        )).unwrap();
+
+        let glyph_brush = GlyphBrushBuilder::using_font(font_palatino)
+            .build(&device, render_format);
+        
         Self {
             surface,
             device,
             queue,
+            //staging_belt,
             render_pipeline,
             vertex_buffer,
             bezier_pipeline,
             bezier_vertex,
             bezier_rev_pipeline,
             bezier_rev_vertex,
+
+            glyph: glyph_brush,
 
             pos_device: Bounds::<Device>::unit(),
             to_unit: Affine2d::eye(),
@@ -163,7 +181,7 @@ impl<'a> WgpuRenderer<'a> {
     }
 }
 
-impl Renderer for WgpuRenderer<'_> {
+impl Renderer for PlotRenderer<'_> {
     ///
     /// Returns the boundary of the canvas, usually in pixels or points.
     ///
@@ -315,21 +333,18 @@ impl CoordMarker for Unit {}
 //render_pipeline: &wgpu::RenderPipeline,
 //vertex_buffer: &mut VertexBuffer,
 
-impl WgpuRenderer<'_> {
-    pub(crate) fn render(&mut self) {
-        let frame = self.surface
-            .get_current_texture()
-            .expect("Failed to get next swap chain texture");
+impl PlotRenderer<'_> {
+    pub(crate) fn draw(
+        &mut self,
+        figure: &mut FigureInner,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        view: &wgpu::TextureView,
+        encoder: &mut wgpu::CommandEncoder,
+    ) {
+        self.clear();
+        figure.draw(self);
 
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
-        // self.vertex_buffer.clear();
-        //path_render(self.vertex_buffer);
-
-        let mut encoder =
-            self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
@@ -348,9 +363,9 @@ impl WgpuRenderer<'_> {
                 })],
                 depth_stencil_attachment: None,
             });
-
             // clip 
             // rpass.set_viewport(0., 0., 1., 1., 0.0, 1.0);
+            
 
             let vertex_len = self.vertex_buffer.offset();
             if vertex_len > 0 {
@@ -386,9 +401,25 @@ impl WgpuRenderer<'_> {
                 rpass.draw(0..bezier_rev_len as u32, 0..1);
             }
         }
+        /*
+        self.glyph.queue(Section {
+            screen_position: (100., 100.),
+            bounds: (1600., 800.),
+            text: vec![Text::new("Hello")
+                .with_color([0.0, 0., 0., 1.])
+                .with_scale(40.)],
+            ..Section::default()
+        });
 
-        self.queue.submit(Some(encoder.finish()));
-        frame.present();
+        self.glyph.draw_queued(
+            &self.device,
+            self.staging_belt,
+            &mut encoder,
+            &view,
+            1600,
+            800,
+        ).unwrap();
+        */
     }
 }
 
