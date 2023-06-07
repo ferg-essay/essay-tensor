@@ -36,7 +36,7 @@ fn fs_bezier(
 ) -> @location(0) vec4<f32> {
     let u = in.tex_coord[0];
     let v = in.tex_coord[1];
-    if v < u * u {
+    if v < 1. - u * u {
         return in.color; // vec4<f32>(0.0, 1.0, 1.1, 1.0); // in.color;
     } else {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);

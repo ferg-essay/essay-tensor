@@ -109,7 +109,7 @@ impl<'a> WgpuRenderer<'a> {
         color: u32
     ) {
         self.bezier_vertex.push_tex(p0.x(), p0.y(), -1.0,0.0, color);
-        self.bezier_vertex.push_tex(p1.x(), p1.y(), 0., 1.0, color);
+        self.bezier_vertex.push_tex(p1.x(), p1.y(), 0.0, 2.0, color);
         self.bezier_vertex.push_tex(p2.x(), p2.y(), 1.0, 0.0, color);
         //self.vertex_buffer.push(p0.x(), p0.y(), color);
         //self.vertex_buffer.push(p1.x(), p1.y(), color);
