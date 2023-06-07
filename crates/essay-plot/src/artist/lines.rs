@@ -74,7 +74,7 @@ impl ArtistTrait for Lines2d {
     ) {
         let mut gc = renderer.new_gc();
 
-        gc.rgba(0x7f3f00ff);
+        gc.color(0x3fc0ff);
         gc.linewidth(20.);
 
         renderer.draw_path(&gc, &self.path, to_device, clip).unwrap();
@@ -124,7 +124,8 @@ impl ArtistTrait for Bezier2 {
         ];
 
         let path = Path::<Data>::new(codes);
-        let gc = renderer.new_gc();
+        let mut gc = renderer.new_gc();
+        gc.color(0x1f3fc0ff);
 
         renderer.draw_path(&gc, &path, &to_device, &clip).unwrap();
 

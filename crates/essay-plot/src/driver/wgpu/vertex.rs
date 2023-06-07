@@ -39,7 +39,7 @@ impl VertexBuffer {
 
         let buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
+                label: None,
                 contents: bytemuck::cast_slice(vec.as_slice()),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             }
@@ -83,6 +83,11 @@ impl VertexBuffer {
 
     pub(crate) fn push(&mut self, x: f32, y: f32, color: u32) {
         self.vec[self.offset] = ([x, y], color).into();
+        self.offset += 1;
+    }
+
+    pub(crate) fn push_tex(&mut self, x: f32, y: f32, u: f32, v: f32, color: u32) {
+        self.vec[self.offset] = ([x, y], [u, v], color).into();
         self.offset += 1;
     }
 }

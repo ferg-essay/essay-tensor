@@ -73,6 +73,11 @@ impl Color {
     pub fn alpha(&self) -> f32 {
         (self.0 & 0xff) as f32 / 255.
     }
+
+    #[inline]
+    pub fn get_rgba(&self) -> u32 {
+        self.0
+    }
 }
 
 impl From<u32> for Color {

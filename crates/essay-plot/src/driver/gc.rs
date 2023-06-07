@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{figure::{Bounds}, artist::Path};
+use crate::{figure::{Bounds}, artist::{Path, Color}};
 
 use super::Device;
 
@@ -9,7 +9,7 @@ pub struct GraphicsContext {
     clip_path: Option<Path<Device>>,
 
     linewidth: f32,
-    rgba: u32, // rgba
+    color: Color, // rgba
 }
 
 impl GraphicsContext {
@@ -43,14 +43,14 @@ impl GraphicsContext {
         self.linewidth
     }
 
-    pub fn rgba(&mut self, rgba: u32) -> &mut Self {
-        self.rgba = rgba;
+    pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
+        self.color = color.into();
 
         self
     }
 
-    pub fn get_rgba(&self) -> u32 {
-        self.rgba
+    pub fn get_color(&self) -> Color {
+        self.color
     }
 }
 
@@ -61,7 +61,7 @@ impl Default for GraphicsContext {
             clip_path: None,
 
             linewidth: 4.,
-            rgba: 0x000000ff,
+            color: Color(0x000000ff),
         }
     }
 }

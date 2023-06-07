@@ -11,8 +11,11 @@ pub struct WgpuRenderer<'a> {
     surface: &'a wgpu::Surface,
     device: &'a wgpu::Device,
     queue: &'a wgpu::Queue,
+
     render_pipeline: &'a wgpu::RenderPipeline,
     vertex_buffer: &'a mut VertexBuffer,
+    bezier_pipeline: &'a wgpu::RenderPipeline,
+    bezier_vertex: &'a mut VertexBuffer,
 
     pos_device: Bounds<Device>,
     to_unit: Affine2d,
@@ -25,6 +28,8 @@ impl<'a> WgpuRenderer<'a> {
         queue: &'a wgpu::Queue,
         render_pipeline: &'a wgpu::RenderPipeline,
         vertex_buffer: &'a mut VertexBuffer,
+        bezier_pipeline: &'a wgpu::RenderPipeline,
+        bezier_vertex: &'a mut VertexBuffer,
     ) -> Self {
         Self {
             surface,
@@ -32,6 +37,8 @@ impl<'a> WgpuRenderer<'a> {
             queue,
             render_pipeline,
             vertex_buffer,
+            bezier_pipeline,
+            bezier_vertex,
 
             pos_device: Bounds::<Device>::unit(),
             to_unit: Affine2d::eye(),
@@ -67,8 +74,8 @@ impl<'a> WgpuRenderer<'a> {
 
     pub(crate) fn clear(&mut self) {
         self.vertex_buffer.clear();
+        self.bezier_vertex.clear();
     }
-
 
     fn draw_line(&mut self, 
         x0: f32, y0: f32, 
@@ -92,6 +99,22 @@ impl<'a> WgpuRenderer<'a> {
         self.vertex_buffer.push(x1 + nx, y1 + ny, color);
         self.vertex_buffer.push(x1 - nx, y1 - ny, color);
         self.vertex_buffer.push(x0 - nx, y0 - ny, color);
+        println!("VB");
+    }
+
+    fn draw_bezier(&mut self, 
+        p0: Point,
+        p1: Point,
+        p2: Point,
+        color: u32
+    ) {
+        self.bezier_vertex.push_tex(p0.x(), p0.y(), -1.0,0.0, color);
+        self.bezier_vertex.push_tex(p1.x(), p1.y(), 0., 1.0, color);
+        self.bezier_vertex.push_tex(p2.x(), p2.y(), 1.0, 0.0, color);
+        //self.vertex_buffer.push(p0.x(), p0.y(), color);
+        //self.vertex_buffer.push(p1.x(), p1.y(), color);
+        //self.vertex_buffer.push(p2.x(), p2.y(), color);
+        println!("DB");
     }
 
     fn draw_closed_path(
@@ -102,6 +125,7 @@ impl<'a> WgpuRenderer<'a> {
         _clip: &Bounds<Device>,
     ) {
         let to_unit = self.to_unit.matmul(to_device);
+        println!("ClosedPath");
 
         let mut points = Vec::<Point>::new();
 
@@ -119,11 +143,12 @@ impl<'a> WgpuRenderer<'a> {
         */
 
         let triangles = tesselate::tesselate(points);
+        let rgba = gc.get_color().get_rgba();
 
         for triangle in &triangles {
-            self.vertex_buffer.push(triangle[0].x(), triangle[0].y(), gc.get_rgba());
-            self.vertex_buffer.push(triangle[1].x(), triangle[1].y(), gc.get_rgba());
-            self.vertex_buffer.push(triangle[2].x(), triangle[2].y(), gc.get_rgba());
+            self.vertex_buffer.push(triangle[0].x(), triangle[0].y(), rgba);
+            self.vertex_buffer.push(triangle[1].x(), triangle[1].y(), rgba);
+            self.vertex_buffer.push(triangle[2].x(), triangle[2].y(), rgba);
         }
     }
 }
@@ -155,7 +180,7 @@ impl Renderer for WgpuRenderer<'_> {
 
         // TODO: thickness in points
         let thickness  = 0.5 * gc.get_linewidth() / self.pos_device.height();
-        let color = gc.get_rgba();
+        let color = gc.get_color().get_rgba();
 
         let to_unit = self.to_unit.matmul(to_device);
 
@@ -168,11 +193,12 @@ impl Renderer for WgpuRenderer<'_> {
                 }
                 PathCode::LineTo(p1) => {
                     self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), thickness, color);
-
+                    println!("Line {:?} {:?}", p0, p1);
                     // TODO: clip
                     *p1
                 }
                 PathCode::Bezier2(p1, p2) => {
+                    self.draw_bezier(p0, *p1, *p2, color);
                     println!("Bezier2 {:?} {:?} {:?}", p0, p1, p2);
 
                     *p2
@@ -192,10 +218,6 @@ impl Renderer for WgpuRenderer<'_> {
 
 // For BezierQuadratic to BezierCubic, see Truong, et. al. 2020 Quadratic 
 // Approximation of Cubic Curves
-
-pub fn write_buffer(queue: &wgpu::Queue, vertices: &mut VertexBuffer, len: usize) {
-    queue.write_buffer(vertices.buffer(), 0, bytemuck::cast_slice(vertices.as_slice()));
-}
 //surface: &wgpu::Surface,
 //device: &wgpu::Device,
 //queue: &wgpu::Queue,
@@ -245,15 +267,31 @@ impl WgpuRenderer<'_> {
 
                 rpass.set_pipeline(&self.render_pipeline);
 
-                println!("Render {}", vertex_len);
+                println!("Vertex_len {}", vertex_len);
                 let size = (vertex_len * self.vertex_buffer.stride()) as u64;
                 rpass.set_vertex_buffer(0, self.vertex_buffer.buffer().slice(..size));
         
                 rpass.draw(0..vertex_len as u32, 0..1);
+            }
+
+            let bezier_len = self.bezier_vertex.offset();
+            if bezier_len > 0 {
+                write_buffer(self.queue, self.bezier_vertex, bezier_len);
+                println!("Bezier_len {}", bezier_len);
+                rpass.set_pipeline(&self.bezier_pipeline);
+
+                let size = (bezier_len * self.bezier_vertex.stride()) as u64;
+                rpass.set_vertex_buffer(0, self.bezier_vertex.buffer().slice(..size));
+        
+                rpass.draw(0..bezier_len as u32, 0..1);
             }
         }
 
         self.queue.submit(Some(encoder.finish()));
         frame.present();
     }
+}
+
+pub fn write_buffer(queue: &wgpu::Queue, vertices: &mut VertexBuffer, len: usize) {
+    queue.write_buffer(vertices.buffer(), 0, bytemuck::cast_slice(vertices.as_slice()));
 }

@@ -72,7 +72,7 @@ impl ArtistTrait for Collection {
     ) {
         let mut gc = renderer.new_gc();
 
-        gc.rgba(0x7f3f00ff);
+        gc.color(0x7f3f00ff);
         gc.linewidth(20.);
         
         /*
