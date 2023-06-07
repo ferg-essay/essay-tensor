@@ -1,7 +1,5 @@
 use std::ops::Index;
 
-use essay_tensor::Tensor;
-
 use crate::figure::Point;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -11,7 +9,6 @@ pub fn tesselate(points: Vec<Point>) -> Vec<Triangle> {
     let mut points = points;
     let mut triangles = Vec::<Triangle>::new();
     
-    println!("Points: {:?}", points);
     let mut index = 0;
     let mut index_start = index;
     while points.len() >= 3 {

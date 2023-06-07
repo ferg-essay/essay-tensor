@@ -65,8 +65,8 @@ impl Affine2d {
 
         let rot = tf32!([
             [cos, -sin, 0.],
-            [sin, cos, 0.],
-            [0., 0., 1.],
+            [sin,  cos, 0.],
+            [0.,   0.,  1.],
         ]); 
 
         Self {
@@ -205,8 +205,12 @@ impl Point {
         }
     }
 
-    pub(crate) fn is_x_below(&self, p0: Point, p1: Point) -> bool {
-        todo!()
+    #[inline]
+    pub fn norm(&self, p: &Point) -> f32 {
+        let dx = self.0 - p.0;
+        let dy = self.1 - p.1;
+
+        (dx * dx + dy * dy).sqrt()
     }
 }
 

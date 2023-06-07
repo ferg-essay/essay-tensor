@@ -3,7 +3,7 @@ use core::fmt;
 use essay_tensor::Tensor;
 
 use crate::{driver::{Renderer, Device}, plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2}, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle}, 
     figure::Point
 };
 
@@ -68,17 +68,24 @@ impl Axes {
         let center = Point(0., 0.);
 
         let mut container = Container::new();
+        let colors = ColorCycle::tableau();
+        let mut i = 0;
         for frac in x.iter() {
             let theta2 = (theta1 - frac + 1.) % 1.;
-            let patch = patch::Wedge::new(
+            let mut patch = patch::Wedge::new(
                 center, 
                 radius, 
                 Angle(theta1, theta2)
             );
+
+            patch.color(colors[i]);
+
+            let artist = Artist::new(patch);
             
-            container.push(Artist::new(patch));
+            container.push(artist);
 
             theta1 = theta2;
+            i += 1;
         }
 
         //self.data_lim = Bounds::<Data>::new(
@@ -100,7 +107,7 @@ impl Axes {
         self.artist(lines)
     }
 
-    pub fn bezier(
+    pub fn bezier3(
         &mut self, 
         p0: impl Into<Point>,
         p1: impl Into<Point>,

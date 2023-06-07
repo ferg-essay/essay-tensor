@@ -147,11 +147,12 @@ impl ArtistTrait for Bezier3 {
     ) {
         let codes = vec![
             PathCode::MoveTo(self.0),
-            PathCode::Bezier3(self.0, self.1, self.2),
+            PathCode::Bezier3(self.1, self.2, self.3),
         ];
 
         let path = Path::<Data>::new(codes);
-        let gc = renderer.new_gc();
+        let mut gc = renderer.new_gc();
+        gc.color(0x1fc000ff);
 
         renderer.draw_path(&gc, &path, &to_device, &clip).unwrap();
 

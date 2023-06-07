@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{figure::{Point, Data, Affine2d, Bounds}, driver::{Renderer, Device}};
 
-use super::{Path, path::Angle, ArtistTrait};
+use super::{Path, path::Angle, ArtistTrait, Color};
 
 pub trait Patch {
     fn get_path(&mut self) -> &Path;
@@ -14,6 +14,8 @@ pub struct Wedge {
     angle: Angle,
 
     path: Option<Path<Data>>,
+
+    color: Option<Color>,
 }
 
 impl Wedge {
@@ -22,14 +24,19 @@ impl Wedge {
         radius: f32,
         angle: Angle,
     ) -> Self {
-        println!("Wedge {:?} angle {:?}-{:?}", center, angle.0, angle.1);
+        //println!("Wedge {:?} angle {:?}-{:?}", center, angle.0, angle.1);
 
         Self {
             center,
             radius,
             angle,
             path: None,
+            color: None,
         }
+    }
+
+    pub fn color(&mut self, color: Color) {
+        self.color = Some(color);
     }
 }
 
@@ -38,7 +45,7 @@ impl Patch for Wedge {
         if self.path.is_none() {
             let wedge = Path::<Data>::wedge(self.angle);
             
-            println!("Wedge {:?}", wedge.codes());
+            //println!("Wedge {:?}", wedge.codes());
             let transform = Affine2d::eye()
                 .scale(self.radius, self.radius)
                 .translate(self.center.x(), self.center.y());
@@ -67,9 +74,12 @@ impl ArtistTrait for Wedge {
         clip: &Bounds<Device>,
     ) {
         if let Some(path) = &self.path {
-            let gc = renderer.new_gc();
+            let mut gc = renderer.new_gc();
 
-            println!("Points {:?}", path.codes());
+            //println!("Points {:?}", path.codes());
+            if let Some(color) = self.color {
+                gc.color(color);
+            }
 
             renderer.draw_path(&gc, path, to_device, clip).unwrap();
         }

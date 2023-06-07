@@ -75,6 +75,18 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         bezier_vertex.desc(),
     );
 
+    let bezier_rev_vertex = VertexBuffer::new(1024, &device);
+
+    let bezier_rev_pipeline = create_pipeline(
+        &device,
+        &bezier_shader,
+        &pipeline_layout,
+        "vs_bezier",
+        "fs_bezier_rev",
+        swapchain_format,
+        bezier_rev_vertex.desc(),
+    );
+
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: swapchain_format,
@@ -100,6 +112,8 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         vertex_buffer,
         bezier_pipeline,
         bezier_vertex,
+        bezier_rev_pipeline,
+        bezier_rev_vertex,
     }
 }
 
@@ -168,6 +182,8 @@ struct EventLoopArgs {
     vertex_buffer: VertexBuffer,
     bezier_pipeline: wgpu::RenderPipeline,
     bezier_vertex: VertexBuffer,
+    bezier_rev_pipeline: wgpu::RenderPipeline,
+    bezier_rev_vertex: VertexBuffer,
 }
 
 fn run_event_loop(
@@ -189,6 +205,8 @@ fn run_event_loop(
         mut vertex_buffer,
         bezier_pipeline,
         mut bezier_vertex,
+        bezier_rev_pipeline,
+        mut bezier_rev_vertex,
     } = args;
 
     let mut figure = figure;
@@ -205,6 +223,8 @@ fn run_event_loop(
             &mut vertex_buffer,
             &bezier_pipeline,
             &mut bezier_vertex,
+            &bezier_rev_pipeline,
+            &mut bezier_rev_vertex,
         );
 
 
@@ -236,7 +256,6 @@ fn run_event_loop(
 
 
 pub(crate) fn main_loop(figure: FigureInner) {
-    println!("Clip Main");
     let event_loop = EventLoop::new();
     let window = winit::window::Window::new(&event_loop).unwrap();
 

@@ -93,7 +93,6 @@ impl<M: CoordMarker> Path<M> {
         let halfpi = 0.5 * PI;
 
         let (t0, t1) = angle.to_radians();
-        println!("Angle {:?} Rads-0 ({:?}, {:?})", angle, t0, t1);
 
         let t1 = if t0 < t1 { t1 } else { t1 + TAU };
 
@@ -105,6 +104,9 @@ impl<M: CoordMarker> Path<M> {
         let cos = steps.cos();
         let sin = steps.sin();
 
+        let dt = (t1 - t0) / n as f32;
+        let t = (0.5 * dt).tan();
+        let alpha = dt.sin() * ((4. + 3. * t * t).sqrt() - 1.) / 3.;
         // let mut vec = TensorVec::<[f32; 2]>::new();
         let mut codes = Vec::new();
 
@@ -113,7 +115,17 @@ impl<M: CoordMarker> Path<M> {
         for i in 1..=n {
             // TODO: switch to quad bezier
             // vec.push([cos[i], sin[i]]);
-            codes.push(PathCode::LineTo(Point(cos[i], sin[i])));
+            codes.push(PathCode::Bezier3(
+                Point(
+                    cos[i - 1] - alpha * sin[i - 1], 
+                    sin[i - 1] + alpha * cos[i - 1]
+                ),
+                Point(
+                    cos[i] + alpha * sin[i], 
+                    sin[i] - alpha * cos[i]
+                ),
+                Point(cos[i], sin[i])
+            ));
         }
 
         // vec.push([0., 0.]);

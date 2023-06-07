@@ -128,7 +128,7 @@ impl Index<usize> for ColorCycle {
 }
 
 impl ColorCycle {
-    fn tableau() -> ColorCycle {
+    pub fn tableau() -> ColorCycle {
         Self::new(&vec![
             ("tab:blue", Color(0x1f77b4ff)),
             ("tab:orange", Color(0xff7f0eff)),

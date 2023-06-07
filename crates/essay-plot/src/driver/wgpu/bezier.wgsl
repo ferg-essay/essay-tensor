@@ -37,7 +37,21 @@ fn fs_bezier(
     let u = in.tex_coord[0];
     let v = in.tex_coord[1];
     //if u * u < 1. - v {
-    if u * u < v {
+    if u * u <= v {
+        return in.color; // vec4<f32>(0.0, 1.0, 1.1, 1.0); // in.color;
+    } else {
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+}
+
+@fragment
+fn fs_bezier_rev(
+    in: VertexOutput,
+) -> @location(0) vec4<f32> {
+    let u = in.tex_coord[0];
+    let v = in.tex_coord[1];
+    //if u * u < 1. - v {
+    if v < u * u {
         return in.color; // vec4<f32>(0.0, 1.0, 1.1, 1.0); // in.color;
     } else {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
