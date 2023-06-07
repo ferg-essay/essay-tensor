@@ -209,3 +209,10 @@ impl Point {
         todo!()
     }
 }
+
+impl From<[f32; 2]> for Point {
+    #[inline]
+    fn from(value: [f32; 2]) -> Self {
+        Point(value[0], value[1])
+    }
+}

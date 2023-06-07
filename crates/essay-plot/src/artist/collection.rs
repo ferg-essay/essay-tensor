@@ -1,9 +1,9 @@
 use core::fmt;
-use std::{cmp, f32::consts::{TAU, PI}};
+use std::{f32::consts::{PI}};
 
-use essay_tensor::{Tensor, tensor::{Axis, TensorVec}, tf32};
+use essay_tensor::{Tensor, tensor::{Axis, TensorVec}};
 
-use crate::{figure::{Rect, Affine2d, Bounds, Data}, driver::{Renderer, Device}};
+use crate::{figure::{Affine2d, Bounds, Data, Point}, driver::{Renderer, Device}};
 
 use super::{ArtistTrait, Path, PathCode};
 
@@ -38,16 +38,16 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
     let mut is_active = false;
     for xy in line.iter_slice() {
         if ! is_active {
-            codes.push(PathCode::MoveTo);
+            codes.push(PathCode::MoveTo(Point(xy[0], xy[1])));
             is_active = true;
         } else {
-            codes.push(PathCode::LineTo);
+            codes.push(PathCode::LineTo(Point(xy[0], xy[1])));
         }
 
         // TODO: build new tensor
     }
 
-    Path::new(line, codes)
+    Path::new(codes)
 }
 
 impl ArtistTrait for Collection {

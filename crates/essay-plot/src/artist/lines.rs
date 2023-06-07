@@ -1,10 +1,9 @@
 use core::fmt;
-use std::cmp;
 
 use essay_tensor::{Tensor, tensor::Axis};
 
 use crate::{
-    figure::{Rect, Affine2d, Bounds, Data}, 
+    figure::{Affine2d, Bounds, Data, Point}, 
     driver::{Renderer, Device}
 };
 
@@ -41,16 +40,16 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
     let mut is_active = false;
     for xy in line.iter_slice() {
         if ! is_active {
-            codes.push(PathCode::MoveTo);
+            codes.push(PathCode::MoveTo(Point(xy[0], xy[1])));
             is_active = true;
         } else {
-            codes.push(PathCode::LineTo);
+            codes.push(PathCode::LineTo(Point(xy[0], xy[1])));
         }
 
         // TODO: build new tensor
     }
 
-    Path::new(line, codes)
+    Path::new(codes)
 }
 
 impl ArtistTrait for Lines2d {
@@ -103,6 +102,58 @@ impl fmt::Debug for Lines2d {
                     self.lines[(n - 1, 0)], self.lines[(n - 1, 1)])
             }
         }
+    }
+}
+
+pub struct Bezier2(pub Point, pub Point, pub Point);
+
+impl ArtistTrait for Bezier2 {
+    fn get_data_bounds(&mut self) -> Bounds<Data> {
+        Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
+    }
+
+    fn draw(
+        &mut self, 
+        renderer: &mut dyn Renderer,
+        to_device: &Affine2d,
+        clip: &Bounds<Device>,
+    ) {
+        let codes = vec![
+            PathCode::MoveTo(self.0),
+            PathCode::Bezier2(self.1, self.2),
+        ];
+
+        let path = Path::<Data>::new(codes);
+        let gc = renderer.new_gc();
+
+        renderer.draw_path(&gc, &path, &to_device, &clip).unwrap();
+
+    }
+}
+
+pub struct Bezier3(pub Point, pub Point, pub Point, pub Point);
+
+impl ArtistTrait for Bezier3 {
+    fn get_data_bounds(&mut self) -> Bounds<Data> {
+        Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
+    }
+
+    fn draw(
+        &mut self, 
+        renderer: &mut dyn Renderer,
+        to_device: &Affine2d,
+        clip: &Bounds<Device>,
+    ) {
+        let codes = vec![
+            PathCode::MoveTo(self.0),
+            PathCode::Bezier3(self.0, self.1, self.2),
+        ];
+
+        let path = Path::<Data>::new(codes);
+        let gc = renderer.new_gc();
+
+        renderer.draw_path(&gc, &path, &to_device, &clip).unwrap();
+
     }
 }
 

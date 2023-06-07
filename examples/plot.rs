@@ -16,7 +16,9 @@ fn main() {
     // axes.plot(&x, &y, ());
     // axes.scatter(&x, &y, ());
     let x = tf32!([40., 30., 20., 5., 5.]);
-    axes.pie(x, ());
+    // axes.pie(x, ());
+    //axes.bezier([0., 0.], [0.25, 1.0], [0.5, -1.0], [1.0, 0.0]);
+    axes.bezier2([0., 0.], [0.5, 1.0], [1.0, 0.0]);
     figure.show();
 
     /*

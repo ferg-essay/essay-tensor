@@ -2,7 +2,10 @@ use core::fmt;
 
 use essay_tensor::Tensor;
 
-use crate::{driver::{Renderer, Device}, plot::PlotOpt, artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container}, figure::Point};
+use crate::{driver::{Renderer, Device}, plot::PlotOpt, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2}, 
+    figure::Point
+};
 
 use super::{rect::Rect, Bounds, Data, Affine2d, Figure};
 
@@ -95,6 +98,25 @@ impl Axes {
         let lines = Lines2d::from_xy(x, y);
 
         self.artist(lines)
+    }
+
+    pub fn bezier(
+        &mut self, 
+        p0: impl Into<Point>,
+        p1: impl Into<Point>,
+        p2: impl Into<Point>,
+        p3: impl Into<Point>
+    ) {
+        self.artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
+    }
+
+    pub fn bezier2(
+        &mut self, 
+        p0: impl Into<Point>,
+        p1: impl Into<Point>,
+        p2: impl Into<Point>,
+    ) {
+        self.artist(Bezier2(p0.into(), p1.into(), p2.into()));
     }
 
     pub fn scatter(

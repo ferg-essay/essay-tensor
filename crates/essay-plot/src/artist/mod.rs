@@ -25,6 +25,7 @@ pub use color::{
 
 pub use lines::{
     Lines2d,
+    Bezier2, Bezier3,
 };
 
 pub use path::{

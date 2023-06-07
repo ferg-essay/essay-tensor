@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{figure::{Point, Data, Affine2d, Bounds}, driver::{Renderer, Device}};
 
-use super::{Path, path::Angle, PathCode, ArtistTrait};
+use super::{Path, path::Angle, ArtistTrait};
 
 pub trait Patch {
     fn get_path(&mut self) -> &Path;
@@ -38,7 +38,7 @@ impl Patch for Wedge {
         if self.path.is_none() {
             let wedge = Path::<Data>::wedge(self.angle);
             
-            println!("Wedge {:?}", wedge.points());
+            println!("Wedge {:?}", wedge.codes());
             let transform = Affine2d::eye()
                 .scale(self.radius, self.radius)
                 .translate(self.center.x(), self.center.y());
@@ -69,7 +69,7 @@ impl ArtistTrait for Wedge {
         if let Some(path) = &self.path {
             let gc = renderer.new_gc();
 
-            println!("Points {:?}", path.points());
+            println!("Points {:?}", path.codes());
 
             renderer.draw_path(&gc, path, to_device, clip).unwrap();
         }
@@ -83,17 +83,4 @@ impl fmt::Debug for Wedge {
             self.radius,
             self.angle.0, self.angle.1)
     }
-}
-
-fn wedge_path(angle: Angle) -> Path {
-    let arc = Path::<Data>::wedge(angle);
-
-    let v = arc.points().append([[0., 0.]]);
-    let mut codes = arc.codes().clone();
-    codes.push(PathCode::ClosePoly);
-
-    println!("ModV {:?}", v);
-    // TODO: inner ring
-
-    Path::new(v, codes)
 }

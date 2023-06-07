@@ -105,6 +105,10 @@ impl<'a> WgpuRenderer<'a> {
 
         let mut points = Vec::<Point>::new();
 
+        for code in path.codes() {
+            points.push(to_unit.transform_point(code.tail()));
+        }
+        /*
         let xy = path.points();
 
         for point in xy.iter_slice() {
@@ -112,15 +116,14 @@ impl<'a> WgpuRenderer<'a> {
 
             points.push(point);
         }
+        */
 
         let triangles = tesselate::tesselate(points);
 
-        println!("Triangles {:?}", triangles);
-
         for triangle in &triangles {
-            self.vertex_buffer.push(triangle[0].x(), triangle[0].y(), 0xc00000ff);
-            self.vertex_buffer.push(triangle[1].x(), triangle[1].y(), 0xc0c000ff);
-            self.vertex_buffer.push(triangle[2].x(), triangle[2].y(), 0xc00000ff);
+            self.vertex_buffer.push(triangle[0].x(), triangle[0].y(), gc.get_rgba());
+            self.vertex_buffer.push(triangle[1].x(), triangle[1].y(), gc.get_rgba());
+            self.vertex_buffer.push(triangle[2].x(), triangle[2].y(), gc.get_rgba());
         }
     }
 }
@@ -156,29 +159,39 @@ impl Renderer for WgpuRenderer<'_> {
 
         let to_unit = self.to_unit.matmul(to_device);
 
-        for (point, code) in path.points().iter_slice().zip(path.codes().iter()) {
-            let p1 = to_unit.transform_point(Point(point[0], point[1]));
-            //println!("Point {:?} {:?} {},{}", point, code, x, y);
+        let path = path.transform::<Device>(&to_unit);
 
-            match code {
-                PathCode::MoveTo => {
-                    p0 = p1;
+        for code in path.codes() {
+            p0 = match code {
+                PathCode::MoveTo(p0) => {
+                    *p0
                 }
-                PathCode::LineTo => {
+                PathCode::LineTo(p1) => {
                     self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), thickness, color);
 
                     // TODO: clip
-                    p0 = p1;
+                    *p1
                 }
-                PathCode::BezierQuadratic => todo!(),
-                PathCode::BezierCubic => todo!(),
-                PathCode::ClosePoly => todo!(),
+                PathCode::Bezier2(p1, p2) => {
+                    println!("Bezier2 {:?} {:?} {:?}", p0, p1, p2);
+
+                    *p2
+                }
+                PathCode::Bezier3(p1, p2, p3) => {
+                    println!("Bezier3 {:?} {:?} {:?} {:?}", p0, p1, p2, p3);
+
+                    *p3
+                }
+                PathCode::ClosePoly(p1) => todo!(),
             }
         }
 
         Ok(())
     }
 }
+
+// For BezierQuadratic to BezierCubic, see Truong, et. al. 2020 Quadratic 
+// Approximation of Cubic Curves
 
 pub fn write_buffer(queue: &wgpu::Queue, vertices: &mut VertexBuffer, len: usize) {
     queue.write_buffer(vertices.buffer(), 0, bytemuck::cast_slice(vertices.as_slice()));
