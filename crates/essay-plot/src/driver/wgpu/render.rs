@@ -99,7 +99,6 @@ impl<'a> WgpuRenderer<'a> {
         self.vertex_buffer.push(x1 + nx, y1 + ny, color);
         self.vertex_buffer.push(x1 - nx, y1 - ny, color);
         self.vertex_buffer.push(x0 - nx, y0 - ny, color);
-        println!("VB");
     }
 
     fn draw_bezier(&mut self, 
@@ -108,13 +107,13 @@ impl<'a> WgpuRenderer<'a> {
         p2: Point,
         color: u32
     ) {
-        self.bezier_vertex.push_tex(p0.x(), p0.y(), -1.0,0.0, color);
-        self.bezier_vertex.push_tex(p1.x(), p1.y(), 0.0, 2.0, color);
-        self.bezier_vertex.push_tex(p2.x(), p2.y(), 1.0, 0.0, color);
-        //self.vertex_buffer.push(p0.x(), p0.y(), color);
-        //self.vertex_buffer.push(p1.x(), p1.y(), color);
-        //self.vertex_buffer.push(p2.x(), p2.y(), color);
-        println!("DB");
+        //self.bezier_vertex.push_tex(p0.x(), p0.y(), -1.0,0.0, color);
+        //self.bezier_vertex.push_tex(p1.x(), p1.y(), 0.0, 2.0, color);
+        //self.bezier_vertex.push_tex(p2.x(), p2.y(), 1.0, 0.0, color);
+
+        self.bezier_vertex.push_tex(p0.x(), p0.y(), -1.0,1.0, color);
+        self.bezier_vertex.push_tex(p1.x(), p1.y(), 0.0, -1.0, color);
+        self.bezier_vertex.push_tex(p2.x(), p2.y(), 1.0, 1.0, color);
     }
 
     fn draw_closed_path(
