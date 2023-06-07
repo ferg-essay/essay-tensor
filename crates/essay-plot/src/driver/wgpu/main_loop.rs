@@ -6,7 +6,7 @@ use winit::{
 
 use crate::{figure::FigureInner};
 
-use super::{render::{PlotRenderer}, vertex::VertexBuffer};
+use super::{render::{FigureRenderer}, vertex::VertexBuffer};
 
 async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
     // event_loop: EventLoop<()>, window: Window) -> EventLoopArgs {
@@ -38,13 +38,13 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         .await
         .expect("Failed to create device");
 
-    let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
+    //let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
 
-    let vertex_buffer = VertexBuffer::new(1024, &device);
+    //let vertex_buffer = VertexBuffer::new(1024, &device);
 
     let swapchain_capabilities = surface.get_capabilities(&adapter);
     let swapchain_format = swapchain_capabilities.formats[0];
-
+    /*
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
         bind_group_layouts: &[],
@@ -86,6 +86,7 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         swapchain_format,
         bezier_rev_vertex.desc(),
     );
+    */
 
     let config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -106,8 +107,9 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         device,
         config,
         surface,
-        shader,
+        //shader,
         queue,
+        /*
         pipeline_layout,
         render_pipeline,
         vertex_buffer,
@@ -115,6 +117,7 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         bezier_vertex,
         bezier_rev_pipeline,
         bezier_rev_vertex,
+        */
     }
 }
 
@@ -174,10 +177,11 @@ struct EventLoopArgs {
     instance: wgpu::Instance,
     adapter: wgpu::Adapter,
     device: wgpu::Device,
+    queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     surface: wgpu::Surface,
-    shader: wgpu::ShaderModule,
-    queue: wgpu::Queue,
+    //shader: wgpu::ShaderModule,
+    /*
     pipeline_layout: wgpu::PipelineLayout,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: VertexBuffer,
@@ -185,6 +189,7 @@ struct EventLoopArgs {
     bezier_vertex: VertexBuffer,
     bezier_rev_pipeline: wgpu::RenderPipeline,
     bezier_rev_vertex: VertexBuffer,
+    */
 }
 
 fn run_event_loop(
@@ -199,8 +204,9 @@ fn run_event_loop(
         mut config,
         device,
         surface,
-        shader,
         queue,
+        //shader,
+        /*
         pipeline_layout,
         render_pipeline,
         mut vertex_buffer,
@@ -208,15 +214,29 @@ fn run_event_loop(
         mut bezier_vertex,
         bezier_rev_pipeline,
         mut bezier_rev_vertex,
+        */
     } = args;
 
     let mut figure = figure;
 
 
-    let mut staging_belt = wgpu::util::StagingBelt::new(1024);
+    //let mut staging_belt = wgpu::util::StagingBelt::new(1024);
+
+    let mut figure_renderer = FigureRenderer::new(
+        &device,
+        config.format,
+        /*
+        &render_pipeline,
+        &mut vertex_buffer,
+        &bezier_pipeline,
+        &mut bezier_vertex,
+        &bezier_rev_pipeline,
+        &mut bezier_rev_vertex,
+        */
+    );
 
     event_loop.run(move |event, _, control_flow| {
-        let _ = (&instance, &adapter, &shader, &pipeline_layout, &figure);
+        let _ = (&instance, &adapter, &figure);
 
         let mut main_renderer = MainRenderer::new(
             &surface,
@@ -224,20 +244,6 @@ fn run_event_loop(
             &device,
             &queue,
             config.format,
-        );
-    
-        let mut figure_renderer = PlotRenderer::new(
-            &surface,
-            // &config,
-            &device,
-            &queue,
-            config.format,
-            &render_pipeline,
-            &mut vertex_buffer,
-            &bezier_pipeline,
-            &mut bezier_vertex,
-            &bezier_rev_pipeline,
-            &mut bezier_rev_vertex,
         );
     
         *control_flow = ControlFlow::Wait;

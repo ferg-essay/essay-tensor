@@ -1,26 +1,25 @@
-use wgpu::util::DeviceExt;
-use wgpu_glyph::{ab_glyph::{self, FontArc}, GlyphBrushBuilder, GlyphBrush, Section, Text};
+use wgpu_glyph::{ab_glyph::{self, FontArc}, GlyphBrushBuilder, GlyphBrush};
 
 use crate::{
     driver::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
-    figure::{Bounds, Point, Affine2d, Data, CoordMarker, Figure, FigureInner}, 
+    figure::{Bounds, Point, Affine2d, Data, CoordMarker, FigureInner}, 
     artist::{Path, PathCode}
 };
 
 use super::vertex::VertexBuffer;
 
-pub struct PlotRenderer<'a> {
-    surface: &'a wgpu::Surface,
-    device: &'a wgpu::Device,
-    queue: &'a wgpu::Queue,
+pub struct FigureRenderer {
+    //surface: &'a wgpu::Surface,
+    //device: &'a wgpu::Device,
+    //queue: &'a wgpu::Queue,
     //staging_belt: &'a mut wgpu::util::StagingBelt,
 
-    render_pipeline: &'a wgpu::RenderPipeline,
-    vertex_buffer: &'a mut VertexBuffer,
-    bezier_pipeline: &'a wgpu::RenderPipeline,
-    bezier_vertex: &'a mut VertexBuffer,
-    bezier_rev_pipeline: &'a wgpu::RenderPipeline,
-    bezier_rev_vertex: &'a mut VertexBuffer,
+    vertex_pipeline: wgpu::RenderPipeline,
+    vertex: VertexBuffer,
+    bezier_pipeline: wgpu::RenderPipeline,
+    bezier_vertex: VertexBuffer,
+    bezier_rev_pipeline: wgpu::RenderPipeline,
+    bezier_rev_vertex: VertexBuffer,
 
     glyph: GlyphBrush<()>,
 
@@ -28,36 +27,62 @@ pub struct PlotRenderer<'a> {
     to_unit: Affine2d,
 }
 
-impl<'a> PlotRenderer<'a> {
+impl<'a> FigureRenderer {
     pub(crate) fn new(
-        surface: &'a wgpu::Surface,
-        device: &'a wgpu::Device,
-        queue: &'a wgpu::Queue,
+        device: &wgpu::Device,
         //staging_belt: &'a mut wgpu::util::StagingBelt,
 
-        render_format: wgpu::TextureFormat,
-
-        render_pipeline: &'a wgpu::RenderPipeline,
-        vertex_buffer: &'a mut VertexBuffer,
-        bezier_pipeline: &'a wgpu::RenderPipeline,
-        bezier_vertex: &'a mut VertexBuffer,
-        bezier_rev_pipeline: &'a wgpu::RenderPipeline,
-        bezier_rev_vertex: &'a mut VertexBuffer,
+        texture_format: wgpu::TextureFormat,
     ) -> Self {
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
+
+        let vertex_buffer = VertexBuffer::new(1024, &device);
+    
+        let vertex_pipeline = create_pipeline(
+            &device,
+            &shader,
+            "vs_main",
+            "fs_main",
+            texture_format,
+            vertex_buffer.desc(),
+        );
+
+        let bezier_shader = device.create_shader_module(wgpu::include_wgsl!("bezier.wgsl"));
+
+        let bezier_vertex = VertexBuffer::new(1024, &device);
+    
+        let bezier_pipeline = create_pipeline(
+            &device,
+            &bezier_shader,
+            // &pipeline_layout,
+            "vs_bezier",
+            "fs_bezier",
+            texture_format,
+            bezier_vertex.desc(),
+        );
+
+        let bezier_rev_vertex = VertexBuffer::new(1024, &device);
+
+        let bezier_rev_pipeline = create_pipeline(
+            &device,
+            &bezier_shader,
+            "vs_bezier",
+            "fs_bezier_rev",
+            texture_format,
+            bezier_rev_vertex.desc(),
+        );
+    
         let font_palatino = ab_glyph::FontArc::try_from_slice(include_bytes!(
             "/System/Library/Fonts/Palatino.ttc"
         )).unwrap();
 
         let glyph_brush = GlyphBrushBuilder::using_font(font_palatino)
-            .build(&device, render_format);
+            .build(&device, texture_format);
         
         Self {
-            surface,
-            device,
-            queue,
             //staging_belt,
-            render_pipeline,
-            vertex_buffer,
+            vertex_pipeline,
+            vertex: vertex_buffer,
             bezier_pipeline,
             bezier_vertex,
             bezier_rev_pipeline,
@@ -96,7 +121,7 @@ impl<'a> PlotRenderer<'a> {
     */
 
     pub(crate) fn clear(&mut self) {
-        self.vertex_buffer.clear();
+        self.vertex.clear();
         self.bezier_vertex.clear();
     }
 
@@ -115,13 +140,13 @@ impl<'a> PlotRenderer<'a> {
         let nx = dy * (thickness / len);
         let ny = - dx * (thickness / len);
 
-        self.vertex_buffer.push(x0 - nx, y0 - ny, color);
-        self.vertex_buffer.push(x0 + nx, y0 + ny, color);
-        self.vertex_buffer.push(x1 + nx, y1 + ny, color);
+        self.vertex.push(x0 - nx, y0 - ny, color);
+        self.vertex.push(x0 + nx, y0 + ny, color);
+        self.vertex.push(x1 + nx, y1 + ny, color);
 
-        self.vertex_buffer.push(x1 + nx, y1 + ny, color);
-        self.vertex_buffer.push(x1 - nx, y1 - ny, color);
-        self.vertex_buffer.push(x0 - nx, y0 - ny, color);
+        self.vertex.push(x1 + nx, y1 + ny, color);
+        self.vertex.push(x1 - nx, y1 - ny, color);
+        self.vertex.push(x0 - nx, y0 - ny, color);
     }
 
     fn draw_bezier(&mut self, 
@@ -174,14 +199,14 @@ impl<'a> PlotRenderer<'a> {
         let triangles = tesselate::tesselate(points);
 
         for triangle in &triangles {
-            self.vertex_buffer.push(triangle[0].x(), triangle[0].y(), rgba);
-            self.vertex_buffer.push(triangle[1].x(), triangle[1].y(), rgba);
-            self.vertex_buffer.push(triangle[2].x(), triangle[2].y(), rgba);
+            self.vertex.push(triangle[0].x(), triangle[0].y(), rgba);
+            self.vertex.push(triangle[1].x(), triangle[1].y(), rgba);
+            self.vertex.push(triangle[2].x(), triangle[2].y(), rgba);
         }
     }
 }
 
-impl Renderer for PlotRenderer<'_> {
+impl Renderer for FigureRenderer {
     ///
     /// Returns the boundary of the canvas, usually in pixels or points.
     ///
@@ -333,7 +358,65 @@ impl CoordMarker for Unit {}
 //render_pipeline: &wgpu::RenderPipeline,
 //vertex_buffer: &mut VertexBuffer,
 
-impl PlotRenderer<'_> {
+fn create_pipeline(
+    device: &wgpu::Device,
+    shader: &wgpu::ShaderModule,
+    // pipeline_layout: &wgpu::PipelineLayout,
+    vertex_entry: &str,
+    fragment_entry: &str,
+    texture_format: wgpu::TextureFormat,
+    vertex_layout: wgpu::VertexBufferLayout,
+) -> wgpu::RenderPipeline {
+    //let swapchain_format = wgpu::TextureFormat::Rgba16Float;
+
+    // let swapchain_capabilities = surface.get_capabilities(&adapter);
+    // let swapchain_format = swapchain_capabilities.formats[0];
+
+    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[],
+        push_constant_ranges: &[],
+    });
+
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: None,
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: vertex_entry,
+            buffers: &[
+                vertex_layout
+            ],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: fragment_entry,
+            targets: &[
+                Some(wgpu::ColorTargetState {
+                    format: texture_format,
+
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add
+                        },
+
+                        alpha: wgpu::BlendComponent::OVER
+                    }),
+
+                    write_mask: wgpu::ColorWrites::ALL,
+                })
+            ],
+        }),
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+    })
+}
+
+impl FigureRenderer {
     pub(crate) fn draw(
         &mut self,
         figure: &mut FigureInner,
@@ -367,21 +450,21 @@ impl PlotRenderer<'_> {
             // rpass.set_viewport(0., 0., 1., 1., 0.0, 1.0);
             
 
-            let vertex_len = self.vertex_buffer.offset();
+            let vertex_len = self.vertex.offset();
             if vertex_len > 0 {
-                write_buffer(self.queue, self.vertex_buffer, vertex_len);
+                write_buffer(queue, &mut self.vertex, vertex_len);
 
-                rpass.set_pipeline(&self.render_pipeline);
+                rpass.set_pipeline(&self.vertex_pipeline);
 
-                let size = (vertex_len * self.vertex_buffer.stride()) as u64;
-                rpass.set_vertex_buffer(0, self.vertex_buffer.buffer().slice(..size));
+                let size = (vertex_len * self.vertex.stride()) as u64;
+                rpass.set_vertex_buffer(0, self.vertex.buffer().slice(..size));
         
                 rpass.draw(0..vertex_len as u32, 0..1);
             }
 
             let bezier_len = self.bezier_vertex.offset();
             if bezier_len > 0 {
-                write_buffer(self.queue, self.bezier_vertex, bezier_len);
+                write_buffer(queue, &mut self.bezier_vertex, bezier_len);
                 rpass.set_pipeline(&self.bezier_pipeline);
 
                 let size = (bezier_len * self.bezier_vertex.stride()) as u64;
@@ -393,7 +476,7 @@ impl PlotRenderer<'_> {
             let bezier_rev_len = self.bezier_rev_vertex.offset();
             if bezier_rev_len > 0 {
                 let size = (bezier_rev_len * self.bezier_rev_vertex.stride()) as u64;
-                write_buffer(self.queue, self.bezier_rev_vertex, bezier_rev_len);
+                write_buffer(queue, &mut self.bezier_rev_vertex, bezier_rev_len);
                 rpass.set_pipeline(&self.bezier_rev_pipeline);
 
                 rpass.set_vertex_buffer(0, self.bezier_rev_vertex.buffer().slice(..size));
