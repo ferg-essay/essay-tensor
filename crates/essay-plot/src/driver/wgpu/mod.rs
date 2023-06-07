@@ -1,9 +1,8 @@
-mod pipeline;
+mod main_loop;
+mod render;
+mod tesselate;
 mod text;
 mod vertex;
-mod tesselate;
-mod render;
-mod main_loop;
 mod wgpu;
 
 pub use self::wgpu::{

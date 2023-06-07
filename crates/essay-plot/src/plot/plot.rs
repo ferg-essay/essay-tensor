@@ -151,10 +151,6 @@ impl Plot {
     pub fn show(&mut self) -> &mut Self {
         todo!()
     }
-
-    fn draw(&self, ui: &mut egui::Ui) {
-        todo!()
-    }
 }
 
 #[derive(Default)]

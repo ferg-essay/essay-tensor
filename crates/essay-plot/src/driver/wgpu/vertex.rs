@@ -35,8 +35,6 @@ impl VertexBuffer {
         let mut vec = Vec::<Vertex>::new();
         vec.resize(len, Vertex { position: [0.0, 0.0], uv_coord: [0.0, 0.0], color: 0x00000000 });
 
-        // path_render2(vec.as_mut_slice());
-
         let buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: None,
@@ -61,7 +59,7 @@ impl VertexBuffer {
         &self.vec
     }
 
-    pub(crate) fn as_mut_slice(&mut self) -> &mut [Vertex] {
+    pub(crate) fn _as_mut_slice(&mut self) -> &mut [Vertex] {
         &mut self.vec
     }
 

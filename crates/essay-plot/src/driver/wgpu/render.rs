@@ -1,4 +1,4 @@
-use wgpu_glyph::{ab_glyph::{self, FontArc}, GlyphBrushBuilder, GlyphBrush};
+use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text};
 
 use crate::{
     driver::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
@@ -9,10 +9,6 @@ use crate::{
 use super::vertex::VertexBuffer;
 
 pub struct FigureRenderer {
-    //surface: &'a wgpu::Surface,
-    //device: &'a wgpu::Device,
-    //queue: &'a wgpu::Queue,
-    //staging_belt: &'a mut wgpu::util::StagingBelt,
 
     vertex_pipeline: wgpu::RenderPipeline,
     vertex: VertexBuffer,
@@ -21,6 +17,7 @@ pub struct FigureRenderer {
     bezier_rev_pipeline: wgpu::RenderPipeline,
     bezier_rev_vertex: VertexBuffer,
 
+    staging_belt: wgpu::util::StagingBelt,
     glyph: GlyphBrush<()>,
 
     pos_device: Bounds<Device>,
@@ -30,8 +27,6 @@ pub struct FigureRenderer {
 impl<'a> FigureRenderer {
     pub(crate) fn new(
         device: &wgpu::Device,
-        //staging_belt: &'a mut wgpu::util::StagingBelt,
-
         texture_format: wgpu::TextureFormat,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
@@ -54,7 +49,6 @@ impl<'a> FigureRenderer {
         let bezier_pipeline = create_pipeline(
             &device,
             &bezier_shader,
-            // &pipeline_layout,
             "vs_bezier",
             "fs_bezier",
             texture_format,
@@ -80,7 +74,6 @@ impl<'a> FigureRenderer {
             .build(&device, texture_format);
         
         Self {
-            //staging_belt,
             vertex_pipeline,
             vertex: vertex_buffer,
             bezier_pipeline,
@@ -88,11 +81,17 @@ impl<'a> FigureRenderer {
             bezier_rev_pipeline,
             bezier_rev_vertex,
 
+            staging_belt: wgpu::util::StagingBelt::new(1024),
             glyph: glyph_brush,
 
             pos_device: Bounds::<Device>::unit(),
             to_unit: Affine2d::eye(),
         }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.vertex.clear();
+        self.bezier_vertex.clear();
     }
 
     pub(crate) fn set_canvas_bounds(&mut self, width: u32, height: u32) {
@@ -107,22 +106,6 @@ impl<'a> FigureRenderer {
         );
 
         self.to_unit = self.pos_device.affine_to(&pos_unit);
-    }
-    /*
-    fn render(&mut self) {
-        render(
-            self.surface, 
-            self.device,
-            self.queue,
-            self.render_pipeline,
-            &mut self.vertex_buffer,
-        )
-    }
-    */
-
-    pub(crate) fn clear(&mut self) {
-        self.vertex.clear();
-        self.bezier_vertex.clear();
     }
 
     fn draw_line(&mut self, 
@@ -176,10 +159,8 @@ impl<'a> FigureRenderer {
         &mut self, 
         gc: &GraphicsContext, 
         path: &Path<Unit>, 
-        to_device: &Affine2d,
         _clip: &Bounds<Device>,
     ) {
-        // let to_unit = self.to_unit.matmul(to_device);
         let rgba = gc.get_color().get_rgba();
 
         let mut points = Vec::<Point>::new();
@@ -230,7 +211,7 @@ impl Renderer for FigureRenderer {
         let path = transform_path(path, &to_unit);
 
         if path.is_closed_path() {
-            self.draw_closed_path(gc, &path, to_device, _clip);
+            self.draw_closed_path(gc, &path, _clip);
             return Ok(());
         }
 
@@ -352,11 +333,6 @@ impl CoordMarker for Unit {}
 
 // For BezierQuadratic to BezierCubic, see Truong, et. al. 2020 Quadratic 
 // Approximation of Cubic Curves
-//surface: &wgpu::Surface,
-//device: &wgpu::Device,
-//queue: &wgpu::Queue,
-//render_pipeline: &wgpu::RenderPipeline,
-//vertex_buffer: &mut VertexBuffer,
 
 fn create_pipeline(
     device: &wgpu::Device,
@@ -367,11 +343,6 @@ fn create_pipeline(
     texture_format: wgpu::TextureFormat,
     vertex_layout: wgpu::VertexBufferLayout,
 ) -> wgpu::RenderPipeline {
-    //let swapchain_format = wgpu::TextureFormat::Rgba16Float;
-
-    // let swapchain_capabilities = surface.get_capabilities(&adapter);
-    // let swapchain_format = swapchain_capabilities.formats[0];
-
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
         bind_group_layouts: &[],
@@ -426,6 +397,8 @@ impl FigureRenderer {
         encoder: &mut wgpu::CommandEncoder,
     ) {
         self.clear();
+        self.staging_belt.recall();
+
         figure.draw(self);
 
         {
@@ -484,10 +457,12 @@ impl FigureRenderer {
                 rpass.draw(0..bezier_rev_len as u32, 0..1);
             }
         }
-        /*
+
+        let (width, height) = (self.pos_device.width(), self.pos_device.height());
+
         self.glyph.queue(Section {
             screen_position: (100., 100.),
-            bounds: (1600., 800.),
+            bounds: (width, height),
             text: vec![Text::new("Hello")
                 .with_color([0.0, 0., 0., 1.])
                 .with_scale(40.)],
@@ -495,18 +470,19 @@ impl FigureRenderer {
         });
 
         self.glyph.draw_queued(
-            &self.device,
-            self.staging_belt,
-            &mut encoder,
+            device,
+            &mut self.staging_belt,
+            encoder,
             &view,
-            1600,
-            800,
+            width as u32,
+            height as u32,
         ).unwrap();
-        */
+        self.staging_belt.finish();
+        //self.staging_belt.recall();
     }
 }
 
-pub fn write_buffer(queue: &wgpu::Queue, vertices: &mut VertexBuffer, size: usize) {
+pub fn write_buffer(queue: &wgpu::Queue, vertices: &mut VertexBuffer, _size: usize) {
     //queue.write_buffer(vertices.buffer(), 0, bytemuck::cast_slice(vertices.as_slice()));
     queue.write_buffer(vertices.buffer(), 0, bytemuck::cast_slice(vertices.as_slice()));
 }

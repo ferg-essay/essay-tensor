@@ -1,4 +1,4 @@
-use essay_plot::{prelude::*, driver::{egui::EguiBackend, Backend, wgpu::WgpuBackend}};
+use essay_plot::{prelude::*};
 use essay_tensor::{prelude::*, init::linspace};
 
 fn main() {

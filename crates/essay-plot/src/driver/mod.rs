@@ -3,7 +3,6 @@ mod gc;
 pub mod wgpu;
 mod renderer;
 mod device;
-pub mod egui;
 
 pub use device::{
     Device, DeviceErr, Result
