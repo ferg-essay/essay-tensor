@@ -6,7 +6,7 @@ use crate::{driver::{Renderer, Canvas}, plot::PlotOpt,
     artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, figure::GridSpec, prelude::Figure, frame::Point, 
 };
 
-use super::{Bounds, Data, Affine2d, databox::DataBox, frame::{Frame, SpineX, SpineY, SpineRight, SpineTop}};
+use super::{Bounds, Data, Affine2d, databox::DataBox, frame::{Frame, BottomFrame, LeftFrame, RightFrame, TopFrame}};
 
 pub struct Axes {
     pos_figure: Bounds<GridSpec>, // position of the Axes in figure grid coordinates

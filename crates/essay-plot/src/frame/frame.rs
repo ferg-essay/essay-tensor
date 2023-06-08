@@ -1,6 +1,13 @@
-use crate::{artist::{Style, patch::{PatchTrait, self, DisplayPatch, Line}, ArtistTrait}, driver::{Canvas, Renderer}, frame::Affine2d, figure::GridSpec};
+use crate::{
+    artist::{Style, 
+        patch::{PatchTrait, self, DisplayPatch, Line}, 
+        ArtistTrait
+    }, 
+    driver::{Canvas, Renderer}, 
+    frame::Affine2d
+};
 
-use super::{Display, Bounds, Point, databox::DataBox, Data};
+use super::{Bounds, Point, databox::DataBox};
 
 pub struct Frame {
     pos: Bounds<Canvas>,
@@ -10,12 +17,10 @@ pub struct Frame {
 
     data: DataBox,
 
-    bottom: SpineX,
-    left: SpineY,
-    top: SpineTop,
-    right: SpineRight,
-
-    artists: Vec<Box<dyn ArtistTrait<Data>>>,
+    bottom: BottomFrame,
+    left: LeftFrame,
+    top: TopFrame,
+    right: RightFrame,
 }
 
 impl Frame {
@@ -23,14 +28,12 @@ impl Frame {
         Self {
             pos: Bounds::none(),
 
-            artists: Vec::new(),
-
             data: DataBox::new(),
 
-            bottom: SpineX::new(),
-            left: SpineY::new(),
-            top: SpineTop::new(),
-            right: SpineRight::new(),
+            bottom: BottomFrame::new(),
+            left: LeftFrame::new(),
+            top: TopFrame::new(),
+            right: RightFrame::new(),
 
             style: Style::default(),
 
@@ -102,13 +105,17 @@ impl Frame {
     }
 }
 
-pub struct SpineTop {
+//
+// Top Frame
+//
+
+pub struct TopFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
     spine: Option<DisplayPatch>,
 }
 
-impl SpineTop {
+impl TopFrame {
     pub fn new() -> Self {
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(0., 20.)),
@@ -129,7 +136,7 @@ impl SpineTop {
     }
 }
 
-impl ArtistTrait<Canvas> for SpineTop {
+impl ArtistTrait<Canvas> for TopFrame {
     fn get_bounds(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
@@ -141,8 +148,6 @@ impl ArtistTrait<Canvas> for SpineTop {
         clip: &Bounds<Canvas>,
         style: &dyn crate::artist::StyleOpt,
     ) {
-        //let affine = Affine2d::eye().translate(self.pos.xmin(), self.pos.ymin());
-
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
         }
@@ -150,13 +155,17 @@ impl ArtistTrait<Canvas> for SpineTop {
     }
 }
 
-pub struct SpineX {
+//
+// Bottom frame
+//
+
+pub struct BottomFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
     spine: Option<DisplayPatch>,
 }
 
-impl SpineX {
+impl BottomFrame {
     pub fn new() -> Self {
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(0., 20.)),
@@ -167,7 +176,7 @@ impl SpineX {
 
     pub fn set_pos(&mut self, pos: Bounds<Canvas>) {
         self.pos = pos.clone();
-        println!("Spine {:?}", pos);
+
         if let Some(spine) = &mut self.spine {
             spine.set_pos(Bounds::new(
                 Point(pos.xmin(), pos.ymax() - 1.),
@@ -177,7 +186,7 @@ impl SpineX {
     }
 }
 
-impl ArtistTrait<Canvas> for SpineX {
+impl ArtistTrait<Canvas> for BottomFrame {
     fn get_bounds(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
@@ -198,13 +207,17 @@ impl ArtistTrait<Canvas> for SpineX {
     }
 }
 
-pub struct SpineY {
+//
+// Left frame
+//
+
+pub struct LeftFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
     spine: Option<DisplayPatch>,
 }
 
-impl SpineY {
+impl LeftFrame {
     pub fn new() -> Self {
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(20., 0.)),
@@ -217,7 +230,6 @@ impl SpineY {
         self.pos = pos.clone();
 
         if let Some(spine) = &mut self.spine {
-            println!("SpinePos {:?}", pos);
             spine.set_pos(Bounds::new(
                 Point(pos.xmax() - 1., pos.ymin()),
                 Point(pos.xmax(), pos.ymax()),
@@ -226,7 +238,7 @@ impl SpineY {
     }
 }
 
-impl ArtistTrait<Canvas> for SpineY {
+impl ArtistTrait<Canvas> for LeftFrame {
     fn get_bounds(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
@@ -241,17 +253,20 @@ impl ArtistTrait<Canvas> for SpineY {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
         }
-        
     }
 }
 
-pub struct SpineRight {
+//
+// Right frame
+//
+
+pub struct RightFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
     spine: Option<DisplayPatch>,
 }
 
-impl SpineRight {
+impl RightFrame {
     pub fn new() -> Self {
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(20., 0.)),
@@ -272,7 +287,7 @@ impl SpineRight {
     }
 }
 
-impl ArtistTrait<Canvas> for SpineRight {
+impl ArtistTrait<Canvas> for RightFrame {
     fn get_bounds(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
@@ -286,21 +301,6 @@ impl ArtistTrait<Canvas> for SpineRight {
     ) {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
-        }
-        
-    }
-}
-
-pub struct Spine {
-    style: Style,
-    patch: Box<dyn PatchTrait>,
-}
-
-impl Spine {
-    pub fn new() -> Self {
-        Self {
-            style: Style::new(),
-            patch: Box::new(patch::Line::new([0., 0.], [0., 0.])),
         }
     }
 }
