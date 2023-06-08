@@ -1,24 +1,40 @@
-use crate::{driver::{Renderer, Device}, figure::{Bounds, Data, Affine2d}};
+use crate::{driver::{Renderer, Device}, axes::{Bounds, Data, Affine2d, CoordMarker}};
 
 use super::{Style, StyleOpt, Color, JoinStyle};
 
-pub struct Artist {
-    artist: Box<dyn ArtistTrait>,
+pub trait ArtistTrait<M: CoordMarker> {
+    fn get_data_bounds(&mut self) -> Bounds<M>;
+    
+    fn draw(
+        &mut self, 
+        renderer: &mut dyn Renderer,
+        to_device: &Affine2d,
+        clip: &Bounds<Device>,
+        style: &dyn StyleOpt,
+    );
+}
+
+pub struct Artist<M: CoordMarker> {
+    artist: Box<dyn ArtistTrait<M>>,
 
     style: Style,
 }
 
-impl Artist {
-    pub fn new(artist: impl ArtistTrait + 'static) -> Self {
+impl<M: CoordMarker> Artist<M> {
+    pub fn new(artist: impl ArtistTrait<M> + 'static) -> Self {
         Self {
             artist: Box::new(artist),
             style: Style::default(),
         }
     }
+
+    pub fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
+    }
 }
 
-impl ArtistTrait for Artist {
-    fn get_data_bounds(&mut self) -> Bounds<Data> {
+impl<M: CoordMarker> ArtistTrait<M> for Artist<M> {
+    fn get_data_bounds(&mut self) -> Bounds<M> {
         self.artist.get_data_bounds()
     }
 
@@ -33,19 +49,7 @@ impl ArtistTrait for Artist {
     }
 }
 
-pub trait ArtistTrait {
-    fn get_data_bounds(&mut self) -> Bounds<Data>;
-    
-    fn draw(
-        &mut self, 
-        renderer: &mut dyn Renderer,
-        to_device: &Affine2d,
-        clip: &Bounds<Device>,
-        style: &dyn StyleOpt,
-    );
-}
-
-impl StyleOpt for Artist {
+impl<M: CoordMarker> StyleOpt for Artist<M> {
     fn get_color(&self) -> &Option<super::Color> {
         self.style.get_color()
     }
@@ -59,7 +63,7 @@ impl StyleOpt for Artist {
     }
 }
 
-impl Artist {
+impl<M: CoordMarker> Artist<M> {
     pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
         self.style.color(color);
 

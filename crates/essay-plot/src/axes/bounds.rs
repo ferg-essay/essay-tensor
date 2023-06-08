@@ -149,7 +149,7 @@ impl<M: CoordMarker> Bounds<M> {
             .translate(b_x0, b_y0)
     }
 
-    pub(crate) fn union(&self, b: Bounds<M>) -> Self {
+    pub(crate) fn union(&self, b: &Bounds<M>) -> Self {
         Self {
             p0: Point(
                 self.xmin().min(b.xmin()),

@@ -1,4 +1,5 @@
 pub mod artist;
+pub mod axes;
 pub mod figure;
 pub mod plot;
 pub mod driver;

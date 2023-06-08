@@ -168,10 +168,31 @@ fn compose(x: &Tensor, y: &Tensor) -> Tensor {
 
 pub trait CoordMarker {}
 
+///
+/// Data coordinates
+///
 #[derive(Clone, Copy, Debug)]
 pub struct Data {}
 
 impl CoordMarker for Data {
+}
+
+///
+/// Display coordinates are in pixels for screens, or points for text rendering.
+///
+#[derive(Clone, Copy, Debug)]
+pub struct Display {}
+
+impl CoordMarker for Display {
+}
+
+///
+/// Unit coordinates are [0, 1] space, used for markers and similar templates.
+/// 
+#[derive(Clone, Copy, Debug)]
+pub struct Unit {}
+
+impl CoordMarker for Unit {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -217,6 +238,13 @@ impl Point {
 impl From<[f32; 2]> for Point {
     #[inline]
     fn from(value: [f32; 2]) -> Self {
+        Point(value[0], value[1])
+    }
+}
+
+impl From<&[f32; 2]> for Point {
+    #[inline]
+    fn from(value: &[f32; 2]) -> Self {
         Point(value[0], value[1])
     }
 }

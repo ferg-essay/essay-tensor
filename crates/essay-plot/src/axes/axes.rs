@@ -3,14 +3,13 @@ use core::fmt;
 use essay_tensor::Tensor;
 
 use crate::{driver::{Renderer, Device}, plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, 
-    figure::Point
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, figure::GridSpec, prelude::Figure, axes::Point, 
 };
 
-use super::{Bounds, Data, Affine2d, Figure};
+use super::{Bounds, Data, Affine2d};
 
 pub struct Axes {
-    pos_figure: Bounds<Figure>, // position of the Axes in figure grid coordinates
+    pos_figure: Bounds<GridSpec>, // position of the Axes in figure grid coordinates
     pos_device: Bounds<Device>,
 
     data_lim: Bounds<Data>, // rectangle in data coordinates
@@ -19,11 +18,11 @@ pub struct Axes {
     to_device: Affine2d,
     style: Style,
 
-    artists: Vec<Box<dyn ArtistTrait>>,
+    artists: Vec<Box<dyn ArtistTrait<Data>>>,
 }
 
 impl Axes {
-    pub fn new(bounds: impl Into<Bounds<Figure>>) -> Self {
+    pub fn new(bounds: impl Into<Bounds<GridSpec>>) -> Self {
         Self {
             pos_figure: bounds.into(),
             pos_device: Bounds::none(),
@@ -104,7 +103,7 @@ impl Axes {
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
-    ) -> &Box<dyn ArtistTrait> {
+    ) -> &Box<dyn ArtistTrait<Data>> {
         let lines = Lines2d::from_xy(x, y);
 
         self.artist(lines)
@@ -134,21 +133,21 @@ impl Axes {
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
-    ) -> &Box<dyn ArtistTrait> {
+    ) -> &Box<dyn ArtistTrait<Data>> {
         let collection = Collection::from_xy(x, y);
 
         self.artist(collection)
     }
 
-    pub fn artist(&mut self, artist: impl ArtistTrait + 'static) -> &mut Box<dyn ArtistTrait> {
+    pub fn artist(&mut self, artist: impl ArtistTrait<Data> + 'static) -> &mut Box<dyn ArtistTrait<Data>> {
         let mut artist = artist;
         let bounds = artist.get_data_bounds();
 
         if self.artists.len() == 0 {
-            self.data_lim = bounds;
+            self.data_lim = bounds.clone();
             self.view_lim = self.data_lim.clone();
         } else {
-            self.data_lim = self.data_lim.union(bounds);
+            self.data_lim = self.data_lim.union(&bounds);
             self.view_lim = self.data_lim.clone();
         }
 
@@ -184,6 +183,6 @@ impl fmt::Debug for Axes {
 
 impl From<()> for Axes {
     fn from(_value: ()) -> Self {
-        Axes::new(Bounds::<Figure>::none())
+        Axes::new(Bounds::<GridSpec>::none())
     }
 }

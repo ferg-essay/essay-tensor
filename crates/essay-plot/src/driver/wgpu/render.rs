@@ -2,8 +2,8 @@ use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text}
 
 use crate::{
     driver::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
-    figure::{Bounds, Point, Affine2d, Data, CoordMarker, FigureInner}, 
-    artist::{Path, PathCode, StyleOpt, Color}
+    axes::{Bounds, Point, Affine2d, Data, CoordMarker}, 
+    artist::{Path, PathCode, StyleOpt, Color}, figure::FigureInner
 };
 
 use super::vertex::VertexBuffer;

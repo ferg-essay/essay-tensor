@@ -2,7 +2,7 @@ use essay_tensor::Tensor;
 
 use crate::{
     driver::{Backend, Device, Renderer}, plot::{PlotOpt}, 
-    figure::{Axes, CoordMarker, Bounds}
+    axes::{Axes, CoordMarker, Bounds}
 };
 
 use super::gridspec::GridSpec;
@@ -68,7 +68,7 @@ impl FigureInner {
         &mut self, 
         axes: impl Into<Axes>, 
     ) -> &mut Axes {
-        let axes = Axes::new(Bounds::<Figure>::none());
+        let axes = Axes::new(Bounds::<GridSpec>::none());
 
         self.axes.push(axes);
 

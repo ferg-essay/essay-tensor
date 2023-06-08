@@ -2,7 +2,7 @@ use std::{marker::PhantomData, f32::consts::{PI, TAU}};
 
 use essay_tensor::{prelude::*, init::linspace, tensor::TensorVec};
 
-use crate::figure::{CoordMarker, Data, Affine2d, Bounds, Point};
+use crate::axes::{CoordMarker, Data, Affine2d, Bounds, Point, Unit};
 
 pub struct Path<M: CoordMarker = Data> {
     codes: Vec<PathCode>,
@@ -80,7 +80,44 @@ impl<M: CoordMarker> Path<M> {
         Bounds::<M>::new(Point(bounds[0], bounds[1]), Point(bounds[2], bounds[3]))
     }
 
-    pub fn unit() -> Path<M> {
+    pub fn transform<C: CoordMarker>(&self, transform: &Affine2d) -> Path<C> {
+        let mut codes = Vec::<PathCode>::new();
+
+        for code in &self.codes {
+            let code = match code {
+                PathCode::MoveTo(p0) => {
+                    PathCode::MoveTo(transform.transform_point(*p0))
+                },
+                PathCode::LineTo(p1) => {
+                    PathCode::LineTo(transform.transform_point(*p1))
+                }
+                PathCode::Bezier2(p1, p2) => {
+                    PathCode::Bezier2(
+                        transform.transform_point(*p1),
+                        transform.transform_point(*p2),
+                    )
+                },
+                PathCode::Bezier3(p1, p2, p3) => {
+                    PathCode::Bezier3(
+                        transform.transform_point(*p1),
+                        transform.transform_point(*p2),
+                        transform.transform_point(*p3),
+                    )
+                }
+                PathCode::ClosePoly(p1) => {
+                    PathCode::ClosePoly(transform.transform_point(*p1))
+                }
+            };
+
+            codes.push(code);
+        }
+
+        Path::new(codes)
+    }
+}
+
+impl Path<Unit> {
+    pub fn unit() -> Path<Unit> {
         Path::new(vec![
             PathCode::MoveTo(Point(0.0, 0.0)),
             PathCode::LineTo(Point(0.0, 1.0)),
@@ -89,7 +126,7 @@ impl<M: CoordMarker> Path<M> {
         ])
     }
 
-    pub fn wedge(angle: Angle) -> Path<M> {
+    pub fn wedge(angle: Angle) -> Path<Unit> {
         let halfpi = 0.5 * PI;
 
         let (t0, t1) = angle.to_radians();
@@ -136,43 +173,56 @@ impl<M: CoordMarker> Path<M> {
 
         path
     }
+}
 
-    pub fn transform<C: CoordMarker>(&self, transform: &Affine2d) -> Path<C> {
-        let mut codes = Vec::<PathCode>::new();
+impl<const N: usize, M: CoordMarker> From<[PathCode; N]> for Path<M> {
+    fn from(value: [PathCode; N]) -> Self {
+        let mut codes = Vec::<PathCode>::from(value);
 
-        for code in &self.codes {
-            let code = match code {
-                PathCode::MoveTo(p0) => {
-                    PathCode::MoveTo(transform.transform_point(*p0))
-                },
-                PathCode::LineTo(p1) => {
-                    PathCode::LineTo(transform.transform_point(*p1))
-                }
-                PathCode::Bezier2(p1, p2) => {
-                    PathCode::Bezier2(
-                        transform.transform_point(*p1),
-                        transform.transform_point(*p2),
-                    )
-                },
-                PathCode::Bezier3(p1, p2, p3) => {
-                    PathCode::Bezier3(
-                        transform.transform_point(*p1),
-                        transform.transform_point(*p2),
-                        transform.transform_point(*p3),
-                    )
-                }
-                PathCode::ClosePoly(p1) => {
-                    PathCode::ClosePoly(transform.transform_point(*p1))
-                }
-            };
-
-            codes.push(code);
+        Self {
+            codes,
+            marker: PhantomData,
         }
-
-        Path::new(codes)
     }
 }
 
+impl<M: CoordMarker> From<&[[f32; 2]]> for Path<M> {
+    fn from(value: &[[f32; 2]]) -> Self {
+        let mut codes = Vec::<PathCode>::new();
+
+        let mut is_first = true;
+        for point in value {
+            if is_first {
+                codes.push(PathCode::MoveTo(point.into()));
+                is_first = false;
+            }
+        }
+
+        Self {
+            codes,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<const N: usize, M: CoordMarker> From<[[f32; 2]; N]> for Path<M> {
+    fn from(value: [[f32; 2]; N]) -> Self {
+        let mut codes = Vec::<PathCode>::new();
+
+        let mut is_first = true;
+        for point in value {
+            if is_first {
+                codes.push(PathCode::MoveTo(point.into()));
+                is_first = false;
+            }
+        }
+
+        Self {
+            codes,
+            marker: PhantomData,
+        }
+    }
+}
 
 // angle in [0., 1.]
 #[derive(Clone, Copy, Debug)]

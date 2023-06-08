@@ -3,13 +3,14 @@ use std::{f32::consts::{PI}};
 
 use essay_tensor::{Tensor, tensor::{Axis, TensorVec}};
 
-use crate::{figure::{Affine2d, Bounds, Data, Point}, driver::{Renderer, Device}};
+use crate::{axes::{Affine2d, Bounds, Data, Point}, driver::{Renderer, Device}, artist::Style};
 
 use super::{ArtistTrait, Path, PathCode, StyleOpt};
 
 pub struct Collection {
     lines: Tensor, // 2d tensor representing a graph
     path: Path<Data>,
+    style: Style,
     clip_bounds: Bounds<Device>,
 }
 
@@ -27,8 +28,13 @@ impl Collection {
         Self {
             lines,
             path,
+            style: Style::new(),
             clip_bounds: Bounds::<Device>::none(),
         }
+    }
+
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
     }
 }
 
@@ -50,7 +56,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
     Path::new(codes)
 }
 
-impl ArtistTrait for Collection {
+impl ArtistTrait<Data> for Collection {
     fn get_data_bounds(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 

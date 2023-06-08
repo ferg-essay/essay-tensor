@@ -33,6 +33,10 @@ pub use path::{
     Path, Angle, PathCode,
 };
 
+pub use patch::{
+    PatchTrait,
+};
+
 pub use style::{
     StyleOpt, Style, JoinStyle,
 };

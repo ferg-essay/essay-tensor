@@ -3,15 +3,16 @@ use core::fmt;
 use essay_tensor::{Tensor, tensor::Axis};
 
 use crate::{
-    figure::{Affine2d, Bounds, Data, Point}, 
+    axes::{Affine2d, Bounds, Data, Point}, 
     driver::{Renderer, Device}
 };
 
-use super::{ArtistTrait, Path, PathCode, StyleOpt};
+use super::{ArtistTrait, Path, PathCode, StyleOpt, Style};
 
 pub struct Lines2d {
     lines: Tensor, // 2d tensor representing a graph
     path: Path<Data>,
+    style: Style,
     clip_bounds: Bounds<Device>,
 }
 
@@ -29,6 +30,7 @@ impl Lines2d {
         Self {
             lines,
             path,
+            style: Style::new(),
             clip_bounds: Bounds::<Device>::none(),
         }
     }
@@ -52,7 +54,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
     Path::new(codes)
 }
 
-impl ArtistTrait for Lines2d {
+impl ArtistTrait<Data> for Lines2d {
     fn get_data_bounds(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
@@ -73,11 +75,6 @@ impl ArtistTrait for Lines2d {
         clip: &Bounds<Device>,
         style: &dyn StyleOpt,
     ) {
-        let mut gc = renderer.new_gc();
-
-        gc.color(0x3fc0ff);
-        gc.linewidth(20.);
-
         renderer.draw_path(style, &self.path, to_device, clip).unwrap();
     }
 }
@@ -108,7 +105,7 @@ impl fmt::Debug for Lines2d {
 
 pub struct Bezier2(pub Point, pub Point, pub Point);
 
-impl ArtistTrait for Bezier2 {
+impl ArtistTrait<Data> for Bezier2 {
     fn get_data_bounds(&mut self) -> Bounds<Data> {
         Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
     }
@@ -136,7 +133,7 @@ impl ArtistTrait for Bezier2 {
 
 pub struct Bezier3(pub Point, pub Point, pub Point, pub Point);
 
-impl ArtistTrait for Bezier3 {
+impl ArtistTrait<Data> for Bezier3 {
     fn get_data_bounds(&mut self) -> Bounds<Data> {
         Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
     }

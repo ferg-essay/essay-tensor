@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::figure::Figure;
+use crate::prelude::Figure;
 
 pub fn plot(
     x: impl Into<Tensor>, 
