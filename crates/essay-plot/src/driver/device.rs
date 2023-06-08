@@ -2,11 +2,11 @@ use crate::{frame::{CoordMarker, Bounds}, figure::FigureInner, };
 
 use super::{Renderer, backend::Backend, wgpu::WgpuBackend};
 
-pub struct Device {
+pub struct Canvas {
     backend: Box<dyn Backend>,
 }
 
-impl Device {
+impl Canvas {
     pub fn new(backend: impl Backend + 'static) -> Self {
         Self {
             backend: Box::new(backend)
@@ -24,7 +24,7 @@ impl Device {
     }
 }
 
-impl Default for Device {
+impl Default for Canvas {
     fn default() -> Self {
         // let backend = NoneBackend;
 
@@ -36,7 +36,7 @@ impl Default for Device {
     }
 }
 
-impl CoordMarker for Device {}
+impl CoordMarker for Canvas {}
 
 #[derive(Debug)]
 pub enum DeviceErr {

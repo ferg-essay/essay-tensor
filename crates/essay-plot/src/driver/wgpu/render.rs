@@ -1,7 +1,7 @@
 use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text};
 
 use crate::{
-    driver::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
+    driver::{Renderer, Canvas, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
     frame::{Bounds, Point, Affine2d, Data, CoordMarker}, 
     artist::{Path, PathCode, StyleOpt, Color}, figure::FigureInner
 };
@@ -20,8 +20,8 @@ pub struct FigureRenderer {
     staging_belt: wgpu::util::StagingBelt,
     glyph: GlyphBrush<()>,
 
-    pos_device: Bounds<Device>,
-    to_unit: Affine2d,
+    pos_canvas: Bounds<Canvas>,
+    to_gpu: Affine2d,
 }
 
 impl<'a> FigureRenderer {
@@ -84,8 +84,8 @@ impl<'a> FigureRenderer {
             staging_belt: wgpu::util::StagingBelt::new(1024),
             glyph: glyph_brush,
 
-            pos_device: Bounds::<Device>::unit(),
-            to_unit: Affine2d::eye(),
+            pos_canvas: Bounds::<Canvas>::unit(),
+            to_gpu: Affine2d::eye(),
         }
     }
 
@@ -95,17 +95,19 @@ impl<'a> FigureRenderer {
     }
 
     pub(crate) fn set_canvas_bounds(&mut self, width: u32, height: u32) {
-        self.pos_device = Bounds::<Device>::new(
+        self.pos_canvas = Bounds::<Canvas>::new(
             Point(0., 0.), 
             Point(width as f32, height as f32)
         );
 
-        let pos_unit = Bounds::<Device>::new(
+        let pos_gpu = Bounds::<Canvas>::new(
             Point(-1., -1.),
             Point(1., 1.)
         );
 
-        self.to_unit = self.pos_device.affine_to(&pos_unit);
+        println!("POS-C: {:?}", self.pos_canvas);
+
+        self.to_gpu = self.pos_canvas.affine_to(&pos_gpu);
     }
 
     fn draw_line(&mut self, 
@@ -159,7 +161,7 @@ impl<'a> FigureRenderer {
         &mut self, 
         style: &dyn StyleOpt, 
         path: &Path<Unit>, 
-        _clip: &Bounds<Device>,
+        _clip: &Bounds<Canvas>,
     ) {
         let color = match style.get_color() {
             Some(color) => *color,
@@ -196,8 +198,8 @@ impl Renderer for FigureRenderer {
     ///
     /// Returns the boundary of the canvas, usually in pixels or points.
     ///
-    fn get_canvas_bounds(&self) -> Bounds<Device> {
-        self.pos_device.clone()
+    fn get_canvas_bounds(&self) -> Bounds<Canvas> {
+        self.pos_canvas.clone()
     }
 
     fn new_gc(&mut self) -> GraphicsContext {
@@ -209,9 +211,9 @@ impl Renderer for FigureRenderer {
         style: &dyn StyleOpt, 
         path: &Path<Data>, 
         to_device: &Affine2d,
-        _clip: &Bounds<Device>,
+        _clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
-        let to_unit = self.to_unit.matmul(to_device);
+        let to_unit = self.to_gpu.matmul(to_device);
 
         let path = transform_path(path, &to_unit);
 
@@ -221,10 +223,11 @@ impl Renderer for FigureRenderer {
         }
 
         // TODO: thickness in points
-        let thickness  = match style.get_linewidth() {
-            Some(linewidth) => 0.5 * linewidth / self.pos_device.height(),
-            None => 0.5,
+        let linewidth  = match style.get_linewidth() {
+            Some(linewidth) => 0.5 * linewidth / self.pos_canvas.height(),
+            None => 4.,
         };
+        let thickness = 0.5 * linewidth  / self.pos_canvas.height();
 
         let color = match style.get_color() {
             Some(color) => *color,
@@ -234,6 +237,7 @@ impl Renderer for FigureRenderer {
 
         let mut p0 = Point(0.0f32, 0.0f32);
         for code in path.codes() {
+            
             p0 = match code {
                 PathCode::MoveTo(p0) => {
                     *p0
@@ -282,7 +286,7 @@ fn transform_path(path: &Path<Data>, to_unit: &Affine2d) -> Path<Unit> {
             PathCode::LineTo(p1) => {
                 let p1 = to_unit.transform_point(*p1);
 
-                codes.push(PathCode::MoveTo(p1));
+                codes.push(PathCode::LineTo(p1));
 
                 p1
             }
@@ -470,7 +474,7 @@ impl FigureRenderer {
             }
         }
 
-        let (width, height) = (self.pos_device.width(), self.pos_device.height());
+        let (width, height) = (self.pos_canvas.width(), self.pos_canvas.height());
 
         self.glyph.queue(Section {
             screen_position: (100., 100.),

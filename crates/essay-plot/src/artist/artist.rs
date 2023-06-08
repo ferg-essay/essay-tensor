@@ -1,15 +1,15 @@
-use crate::{driver::{Renderer, Device}, frame::{Bounds, Data, Affine2d, CoordMarker}};
+use crate::{driver::{Renderer, Canvas}, frame::{Bounds, Data, Affine2d, CoordMarker}};
 
 use super::{Style, StyleOpt, Color, JoinStyle};
 
 pub trait ArtistTrait<M: CoordMarker> {
-    fn get_data_bounds(&mut self) -> Bounds<M>;
+    fn get_bounds(&mut self) -> Bounds<M>;
     
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     );
 }
@@ -34,15 +34,15 @@ impl<M: CoordMarker> Artist<M> {
 }
 
 impl<M: CoordMarker> ArtistTrait<M> for Artist<M> {
-    fn get_data_bounds(&mut self) -> Bounds<M> {
-        self.artist.get_data_bounds()
+    fn get_bounds(&mut self) -> Bounds<M> {
+        self.artist.get_bounds()
     }
 
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer, 
         to_device: &Affine2d, 
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         self.artist.draw(renderer, to_device, clip, &Style::chain(style, &self.style));

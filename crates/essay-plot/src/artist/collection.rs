@@ -3,7 +3,7 @@ use std::{f32::consts::{PI}};
 
 use essay_tensor::{Tensor, tensor::{Axis, TensorVec}};
 
-use crate::{frame::{Affine2d, Bounds, Data, Point}, driver::{Renderer, Device}, artist::Style};
+use crate::{frame::{Affine2d, Bounds, Data, Point}, driver::{Renderer, Canvas}, artist::Style};
 
 use super::{ArtistTrait, Path, PathCode, StyleOpt};
 
@@ -11,7 +11,7 @@ pub struct Collection {
     lines: Tensor, // 2d tensor representing a graph
     path: Path<Data>,
     style: Style,
-    clip_bounds: Bounds<Device>,
+    clip_bounds: Bounds<Canvas>,
 }
 
 impl Collection {
@@ -29,7 +29,7 @@ impl Collection {
             lines,
             path,
             style: Style::new(),
-            clip_bounds: Bounds::<Device>::none(),
+            clip_bounds: Bounds::<Canvas>::none(),
         }
     }
 
@@ -57,7 +57,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
 }
 
 impl ArtistTrait<Data> for Collection {
-    fn get_data_bounds(&mut self) -> Bounds<Data> {
+    fn get_bounds(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
         for point in self.lines.iter_slice() {
@@ -74,7 +74,7 @@ impl ArtistTrait<Data> for Collection {
         &mut self, 
         renderer: &mut dyn Renderer, 
         to_device: &Affine2d,
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         let mut gc = renderer.new_gc();

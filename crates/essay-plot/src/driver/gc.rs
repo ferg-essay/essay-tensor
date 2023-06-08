@@ -2,34 +2,34 @@ use std::marker::PhantomData;
 
 use crate::{frame::{Bounds}, artist::{Path, Color}};
 
-use super::Device;
+use super::Canvas;
 
 pub struct GraphicsContext {
-    clip_bounds: Option<Bounds<Device>>,
-    clip_path: Option<Path<Device>>,
+    clip_bounds: Option<Bounds<Canvas>>,
+    clip_path: Option<Path<Canvas>>,
 
     linewidth: f32,
     color: Color, // rgba
 }
 
 impl GraphicsContext {
-    pub fn clip_rectangle(&mut self, clip_bounds: Bounds<Device>) -> &mut Self {
+    pub fn clip_rectangle(&mut self, clip_bounds: Bounds<Canvas>) -> &mut Self {
         self.clip_bounds = Some(clip_bounds);
 
         self
     }
 
-    pub fn get_clip_rectangle(&self) -> &Option<Bounds<Device>> {
+    pub fn get_clip_rectangle(&self) -> &Option<Bounds<Canvas>> {
         &self.clip_bounds
     }
 
-    pub fn clip_path(&mut self, path: Path<Device>) -> &mut Self {
+    pub fn clip_path(&mut self, path: Path<Canvas>) -> &mut Self {
         self.clip_path = Some(path);
 
         self
     }
 
-    pub fn get_clip_path(&self) -> &Option<Path<Device>> {
+    pub fn get_clip_path(&self) -> &Option<Path<Canvas>> {
         &self.clip_path
     }
 

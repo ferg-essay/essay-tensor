@@ -1,14 +1,14 @@
 use essay_tensor::Tensor;
 
 use crate::{
-    driver::{Backend, Device, Renderer}, plot::{PlotOpt}, 
+    driver::{Backend, Canvas, Renderer}, plot::{PlotOpt}, 
     frame::{Axes, CoordMarker, Bounds}
 };
 
 use super::gridspec::GridSpec;
 
 pub struct Figure {
-    device: Device,
+    device: Canvas,
     // inner: Arc<Mutex<FigureInner>>,
     inner: FigureInner,
 }
@@ -53,14 +53,14 @@ impl Figure {
 pub struct FigureInner {
     gridspec: Bounds<GridSpec>,
 
-    axes: Vec<Axes>,
+    frames: Vec<Axes>,
 }
 
 impl FigureInner {
     fn new() -> Self {
         Self {
             gridspec: Bounds::none(),
-            axes: Default::default(),
+            frames: Default::default(),
         }
     }
 
@@ -70,19 +70,19 @@ impl FigureInner {
     ) -> &mut Axes {
         let axes = Axes::new(Bounds::<GridSpec>::none());
 
-        self.axes.push(axes);
+        self.frames.push(axes);
 
-        let len = self.axes.len();
-        &mut self.axes[len - 1]
+        let len = self.frames.len();
+        &mut self.frames[len - 1]
     }
 
     pub fn draw(&mut self, renderer: &mut impl Renderer) {
         let bounds = renderer.get_canvas_bounds();
+        println!("Bounds {:?}", bounds);
+        for frame in &mut self.frames {
+            frame.set_bounds(&bounds);
 
-        for axes in &mut self.axes {
-            axes.bounds(&bounds);
-
-            axes.draw(renderer);
+            frame.draw(renderer);
         }
         println!("Bounds {:?}", bounds);
     }

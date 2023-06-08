@@ -82,7 +82,7 @@ impl<M: CoordMarker> Path<M> {
 
     pub fn transform<C: CoordMarker>(&self, transform: &Affine2d) -> Path<C> {
         let mut codes = Vec::<PathCode>::new();
-
+        println!("Transform {:?}", self.codes);
         for code in &self.codes {
             let code = match code {
                 PathCode::MoveTo(p0) => {
@@ -111,6 +111,7 @@ impl<M: CoordMarker> Path<M> {
 
             codes.push(code);
         }
+        println!("Post-Transform {:?}", codes);
 
         Path::new(codes)
     }

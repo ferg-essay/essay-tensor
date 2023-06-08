@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::{frame::{Point, Data, Affine2d, Bounds, Display}, driver::{Renderer, Device}};
+use crate::{frame::{Point, Data, Affine2d, Bounds, Display}, driver::{Renderer, Canvas}};
 
 use super::{Path, path::Angle, ArtistTrait, Color, StyleOpt, Artist, Style};
 
@@ -36,7 +36,7 @@ impl DataPatch {
 }
 
 impl ArtistTrait<Data> for DataPatch {
-    fn get_data_bounds(&mut self) -> Bounds<Data> {
+    fn get_bounds(&mut self) -> Bounds<Data> {
         self.bounds.clone()
     }
 
@@ -44,7 +44,7 @@ impl ArtistTrait<Data> for DataPatch {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         todo!()
@@ -74,7 +74,7 @@ impl DisplayPatch {
 }
 
 impl ArtistTrait<Display> for DisplayPatch {
-    fn get_data_bounds(&mut self) -> Bounds<Display> {
+    fn get_bounds(&mut self) -> Bounds<Display> {
         self.bounds.clone()
     }
 
@@ -82,7 +82,7 @@ impl ArtistTrait<Display> for DisplayPatch {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         todo!()
@@ -131,7 +131,7 @@ impl PatchTrait for Line {
 }
 
 impl ArtistTrait<Data> for Line {
-    fn get_data_bounds(&mut self) -> Bounds<Data> {
+    fn get_bounds(&mut self) -> Bounds<Data> {
         self.get_path().get_bounds()
     }
 
@@ -139,7 +139,7 @@ impl ArtistTrait<Data> for Line {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         if let Some(path) = &self.path {
@@ -204,7 +204,7 @@ impl PatchTrait for Wedge {
 }
 
 impl ArtistTrait<Data> for Wedge {
-    fn get_data_bounds(&mut self) -> Bounds<Data> {
+    fn get_bounds(&mut self) -> Bounds<Data> {
         self.get_path().get_bounds()
     }
 
@@ -212,7 +212,7 @@ impl ArtistTrait<Data> for Wedge {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         if let Some(path) = &self.path {

@@ -2,13 +2,13 @@ use essay_tensor::Tensor;
 
 use crate::{artist::{Path, StyleOpt}, frame::{Affine2d, Bounds, Point, Data}};
 
-use super::{GraphicsContext, Device};
+use super::{GraphicsContext, Canvas};
 
 pub trait Renderer {
     ///
     /// Returns the boundary of the canvas, usually in pixels or points.
     ///
-    fn get_canvas_bounds(&self) -> Bounds<Device> {
+    fn get_canvas_bounds(&self) -> Bounds<Canvas> {
         Bounds::new(Point(0., 0.), Point(1., 1.))
     }
 
@@ -21,7 +21,7 @@ pub trait Renderer {
         style: &dyn StyleOpt, 
         path: &Path<Data>, 
         to_device: &Affine2d,
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr>;
 }
 

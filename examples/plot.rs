@@ -2,18 +2,16 @@ use essay_plot::{prelude::*};
 use essay_tensor::{prelude::*, init::linspace};
 
 fn main() {
-    println!("Hello");
-
     //let mut gui = WgpuBackend::new();
 
 
-    let x = linspace(0., 10., 3);
-    let y = x.clone();
+    let x = linspace(0., 10., 10);
+    let y = x.sin();
 
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
     let axes = figure.axes(());
-    axes.plot(&x, &y, ());
+    axes.plot(&x, &y, ()).color(0x003fc0ff);
     // axes.scatter(&x, &y, ());
     let x = tf32!([40., 30., 20., 5., 5.]);
     //axes.pie(x, ());

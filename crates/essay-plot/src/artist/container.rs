@@ -1,4 +1,4 @@
-use crate::{frame::{Bounds, Data, Affine2d, Point, CoordMarker}, driver::{Renderer, Device}};
+use crate::{frame::{Bounds, Data, Affine2d, Point, CoordMarker}, driver::{Renderer, Canvas}};
 
 use super::{Artist, ArtistTrait, StyleOpt, Style};
 
@@ -25,13 +25,13 @@ impl<M: CoordMarker> Container<M> {
 }
 
 impl<M: CoordMarker> ArtistTrait<M> for Container<M> {
-    fn get_data_bounds(&mut self) -> Bounds<M> {
+    fn get_bounds(&mut self) -> Bounds<M> {
         let mut bounds : Option<Bounds<M>> = None;
 
         for artist in &mut self.artists {
             bounds = match bounds {
-                None => Some(artist.get_data_bounds().clone()),
-                Some(bounds) => Some(bounds.union(&artist.get_data_bounds())),
+                None => Some(artist.get_bounds().clone()),
+                Some(bounds) => Some(bounds.union(&artist.get_bounds())),
             }
         }
 
@@ -44,7 +44,7 @@ impl<M: CoordMarker> ArtistTrait<M> for Container<M> {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
-        clip: &Bounds<Device>,
+        clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         //let style_cycle = Style::new();

@@ -2,14 +2,14 @@ use crate::artist::{Style, patch::{PatchTrait, self, DisplayPatch}};
 
 use super::{Display, Bounds};
 
-pub struct Spines {
+pub struct Frame {
     top: SpineTop,
     left: SpineY,
     right: SpineRight,
     bottom: SpineX,
 }
 
-impl Spines {
+impl Frame {
     pub fn new() -> Self {
         Self {
             top: SpineTop::new(),

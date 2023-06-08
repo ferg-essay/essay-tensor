@@ -2,21 +2,20 @@ use core::fmt;
 
 use essay_tensor::Tensor;
 
-use crate::{driver::{Renderer, Device}, plot::PlotOpt, 
+use crate::{driver::{Renderer, Canvas}, plot::PlotOpt, 
     artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, figure::GridSpec, prelude::Figure, frame::Point, 
 };
 
-use super::{Bounds, Data, Affine2d};
+use super::{Bounds, Data, Affine2d, databox::DataBox};
 
 pub struct Axes {
     pos_figure: Bounds<GridSpec>, // position of the Axes in figure grid coordinates
-    pos_device: Bounds<Device>,
+    pos_canvas: Bounds<Canvas>,
 
-    data_lim: Bounds<Data>, // rectangle in data coordinates
-    view_lim: Bounds<Data>, // rectangle in data coordinates
-
-    to_device: Affine2d,
+    to_canvas: Affine2d,
     style: Style,
+
+    data: DataBox,
 
     artists: Vec<Box<dyn ArtistTrait<Data>>>,
 }
@@ -25,16 +24,17 @@ impl Axes {
     pub fn new(bounds: impl Into<Bounds<GridSpec>>) -> Self {
         Self {
             pos_figure: bounds.into(),
-            pos_device: Bounds::none(),
+            pos_canvas: Bounds::none(),
 
             artists: Vec::new(),
 
-            view_lim: Bounds::<Data>::unit(),
-            data_lim: Bounds::<Data>::unit(),
+            data: DataBox::new(),
+            //view_lim: Bounds::<Data>::unit(),
+            //data_lim: Bounds::<Data>::unit(),
 
             style: Style::default(),
 
-            to_device: Affine2d::eye(),
+            to_canvas: Affine2d::eye(),
 
         }
     }
@@ -42,10 +42,11 @@ impl Axes {
     ///
     /// Sets the device bounds and propagates to children
     /// 
-    pub(crate) fn bounds(&mut self, pos: &Bounds<Device>) -> &mut Self {
-        self.pos_device = pos.clone();
+    pub(crate) fn set_bounds(&mut self, pos: &Bounds<Canvas>) -> &mut Self {
+        self.pos_canvas = pos.clone();
 
-        self.to_device = self.view_lim.affine_to(&self.pos_device);
+        self.data.set_bounds(pos);
+        // self.to_canvas = self.view_lim.affine_to(&self.pos_canvas);
 
         self
     }
@@ -90,10 +91,7 @@ impl Axes {
             i += 1;
         }
 
-        //self.data_lim = Bounds::<Data>::new(
-        //    Point(-1.25 + center.x(), 1.25 + center.y()))
-
-        self.artist(container);
+        self.data.artist(container);
 
         // todo!()
     }
@@ -103,10 +101,11 @@ impl Axes {
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
-    ) -> &Box<dyn ArtistTrait<Data>> {
+    ) -> &mut Artist<Data> {
         let lines = Lines2d::from_xy(x, y);
 
-        self.artist(lines)
+        //self.artist(lines)
+        self.data.artist(lines)
     }
 
     pub fn bezier3(
@@ -116,7 +115,7 @@ impl Axes {
         p2: impl Into<Point>,
         p3: impl Into<Point>
     ) {
-        self.artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
+        self.data.artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
     }
 
     pub fn bezier2(
@@ -125,7 +124,7 @@ impl Axes {
         p1: impl Into<Point>,
         p2: impl Into<Point>,
     ) {
-        self.artist(Bezier2(p0.into(), p1.into(), p2.into()));
+        self.data.artist(Bezier2(p0.into(), p1.into(), p2.into()));
     }
 
     pub fn scatter(
@@ -133,51 +132,24 @@ impl Axes {
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
-    ) -> &Box<dyn ArtistTrait<Data>> {
+    ) -> &Artist<Data> {
         let collection = Collection::from_xy(x, y);
 
-        self.artist(collection)
-    }
-
-    pub fn artist(&mut self, artist: impl ArtistTrait<Data> + 'static) -> &mut Box<dyn ArtistTrait<Data>> {
-        let mut artist = artist;
-        let bounds = artist.get_data_bounds();
-
-        if self.artists.len() == 0 {
-            self.data_lim = bounds.clone();
-            self.view_lim = self.data_lim.clone();
-        } else {
-            self.data_lim = self.data_lim.union(&bounds);
-            self.view_lim = self.data_lim.clone();
-        }
-
-        self.artists.push(Box::new(artist));
-
-        let len = self.artists.len();
-        &mut self.artists[len - 1]
+        self.data.artist(collection)
     }
 
     pub(crate) fn draw(&mut self, renderer: &mut impl Renderer) {
-        for artist in &mut self.artists {
-            artist.draw(renderer, &self.to_device, &self.pos_device, &self.style);
-        }
+        self.data.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
     }
-
-    /*
-    /// only includes data extent, not labels or axes
-    pub fn get_window_extent(&self, _renderer: Option<&dyn Renderer>) -> &Bounds {
-        &self.position
-    }
-    */
 }
 
 impl fmt::Debug for Axes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Axes({},{},{}x{})",
-            self.view_lim.xmin(),
-            self.view_lim.ymin(),
-            self.view_lim.width(),
-            self.view_lim.height())
+            self.pos_canvas.xmin(),
+            self.pos_canvas.ymin(),
+            self.pos_canvas.width(),
+            self.pos_canvas.height())
     }
 }
 
