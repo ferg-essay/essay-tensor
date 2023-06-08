@@ -8,7 +8,7 @@ pub trait ArtistTrait<M: CoordMarker> {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     );

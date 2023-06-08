@@ -134,14 +134,14 @@ impl<M: CoordMarker> Bounds<M> {
         let a_y0 = self.ymin();
 
         let epsilon = f32::EPSILON;
-        let a_width = (self.xmax() - self.xmin()).max(epsilon);
-        let a_height = (self.ymax() - self.ymin()).max(epsilon);
+        let a_width = self.width().max(epsilon);
+        let a_height = self.height().max(epsilon);
 
         let b_x0 = box_to.xmin();
         let b_y0 = box_to.ymin();
 
-        let b_width = box_to.xmax() - box_to.xmin();
-        let b_height = box_to.ymax() - box_to.ymin();
+        let b_width = box_to.width();
+        let b_height = box_to.height();
 
         Affine2d::eye()
             .translate(- a_x0, - a_y0)

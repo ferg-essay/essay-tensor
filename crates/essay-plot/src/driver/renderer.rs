@@ -20,7 +20,7 @@ pub trait Renderer {
         &mut self, 
         style: &dyn StyleOpt, 
         path: &Path<Data>, 
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr>;
 }

@@ -36,11 +36,11 @@ impl DataBox {
     ///
     /// Sets the canvas bounds
     /// 
-    pub(crate) fn set_bounds(&mut self, pos: &Bounds<Canvas>) -> &mut Self {
+    pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) -> &mut Self {
         self.pos_canvas = pos.clone();
 
         self.to_canvas = self.view_bounds.affine_to(&self.pos_canvas);
-
+        println!("Set_pos {:?}\n PosC {:?}", self.to_canvas, self.pos_canvas);
         self
     }
 
@@ -98,11 +98,12 @@ impl ArtistTrait<Canvas> for DataBox {
         _clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
-        let to_canvas = to_canvas.matmul(&self.to_canvas);
+        //let to_canvas = to_canvas.matmul(&self.to_canvas);
+        let to_canvas = &self.to_canvas;
         let style = Style::chain(style, &self.style);
 
         // TODO: intersect clip
-
+        println!("Draw {:?}", to_canvas);
         for artist in &mut self.artists {
             artist.draw(renderer, &to_canvas, &self.pos_canvas, &style);
         }

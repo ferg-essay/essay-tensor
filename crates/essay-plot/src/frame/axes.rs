@@ -6,49 +6,35 @@ use crate::{driver::{Renderer, Canvas}, plot::PlotOpt,
     artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, figure::GridSpec, prelude::Figure, frame::Point, 
 };
 
-use super::{Bounds, Data, Affine2d, databox::DataBox};
+use super::{Bounds, Data, Affine2d, databox::DataBox, frame::{Frame, SpineX, SpineY, SpineRight, SpineTop}};
 
 pub struct Axes {
     pos_figure: Bounds<GridSpec>, // position of the Axes in figure grid coordinates
-    pos_canvas: Bounds<Canvas>,
+
+    frame: Frame,
 
     to_canvas: Affine2d,
     style: Style,
-
-    data: DataBox,
-
-    artists: Vec<Box<dyn ArtistTrait<Data>>>,
 }
 
 impl Axes {
     pub fn new(bounds: impl Into<Bounds<GridSpec>>) -> Self {
         Self {
             pos_figure: bounds.into(),
-            pos_canvas: Bounds::none(),
 
-            artists: Vec::new(),
-
-            data: DataBox::new(),
-            //view_lim: Bounds::<Data>::unit(),
-            //data_lim: Bounds::<Data>::unit(),
+            frame: Frame::new(),
 
             style: Style::default(),
 
             to_canvas: Affine2d::eye(),
-
         }
     }
 
     ///
     /// Sets the device bounds and propagates to children
     /// 
-    pub(crate) fn set_bounds(&mut self, pos: &Bounds<Canvas>) -> &mut Self {
-        self.pos_canvas = pos.clone();
-
-        self.data.set_bounds(pos);
-        // self.to_canvas = self.view_lim.affine_to(&self.pos_canvas);
-
-        self
+    pub(crate) fn set_bounds(&mut self, pos: &Bounds<Canvas>) {
+        self.frame.set_pos(pos);
     }
 
     pub fn pie(
@@ -91,7 +77,7 @@ impl Axes {
             i += 1;
         }
 
-        self.data.artist(container);
+        self.frame.data_mut().artist(container);
 
         // todo!()
     }
@@ -105,7 +91,7 @@ impl Axes {
         let lines = Lines2d::from_xy(x, y);
 
         //self.artist(lines)
-        self.data.artist(lines)
+        self.frame.data_mut().artist(lines)
     }
 
     pub fn bezier3(
@@ -115,7 +101,7 @@ impl Axes {
         p2: impl Into<Point>,
         p3: impl Into<Point>
     ) {
-        self.data.artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
+        self.frame.data_mut().artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
     }
 
     pub fn bezier2(
@@ -124,7 +110,7 @@ impl Axes {
         p1: impl Into<Point>,
         p2: impl Into<Point>,
     ) {
-        self.data.artist(Bezier2(p0.into(), p1.into(), p2.into()));
+        self.frame.data_mut().artist(Bezier2(p0.into(), p1.into(), p2.into()));
     }
 
     pub fn scatter(
@@ -135,21 +121,30 @@ impl Axes {
     ) -> &Artist<Data> {
         let collection = Collection::from_xy(x, y);
 
-        self.data.artist(collection)
+        self.frame.data_mut().artist(collection)
     }
 
     pub(crate) fn draw(&mut self, renderer: &mut impl Renderer) {
+        self.frame.draw(renderer);
+        /*
         self.data.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
+
+        self.bottom.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
+        self.left.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
+
+        self.top.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
+        self.right.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
+        */
     }
 }
 
 impl fmt::Debug for Axes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Axes({},{},{}x{})",
-            self.pos_canvas.xmin(),
-            self.pos_canvas.ymin(),
-            self.pos_canvas.width(),
-            self.pos_canvas.height())
+            self.frame.pos().xmin(),
+            self.frame.pos().ymin(),
+            self.frame.pos().width(),
+            self.frame.pos().height())
     }
 }
 

@@ -215,6 +215,29 @@ impl<const N: usize, M: CoordMarker> From<[[f32; 2]; N]> for Path<M> {
             if is_first {
                 codes.push(PathCode::MoveTo(point.into()));
                 is_first = false;
+            } else {
+                codes.push(PathCode::LineTo(point.into()));
+            }
+        }
+
+        Self {
+            codes,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<const N: usize, M: CoordMarker> From<[Point; N]> for Path<M> {
+    fn from(value: [Point; N]) -> Self {
+        let mut codes = Vec::<PathCode>::new();
+
+        let mut is_first = true;
+        for point in value {
+            if is_first {
+                codes.push(PathCode::MoveTo(point.into()));
+                is_first = false;
+            } else {
+                codes.push(PathCode::LineTo(point.into()));
             }
         }
 

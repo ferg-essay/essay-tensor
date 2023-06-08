@@ -52,20 +52,29 @@ impl ArtistTrait<Data> for DataPatch {
 }
 
 pub struct DisplayPatch {
+    bounds: Bounds<Canvas>,
+    pos: Bounds<Canvas>,
+
     patch: Box<dyn PatchTrait>,
-    bounds: Bounds<Display>,
-    affine: Affine2d,
+    to_canvas: Affine2d,
     style: Style,
 }
 
 impl DisplayPatch {
     pub fn new(patch: impl PatchTrait + 'static) -> Self {
         Self {
+            bounds: Bounds::unit(),
+            pos: Bounds::none(),
+
             patch: Box::new(patch),
-            bounds: Bounds::none(),
-            affine: Affine2d::eye(),
+            to_canvas: Affine2d::eye(),
             style: Style::new(),
         }
+    }
+
+    pub fn set_pos(&mut self, pos: Bounds<Canvas>) {
+        self.pos = pos.clone();
+        self.to_canvas = self.bounds.affine_to(&pos);
     }
 
     fn style_mut(&mut self) -> &mut Style {
@@ -73,19 +82,26 @@ impl DisplayPatch {
     }
 }
 
-impl ArtistTrait<Display> for DisplayPatch {
-    fn get_bounds(&mut self) -> Bounds<Display> {
+impl ArtistTrait<Canvas> for DisplayPatch {
+    fn get_bounds(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
 
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
-        todo!()
+        let to_canvas = to_canvas.matmul(&self.to_canvas);
+
+        renderer.draw_path(
+            &self.style, 
+            self.patch.get_path(),
+            &to_canvas, 
+            clip
+        ).unwrap();
     }
 }
 
@@ -117,7 +133,7 @@ impl PatchTrait for Line {
     fn get_path(&mut self) -> &Path {
         if self.path.is_none() {
             let path = Path::<Data>::from([
-                [-1., 0.], [1., 0.]
+                self.p0, self.p1,
             ]);
 
             self.path = Some(path);
