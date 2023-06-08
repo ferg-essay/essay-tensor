@@ -3,7 +3,7 @@ use core::fmt;
 use essay_tensor::Tensor;
 
 use crate::{driver::{Renderer, Device}, plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, figure::GridSpec, prelude::Figure, axes::Point, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, figure::GridSpec, prelude::Figure, frame::Point, 
 };
 
 use super::{Bounds, Data, Affine2d};

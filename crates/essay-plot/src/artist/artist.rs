@@ -1,4 +1,4 @@
-use crate::{driver::{Renderer, Device}, axes::{Bounds, Data, Affine2d, CoordMarker}};
+use crate::{driver::{Renderer, Device}, frame::{Bounds, Data, Affine2d, CoordMarker}};
 
 use super::{Style, StyleOpt, Color, JoinStyle};
 

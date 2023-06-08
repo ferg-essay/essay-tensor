@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::{axes::{Point, Data, Affine2d, Bounds, Display}, driver::{Renderer, Device}};
+use crate::{frame::{Point, Data, Affine2d, Bounds, Display}, driver::{Renderer, Device}};
 
 use super::{Path, path::Angle, ArtistTrait, Color, StyleOpt, Artist, Style};
 

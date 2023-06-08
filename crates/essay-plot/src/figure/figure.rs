@@ -2,7 +2,7 @@ use essay_tensor::Tensor;
 
 use crate::{
     driver::{Backend, Device, Renderer}, plot::{PlotOpt}, 
-    axes::{Axes, CoordMarker, Bounds}
+    frame::{Axes, CoordMarker, Bounds}
 };
 
 use super::gridspec::GridSpec;

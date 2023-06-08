@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use crate::axes::Point;
+use crate::frame::Point;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Triangle(Point, Point, Point);

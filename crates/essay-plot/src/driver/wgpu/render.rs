@@ -2,7 +2,7 @@ use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text}
 
 use crate::{
     driver::{Renderer, Device, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
-    axes::{Bounds, Point, Affine2d, Data, CoordMarker}, 
+    frame::{Bounds, Point, Affine2d, Data, CoordMarker}, 
     artist::{Path, PathCode, StyleOpt, Color}, figure::FigureInner
 };
 

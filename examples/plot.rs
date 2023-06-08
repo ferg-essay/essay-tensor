@@ -13,10 +13,10 @@ fn main() {
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
     let axes = figure.axes(());
-    // axes.plot(&x, &y, ());
+    axes.plot(&x, &y, ());
     // axes.scatter(&x, &y, ());
     let x = tf32!([40., 30., 20., 5., 5.]);
-    axes.pie(x, ());
+    //axes.pie(x, ());
     //axes.bezier2([0., 0.], [0.5, 1.0], [1.0, 0.0]);
     //axes.bezier2([-1., 0.], [0.5, 1.0], [1.0, 0.0]);
     // axes.bezier2([0., -1.], [-0.5, 0.0], [0.0, 1.]);

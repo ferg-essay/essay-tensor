@@ -1,4 +1,4 @@
-use crate::{axes::{Bounds, Data, Affine2d, Point, CoordMarker}, driver::{Renderer, Device}};
+use crate::{frame::{Bounds, Data, Affine2d, Point, CoordMarker}, driver::{Renderer, Device}};
 
 use super::{Artist, ArtistTrait, StyleOpt, Style};
 

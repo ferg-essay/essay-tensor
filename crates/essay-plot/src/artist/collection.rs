@@ -3,7 +3,7 @@ use std::{f32::consts::{PI}};
 
 use essay_tensor::{Tensor, tensor::{Axis, TensorVec}};
 
-use crate::{axes::{Affine2d, Bounds, Data, Point}, driver::{Renderer, Device}, artist::Style};
+use crate::{frame::{Affine2d, Bounds, Data, Point}, driver::{Renderer, Device}, artist::Style};
 
 use super::{ArtistTrait, Path, PathCode, StyleOpt};
 

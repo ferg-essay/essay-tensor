@@ -1,4 +1,4 @@
-use crate::axes::FigureInner;
+use crate::figure::FigureInner;
 
 use super::{Renderer, device, DeviceErr};
 

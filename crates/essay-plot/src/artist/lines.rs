@@ -3,7 +3,7 @@ use core::fmt;
 use essay_tensor::{Tensor, tensor::Axis};
 
 use crate::{
-    axes::{Affine2d, Bounds, Data, Point}, 
+    frame::{Affine2d, Bounds, Data, Point}, 
     driver::{Renderer, Device}
 };
 
