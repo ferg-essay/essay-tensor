@@ -78,6 +78,10 @@ impl Color {
     pub fn get_rgba(&self) -> u32 {
         self.0
     }
+
+    pub(crate) fn get_srgba(&self) -> u32 {
+        self.get_rgba()
+    }
 }
 
 impl From<u32> for Color {

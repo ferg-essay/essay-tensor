@@ -1,7 +1,9 @@
+use std::f32::consts::PI;
+
 use wgpu::util::DeviceExt;
 use wgpu_glyph::ab_glyph::{self, Font, PxScale};
 
-use crate::frame::Affine2d;
+use crate::{frame::{Affine2d, Point}, artist::Color};
 
 use super::{text_texture::TextTexture, text_cache::TextCache};
 
@@ -83,35 +85,49 @@ impl TextRender {
         &mut self, 
         text: &str, 
         font_name: &str, 
-        size: f32
+        size: f32,
+        pos: Point, 
+        bounds: Point,
+        color: Color,
+        angle: f32,
     ) {
         let font = self.text_cache.font(font_name, size as u16);
-        let mut x = 0.;
-        let y = 0.;
+        let x0 = pos.x();
+        let y0 = pos.y();
 
         let start = self.vertex_offset;
 
-        let r = self.text_cache.glyph(&font, 'H');
+        let mut x = x0;
+        let y = y0;
+        for ch in text.chars() {
+            let r = self.text_cache.glyph(&font, ch);
 
-        if r.is_none() {
-            println!("Empty glyph");
-            return;
+            if r.is_none() {
+                x += size * 0.4;
+                continue;
+            }
+
+            let w = r.px_w() as f32;
+            let h = r.px_h() as f32;
+            self.vertex(x, y, r.tx_min(), r.ty_min());
+            self.vertex(x + w, y, r.tx_max(), r.ty_min());
+            self.vertex(x + w, y + h, r.tx_max(), r.ty_max());
+
+            self.vertex(x + w, y + h, r.tx_max(), r.ty_max());
+            self.vertex(x, y + h, r.tx_min(), r.ty_max());
+            self.vertex(x, y, r.tx_min(), r.ty_min());
+
+            x += w + size * 0.1;
         }
 
-        self.vertex(x, y, r.xmin(), r.ymin());
-        self.vertex(x + r.w(), y, r.xmax(), r.ymin());
-        self.vertex(x + r.w(), y + r.h(), r.xmax(), r.ymax());
-
-        self.vertex(x + r.w(), y + r.h(), r.xmax(), r.ymax());
-        self.vertex(x, y + r.h(), r.xmin(), r.ymax());
-        self.vertex(x, y, r.xmin(), r.ymin());
-
-        x += r.w();
-
         let end = self.vertex_offset;
-        let affine = Affine2d::eye().scale(1600.0f32.recip(), 800.0f32.recip());
+        let affine = Affine2d::eye()
+            .rotate_around(0.5 * (x0 + x), y0, angle)
+            .scale(bounds.x().recip(), bounds.y().recip())
+            .translate(-1., -1.);
+
         self.text_items.push(TextItem {
-            style: TextStyle::new(&affine, 0xff8000ff),
+            style: TextStyle::new(&affine, color.get_srgba()),
             start,
             end
         })
@@ -129,7 +145,6 @@ impl TextRender {
             return;
         }
 
-        println!("Flush");
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -150,6 +165,12 @@ impl TextRender {
         );
 
         for item in self.text_items.drain(..) {
+            queue.write_buffer(
+                &mut self.style_buffer, 
+                0,
+                bytemuck::cast_slice(&[item.style])
+            );
+
             rpass.set_pipeline(&self.pipeline);
             let len = item.end - item.start;
             let stride = self.vertex_stride;
@@ -160,7 +181,6 @@ impl TextRender {
             rpass.set_bind_group(0, self.texture.bind_group(), &[]);
             rpass.set_bind_group(1, &self.style_bind_group, &[]);
             rpass.draw(0..len as u32, 0..1);
-            println!("Item {}, {}", item.start, item.end);
         }
 
         /*
@@ -176,6 +196,7 @@ impl TextRender {
             rpass.draw(0..vertex_len as u32, 0..1);
         }
         */
+        self.vertex_offset = 0;
     }
 
     fn vertex(&mut self, x: f32, y: f32, u: f32, v: f32) {
@@ -253,6 +274,7 @@ impl TextStyle {
 
     fn new(affine: &Affine2d, color: u32) -> Self {
         let mat = affine.mat();
+
         Self {
             affine_0: [mat[0], mat[1], mat[2]],
             affine_1: [mat[3], mat[4], mat[5]],

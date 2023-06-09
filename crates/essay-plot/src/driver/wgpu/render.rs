@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text};
 
 use crate::{
@@ -275,7 +277,7 @@ impl Renderer for FigureRenderer {
         &mut self, 
         style: &dyn StyleOpt, 
         xy: Point, // location in Canvas coordinates
-        s: &str,
+        text: &str,
         // prop, - font properties
         // affine: &Affine2d,
         angle: f32, // rotation
@@ -287,18 +289,28 @@ impl Renderer for FigureRenderer {
             None => Color::from(0x000000ff),
         };
 
-        let scale = 40.;
-        self.text_render.draw("Hello", "sans-serif", 32.);
+        let size = 64.;
+        self.text_render.draw(
+            text,
+            "sans-serif", 
+            size,
+            xy, 
+            Point(self.pos_canvas.width(), self.pos_canvas.height()),
+            color,
+            angle,
+        );
  
+        /*
         self.glyph.queue(Section {
             screen_position: (xy.0, self.pos_canvas.height() - xy.1),
             bounds: (self.pos_canvas.width(), self.pos_canvas.height()),
             text: vec![Text::new(s)
                 .with_color([color.red(), color.green(), color.blue(), color.alpha()])
-                .with_scale(100.)
+                .with_scale(64.)
                 ],
             ..Section::default()
         });
+        */
 
         Ok(())
     }
@@ -516,6 +528,7 @@ impl FigureRenderer {
 
         self.text_render.flush(queue, view, encoder);
 
+        /*
         self.glyph.queue(Section {
             screen_position: (100., 100.),
             bounds: (width, height),
@@ -533,6 +546,7 @@ impl FigureRenderer {
             width as u32,
             height as u32,
         ).unwrap();
+        */
         self.staging_belt.finish();
         //self.staging_belt.recall();
     }

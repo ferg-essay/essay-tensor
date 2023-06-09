@@ -15,6 +15,9 @@ pub struct TextCache {
 
     data: Vec<u8>,
 
+    x: u32,
+    y: u32,
+
     font_map: HashMap<String, FontItem>,
     glyph_map: HashMap<GlyphId, TextRect>,
     is_modified: bool,
@@ -31,6 +34,8 @@ impl TextCache {
             width,
             height,
             data,
+            x: 0,
+            y: 0,
             font_map: HashMap::default(),
             glyph_map: HashMap::default(),
             is_modified: true,
@@ -56,7 +61,7 @@ impl TextCache {
         ScaledFont {
             id: entry.id,
             font: entry.font.clone(),
-            size: size,
+            size,
         }
     }
 
@@ -82,16 +87,12 @@ impl TextCache {
     }
 
     fn add_glyph(&mut self, font: &ab_glyph::FontArc, size: u16, glyph: char) -> TextRect {
-        let scale = PxScale::from(size as f32);
-
+        let scale = font.pt_to_px_scale(size as f32).unwrap();
         let glyph = font.glyph_id(glyph).with_scale(scale);
 
         let data = self.data.as_mut_slice();
         let w = self.width as u32;
 
-        let xc = 0;
-        let yc = 0;
-        
         //println!("Size {:?}", font);
         //println!("Scale {:?}", font.pt_to_px_scale(12.0));
         let rect = match font.outline_glyph(glyph) {
@@ -101,18 +102,35 @@ impl TextCache {
                 let dx = bounds.max.x - bounds.min.x;
                 let dy = bounds.max.y - bounds.min.y;
 
+                let xc = self.x;
+                let yc = self.y; //  + dy as u32;
+
                 og.draw(|x, y, v| {
                     let v = (v * 255.).round().clamp(0., 255.) as u8;
-                    data[(xc + x + w * (yc + y)) as usize] = v;
+                    data[(xc + x + w * (yc + dy as u32 - y - 1)) as usize] = v;
                 });
 
-                TextRect::new(
-                    xc as u16, yc as u16,
-                    xc as u16 + dx as u16, yc as u16 + dy as u16
-                )
+                let rect = TextRect::new(
+                    bounds.min.x as i16,
+                    bounds.min.y as i16,
+                    bounds.max.x as i16,
+                    bounds.max.y as i16,
+                    xc as f32 / self.width as f32,
+                    yc as f32 / self.height as f32,
+                    (xc as f32 + dx) / self.width as f32,
+                    (yc as f32 + dy) / self.height as f32,
+                );
+
+                let mut xc = xc + dx as u32 + 1;
+                xc += (4 - xc % 4) % 4;
+
+                self.x = xc;
+                self.y = yc;
+
+                rect
             },
             None => {
-                TextRect::new(0, 0, 0, 0)
+                TextRect::none()
             }
         };
 
@@ -175,54 +193,108 @@ impl GlyphId {
 
 #[derive(Clone, Debug)]
 pub struct TextRect {
-    xmin: f32,
-    ymin: f32,
-    xmax: f32,
-    ymax: f32,
+    px_min: i16,
+    py_min: i16,
+    px_max: i16,
+    py_max: i16,
+
+    tx_min: f32,
+    ty_min: f32,
+    tx_max: f32,
+    ty_max: f32,
 }
 
 impl TextRect {
-    fn new(x: u16, y: u16, width: u16, height: u16) -> Self {
+    fn new(
+        px_min: i16,
+        py_min: i16,
+        px_max: i16,
+        py_max: i16,
+
+        tx_min: f32,
+        ty_min: f32,
+        tx_max: f32,
+        ty_max: f32,
+    ) -> Self {
         Self {
-            xmin: x as f32,
-            ymin: y as f32,
-            xmax: (x + width) as f32,
-            ymax: (y + height) as f32,
+            px_min,
+            py_min,
+            px_max,
+            py_max,
+    
+            tx_min,
+            ty_min,
+            tx_max,
+            ty_max,
+        }
+    }
+
+    fn none() -> Self {
+        Self {
+            px_min: 0,
+            py_min: 0,
+            px_max: 0,
+            py_max: 0,
+    
+            tx_min: 0.,
+            ty_min: 0.,
+            tx_max: 0.,
+            ty_max: 0.,
         }
     }
 
     #[inline]
     pub(crate) fn is_none(&self) -> bool {
-        self.xmin == self.xmax
+        self.px_min == self.px_max
     }
 
     #[inline]
-    pub(crate) fn xmin(&self) -> f32 {
-        self.xmin
+    pub(crate) fn px_min(&self) -> i16 {
+        self.px_min
     }
 
     #[inline]
-    pub(crate) fn ymin(&self) -> f32 {
-        self.ymin
+    pub(crate) fn py_min(&self) -> i16 {
+        self.py_min
     }
 
     #[inline]
-    pub(crate) fn xmax(&self) -> f32 {
-        self.xmax
+    pub(crate) fn px_max(&self) -> i16 {
+        self.px_max
     }
 
     #[inline]
-    pub(crate) fn ymax(&self) -> f32 {
-        self.ymax
+    pub(crate) fn py_max(&self) -> i16 {
+        self.py_max
     }
 
     #[inline]
-    pub(crate) fn w(&self) -> f32 {
-        self.xmax - self.xmin
+    pub(crate) fn px_w(&self) -> u16 {
+        (self.px_max - self.px_min) as u16
     }
 
     #[inline]
-    pub(crate) fn h(&self) -> f32 {
-        self.ymax - self.ymin
+    pub(crate) fn px_h(&self) -> u16 {
+        (self.py_max - self.py_min) as u16
+    }
+
+    #[inline]
+    pub(crate) fn tx_min(&self) -> f32 {
+        self.tx_min
+    }
+
+    #[inline]
+    pub(crate) fn ty_min(&self) -> f32 {
+        self.ty_min
+    }
+
+    #[inline]
+    pub(crate) fn tx_max(&self) -> f32 {
+        self.tx_max
+    }
+
+    #[inline]
+    pub(crate) fn ty_max(&self) -> f32 {
+        self.ty_max
     }
 }

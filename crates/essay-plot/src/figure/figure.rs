@@ -78,13 +78,12 @@ impl FigureInner {
 
     pub fn draw(&mut self, renderer: &mut impl Renderer) {
         let bounds = renderer.get_canvas_bounds();
-        println!("Bounds {:?}", bounds);
+
         for frame in &mut self.frames {
             frame.set_pos(&bounds);
 
             frame.draw(renderer);
         }
-        println!("Bounds {:?}", bounds);
     }
 }
 

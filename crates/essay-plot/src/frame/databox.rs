@@ -40,7 +40,7 @@ impl DataBox {
         self.pos_canvas = pos.clone();
 
         self.to_canvas = self.view_bounds.affine_to(&self.pos_canvas);
-        println!("Set_pos {:?}\n PosC {:?}", self.to_canvas, self.pos_canvas);
+
         self
     }
 
