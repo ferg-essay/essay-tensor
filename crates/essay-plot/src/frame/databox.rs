@@ -88,6 +88,14 @@ impl DataBox {
             self.view_bounds = self.view_bounds.union(&bounds);
         }
     }
+
+    pub(crate) fn get_pos(&self) -> &Bounds<Canvas> {
+        &self.pos_canvas
+    }
+
+    pub(crate) fn get_view_bounds(&self) -> &Bounds<Data> {
+        &self.view_bounds
+    }
 }
 
 impl ArtistTrait<Canvas> for DataBox {
@@ -103,7 +111,6 @@ impl ArtistTrait<Canvas> for DataBox {
         let style = Style::chain(style, &self.style);
 
         // TODO: intersect clip
-        println!("Draw {:?}", to_canvas);
         for artist in &mut self.artists {
             artist.draw(renderer, &to_canvas, &self.pos_canvas, &style);
         }

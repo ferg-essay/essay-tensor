@@ -1,13 +1,13 @@
 use crate::{
     artist::{Style, 
-        patch::{PatchTrait, self, DisplayPatch, Line}, 
-        ArtistTrait
+        patch::{PatchTrait, self, DisplayPatch, Line, PathPatch}, 
+        ArtistTrait, PathCode, Path, StyleOpt
     }, 
     driver::{Canvas, Renderer}, 
     frame::Affine2d
 };
 
-use super::{Bounds, Point, databox::DataBox};
+use super::{Bounds, Point, databox::DataBox, tick_locator::{Locator, LinearLocator}, axis::Axis, Data};
 
 pub struct Frame {
     pos: Bounds<Canvas>,
@@ -87,6 +87,9 @@ impl Frame {
         );
         self.right.set_pos(pos_right);
 
+        self.bottom.calculate_axis(&self.data);
+        self.left.calculate_axis(&self.data);
+
         self
     }
 
@@ -95,13 +98,14 @@ impl Frame {
     }
 
     pub(crate) fn draw(&mut self, renderer: &mut impl Renderer) {
-        self.data.draw(renderer, &self.to_canvas, &self.pos, &self.style);
-
         self.bottom.draw(renderer, &self.to_canvas, &self.pos, &self.style);
         self.left.draw(renderer, &self.to_canvas, &self.pos, &self.style);
 
         self.top.draw(renderer, &self.to_canvas, &self.pos, &self.style);
         self.right.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+
+        // TODO: grid order
+        self.data.draw(renderer, &self.to_canvas, &self.pos, &self.style);
     }
 }
 
@@ -162,15 +166,36 @@ impl ArtistTrait<Canvas> for TopFrame {
 pub struct BottomFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
+
     spine: Option<DisplayPatch>,
+
+    axis: Option<Axis>,
+    ticks: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    style_major: Style,
+    grid_major: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    style_minor: Style,
+    grid_minor: Vec<Box<dyn ArtistTrait<Canvas>>>,
 }
 
 impl BottomFrame {
     pub fn new() -> Self {
+        let mut style_major = Style::new();
+        style_major.linewidth(2.);
+        style_major.color(0x808080ff);
+        let mut style_minor = Style::new();
+        style_minor.linewidth(1.);
+        style_minor.color(0x404040ff);
+
         Self {
-            bounds: Bounds::new(Point(0., 0.), Point(0., 20.)),
+            bounds: Bounds::new(Point(0., 0.), Point(0., 50.)),
             pos: Bounds::none(),
             spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
+            axis: Some(Axis::new()),
+            ticks: Vec::new(),
+            grid_major: Vec::new(),
+            style_major,
+            grid_minor: Vec::new(),
+            style_minor,
         }
     }
 
@@ -182,6 +207,34 @@ impl BottomFrame {
                 Point(pos.xmin(), pos.ymax() - 1.),
                 Point(pos.xmax(), pos.ymax()),
             ))
+        }
+    }
+
+    pub fn calculate_axis(&mut self, data: &DataBox) {
+        if let Some(axis) = &mut self.axis {
+            let pos = &self.pos;
+            let data_pos = data.get_pos();
+            self.ticks = Vec::new();
+            self.grid_major = Vec::new();
+
+            for (xv, x) in axis.x_ticks(data) {
+                if pos.xmin() < x && x < pos.xmax() {
+                    let tick = PathPatch::new(Path::new(vec![
+                        PathCode::MoveTo(Point(x, pos.ymax() - 10.)),
+                        PathCode::LineTo(Point(x, pos.ymax())),
+                    ]));
+
+                    self.ticks.push(Box::new(tick));
+
+                    // grid
+                    let grid = PathPatch::new(Path::new(vec![
+                        PathCode::MoveTo(Point(x, data_pos.ymin())),
+                        PathCode::LineTo(Point(x, data_pos.ymax())),
+                    ]));
+
+                    self.grid_major.push(Box::new(grid));
+                }
+            };
         }
     }
 }
@@ -204,6 +257,17 @@ impl ArtistTrait<Canvas> for BottomFrame {
             patch.draw(renderer, to_canvas, clip, style);
         }
         
+        for tick in &mut self.ticks {
+            tick.draw(renderer, to_canvas, clip, style);
+        }
+        
+        for grid in &mut self.grid_major {
+            grid.draw(renderer, to_canvas, clip, &self.style_major);
+        }
+
+        for grid in &mut self.grid_minor {
+            grid.draw(renderer, to_canvas, clip, &self.style_minor);
+        }
     }
 }
 
@@ -215,14 +279,34 @@ pub struct LeftFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
     spine: Option<DisplayPatch>,
+
+    axis: Option<Axis>,
+    ticks: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    style_major: Style,
+    grid_major: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    style_minor: Style,
+    grid_minor: Vec<Box<dyn ArtistTrait<Canvas>>>,
 }
 
 impl LeftFrame {
     pub fn new() -> Self {
+        let mut style_major = Style::new();
+        style_major.linewidth(4.);
+        style_major.color(0xf08080ff);
+        let mut style_minor = Style::new();
+        style_minor.linewidth(1.);
+        style_minor.color(0x404040ff);
+
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(20., 0.)),
             pos: Bounds::none(),
             spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
+            axis: Some(Axis::new()),
+            ticks: Vec::new(),
+            grid_major: Vec::new(),
+            style_major,
+            grid_minor: Vec::new(),
+            style_minor,
         }
     }
 
@@ -234,6 +318,34 @@ impl LeftFrame {
                 Point(pos.xmax() - 1., pos.ymin()),
                 Point(pos.xmax(), pos.ymax()),
             ))
+        }
+    }
+
+    pub fn calculate_axis(&mut self, data: &DataBox) {
+        if let Some(axis) = &mut self.axis {
+            let pos = &self.pos;
+            let data_pos = data.get_pos();
+            self.ticks = Vec::new();
+            self.grid_major = Vec::new();
+
+            for (yv, y) in axis.y_ticks(data) {
+                if pos.ymin() < y && y < pos.ymax() {
+                    let tick = PathPatch::new(Path::new(vec![
+                        PathCode::MoveTo(Point(pos.xmax() - 10., y)),
+                        PathCode::LineTo(Point(pos.xmax(), y)),
+                    ]));
+
+                    self.ticks.push(Box::new(tick));
+
+                    // grid
+                    let grid = PathPatch::new(Path::new(vec![
+                        PathCode::MoveTo(Point(data_pos.xmin(), y)),
+                        PathCode::LineTo(Point(data_pos.xmax(), y)),
+                    ]));
+
+                    self.grid_major.push(Box::new(grid));
+                }
+            };
         }
     }
 }
@@ -252,6 +364,18 @@ impl ArtistTrait<Canvas> for LeftFrame {
     ) {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
+        }
+        
+        for tick in &mut self.ticks {
+            tick.draw(renderer, to_canvas, clip, style);
+        }
+        
+        for grid in &mut self.grid_major {
+            grid.draw(renderer, to_canvas, clip, &self.style_major);
+        }
+
+        for grid in &mut self.grid_minor {
+            grid.draw(renderer, to_canvas, clip, &self.style_minor);
         }
     }
 }

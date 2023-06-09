@@ -1,3 +1,5 @@
+mod axis;
+mod tick_locator;
 mod databox;
 mod frame;
 mod affine;

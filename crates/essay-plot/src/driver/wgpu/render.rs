@@ -224,7 +224,7 @@ impl Renderer for FigureRenderer {
 
         // TODO: thickness in points
         let linewidth  = match style.get_linewidth() {
-            Some(linewidth) => 0.5 * linewidth / self.pos_canvas.height(),
+            Some(linewidth) => *linewidth,
             None => 4.,
         };
         let thickness = 0.5 * linewidth  / self.pos_canvas.height();

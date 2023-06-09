@@ -1,3 +1,4 @@
+mod arange;
 mod initializer;
 mod random_normal;
 mod random_uniform;
@@ -10,6 +11,11 @@ pub use initializer::Initializer;
 
 pub use ones::ones;
 pub use fill::fill;
+
+pub use arange::{
+    arange,
+};
+
 pub use zeros::{
     zeros, zeros_initializer,
 };
