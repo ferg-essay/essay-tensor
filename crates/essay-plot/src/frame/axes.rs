@@ -3,13 +3,14 @@ use core::fmt;
 use essay_tensor::Tensor;
 
 use crate::{driver::{Renderer, Canvas}, plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style}, figure::GridSpec, prelude::Figure, frame::Point, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color}, figure::GridSpec, prelude::Figure, frame::Point, 
 };
 
 use super::{Bounds, Data, Affine2d, databox::DataBox, frame::{Frame, BottomFrame, LeftFrame, RightFrame, TopFrame}};
 
 pub struct Axes {
-    pos_figure: Bounds<GridSpec>, // position of the Axes in figure grid coordinates
+    pos_grid: Bounds<GridSpec>, // position of the Axes in figure grid coordinates
+    pos: Bounds<Canvas>,
 
     frame: Frame,
 
@@ -20,7 +21,8 @@ pub struct Axes {
 impl Axes {
     pub fn new(bounds: impl Into<Bounds<GridSpec>>) -> Self {
         Self {
-            pos_figure: bounds.into(),
+            pos_grid: bounds.into(),
+            pos: Bounds::none(),
 
             frame: Frame::new(),
 
@@ -33,7 +35,9 @@ impl Axes {
     ///
     /// Sets the device bounds and propagates to children
     /// 
-    pub(crate) fn set_bounds(&mut self, pos: &Bounds<Canvas>) {
+    pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) {
+        self.pos = pos.clone();
+
         self.frame.set_pos(pos);
     }
 
@@ -126,15 +130,16 @@ impl Axes {
 
     pub(crate) fn draw(&mut self, renderer: &mut impl Renderer) {
         self.frame.draw(renderer);
-        /*
-        self.data.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
 
-        self.bottom.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
-        self.left.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
+        let mut style = self.style.clone();
+        style.color(Color(0xff0000ff));
 
-        self.top.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
-        self.right.draw(renderer, &self.to_canvas, &self.pos_canvas, &self.style);
-        */
+        renderer.draw_text(&style, 
+            Point(200., 200.),
+            "hello, axes",
+            0.,
+            &self.pos,
+        ).unwrap();
     }
 }
 

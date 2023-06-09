@@ -7,6 +7,7 @@ pub trait StyleOpt {
     fn get_joinstyle(&self) -> &Option<JoinStyle>;
 }
 
+#[derive(Clone)]
 pub struct Style {
     color: Option<Color>,
 
@@ -14,6 +15,7 @@ pub struct Style {
     joinstyle: Option<JoinStyle>,
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub enum JoinStyle {
     Rounded,
     Mitre,

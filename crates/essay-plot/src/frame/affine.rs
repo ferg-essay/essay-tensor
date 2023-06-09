@@ -22,6 +22,10 @@ impl Affine2d {
         }
     }
 
+    pub fn mat(&self) -> Tensor {
+        self.mat.clone()
+    }
+
     pub fn eye() -> Self {
         // TODO: use Tensor::eye
         let mat = tf32!([

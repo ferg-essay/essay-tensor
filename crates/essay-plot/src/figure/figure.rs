@@ -80,7 +80,7 @@ impl FigureInner {
         let bounds = renderer.get_canvas_bounds();
         println!("Bounds {:?}", bounds);
         for frame in &mut self.frames {
-            frame.set_bounds(&bounds);
+            frame.set_pos(&bounds);
 
             frame.draw(renderer);
         }

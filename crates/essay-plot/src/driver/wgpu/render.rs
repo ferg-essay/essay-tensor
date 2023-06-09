@@ -6,9 +6,10 @@ use crate::{
     artist::{Path, PathCode, StyleOpt, Color}, figure::FigureInner
 };
 
-use super::vertex::VertexBuffer;
+use super::{vertex::VertexBuffer, text::{TextRender}, text_cache::TextCache};
 
 pub struct FigureRenderer {
+    pos_canvas: Bounds<Canvas>,
 
     vertex_pipeline: wgpu::RenderPipeline,
     vertex: VertexBuffer,
@@ -20,14 +21,15 @@ pub struct FigureRenderer {
     staging_belt: wgpu::util::StagingBelt,
     glyph: GlyphBrush<()>,
 
-    pos_canvas: Bounds<Canvas>,
+    text_render: TextRender,
+
     to_gpu: Affine2d,
 }
 
 impl<'a> FigureRenderer {
     pub(crate) fn new(
         device: &wgpu::Device,
-        texture_format: wgpu::TextureFormat,
+        format: wgpu::TextureFormat,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
 
@@ -38,7 +40,7 @@ impl<'a> FigureRenderer {
             &shader,
             "vs_main",
             "fs_main",
-            texture_format,
+            format,
             vertex_buffer.desc(),
         );
 
@@ -51,7 +53,7 @@ impl<'a> FigureRenderer {
             &bezier_shader,
             "vs_bezier",
             "fs_bezier",
-            texture_format,
+            format,
             bezier_vertex.desc(),
         );
 
@@ -62,18 +64,22 @@ impl<'a> FigureRenderer {
             &bezier_shader,
             "vs_bezier",
             "fs_bezier_rev",
-            texture_format,
+            format,
             bezier_rev_vertex.desc(),
         );
     
-        let font_palatino = ab_glyph::FontArc::try_from_slice(include_bytes!(
-            "/System/Library/Fonts/Palatino.ttc"
+        let font_opensans = ab_glyph::FontArc::try_from_slice(include_bytes!(
+            "fonts/OpenSans-Medium.ttf"
         )).unwrap();
 
-        let glyph_brush = GlyphBrushBuilder::using_font(font_palatino)
-            .build(&device, texture_format);
+        let glyph_brush = GlyphBrushBuilder::using_font(font_opensans)
+            .build(&device, format);
+
+        let text_render = TextRender::new(device, format, 512, 512);
         
         Self {
+            pos_canvas: Bounds::<Canvas>::unit(),
+
             vertex_pipeline,
             vertex: vertex_buffer,
             bezier_pipeline,
@@ -84,7 +90,8 @@ impl<'a> FigureRenderer {
             staging_belt: wgpu::util::StagingBelt::new(1024),
             glyph: glyph_brush,
 
-            pos_canvas: Bounds::<Canvas>::unit(),
+            text_render,
+
             to_gpu: Affine2d::eye(),
         }
     }
@@ -104,8 +111,6 @@ impl<'a> FigureRenderer {
             Point(-1., -1.),
             Point(1., 1.)
         );
-
-        println!("POS-C: {:?}", self.pos_canvas);
 
         self.to_gpu = self.pos_canvas.affine_to(&pos_gpu);
     }
@@ -265,6 +270,39 @@ impl Renderer for FigureRenderer {
 
         Ok(())
     }
+
+    fn draw_text(
+        &mut self, 
+        style: &dyn StyleOpt, 
+        xy: Point, // location in Canvas coordinates
+        s: &str,
+        // prop, - font properties
+        // affine: &Affine2d,
+        angle: f32, // rotation
+        clip: &Bounds<Canvas>,
+    ) -> Result<(), RenderErr> {
+
+        let color = match style.get_color() {
+            Some(color) => *color,
+            None => Color::from(0x000000ff),
+        };
+
+        let scale = 40.;
+        self.text_render.draw("Hello", "sans-serif", 32.);
+ 
+        self.glyph.queue(Section {
+            screen_position: (xy.0, self.pos_canvas.height() - xy.1),
+            bounds: (self.pos_canvas.width(), self.pos_canvas.height()),
+            text: vec![Text::new(s)
+                .with_color([color.red(), color.green(), color.blue(), color.alpha()])
+                .with_scale(100.)
+                ],
+            ..Section::default()
+        });
+
+        Ok(())
+    }
+
 }
 
 // transform and normalize path
@@ -475,6 +513,8 @@ impl FigureRenderer {
         }
 
         let (width, height) = (self.pos_canvas.width(), self.pos_canvas.height());
+
+        self.text_render.flush(queue, view, encoder);
 
         self.glyph.queue(Section {
             screen_position: (100., 100.),
