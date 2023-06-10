@@ -1,4 +1,4 @@
-use crate::figure::FigureInner;
+use crate::graph::FigureInner;
 
 use super::{Renderer, device, DeviceErr};
 

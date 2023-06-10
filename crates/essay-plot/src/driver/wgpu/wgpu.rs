@@ -1,4 +1,4 @@
-use crate::{driver::{Backend, Renderer, DeviceErr}, figure::FigureInner};
+use crate::{driver::{Backend, Renderer, DeviceErr}, graph::FigureInner};
 
 use super::main_loop::main_loop;
 

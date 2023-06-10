@@ -5,7 +5,7 @@ use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text}
 use crate::{
     driver::{Renderer, Canvas, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
     graph::{Bounds, Point, Affine2d, Data, CoordMarker}, 
-    artist::{Path, PathCode, StyleOpt, Color, TextStyle}, figure::FigureInner
+    artist::{Path, PathCode, StyleOpt, Color, TextStyle}, graph::FigureInner
 };
 
 use super::{vertex::VertexBuffer, text::{TextRender, GpuTextStyle}, text_cache::TextCache};

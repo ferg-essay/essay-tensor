@@ -4,7 +4,7 @@ use winit::{
     window::Window,
 };
 
-use crate::figure::FigureInner;
+use crate::graph::FigureInner;
 
 use super::{render::{FigureRenderer}};
 

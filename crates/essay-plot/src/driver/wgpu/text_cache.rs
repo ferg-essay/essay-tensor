@@ -48,7 +48,7 @@ impl TextCache {
         let entry = self.font_map.entry(name.to_string())
             .or_insert_with(|| {
                 let font = ab_glyph::FontArc::try_from_slice(include_bytes!(
-                    "fonts/OpenSans-Medium.ttf"
+                    "../../assets/fonts/DejaVuSans.ttf"
                 )).unwrap();
 
                 FontItem {

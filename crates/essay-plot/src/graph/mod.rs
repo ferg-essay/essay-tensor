@@ -2,6 +2,8 @@ mod axis;
 mod tick_locator;
 mod databox;
 mod frame;
+mod figure;
+mod layout;
 mod affine;
 mod graph;
 mod bounds;
@@ -23,3 +25,10 @@ pub use rect::{
     Rect,
 };
 
+pub use figure::{
+    Figure, FigureInner, GraphId,
+};
+
+pub use layout::{
+    Layout,
+};

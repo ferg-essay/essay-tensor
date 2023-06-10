@@ -2,8 +2,11 @@ use core::fmt;
 
 use essay_tensor::Tensor;
 
-use crate::{driver::{Renderer, Canvas}, plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text}, figure::{GridSpec, GraphId}, prelude::Figure, graph::Point, 
+use crate::{
+    driver::{Renderer, Canvas}, 
+    plot::PlotOpt, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text}, 
+    graph::{Layout, GraphId, Point},
 };
 
 use super::{Bounds, Data, Affine2d, frame::{Frame}};
@@ -11,8 +14,9 @@ use super::{Bounds, Data, Affine2d, frame::{Frame}};
 pub struct Graph {
     id: GraphId,
 
-    pos_grid: Bounds<GridSpec>, // position of the Axes in figure grid coordinates
     pos: Bounds<Canvas>,
+
+    pos_layout: Bounds<Layout>, // position of the Graph in layout coordinates
 
     title: Text,
     frame: Frame,
@@ -22,10 +26,10 @@ pub struct Graph {
 }
 
 impl Graph {
-    pub(crate) fn new(id: GraphId, grid: impl Into<Bounds<GridSpec>>) -> Self {
+    pub(crate) fn new(id: GraphId, layout: impl Into<Bounds<Layout>>) -> Self {
         let mut graph = Self {
             id, 
-            pos_grid: grid.into(),
+            pos_layout: layout.into(),
             pos: Bounds::none(),
 
             title: Text::new(),
@@ -46,8 +50,22 @@ impl Graph {
         self.id
     }
 
+    pub fn title(&mut self, text: &str) -> &mut Text {
+        self.title.text(text);
+
+        &mut self.title
+    }
+
+    pub fn xlabel(&mut self, text: &str) -> &mut Text {
+        self.frame.xlabel(text)
+    }
+
+    pub fn ylabel(&mut self, text: &str) -> &mut Text {
+        self.frame.ylabel(text)
+    }
+
     fn default_properties(&mut self) {
-        self.title.font().size(24.);
+        self.title.font().size(12.);
     }
 
     ///
@@ -165,25 +183,11 @@ impl Graph {
 
         self.frame.draw(renderer);
     }
-
-    pub fn title(&mut self, text: &str) -> &mut Text {
-        self.title.text(text);
-
-        &mut self.title
-    }
-
-    pub fn xlabel(&mut self, text: &str) -> &mut Text {
-        self.frame.xlabel(text)
-    }
-
-    pub fn ylabel(&mut self, text: &str) -> &mut Text {
-        self.frame.ylabel(text)
-    }
 }
 
 impl fmt::Debug for Graph {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Axes({},{},{}x{})",
+        write!(f, "Graph({},{}; {}x{})",
             self.frame.pos().xmin(),
             self.frame.pos().ymin(),
             self.frame.pos().width(),

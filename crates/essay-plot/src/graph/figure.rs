@@ -7,7 +7,7 @@ use crate::{
     graph::{Graph, CoordMarker, Bounds, Point}
 };
 
-use super::gridspec::GridSpec;
+use super::layout::Layout;
 
 pub struct Figure {
     device: Canvas,
@@ -24,7 +24,7 @@ impl Figure {
         }
     }
 
-    pub fn new_graph(&mut self, grid: impl Into<Bounds<GridSpec>>) -> &mut Graph {
+    pub fn new_graph(&mut self, grid: impl Into<Bounds<Layout>>) -> &mut Graph {
         self.inner.new_graph(grid)
     }
 
@@ -87,7 +87,7 @@ impl GraphId {
 }
 
 pub struct FigureInner {
-    gridspec: Bounds<GridSpec>,
+    gridspec: Bounds<Layout>,
 
     graphs: Vec<Graph>,
 }
@@ -102,7 +102,7 @@ impl FigureInner {
 
     fn new_graph(
         &mut self, 
-        grid: impl Into<Bounds<GridSpec>>, 
+        grid: impl Into<Bounds<Layout>>, 
     ) -> &mut Graph {
         let len = self.graphs.len();
         let id = GraphId(len);
