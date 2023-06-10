@@ -1,8 +1,4 @@
-use essay_tensor::Tensor;
-
-use crate::driver::Canvas;
-
-use super::{tick_locator::{LinearLocator, Locator}, Bounds, Data, databox::DataBox};
+use super::{tick_locator::{LinearLocator, Locator}, databox::DataBox};
 
 pub struct Axis {
     locator: Box<dyn Locator>,

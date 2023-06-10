@@ -1,4 +1,4 @@
-use crate::{frame::{Bounds, Point}, driver::Canvas};
+use crate::{graph::{Bounds, Point}, driver::Canvas};
 
 use super::{Style, ArtistTrait, style::Chain};
 
@@ -83,7 +83,7 @@ impl ArtistTrait<Canvas> for Text {
     fn draw(
         &mut self, 
         renderer: &mut dyn crate::driver::Renderer,
-        to_canvas: &crate::frame::Affine2d,
+        to_canvas: &crate::graph::Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn super::StyleOpt,
     ) {

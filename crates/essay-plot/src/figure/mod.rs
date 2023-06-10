@@ -2,7 +2,7 @@ mod figure;
 mod gridspec;
 
 pub use figure::{
-    Figure, FigureInner
+    Figure, FigureInner, GraphId,
 };
 
 pub use gridspec::{

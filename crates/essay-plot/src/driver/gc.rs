@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{frame::{Bounds}, artist::{Path, Color}};
+use crate::{graph::{Bounds}, artist::{Path, Color}};
 
 use super::Canvas;
 

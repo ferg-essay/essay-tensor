@@ -6,7 +6,7 @@ use crate::{
         ArtistTrait, PathCode, Path, StyleOpt, Color, Text
     }, 
     driver::{Canvas, Renderer}, 
-    frame::Affine2d
+    graph::Affine2d
 };
 
 use super::{Bounds, Point, databox::DataBox, tick_locator::{Locator, LinearLocator}, axis::Axis, Data};

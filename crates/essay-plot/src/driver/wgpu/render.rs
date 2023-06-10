@@ -4,7 +4,7 @@ use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text}
 
 use crate::{
     driver::{Renderer, Canvas, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
-    frame::{Bounds, Point, Affine2d, Data, CoordMarker}, 
+    graph::{Bounds, Point, Affine2d, Data, CoordMarker}, 
     artist::{Path, PathCode, StyleOpt, Color, TextStyle}, figure::FigureInner
 };
 
@@ -123,8 +123,8 @@ impl<'a> FigureRenderer {
         self.scale_factor = scale_factor;
     }
 
-    pub(crate) fn get_scale_factor(&self) -> f32 {
-        self.scale_factor
+    pub(crate) fn pt_to_px(&self) -> f32 {
+        self.scale_factor * 4. / 3.
     }
 
     fn draw_line(&mut self, 
@@ -220,7 +220,7 @@ impl Renderer for FigureRenderer {
     }
 
     fn points_to_pixels(&self) -> f32 {
-        self.get_scale_factor()
+        self.pt_to_px()
     }
 
     fn new_gc(&mut self) -> GraphicsContext {
@@ -249,8 +249,8 @@ impl Renderer for FigureRenderer {
             None => 1.5,
         };
         
-        let lw_x = (linewidth * self.get_scale_factor()).round() / self.pos_canvas.width();
-        let lw_y = (linewidth * self.get_scale_factor()).round() / self.pos_canvas.height();
+        let lw_x = (linewidth * self.pt_to_px()).round() / self.pos_canvas.width();
+        let lw_y = (linewidth * self.pt_to_px()).round() / self.pos_canvas.height();
 
         let color = match style.get_color() {
             Some(color) => *color,
@@ -312,7 +312,7 @@ impl Renderer for FigureRenderer {
             None => 12.,
         };
 
-        let size = size * self.get_scale_factor();
+        let size = size * self.pt_to_px();
 
         self.text_render.draw(
             text,

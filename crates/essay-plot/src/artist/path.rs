@@ -2,7 +2,7 @@ use std::{marker::PhantomData, f32::consts::{PI, TAU}};
 
 use essay_tensor::{prelude::*, init::linspace, tensor::TensorVec};
 
-use crate::frame::{CoordMarker, Data, Affine2d, Bounds, Point, Unit};
+use crate::graph::{CoordMarker, Data, Affine2d, Bounds, Point, Unit};
 
 pub struct Path<M: CoordMarker = Data> {
     codes: Vec<PathCode>,

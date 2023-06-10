@@ -1,15 +1,16 @@
 use core::fmt;
-use std::f32::consts::PI;
 
 use essay_tensor::Tensor;
 
 use crate::{driver::{Renderer, Canvas}, plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text}, figure::GridSpec, prelude::Figure, frame::Point, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text}, figure::{GridSpec, GraphId}, prelude::Figure, graph::Point, 
 };
 
-use super::{Bounds, Data, Affine2d, databox::DataBox, frame::{Frame, BottomFrame, LeftFrame, RightFrame, TopFrame}};
+use super::{Bounds, Data, Affine2d, frame::{Frame}};
 
-pub struct Axes {
+pub struct Graph {
+    id: GraphId,
+
     pos_grid: Bounds<GridSpec>, // position of the Axes in figure grid coordinates
     pos: Bounds<Canvas>,
 
@@ -20,10 +21,11 @@ pub struct Axes {
     style: Style,
 }
 
-impl Axes {
-    pub fn new(bounds: impl Into<Bounds<GridSpec>>) -> Self {
-        let mut axes = Self {
-            pos_grid: bounds.into(),
+impl Graph {
+    pub(crate) fn new(id: GraphId, grid: impl Into<Bounds<GridSpec>>) -> Self {
+        let mut graph = Self {
+            id, 
+            pos_grid: grid.into(),
             pos: Bounds::none(),
 
             title: Text::new(),
@@ -34,9 +36,14 @@ impl Axes {
             to_canvas: Affine2d::eye(),
         };
 
-        axes.default_properties();
+        graph.default_properties();
 
-        axes
+        graph
+    }
+
+    #[inline]
+    pub fn id(&self) -> GraphId {
+        self.id
     }
 
     fn default_properties(&mut self) {
@@ -174,18 +181,12 @@ impl Axes {
     }
 }
 
-impl fmt::Debug for Axes {
+impl fmt::Debug for Graph {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Axes({},{},{}x{})",
             self.frame.pos().xmin(),
             self.frame.pos().ymin(),
             self.frame.pos().width(),
             self.frame.pos().height())
-    }
-}
-
-impl From<()> for Axes {
-    fn from(_value: ()) -> Self {
-        Axes::new(Bounds::<GridSpec>::none())
     }
 }

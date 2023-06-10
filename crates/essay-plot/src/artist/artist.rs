@@ -1,4 +1,4 @@
-use crate::{driver::{Renderer, Canvas}, frame::{Bounds, Data, Affine2d, CoordMarker}};
+use crate::{driver::{Renderer, Canvas}, graph::{Bounds, Data, Affine2d, CoordMarker}};
 
 use super::{Style, StyleOpt, Color, JoinStyle};
 

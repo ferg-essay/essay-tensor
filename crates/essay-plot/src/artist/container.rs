@@ -1,4 +1,4 @@
-use crate::{frame::{Bounds, Data, Affine2d, Point, CoordMarker}, driver::{Renderer, Canvas}};
+use crate::{graph::{Bounds, Data, Affine2d, Point, CoordMarker}, driver::{Renderer, Canvas}};
 
 use super::{Artist, ArtistTrait, StyleOpt, Style};
 

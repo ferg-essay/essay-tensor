@@ -1,5 +1,5 @@
 pub mod artist;
-pub mod frame;
+pub mod graph;
 pub mod figure;
 pub mod plot;
 pub mod driver;

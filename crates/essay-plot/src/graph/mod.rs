@@ -3,7 +3,7 @@ mod tick_locator;
 mod databox;
 mod frame;
 mod affine;
-mod axes;
+mod graph;
 mod bounds;
 mod rect;
 
@@ -11,8 +11,8 @@ pub use affine::{
     Affine2d, Point, CoordMarker, Unit, Data, Display,
 };
 
-pub use axes::{
-    Axes,
+pub use graph::{
+    Graph,
 };
 
 pub use bounds::{

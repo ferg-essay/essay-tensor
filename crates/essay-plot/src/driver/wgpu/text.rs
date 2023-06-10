@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use wgpu::util::DeviceExt;
 use wgpu_glyph::ab_glyph::{self, Font, PxScale};
 
-use crate::{frame::{Affine2d, Point}, artist::Color};
+use crate::{graph::{Affine2d, Point}, artist::Color};
 
 use super::{text_texture::TextTexture, text_cache::TextCache};
 

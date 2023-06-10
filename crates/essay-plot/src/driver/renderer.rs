@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{artist::{Path, StyleOpt, TextStyle}, frame::{Affine2d, Bounds, Point, Data}};
+use crate::{artist::{Path, StyleOpt, TextStyle}, graph::{Affine2d, Bounds, Point, Data}};
 
 use super::{GraphicsContext, Canvas};
 

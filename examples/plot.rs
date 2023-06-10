@@ -10,7 +10,7 @@ fn main() {
 
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
-    let axes = figure.axes(());
+    let axes = figure.new_graph(());
     axes.title("My Title").style().color(0x008033);
     axes.xlabel("X-Label").style().color(0x0030ff);
     axes.ylabel("Y-Label").style().color(0xff30ff);
