@@ -70,6 +70,11 @@ impl<M: CoordMarker> Bounds<M> {
     }
 
     #[inline]
+    pub fn is_zero(&self) -> bool {
+        self.p0 == Point(0., 0.) && self.p1 == Point(0., 0.)
+    }
+
+    #[inline]
     pub fn x0(&self) -> f32 {
         self.p0.x()
     }

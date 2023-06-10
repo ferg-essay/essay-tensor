@@ -10,14 +10,20 @@ fn main() {
 
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
-    let axes = figure.new_graph(());
+    let axes = figure.new_graph([2., 1.]);
     axes.title("My Title").style().color(0x008033);
     axes.xlabel("X-Label").style().color(0x0030ff);
     axes.ylabel("Y-Label").style().color("r");
     axes.plot(&x, &y, ()).color(0x003fc0);
+    
     // axes.scatter(&x, &y, ());
     let x = tf32!([40., 30., 20., 5., 5.]);
-    //axes.pie(x, ());
+    let axes = figure.new_graph(());
+    axes.pie(x, ());
+
+    let x = linspace(0., 20., 21);
+    let axes = figure.new_graph([1., 1., 2., 2.]);
+    axes.plot(&x, &x.exp(), ());
     //axes.bezier2([0., 0.], [0.5, 1.0], [1.0, 0.0]);
     //axes.bezier2([-1., 0.], [0.5, 1.0], [1.0, 0.0]);
     // axes.bezier2([0., -1.], [-0.5, 0.0], [0.0, 1.]);

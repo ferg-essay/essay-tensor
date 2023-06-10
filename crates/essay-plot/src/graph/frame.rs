@@ -59,7 +59,7 @@ impl Frame {
         let right = self.right.get_bounds();
 
         let pos_data = Bounds::<Canvas>::new(
-            Point(left.width(), bottom.height()), 
+            Point(pos.xmin() + left.width(), pos.ymin() + bottom.height()), 
             Point(pos.xmax() - right.width(), pos.ymax() - top.height())
         );
 

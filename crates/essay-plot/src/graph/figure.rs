@@ -88,6 +88,7 @@ impl GraphId {
 
 pub struct FigureInner {
     gridspec: Bounds<Layout>,
+    layout: Layout,
 
     graphs: Vec<Graph>,
 }
@@ -95,6 +96,7 @@ pub struct FigureInner {
 impl FigureInner {
     fn new() -> Self {
         Self {
+            layout: Layout::new(),
             gridspec: Bounds::none(),
             graphs: Default::default(),
         }
@@ -106,6 +108,22 @@ impl FigureInner {
     ) -> &mut Graph {
         let len = self.graphs.len();
         let id = GraphId(len);
+
+        let mut grid : Bounds<Layout> = grid.into();
+
+        if grid.is_zero() || grid.is_none() {
+            if id.index() == 0 {
+                grid = Bounds::unit();
+            } else {
+                let layout = self.layout.bounds();
+                grid = Bounds::new(
+                    Point(0., layout.ymax()),
+                    Point(1., layout.ymax() + 1.),
+                );
+            }
+        }
+
+        self.layout.push(id.index(), grid.clone());
 
         let graph = Graph::new(id, grid);
 
@@ -123,12 +141,14 @@ impl FigureInner {
     }
 
     pub fn draw(&mut self, renderer: &mut impl Renderer) {
-        let bounds = renderer.get_canvas_bounds();
+        let canvas = renderer.get_canvas_bounds();
 
-        for frame in &mut self.graphs {
-            frame.set_pos(&bounds);
+        for item in self.layout.layout(&canvas) {
+            let graph = &mut self.graphs[item.id().index()];
 
-            frame.draw(renderer);
+            graph.set_pos(item.pos_canvas());
+
+            graph.draw(renderer);
         }
     }
 }
