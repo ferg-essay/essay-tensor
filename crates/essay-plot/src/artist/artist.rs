@@ -41,11 +41,16 @@ impl<M: CoordMarker> ArtistTrait<M> for Artist<M> {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer, 
-        to_device: &Affine2d, 
+        to_canvas: &Affine2d, 
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
-        self.artist.draw(renderer, to_device, clip, &Style::chain(style, &self.style));
+        self.artist.draw(
+            renderer, 
+            to_canvas,
+            clip,
+            &Style::chain(style, &self.style)
+        );
     }
 }
 

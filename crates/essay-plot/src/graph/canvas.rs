@@ -23,6 +23,16 @@ impl Canvas {
     }
 
     #[inline]
+    pub fn width(&self) -> f32 {
+        self.bounds.width()
+    }
+
+    #[inline]
+    pub fn height(&self) -> f32 {
+        self.bounds.height()
+    }
+
+    #[inline]
     pub fn scale_factor(&self) -> f32 {
         self.scale_factor
     }

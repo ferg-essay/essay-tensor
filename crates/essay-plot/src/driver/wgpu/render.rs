@@ -1,6 +1,4 @@
-use std::f32::consts::PI;
-
-use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text};
+use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush};
 
 use crate::{
     driver::{Renderer, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
@@ -8,11 +6,10 @@ use crate::{
     artist::{Path, PathCode, StyleOpt, Color, TextStyle}, graph::FigureInner
 };
 
-use super::{vertex::VertexBuffer, text::{TextRender, GpuTextStyle}, text_cache::TextCache};
+use super::{vertex::VertexBuffer, text::{TextRender}};
 
 pub struct FigureRenderer {
-    pos_canvas: Bounds<Canvas>,
-    scale_factor: f32,
+    canvas: Canvas,
 
     vertex_pipeline: wgpu::RenderPipeline,
     vertex: VertexBuffer,
@@ -22,7 +19,7 @@ pub struct FigureRenderer {
     bezier_rev_vertex: VertexBuffer,
 
     staging_belt: wgpu::util::StagingBelt,
-    glyph: GlyphBrush<()>,
+    _glyph: GlyphBrush<()>,
 
     text_render: TextRender,
 
@@ -81,8 +78,7 @@ impl<'a> FigureRenderer {
         let text_render = TextRender::new(device, format, 512, 512);
         
         Self {
-            pos_canvas: Bounds::<Canvas>::unit(),
-            scale_factor: 1.0,
+            canvas: Canvas::new((), 1.),
 
             vertex_pipeline,
             vertex: vertex_buffer,
@@ -92,7 +88,7 @@ impl<'a> FigureRenderer {
             bezier_rev_vertex,
 
             staging_belt: wgpu::util::StagingBelt::new(1024),
-            glyph: glyph_brush,
+            _glyph: glyph_brush,
 
             text_render,
 
@@ -106,25 +102,18 @@ impl<'a> FigureRenderer {
     }
 
     pub(crate) fn set_canvas_bounds(&mut self, width: u32, height: u32) {
-        self.pos_canvas = Bounds::<Canvas>::new(
-            Point(0., 0.), 
-            Point(width as f32, height as f32)
-        );
+        self.canvas.set_bounds([width as f32, height as f32]);
 
         let pos_gpu = Bounds::<Canvas>::new(
             Point(-1., -1.),
             Point(1., 1.)
         );
 
-        self.to_gpu = self.pos_canvas.affine_to(&pos_gpu);
+        self.to_gpu = self.canvas.bounds().affine_to(&pos_gpu);
     }
 
     pub(crate) fn set_scale_factor(&mut self, scale_factor: f32) {
-        self.scale_factor = scale_factor;
-    }
-
-    pub(crate) fn pt_to_px(&self) -> f32 {
-        self.scale_factor * 4. / 3.
+        self.canvas.set_scale_factor(scale_factor);
     }
 
     fn draw_line(&mut self, 
@@ -216,11 +205,11 @@ impl Renderer for FigureRenderer {
     /// Returns the boundary of the canvas, usually in pixels or points.
     ///
     fn get_canvas_bounds(&self) -> Bounds<Canvas> {
-        self.pos_canvas.clone()
+        self.canvas.bounds().clone()
     }
 
-    fn points_to_pixels(&self) -> f32 {
-        self.pt_to_px()
+    fn to_px(&self, size: f32) -> f32 {
+        self.canvas.to_px(size)
     }
 
     fn new_gc(&mut self) -> GraphicsContext {
@@ -249,8 +238,8 @@ impl Renderer for FigureRenderer {
             None => 1.5,
         };
         
-        let lw_x = (linewidth * self.pt_to_px()).round() / self.pos_canvas.width();
-        let lw_y = (linewidth * self.pt_to_px()).round() / self.pos_canvas.height();
+        let lw_x = self.to_px(linewidth) / self.canvas.width();
+        let lw_y = self.to_px(linewidth) / self.canvas.height();
 
         let color = match style.get_color() {
             Some(color) => *color,
@@ -312,14 +301,14 @@ impl Renderer for FigureRenderer {
             None => 12.,
         };
 
-        let size = size * self.pt_to_px();
+        let size = self.to_px(size);
 
         self.text_render.draw(
             text,
             "sans-serif", 
             size,
             xy, 
-            Point(self.pos_canvas.width(), self.pos_canvas.height()),
+            Point(self.canvas.width(), self.canvas.height()),
             color,
             angle,
         );
@@ -550,7 +539,7 @@ impl FigureRenderer {
             }
         }
 
-        let (width, height) = (self.pos_canvas.width(), self.pos_canvas.height());
+        // let (width, height) = (self.canvas.width(), self.canvas.height());
 
         self.text_render.flush(queue, view, encoder);
 

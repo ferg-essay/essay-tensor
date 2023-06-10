@@ -9,11 +9,11 @@ pub trait Renderer {
     /// Returns the boundary of the canvas, usually in pixels or points.
     ///
     fn get_canvas_bounds(&self) -> Bounds<Canvas> {
-        Bounds::new(Point(0., 0.), Point(1., 1.))
+        Bounds::unit()
     }
 
-    fn points_to_pixels(&self) -> f32 {
-        1.
+    fn to_px(&self, size: f32) -> f32 {
+        size
     }
 
     fn new_gc(&mut self) -> GraphicsContext {

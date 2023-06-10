@@ -1,7 +1,8 @@
+mod color;
 mod text;
 mod style;
 mod container;
-mod color;
+mod color_data;
 mod markers;
 pub mod patch;
 mod artist;
