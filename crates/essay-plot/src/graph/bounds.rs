@@ -3,9 +3,7 @@ use std::{marker::PhantomData, any::type_name};
 
 use essay_tensor::{Tensor, tf32};
 
-use crate::driver::Canvas;
-
-use super::{Rect, affine::{Point, Data, CoordMarker}, Affine2d};
+use super::{Rect, affine::{Point, Data, CoordMarker}, Affine2d, canvas::Canvas};
 
 ///
 /// Boundary box consisting of two unordered points
@@ -188,10 +186,10 @@ impl<M: CoordMarker> Bounds<M> {
 }
 
 impl Bounds<Data> {
-    pub fn to_device(&self, to_device: &Affine2d) -> Bounds<Canvas> {
+    pub fn to_canvas(&self, to_canvas: &Affine2d) -> Bounds<Canvas> {
         Bounds::new(
-            to_device.transform_point(self.p0),
-            to_device.transform_point(self.p1),
+            to_canvas.transform_point(self.p0),
+            to_canvas.transform_point(self.p1),
         )
     }
 }

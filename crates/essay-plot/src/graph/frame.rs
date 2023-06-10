@@ -5,11 +5,11 @@ use crate::{
         patch::{PatchTrait, self, DisplayPatch, Line, PathPatch}, 
         ArtistTrait, PathCode, Path, StyleOpt, Color, Text
     }, 
-    driver::{Canvas, Renderer}, 
+    driver::{Renderer}, 
     graph::Affine2d
 };
 
-use super::{Bounds, Point, databox::DataBox, tick_locator::{Locator, LinearLocator}, axis::Axis, Data};
+use super::{Bounds, Point, databox::DataBox, tick_locator::{Locator, LinearLocator}, axis::Axis, Data, Canvas};
 
 pub struct Frame {
     pos: Bounds<Canvas>,

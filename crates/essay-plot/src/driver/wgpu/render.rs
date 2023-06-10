@@ -3,8 +3,8 @@ use std::f32::consts::PI;
 use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text};
 
 use crate::{
-    driver::{Renderer, Canvas, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
-    graph::{Bounds, Point, Affine2d, Data, CoordMarker}, 
+    driver::{Renderer, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
+    graph::{Bounds, Point, Affine2d, Data, CoordMarker, Canvas}, 
     artist::{Path, PathCode, StyleOpt, Color, TextStyle}, graph::FigureInner
 };
 

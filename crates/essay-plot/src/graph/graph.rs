@@ -3,13 +3,13 @@ use core::fmt;
 use essay_tensor::Tensor;
 
 use crate::{
-    driver::{Renderer, Canvas}, 
+    driver::{Renderer}, 
     plot::PlotOpt, 
     artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text}, 
     graph::{Layout, GraphId, Point},
 };
 
-use super::{Bounds, Data, Affine2d, frame::{Frame}};
+use super::{Bounds, Data, Affine2d, frame::{Frame}, Canvas};
 
 pub struct Graph {
     id: GraphId,

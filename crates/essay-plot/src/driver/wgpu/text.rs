@@ -218,7 +218,7 @@ impl TextRender {
             rpass.set_vertex_buffer(1, self.style_buffer.slice(
                 (stride * item.index) as u64..(stride * (item.index + 1)) as u64
             ));
-            println!("Index {}-{} {}", item.start, item.end, item.index);
+
             rpass.set_bind_group(0, self.texture.bind_group(), &[]);
             //rpass.set_bind_group(1, &self.style_bind_group, &[]);
             rpass.draw(

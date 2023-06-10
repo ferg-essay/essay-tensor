@@ -1,8 +1,8 @@
 use core::fmt;
 
-use crate::{driver::{Canvas, Renderer}, artist::{Style, ArtistTrait, Artist, StyleOpt}};
+use crate::{driver::{Renderer}, artist::{Style, ArtistTrait, Artist, StyleOpt}};
 
-use super::{Data, Bounds, Affine2d, Point};
+use super::{Data, Bounds, Affine2d, Point, canvas::Canvas};
 
 pub struct DataBox {
     pos_canvas: Bounds<Canvas>,

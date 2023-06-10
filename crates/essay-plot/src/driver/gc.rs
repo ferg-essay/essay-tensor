@@ -1,8 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{graph::{Bounds}, artist::{Path, Color}};
-
-use super::Canvas;
+use crate::{graph::{Bounds, Canvas}, artist::{Path, Color}};
 
 pub struct GraphicsContext {
     clip_bounds: Option<Bounds<Canvas>>,

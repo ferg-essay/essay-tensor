@@ -3,24 +3,24 @@ use std::ops;
 use essay_tensor::Tensor;
 
 use crate::{
-    driver::{Backend, Canvas, Renderer}, plot::{PlotOpt}, 
+    driver::{Renderer, Backend, wgpu::WgpuBackend}, plot::{PlotOpt}, 
     graph::{Graph, CoordMarker, Bounds, Point}
 };
 
 use super::layout::Layout;
 
 pub struct Figure {
-    device: Canvas,
     // inner: Arc<Mutex<FigureInner>>,
+    device: Box<dyn Backend>,
     inner: FigureInner,
 }
 
 impl Figure {
     pub fn new() -> Self {
         Self {
-            device: Default::default(),
             // inner: Arc::new(Mutex::new(FigureInner::new())),
             inner: FigureInner::new(),
+            device: Box::new(WgpuBackend::new()),
         }
     }
 

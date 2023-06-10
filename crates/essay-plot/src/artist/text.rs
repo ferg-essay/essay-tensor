@@ -1,4 +1,4 @@
-use crate::{graph::{Bounds, Point}, driver::Canvas};
+use crate::{graph::{Bounds, Point, Canvas}};
 
 use super::{Style, ArtistTrait, style::Chain};
 

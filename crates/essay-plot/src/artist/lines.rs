@@ -3,8 +3,8 @@ use core::fmt;
 use essay_tensor::{Tensor, tensor::Axis};
 
 use crate::{
-    graph::{Affine2d, Bounds, Data, Point}, 
-    driver::{Renderer, Canvas}
+    graph::{Affine2d, Bounds, Data, Point, Canvas}, 
+    driver::{Renderer}
 };
 
 use super::{ArtistTrait, Path, PathCode, StyleOpt, Style};

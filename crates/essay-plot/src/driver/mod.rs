@@ -5,7 +5,7 @@ mod renderer;
 mod device;
 
 pub use device::{
-    Canvas, DeviceErr, Result
+    DeviceErr, Result
 };
 
 pub use backend::{

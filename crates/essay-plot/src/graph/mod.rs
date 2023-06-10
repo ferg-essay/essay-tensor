@@ -1,3 +1,4 @@
+mod canvas;
 mod axis;
 mod tick_locator;
 mod databox;
@@ -19,6 +20,10 @@ pub use graph::{
 
 pub use bounds::{
     Bounds, 
+};
+
+pub use canvas::{
+    Canvas, 
 };
 
 pub use rect::{

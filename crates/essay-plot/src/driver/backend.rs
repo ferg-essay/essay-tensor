@@ -1,6 +1,6 @@
 use crate::graph::FigureInner;
 
-use super::{Renderer, device, DeviceErr};
+use super::{device, DeviceErr};
 
 
 pub trait Backend {

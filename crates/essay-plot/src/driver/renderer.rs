@@ -1,8 +1,8 @@
 use essay_tensor::Tensor;
 
-use crate::{artist::{Path, StyleOpt, TextStyle}, graph::{Affine2d, Bounds, Point, Data}};
+use crate::{artist::{Path, StyleOpt, TextStyle}, graph::{Affine2d, Bounds, Point, Data, Canvas}};
 
-use super::{GraphicsContext, Canvas};
+use super::{GraphicsContext};
 
 pub trait Renderer {
     ///
