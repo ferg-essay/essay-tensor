@@ -5,13 +5,14 @@ use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush, Section, Text}
 use crate::{
     driver::{Renderer, Canvas, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
     frame::{Bounds, Point, Affine2d, Data, CoordMarker}, 
-    artist::{Path, PathCode, StyleOpt, Color}, figure::FigureInner
+    artist::{Path, PathCode, StyleOpt, Color, TextStyle}, figure::FigureInner
 };
 
-use super::{vertex::VertexBuffer, text::{TextRender}, text_cache::TextCache};
+use super::{vertex::VertexBuffer, text::{TextRender, GpuTextStyle}, text_cache::TextCache};
 
 pub struct FigureRenderer {
     pos_canvas: Bounds<Canvas>,
+    scale_factor: f32,
 
     vertex_pipeline: wgpu::RenderPipeline,
     vertex: VertexBuffer,
@@ -81,6 +82,7 @@ impl<'a> FigureRenderer {
         
         Self {
             pos_canvas: Bounds::<Canvas>::unit(),
+            scale_factor: 1.0,
 
             vertex_pipeline,
             vertex: vertex_buffer,
@@ -117,10 +119,18 @@ impl<'a> FigureRenderer {
         self.to_gpu = self.pos_canvas.affine_to(&pos_gpu);
     }
 
+    pub(crate) fn set_scale_factor(&mut self, scale_factor: f32) {
+        self.scale_factor = scale_factor;
+    }
+
+    pub(crate) fn get_scale_factor(&self) -> f32 {
+        self.scale_factor
+    }
+
     fn draw_line(&mut self, 
         x0: f32, y0: f32, 
         x1: f32, y1: f32,
-        thickness: f32,
+        lw_x: f32, lw_y: f32,
         color: u32
     ) {
         let dx = x1 - x0;
@@ -129,8 +139,8 @@ impl<'a> FigureRenderer {
         let len = dx.hypot(dy).max(f32::EPSILON);
 
         // normal to the line
-        let nx = dy * (thickness / len);
-        let ny = - dx * (thickness / len);
+        let nx = dy * lw_x / len;
+        let ny = - dx * lw_y / len;
 
         self.vertex.push(x0 - nx, y0 - ny, color);
         self.vertex.push(x0 + nx, y0 + ny, color);
@@ -209,6 +219,10 @@ impl Renderer for FigureRenderer {
         self.pos_canvas.clone()
     }
 
+    fn points_to_pixels(&self) -> f32 {
+        self.get_scale_factor()
+    }
+
     fn new_gc(&mut self) -> GraphicsContext {
         GraphicsContext::default()
     }
@@ -232,9 +246,11 @@ impl Renderer for FigureRenderer {
         // TODO: thickness in points
         let linewidth  = match style.get_linewidth() {
             Some(linewidth) => *linewidth,
-            None => 4.,
+            None => 1.5,
         };
-        let thickness = 0.5 * linewidth  / self.pos_canvas.height();
+        
+        let lw_x = (linewidth * self.get_scale_factor()).round() / self.pos_canvas.width();
+        let lw_y = (linewidth * self.get_scale_factor()).round() / self.pos_canvas.height();
 
         let color = match style.get_color() {
             Some(color) => *color,
@@ -250,7 +266,7 @@ impl Renderer for FigureRenderer {
                     *p0
                 }
                 PathCode::LineTo(p1) => {
-                    self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), thickness, color);
+                    self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), lw_x, lw_y, color);
                     // TODO: clip
                     *p1
                 }
@@ -263,7 +279,7 @@ impl Renderer for FigureRenderer {
                     panic!("Bezier3 should already be split into Bezier2");
                 }
                 PathCode::ClosePoly(p1) => {
-                    self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), thickness, color);
+                    self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), lw_x, lw_y, color);
 
                     *p1
                 }
@@ -274,22 +290,30 @@ impl Renderer for FigureRenderer {
     }
 
     fn draw_text(
-        &mut self, 
-        style: &dyn StyleOpt, 
+        &mut self,
         xy: Point, // location in Canvas coordinates
         text: &str,
-        // prop, - font properties
+        angle: f32,
+        style: &dyn StyleOpt, 
+        text_style: &TextStyle,
+       // prop, - font properties
         // affine: &Affine2d,
-        angle: f32, // rotation
+        //angle: f32, // rotation
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
 
         let color = match style.get_color() {
             Some(color) => *color,
-            None => Color::from(0x000000ff),
+            None => Color(0x000000ff),
         };
 
-        let size = 64.;
+        let size = match &text_style.get_size() {
+            Some(size) => *size,
+            None => 12.,
+        };
+
+        let size = size * self.get_scale_factor();
+
         self.text_render.draw(
             text,
             "sans-serif", 
@@ -459,6 +483,7 @@ impl FigureRenderer {
         &mut self,
         figure: &mut FigureInner,
         bounds: (u32, u32),
+        scale_factor: f32,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view: &wgpu::TextureView,
@@ -470,6 +495,7 @@ impl FigureRenderer {
         self.staging_belt.recall();
 
         self.set_canvas_bounds(width, height);
+        self.set_scale_factor(scale_factor);
         figure.draw(self);
 
         {

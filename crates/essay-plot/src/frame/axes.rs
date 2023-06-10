@@ -4,7 +4,7 @@ use std::f32::consts::PI;
 use essay_tensor::Tensor;
 
 use crate::{driver::{Renderer, Canvas}, plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color}, figure::GridSpec, prelude::Figure, frame::Point, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text}, figure::GridSpec, prelude::Figure, frame::Point, 
 };
 
 use super::{Bounds, Data, Affine2d, databox::DataBox, frame::{Frame, BottomFrame, LeftFrame, RightFrame, TopFrame}};
@@ -13,6 +13,7 @@ pub struct Axes {
     pos_grid: Bounds<GridSpec>, // position of the Axes in figure grid coordinates
     pos: Bounds<Canvas>,
 
+    title: Text,
     frame: Frame,
 
     to_canvas: Affine2d,
@@ -21,16 +22,25 @@ pub struct Axes {
 
 impl Axes {
     pub fn new(bounds: impl Into<Bounds<GridSpec>>) -> Self {
-        Self {
+        let mut axes = Self {
             pos_grid: bounds.into(),
             pos: Bounds::none(),
 
+            title: Text::new(),
             frame: Frame::new(),
 
             style: Style::default(),
 
             to_canvas: Affine2d::eye(),
-        }
+        };
+
+        axes.default_properties();
+
+        axes
+    }
+
+    fn default_properties(&mut self) {
+        self.title.font().size(24.);
     }
 
     ///
@@ -39,7 +49,21 @@ impl Axes {
     pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) {
         self.pos = pos.clone();
 
-        self.frame.set_pos(pos);
+        let title_bounds = self.title.get_bounds();
+
+        let title_pos = Bounds::new(
+            Point(pos.xmid(), pos.ymax() - title_bounds.height()),
+            Point(pos.xmid(), pos.ymax())
+        );
+
+        self.title.set_pos(title_pos);
+
+        let frame_pos = Bounds::new(
+            Point(pos.xmin(), pos.ymin()),
+            Point(pos.xmax(), pos.ymax() - title_bounds.height()),
+        );
+
+        self.frame.set_pos(&frame_pos);
     }
 
     pub fn pie(
@@ -130,17 +154,23 @@ impl Axes {
     }
 
     pub(crate) fn draw(&mut self, renderer: &mut impl Renderer) {
+        self.title.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+
         self.frame.draw(renderer);
+    }
 
-        let mut style = self.style.clone();
-        style.color(Color(0xff0000ff));
+    pub fn title(&mut self, text: &str) -> &mut Text {
+        self.title.text(text);
 
-        renderer.draw_text(&style, 
-            Point(200., 200.),
-            "hello, axes",
-            0.,
-            &self.pos,
-        ).unwrap();
+        &mut self.title
+    }
+
+    pub fn xlabel(&mut self, text: &str) -> &mut Text {
+        self.frame.xlabel(text)
+    }
+
+    pub fn ylabel(&mut self, text: &str) -> &mut Text {
+        self.frame.ylabel(text)
     }
 }
 

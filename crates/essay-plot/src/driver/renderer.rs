@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{artist::{Path, StyleOpt}, frame::{Affine2d, Bounds, Point, Data}};
+use crate::{artist::{Path, StyleOpt, TextStyle}, frame::{Affine2d, Bounds, Point, Data}};
 
 use super::{GraphicsContext, Canvas};
 
@@ -10,6 +10,10 @@ pub trait Renderer {
     ///
     fn get_canvas_bounds(&self) -> Bounds<Canvas> {
         Bounds::new(Point(0., 0.), Point(1., 1.))
+    }
+
+    fn points_to_pixels(&self) -> f32 {
+        1.
     }
 
     fn new_gc(&mut self) -> GraphicsContext {
@@ -26,15 +30,16 @@ pub trait Renderer {
 
     fn draw_text(
         &mut self, 
-        style: &dyn StyleOpt, 
         xy: Point, // location in Canvas coordinates
-        s: &str,
+        text: &str,
+        angle: f32,
+        style: &dyn StyleOpt, 
+        text_style: &TextStyle,
         // prop, - font properties
         // affine: &Affine2d,
-        angle: f32, // rotation
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
-        println!("Draw Test {}", s);
+
         Ok(())
     }
 

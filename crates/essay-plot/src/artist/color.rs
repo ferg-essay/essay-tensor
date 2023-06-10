@@ -86,7 +86,7 @@ impl Color {
 
 impl From<u32> for Color {
     fn from(value: u32) -> Self {
-        Color(value)
+        Color((value & 0xffffff) * 256 + 0xff)
     }
 }
 

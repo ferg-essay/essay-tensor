@@ -1,3 +1,4 @@
+mod text;
 mod style;
 mod container;
 mod color;
@@ -39,4 +40,8 @@ pub use patch::{
 
 pub use style::{
     StyleOpt, Style, JoinStyle,
+};
+
+pub use text::{
+    Text, TextStyle,
 };

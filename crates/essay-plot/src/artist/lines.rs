@@ -123,8 +123,6 @@ impl ArtistTrait<Data> for Bezier2 {
         ];
 
         let path = Path::<Data>::new(codes);
-        let mut gc = renderer.new_gc();
-        gc.color(0x1f3fc0ff);
 
         renderer.draw_path(style, &path, &to_device, &clip).unwrap();
 

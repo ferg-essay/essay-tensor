@@ -1,7 +1,9 @@
+use std::f32::consts::PI;
+
 use crate::{
     artist::{Style, 
         patch::{PatchTrait, self, DisplayPatch, Line, PathPatch}, 
-        ArtistTrait, PathCode, Path, StyleOpt
+        ArtistTrait, PathCode, Path, StyleOpt, Color, Text
     }, 
     driver::{Canvas, Renderer}, 
     frame::Affine2d
@@ -107,6 +109,14 @@ impl Frame {
         // TODO: grid order
         self.data.draw(renderer, &self.to_canvas, &self.pos, &self.style);
     }
+
+    pub fn xlabel(&mut self, text: &str) -> &mut Text {
+        self.bottom.label(text)
+    }
+
+    pub fn ylabel(&mut self, text: &str) -> &mut Text {
+        self.left.label(text)
+    }
 }
 
 //
@@ -175,16 +185,18 @@ pub struct BottomFrame {
     grid_major: Vec<Box<dyn ArtistTrait<Canvas>>>,
     style_minor: Style,
     grid_minor: Vec<Box<dyn ArtistTrait<Canvas>>>,
+
+    label: Text,
 }
 
 impl BottomFrame {
     pub fn new() -> Self {
         let mut style_major = Style::new();
-        style_major.linewidth(2.);
-        style_major.color(0x808080ff);
+        style_major.linewidth(1.);
+        style_major.color(Color(0x808080ff));
         let mut style_minor = Style::new();
         style_minor.linewidth(1.);
-        style_minor.color(0x404040ff);
+        style_minor.color(Color(0x404040ff));
 
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(0., 50.)),
@@ -196,6 +208,8 @@ impl BottomFrame {
             style_major,
             grid_minor: Vec::new(),
             style_minor,
+
+            label: Text::new(),
         }
     }
 
@@ -208,6 +222,11 @@ impl BottomFrame {
                 Point(pos.xmax(), pos.ymax()),
             ))
         }
+
+        self.label.set_pos(Bounds::new(
+            Point(pos.xmin(), pos.ymin()),
+            Point(pos.xmax(), pos.ymax() - 11.)
+        ));
     }
 
     pub fn calculate_axis(&mut self, data: &DataBox) {
@@ -237,11 +256,18 @@ impl BottomFrame {
             };
         }
     }
+
+    fn label(&mut self, text: &str) -> &mut Text {
+        self.label.text(text)
+    }
 }
 
 impl ArtistTrait<Canvas> for BottomFrame {
     fn get_bounds(&mut self) -> Bounds<Canvas> {
-        self.bounds.clone()
+        let label = self.label.get_bounds();
+        let height = label.height() + 20.;
+        
+        Bounds::extent(label.width(), height)
     }
 
     fn draw(
@@ -252,6 +278,7 @@ impl ArtistTrait<Canvas> for BottomFrame {
         style: &dyn crate::artist::StyleOpt,
     ) {
         //let affine = Affine2d::eye().translate(self.pos.xmin(), self.pos.ymin());
+        self.label.draw(renderer, to_canvas, clip, style);
 
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
@@ -286,16 +313,21 @@ pub struct LeftFrame {
     grid_major: Vec<Box<dyn ArtistTrait<Canvas>>>,
     style_minor: Style,
     grid_minor: Vec<Box<dyn ArtistTrait<Canvas>>>,
+
+    label: Text,
 }
 
 impl LeftFrame {
     pub fn new() -> Self {
         let mut style_major = Style::new();
-        style_major.linewidth(4.);
-        style_major.color(0xf08080ff);
+        style_major.linewidth(1.0);
+        style_major.color(0x808080);
         let mut style_minor = Style::new();
         style_minor.linewidth(1.);
-        style_minor.color(0x404040ff);
+        style_minor.color(0x404040);
+
+        let mut label = Text::new();
+        label.angle(PI / 2.);
 
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(20., 0.)),
@@ -307,6 +339,8 @@ impl LeftFrame {
             style_major,
             grid_minor: Vec::new(),
             style_minor,
+
+            label,
         }
     }
 
@@ -319,6 +353,11 @@ impl LeftFrame {
                 Point(pos.xmax(), pos.ymax()),
             ))
         }
+
+        self.label.set_pos(Bounds::new(
+            Point(pos.xmin(), pos.ymin()),
+            Point(pos.xmax() - 20., pos.ymax())
+        ));
     }
 
     pub fn calculate_axis(&mut self, data: &DataBox) {
@@ -348,11 +387,17 @@ impl LeftFrame {
             };
         }
     }
+
+    fn label(&mut self, text: &str) -> &mut Text {
+        self.label.text(text)
+    }
 }
 
 impl ArtistTrait<Canvas> for LeftFrame {
     fn get_bounds(&mut self) -> Bounds<Canvas> {
-        self.bounds.clone()
+        let width = self.label.get_bounds().width() + 20.;
+        
+        Bounds::new(Point(0., 0.), Point(width, 0.))
     }
 
     fn draw(
@@ -360,8 +405,10 @@ impl ArtistTrait<Canvas> for LeftFrame {
         renderer: &mut dyn crate::driver::Renderer,
         to_canvas: &super::Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn crate::artist::StyleOpt,
+        style: &dyn StyleOpt,
     ) {
+        self.label.draw(renderer, to_canvas, clip, style);
+
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
         }

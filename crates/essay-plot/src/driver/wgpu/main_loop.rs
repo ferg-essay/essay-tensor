@@ -45,8 +45,8 @@ async fn init_wgpu_args(window: &Window) -> EventLoopArgs {
         format: texture_format,
         width: size.width,
         height: size.height,
-        //present_mode: wgpu::PresentMode::Fifo,
-        present_mode: wgpu::PresentMode::AutoVsync,
+        present_mode: wgpu::PresentMode::Fifo,
+        //present_mode: wgpu::PresentMode::AutoVsync,
         alpha_mode: swapchain_capabilities.alpha_modes[0],
         view_formats: vec![],
     };
@@ -89,7 +89,6 @@ fn run_event_loop(
 
     let mut figure = figure;
 
-
     //let mut staging_belt = wgpu::util::StagingBelt::new(1024);
 
     let mut figure_renderer = FigureRenderer::new(
@@ -125,6 +124,7 @@ fn run_event_loop(
                     figure_renderer.draw(
                         &mut figure,
                         (config.width, config.height),
+                        window.scale_factor() as f32,
                         device, 
                         queue, 
                         view, 

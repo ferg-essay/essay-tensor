@@ -27,6 +27,11 @@ impl<M: CoordMarker> Bounds<M> {
         }
     }
 
+    #[inline]
+    pub fn extent(width: f32, height: f32) -> Self {
+        Self::new(Point(0., 0.), Point(width, height))
+    }
+
     pub fn from_bounds(
         x0: f32, 
         y0: f32, 
@@ -44,6 +49,14 @@ impl<M: CoordMarker> Bounds<M> {
         Bounds {
             p0: Point(f32::MIN, f32::MIN),
             p1: Point(f32::MAX, f32::MAX),
+            marker: PhantomData,
+        }
+    }
+
+    pub fn zero() -> Bounds<M> {
+        Bounds {
+            p0: Point(0., 0.),
+            p1: Point(0., 0.),
             marker: PhantomData,
         }
     }
@@ -96,6 +109,16 @@ impl<M: CoordMarker> Bounds<M> {
     #[inline]
     pub fn ymax(&self) -> f32 {
         self.p0.y().max(self.p1.y())
+    }
+
+    #[inline]
+    pub fn xmid(&self) -> f32 {
+        0.5 * (self.p0.x() + self.p1.x())
+    }
+
+    #[inline]
+    pub fn ymid(&self) -> f32 {
+        0.5 * (self.p0.y() + self.p1.y())
     }
 
     #[inline]

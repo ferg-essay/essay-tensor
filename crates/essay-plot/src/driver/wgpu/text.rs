@@ -17,8 +17,11 @@ pub struct TextRender {
 
     vertex_offset: usize,
 
+    style_stride: usize,
+    style_vec: Vec<GpuTextStyle>,
     style_buffer: wgpu::Buffer,
-    style_bind_group: wgpu::BindGroup,
+    style_offset: usize,
+    // style_bind_group: wgpu::BindGroup,
 
     text_items: Vec<TextItem>,
 
@@ -34,13 +37,28 @@ impl TextRender {
     ) -> Self {
         let len = 2048;
 
-        let mut vec = Vec::<TextVertex>::new();
-        vec.resize(len, TextVertex { position: [0.0, 0.0], tex_coord: [0.0, 0.0] });
+        let mut vertex_vec = Vec::<TextVertex>::new();
+        vertex_vec.resize(len, TextVertex { position: [0.0, 0.0], tex_coord: [0.0, 0.0] });
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::cast_slice(vec.as_slice()),
+                contents: bytemuck::cast_slice(vertex_vec.as_slice()),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+
+        let mut style_vec = Vec::<GpuTextStyle>::new();
+        style_vec.resize(len, GpuTextStyle { 
+            affine_0: [0.0, 0.0, 0.0, 0.0], 
+            affine_1: [0.0, 0.0, 0.0, 0.0], 
+            color: [0.0, 0.0, 0.0, 0.0],
+        });
+
+        let style_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(style_vec.as_slice()),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             }
         );
@@ -49,9 +67,9 @@ impl TextRender {
 
         let text_shader = device.create_shader_module(wgpu::include_wgsl!("text.wgsl"));
 
-        let style_buffer = TextStyle::create_buffer(TextStyle::empty(), device);
+        // let style_buffer = WgpuTextStyle::create_buffer(WgpuTextStyle::empty(), device);
 
-        let (style_layout, style_bind_group) = create_uniform_bind_group(device, &style_buffer);
+        // let (style_layout, style_bind_group) = create_uniform_bind_group(device, &style_buffer);
 
         let pipeline = create_text_pipeline(
             device, 
@@ -60,7 +78,8 @@ impl TextRender {
             "fs_text",
             format,
             TextVertex::desc(),
-            style_layout,
+            GpuTextStyle::desc(),
+            // style_layout,
             &texture,
         );
     
@@ -69,12 +88,15 @@ impl TextRender {
             text_cache: TextCache::new(width, height),
 
             vertex_stride: std::mem::size_of::<TextVertex>(),
-            vertex_vec: vec,
+            vertex_vec,
             vertex_buffer,
             vertex_offset: 0,
 
+            style_stride: std::mem::size_of::<GpuTextStyle>(),
+            style_vec,
             style_buffer,
-            style_bind_group,
+            style_offset: 0,
+            // style_bind_group,
 
             text_items: Vec::new(),
             pipeline,
@@ -98,9 +120,11 @@ impl TextRender {
         let start = self.vertex_offset;
 
         let mut x = x0;
-        let y = y0;
+        let y = y0.round();
         for ch in text.chars() {
             let r = self.text_cache.glyph(&font, ch);
+
+            x = x.round();
 
             if r.is_none() {
                 x += size * 0.4;
@@ -123,14 +147,18 @@ impl TextRender {
         let end = self.vertex_offset;
         let affine = Affine2d::eye()
             .rotate_around(0.5 * (x0 + x), y0, angle)
-            .scale(bounds.x().recip(), bounds.y().recip())
+            .scale(2. / bounds.x(), 2. / bounds.y())
             .translate(-1., -1.);
 
+        
         self.text_items.push(TextItem {
-            style: TextStyle::new(&affine, color.get_srgba()),
+            // style: GpuTextStyle::new(&affine, color.get_srgba()),
             start,
-            end
-        })
+            end,
+            index: self.style_offset,
+        });
+        self.style_vec[self.style_offset] = GpuTextStyle::new(&affine, color.get_srgba());
+        self.style_offset += 1;
     }
 
     pub fn flush(
@@ -164,13 +192,21 @@ impl TextRender {
             bytemuck::cast_slice(self.vertex_vec.as_slice())
         );
 
+        queue.write_buffer(
+            &mut self.style_buffer, 
+            0,
+            bytemuck::cast_slice(self.style_vec.as_slice())
+        );
+
         for item in self.text_items.drain(..) {
+            /*
             queue.write_buffer(
                 &mut self.style_buffer, 
                 0,
                 bytemuck::cast_slice(&[item.style])
             );
-
+            */
+    
             rpass.set_pipeline(&self.pipeline);
             let len = item.end - item.start;
             let stride = self.vertex_stride;
@@ -178,9 +214,18 @@ impl TextRender {
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(
                 (stride * item.start) as u64..(stride * item.end) as u64
             ));
+            let stride = self.style_stride;
+            rpass.set_vertex_buffer(1, self.style_buffer.slice(
+                (stride * item.index) as u64..(stride * (item.index + 1)) as u64
+            ));
+            println!("Index {}-{} {}", item.start, item.end, item.index);
             rpass.set_bind_group(0, self.texture.bind_group(), &[]);
-            rpass.set_bind_group(1, &self.style_bind_group, &[]);
-            rpass.draw(0..len as u32, 0..1);
+            //rpass.set_bind_group(1, &self.style_bind_group, &[]);
+            rpass.draw(
+                0..(item.end - item.start) as u32,
+                0..1,
+            );
+
         }
 
         /*
@@ -235,35 +280,39 @@ impl TextVertex {
 }
 
 pub struct TextItem {
-    style: TextStyle,
+    //style: GpuTextStyle,
     start: usize,
     end: usize,
+    index: usize,
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct TextStyle {
-    affine_0: [f32; 3],
-    _padding: u32,
-    affine_1: [f32; 3],
-    _padding2: u32,
+pub struct GpuTextStyle {
+    affine_0: [f32; 4],
+    affine_1: [f32; 4],
     color: [f32; 4],
 }
 
-impl TextStyle {
-    const ATTRS: [wgpu::VertexAttribute; 5] =
+impl GpuTextStyle {
+    const ATTRS: [wgpu::VertexAttribute; 3] =
         wgpu::vertex_attr_array![
-            0 => Float32x3, 
-            1 => Uint32,
-            2 => Float32x3,
-            3 => Uint32,
+            2 => Float32x4, 
+            3 => Float32x4,
             4 => Float32x4
         ];
 
     pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
+        /*
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<TextVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &Self::ATTRS,
+        }
+        */
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<TextVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRS,
         }
     }
@@ -276,16 +325,14 @@ impl TextStyle {
         let mat = affine.mat();
 
         Self {
-            affine_0: [mat[0], mat[1], mat[2]],
-            affine_1: [mat[3], mat[4], mat[5]],
+            affine_0: [mat[0], mat[1], 0., mat[2]],
+            affine_1: [mat[3], mat[4], 0., mat[5]],
             color: [
                 ((color >> 24) & 0xff) as f32 / 255.,
                 ((color >> 16) & 0xff) as f32 / 255.,
                 ((color >> 8) & 0xff) as f32 / 255.,
                 ((color) & 0xff) as f32 / 255.,
             ],
-            _padding: 0,
-            _padding2: 0,
         }
     }
 
@@ -294,7 +341,8 @@ impl TextStyle {
             &wgpu::util::BufferInitDescriptor {
                 label: Some("text style"),
                 contents: bytemuck::cast_slice(&[this]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                // usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             }
         )
     }
@@ -308,14 +356,15 @@ fn create_text_pipeline(
     fragment_entry: &str,
     format: wgpu::TextureFormat,
     vertex_layout: wgpu::VertexBufferLayout,
-    style_layout: wgpu::BindGroupLayout,
+    style_layout: wgpu::VertexBufferLayout,
+    // style_layout: wgpu::BindGroupLayout,
     texture: &TextTexture,
 ) -> wgpu::RenderPipeline {
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
         bind_group_layouts: &[
             texture.layout(),
-            &style_layout,
+            // &style_layout,
         ],
         push_constant_ranges: &[],
     });
@@ -328,6 +377,7 @@ fn create_text_pipeline(
             entry_point: vertex_entry,
             buffers: &[
                 vertex_layout,
+                style_layout,
             ],
         },
         fragment: Some(wgpu::FragmentState {
