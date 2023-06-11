@@ -1,44 +1,32 @@
-use std::f32::consts::PI;
-
 use wgpu::util::DeviceExt;
-use wgpu_glyph::ab_glyph::{self, Font, PxScale};
 
 use crate::{graph::{Affine2d, Point}, artist::Color};
 
-use super::{text_texture::TextTexture, text_cache::TextCache};
-
-pub struct TextRender {
-    texture: TextTexture,
-    text_cache: TextCache,
-
+pub struct Shape2dRender {
     vertex_stride: usize,
-    vertex_vec: Vec<TextVertex>,
+    vertex_vec: Vec<Shape2dVertex>,
     vertex_buffer: wgpu::Buffer,
-
     vertex_offset: usize,
 
     style_stride: usize,
-    style_vec: Vec<GpuTextStyle>,
+    style_vec: Vec<Shape2dStyle>,
     style_buffer: wgpu::Buffer,
     style_offset: usize,
-    // style_bind_group: wgpu::BindGroup,
 
-    text_items: Vec<TextItem>,
+    shape_items: Vec<Shape2dItem>,
 
     pipeline: wgpu::RenderPipeline,
 }
 
-impl TextRender {
+impl Shape2dRender {
     pub(crate) fn new(
         device: &wgpu::Device, 
         format: wgpu::TextureFormat,
-        width: u32, 
-        height: u32
     ) -> Self {
         let len = 2048;
 
-        let mut vertex_vec = Vec::<TextVertex>::new();
-        vertex_vec.resize(len, TextVertex { position: [0.0, 0.0], tex_coord: [0.0, 0.0] });
+        let mut vertex_vec = Vec::<Shape2dVertex>::new();
+        vertex_vec.resize(len, Shape2dVertex { position: [0.0, 0.0] });
 
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -48,8 +36,8 @@ impl TextRender {
             }
         );
 
-        let mut style_vec = Vec::<GpuTextStyle>::new();
-        style_vec.resize(len, GpuTextStyle { 
+        let mut style_vec = Vec::<Shape2dStyle>::new();
+        style_vec.resize(len, Shape2dStyle { 
             affine_0: [0.0, 0.0, 0.0, 0.0], 
             affine_1: [0.0, 0.0, 0.0, 0.0], 
             color: [0.0, 0.0, 0.0, 0.0],
@@ -63,102 +51,87 @@ impl TextRender {
             }
         );
 
-        let texture = TextTexture::new(device, width, height);
+        let shader = device.create_shader_module(wgpu::include_wgsl!("shape2d.wgsl"));
 
-        let text_shader = device.create_shader_module(wgpu::include_wgsl!("text.wgsl"));
-
-        // let style_buffer = WgpuTextStyle::create_buffer(WgpuTextStyle::empty(), device);
-
-        // let (style_layout, style_bind_group) = create_uniform_bind_group(device, &style_buffer);
-
-        let pipeline = create_text_pipeline(
+        let pipeline = create_shape2d_pipeline(
             device, 
-            &text_shader,
-            "vs_text",
-            "fs_text",
+            &shader,
+            "vs_shape",
+            "fs_shape",
             format,
-            TextVertex::desc(),
-            GpuTextStyle::desc(),
-            // style_layout,
-            &texture,
+            Shape2dVertex::desc(),
+            Shape2dStyle::desc(),
         );
     
         Self {
-            texture: TextTexture::new(device, width, height),
-            text_cache: TextCache::new(width, height),
-
-            vertex_stride: std::mem::size_of::<TextVertex>(),
+            vertex_stride: std::mem::size_of::<Shape2dVertex>(),
             vertex_vec,
             vertex_buffer,
             vertex_offset: 0,
 
-            style_stride: std::mem::size_of::<GpuTextStyle>(),
+            style_stride: std::mem::size_of::<Shape2dStyle>(),
             style_vec,
             style_buffer,
             style_offset: 0,
             // style_bind_group,
 
-            text_items: Vec::new(),
+            shape_items: Vec::new(),
             pipeline,
         }
     }
 
-    pub fn draw(
-        &mut self, 
-        text: &str, 
-        font_name: &str, 
-        size: f32,
-        pos: Point, 
-        bounds: Point,
-        color: Color,
-        angle: f32,
-    ) {
-        let font = self.text_cache.font(font_name, size as u16);
-        let x0 = pos.x();
-        let y0 = pos.y();
-
+    pub fn start_shape(&mut self) {
         let start = self.vertex_offset;
 
-        let mut x = x0;
-        let y = y0.round();
-        for ch in text.chars() {
-            let r = self.text_cache.glyph(&font, ch);
-
-            x = x.round();
-
-            if r.is_none() {
-                x += size * 0.4;
-                continue;
-            }
-
-            let w = r.px_w() as f32;
-            let h = r.px_h() as f32;
-            self.vertex(x, y, r.tx_min(), r.ty_min());
-            self.vertex(x + w, y, r.tx_max(), r.ty_min());
-            self.vertex(x + w, y + h, r.tx_max(), r.ty_max());
-
-            self.vertex(x + w, y + h, r.tx_max(), r.ty_max());
-            self.vertex(x, y + h, r.tx_min(), r.ty_max());
-            self.vertex(x, y, r.tx_min(), r.ty_min());
-
-            x += w + size * 0.1;
-        }
-
-        let end = self.vertex_offset;
-        let affine = Affine2d::eye()
-            .rotate_around(0.5 * (x0 + x), y0, angle)
-            .scale(2. / bounds.x(), 2. / bounds.y())
-            .translate(-1., -1.);
-
-        
-        self.text_items.push(TextItem {
-            // style: GpuTextStyle::new(&affine, color.get_srgba()),
-            start,
-            end,
-            index: self.style_offset,
+        self.shape_items.push(Shape2dItem {
+            v_start: start,
+            v_end: usize::MAX,
+            s_start: self.style_offset,
+            s_end: usize::MAX,
         });
-        self.style_vec[self.style_offset] = GpuTextStyle::new(&affine, color.get_srgba());
+    }
+
+    pub(crate) fn draw_line(&mut self, 
+        p0: &Point,
+        p1: &Point,
+        lw_x: f32, lw_y: f32,
+    ) {
+        let Point(x0, y0) = p0;
+        let Point(x1, y1) = p1;
+
+        let dx = x1 - x0;
+        let dy = y1 - y0;
+
+        let len = dx.hypot(dy).max(f32::EPSILON);
+
+        // normal to the line
+        let nx = dy * lw_x / len;
+        let ny = - dx * lw_y / len;
+
+        self.vertex(x0 - nx, y0 - ny);
+        self.vertex(x0 + nx, y0 + ny);
+        self.vertex(x1 + nx, y1 + ny);
+
+        self.vertex(x1 + nx, y1 + ny);
+        self.vertex(x1 - nx, y1 - ny);
+        self.vertex(x0 - nx, y0 - ny);
+    }
+
+    pub fn draw_style(
+        &mut self, 
+        color: Color,
+        affine: Affine2d,
+    ) {
+        let end = self.vertex_offset;
+
+        let len = self.shape_items.len();
+        let item = &mut self.shape_items[len - 1];
+        item.v_end = end;
+
+        self.style_vec[self.style_offset] = Shape2dStyle::new(&affine, color.get_srgba());
         self.style_offset += 1;
+
+        item.s_end = self.style_offset;
     }
 
     pub fn flush(
@@ -167,9 +140,7 @@ impl TextRender {
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
     ) {
-        self.text_cache.flush(queue, &self.texture);
-
-        if self.text_items.len() == 0 {
+        if self.shape_items.len() == 0 {
             return;
         }
 
@@ -198,107 +169,146 @@ impl TextRender {
             bytemuck::cast_slice(self.style_vec.as_slice())
         );
 
-        for item in self.text_items.drain(..) {
-            /*
-            queue.write_buffer(
-                &mut self.style_buffer, 
-                0,
-                bytemuck::cast_slice(&[item.style])
-            );
-            */
-    
-            rpass.set_pipeline(&self.pipeline);
-            let len = item.end - item.start;
+        rpass.set_pipeline(&self.pipeline);
+
+        for item in self.shape_items.drain(..) {
             let stride = self.vertex_stride;
-            let size = len * self.vertex_stride;
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(
-                (stride * item.start) as u64..(stride * item.end) as u64
+                (stride * item.v_start) as u64..(stride * item.v_end) as u64
             ));
             let stride = self.style_stride;
             rpass.set_vertex_buffer(1, self.style_buffer.slice(
-                (stride * item.index) as u64..(stride * (item.index + 1)) as u64
+                (stride * item.s_start) as u64..(stride * item.s_end) as u64
             ));
 
-            rpass.set_bind_group(0, self.texture.bind_group(), &[]);
-            //rpass.set_bind_group(1, &self.style_bind_group, &[]);
-            rpass.draw(
-                0..(item.end - item.start) as u32,
-                0..1,
-            );
-
+            if item.v_start < item.v_end {
+                rpass.draw(
+                    0..(item.v_end - item.v_start) as u32,
+                    0..(item.s_end - item.s_start) as u32,
+                );
+            }
         }
 
         self.vertex_offset = 0;
     }
 
-    fn vertex(&mut self, x: f32, y: f32, u: f32, v: f32) {
-        let vertex = TextVertex::new(x, y, u, v);
+    fn vertex(&mut self, x: f32, y: f32) {
+        let vertex = Shape2dVertex { position: [x, y] };
 
         self.vertex_vec[self.vertex_offset] = vertex;
         self.vertex_offset += 1;
     }
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct TextVertex {
-    position: [f32; 2],
-    tex_coord: [f32; 2],
+pub struct Shape2dItem {
+    v_start: usize,
+    v_end: usize,
+
+    s_start: usize,
+    s_end: usize,
 }
 
-impl TextVertex {
-    const ATTRS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2 ];
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Shape2dVertex {
+    position: [f32; 2],
+}
+
+impl Shape2dVertex {
+    const ATTRS: [wgpu::VertexAttribute; 1] =
+        wgpu::vertex_attr_array![0 => Float32x2 ];
 
     pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<TextVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<Shape2dVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRS,
         }
     }
-
-    fn new(x: f32, y: f32, u: f32, v: f32) -> Self {
-        Self {
-            position: [x, y],
-            tex_coord: [u, v],
-        }
-    }
 }
 
-pub struct TextItem {
-    //style: GpuTextStyle,
-    start: usize,
-    end: usize,
-    index: usize,
+pub struct Shape2dBuffer {
+    stride: usize,
+    vec: Vec<Shape2dVertex>,
+    buffer: wgpu::Buffer,
+
+    offset: usize,
+}
+
+impl Shape2dBuffer {
+    pub(crate) fn new(len: usize, device: &wgpu::Device) -> Self {
+        let mut vec = Vec::<Shape2dVertex>::new();
+        vec.resize(len, Shape2dVertex { position: [0.0, 0.0], });
+
+        let buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(vec.as_slice()),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+    
+        Self {
+            stride: std::mem::size_of::<Shape2dVertex>(),
+            vec,
+            buffer,
+            offset: 0,
+        }
+    }
+
+    pub(crate) fn stride(&self) -> usize {
+        self.stride
+    }
+
+    pub(crate) fn as_slice(&self) -> &[Shape2dVertex] {
+        &self.vec
+    }
+
+    pub(crate) fn _as_mut_slice(&mut self) -> &mut [Shape2dVertex] {
+        &mut self.vec
+    }
+
+    pub(crate) fn buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
+    }
+
+    pub(crate) fn desc(&self) -> wgpu::VertexBufferLayout {
+        Shape2dVertex::desc()
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.offset = 0
+    }
+
+    pub(crate) fn offset(&self) -> usize {
+        self.offset
+    }
+
+    pub(crate) fn push(&mut self, x: f32, y: f32) {
+        self.vec[self.offset] = Shape2dVertex { position: [x, y] };
+        self.offset += 1;
+    }
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct GpuTextStyle {
+pub struct Shape2dStyle {
     affine_0: [f32; 4],
     affine_1: [f32; 4],
     color: [f32; 4],
 }
 
-impl GpuTextStyle {
+impl Shape2dStyle {
     const ATTRS: [wgpu::VertexAttribute; 3] =
         wgpu::vertex_attr_array![
-            2 => Float32x4, 
-            3 => Float32x4,
-            4 => Float32x4
+            1 => Float32x4, 
+            2 => Float32x4,
+            3 => Float32x4
         ];
 
     pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
-        /*
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<TextVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRS,
-        }
-        */
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<TextVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<Shape2dVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRS,
         }
@@ -326,32 +336,26 @@ impl GpuTextStyle {
     fn create_buffer(this: Self, device: &wgpu::Device) -> wgpu::Buffer {
         device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
-                label: Some("text style"),
+                label: Some("shape2d style"),
                 contents: bytemuck::cast_slice(&[this]),
-                // usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             }
         )
     }
 }
 
-fn create_text_pipeline(
+fn create_shape2d_pipeline(
     device: &wgpu::Device,
     shader: &wgpu::ShaderModule,
-    // pipeline_layout: &wgpu::PipelineLayout,
     vertex_entry: &str,
     fragment_entry: &str,
     format: wgpu::TextureFormat,
     vertex_layout: wgpu::VertexBufferLayout,
     style_layout: wgpu::VertexBufferLayout,
-    // style_layout: wgpu::BindGroupLayout,
-    texture: &TextTexture,
 ) -> wgpu::RenderPipeline {
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
         bind_group_layouts: &[
-            texture.layout(),
-            // &style_layout,
         ],
         push_constant_ranges: &[],
     });
@@ -393,36 +397,4 @@ fn create_text_pipeline(
         multisample: wgpu::MultisampleState::default(),
         multiview: None,
     })
-}
-
-fn create_uniform_bind_group(
-    device: &wgpu::Device, 
-    buffer: &wgpu::Buffer
-) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
-    let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-        ],
-        label: None,
-    });
-
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &layout,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: buffer.as_entire_binding(),
-        }],
-        label: None
-    });
-
-    (layout, bind_group)
 }

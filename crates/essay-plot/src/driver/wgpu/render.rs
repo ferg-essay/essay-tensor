@@ -6,7 +6,7 @@ use crate::{
     artist::{Path, PathCode, StyleOpt, Color, TextStyle}, graph::FigureInner
 };
 
-use super::{vertex::VertexBuffer, text::{TextRender}};
+use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender};
 
 pub struct FigureRenderer {
     canvas: Canvas,
@@ -21,6 +21,7 @@ pub struct FigureRenderer {
     staging_belt: wgpu::util::StagingBelt,
     _glyph: GlyphBrush<()>,
 
+    shape2d_render: Shape2dRender,
     text_render: TextRender,
 
     to_gpu: Affine2d,
@@ -75,6 +76,7 @@ impl<'a> FigureRenderer {
         let glyph_brush = GlyphBrushBuilder::using_font(font_opensans)
             .build(&device, format);
 
+        let shape2d_render = Shape2dRender::new(device, format);
         let text_render = TextRender::new(device, format, 512, 512);
         
         Self {
@@ -90,6 +92,7 @@ impl<'a> FigureRenderer {
             staging_belt: wgpu::util::StagingBelt::new(1024),
             _glyph: glyph_brush,
 
+            shape2d_render,
             text_render,
 
             to_gpu: Affine2d::eye(),
@@ -245,22 +248,24 @@ impl Renderer for FigureRenderer {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
-        let color = color.get_rgba();
+        let rgba = color.get_rgba();
+
+        self.shape2d_render.start_shape();
 
         let mut p0 = Point(0.0f32, 0.0f32);
         for code in path.codes() {
-            
             p0 = match code {
                 PathCode::MoveTo(p0) => {
                     *p0
                 }
                 PathCode::LineTo(p1) => {
-                    self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), lw_x, lw_y, color);
+                    //self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), lw_x, lw_y, rgba);
+                    self.shape2d_render.draw_line(&p0, p1, lw_x, lw_y);
                     // TODO: clip
                     *p1
                 }
                 PathCode::Bezier2(p1, p2) => {
-                    self.draw_bezier(p0, *p1, *p2, color);
+                    self.draw_bezier(p0, *p1, *p2, rgba);
 
                     *p2
                 }
@@ -268,12 +273,15 @@ impl Renderer for FigureRenderer {
                     panic!("Bezier3 should already be split into Bezier2");
                 }
                 PathCode::ClosePoly(p1) => {
-                    self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), lw_x, lw_y, color);
+                    //self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), lw_x, lw_y, rgba);
+                    self.shape2d_render.draw_line(&p0, p1, lw_x, lw_y);
 
                     *p1
                 }
             }
         }
+
+        self.shape2d_render.draw_style(color, Affine2d::eye());
 
         Ok(())
     }
@@ -541,6 +549,7 @@ impl FigureRenderer {
 
         // let (width, height) = (self.canvas.width(), self.canvas.height());
 
+        self.shape2d_render.flush(queue, view, encoder);
         self.text_render.flush(queue, view, encoder);
 
         /*

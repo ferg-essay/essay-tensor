@@ -1,3 +1,4 @@
+mod shape2d;
 mod main_loop;
 mod render;
 mod tesselate;
