@@ -1,3 +1,4 @@
+use essay_tensor::Tensor;
 use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush};
 
 use crate::{
@@ -169,7 +170,7 @@ impl<'a> FigureRenderer {
     fn draw_closed_path(
         &mut self, 
         style: &dyn StyleOpt, 
-        path: &Path<Unit>, 
+        path: &Path<Canvas>, 
         _clip: &Bounds<Canvas>,
     ) {
         let color = match style.get_color() {
@@ -204,42 +205,18 @@ impl<'a> FigureRenderer {
             //self.vertex.push(triangle[1].x(), triangle[1].y(), rgba);
             //self.vertex.push(triangle[2].x(), triangle[2].y(), rgba);
         }
-
-        self.shape2d_render.draw_style(color, Affine2d::eye());
-    }
-}
-
-impl Renderer for FigureRenderer {
-    ///
-    /// Returns the boundary of the canvas, usually in pixels or points.
-    ///
-    fn get_canvas_bounds(&self) -> Bounds<Canvas> {
-        self.canvas.bounds().clone()
     }
 
-    fn to_px(&self, size: f32) -> f32 {
-        self.canvas.to_px(size)
-    }
-
-    fn new_gc(&mut self) -> GraphicsContext {
-        GraphicsContext::default()
-    }
-
-    fn draw_path(
+    fn draw_lines(
         &mut self, 
+        path: &Path<Canvas>, 
         style: &dyn StyleOpt, 
-        path: &Path<Data>, 
-        to_device: &Affine2d,
-        _clip: &Bounds<Canvas>,
-    ) -> Result<(), RenderErr> {
-        let to_unit = self.to_gpu.matmul(to_device);
-
-        let path = transform_path(path, &to_unit);
-
-        if path.is_closed_path() {
-            self.draw_closed_path(style, &path, _clip);
-            return Ok(());
-        }
+        clip: &Bounds<Canvas>,
+    ) {
+        let color = match style.get_color() {
+            Some(color) => *color,
+            None => Color(0x000000ff)
+        };
 
         // TODO: thickness in points
         let linewidth  = match style.get_linewidth() {
@@ -247,8 +224,8 @@ impl Renderer for FigureRenderer {
             None => 1.5,
         };
         
-        let lw_x = self.to_px(linewidth) / self.canvas.width();
-        let lw_y = self.to_px(linewidth) / self.canvas.height();
+        let lw_x = self.to_px(linewidth); // / self.canvas.width();
+        let lw_y = self.to_px(linewidth); // / self.canvas.height();
 
         let color = match style.get_color() {
             Some(color) => *color,
@@ -286,8 +263,77 @@ impl Renderer for FigureRenderer {
                 }
             }
         }
+    }
+}
 
-        self.shape2d_render.draw_style(color, Affine2d::eye());
+impl Renderer for FigureRenderer {
+    ///
+    /// Returns the boundary of the canvas, usually in pixels or points.
+    ///
+    fn get_canvas_bounds(&self) -> Bounds<Canvas> {
+        self.canvas.bounds().clone()
+    }
+
+    fn to_px(&self, size: f32) -> f32 {
+        self.canvas.to_px(size)
+    }
+
+    fn new_gc(&mut self) -> GraphicsContext {
+        GraphicsContext::default()
+    }
+
+    fn draw_path(
+        &mut self, 
+        style: &dyn StyleOpt, 
+        path: &Path<Canvas>, 
+        to_device: &Affine2d,
+        clip: &Bounds<Canvas>,
+    ) -> Result<(), RenderErr> {
+        // let to_unit = self.to_gpu.matmul(to_device);
+
+        let path = transform_path(path);
+
+        let color = match style.get_color() {
+            Some(color) => *color,
+            None => Color(0x000000ff)
+        };
+
+        if path.is_closed_path() {
+            self.draw_closed_path(style, &path, clip);
+        } else {
+            self.draw_lines(&path, style, clip);
+        }
+
+        self.shape2d_render.draw_style(color, &self.to_gpu);
+
+        return Ok(());
+    }
+
+    fn draw_markers(
+        &mut self, 
+        path: &Path<Canvas>, 
+        xy: &Tensor,
+        style: &dyn StyleOpt, 
+        clip: &Bounds<Canvas>,
+    ) -> Result<(), RenderErr> {
+        let path = transform_path(path);
+
+        if path.is_closed_path() {
+            self.draw_closed_path(style, &path, clip);
+        } else {
+            self.draw_lines(&path, style, clip);
+        }
+
+        let color = match style.get_color() {
+            Some(color) => *color,
+            None => Color(0x000000ff)
+        };
+
+        for xy in xy.iter_slice() {
+            let offset = Affine2d::eye().translate(xy[0], xy[1]);
+
+            self.shape2d_render.draw_style(color, &self.to_gpu.matmul(&offset));
+        }
 
         Ok(())
     }
@@ -345,7 +391,7 @@ impl Renderer for FigureRenderer {
 }
 
 // transform and normalize path
-fn transform_path(path: &Path<Data>, to_unit: &Affine2d) -> Path<Unit> {
+fn transform_path(path: &Path<Canvas>) -> Path<Canvas> {
     let mut codes = Vec::<PathCode>::new();
 
     let mut p0 = Point(0.0f32, 0.0f32);
@@ -354,31 +400,24 @@ fn transform_path(path: &Path<Data>, to_unit: &Affine2d) -> Path<Unit> {
     for code in path.codes() {
         p0 = match code {
             PathCode::MoveTo(p0) => {
-                let p0 = to_unit.transform_point(*p0);
+                codes.push(PathCode::MoveTo(*p0));
 
-                codes.push(PathCode::MoveTo(p0));
-
-                p0
+                *p0
             }
             PathCode::LineTo(p1) => {
-                let p1 = to_unit.transform_point(*p1);
+                codes.push(PathCode::LineTo(*p1));
 
-                codes.push(PathCode::LineTo(p1));
-
-                p1
+                *p1
             }
             PathCode::Bezier2(p1, p2) => {
-                let p1 = to_unit.transform_point(*p1);
-                let p2 = to_unit.transform_point(*p2);
+                codes.push(PathCode::Bezier2(*p1, *p2));
 
-                codes.push(PathCode::Bezier2(p1, p2));
-
-                p2
+                *p2
             }
             PathCode::Bezier3(p1, p2, p3) => {
-                let p1 = to_unit.transform_point(*p1);
-                let p2 = to_unit.transform_point(*p2);
-                let p3 = to_unit.transform_point(*p3);
+                let p1 = *p1;
+                let p2 = *p2;
+                let p3 = *p3;
 
                 // Truong, et. al. 2020
                 // Quadratic Approximation of Cubic Curves
@@ -410,16 +449,14 @@ fn transform_path(path: &Path<Data>, to_unit: &Affine2d) -> Path<Unit> {
                 p3
             }
             PathCode::ClosePoly(p1) => {
-                let p1 = to_unit.transform_point(*p1);
+                codes.push(PathCode::ClosePoly(*p1));
 
-                codes.push(PathCode::ClosePoly(p1));
-
-                p1
+                *p1
             }
         }
     }
 
-    Path::<Unit>::new(codes)
+    Path::<Canvas>::new(codes)
 }
 
 struct Unit {}

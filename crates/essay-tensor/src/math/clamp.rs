@@ -1,4 +1,4 @@
-use crate::ops::{BinaryKernel, UnaryKernel};
+use crate::ops::{UnaryKernel};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ClampScalar(f32, f32);

@@ -126,10 +126,10 @@ impl Path<Unit> {
         ])
     }
 
-    pub fn wedge(angle: Angle) -> Path<Unit> {
+    pub fn wedge(angle: (Angle, Angle)) -> Path<Unit> {
         let halfpi = 0.5 * PI;
 
-        let (t0, t1) = angle.to_radians();
+        let (t0, t1) = (angle.0.to_radians(), angle.1.to_radians());
 
         let t1 = if t0 < t1 { t1 } else { t1 + TAU };
 
@@ -173,6 +173,61 @@ impl Path<Unit> {
 
         path
     }
+
+}
+
+// Via matplotlib
+// Lancaster, Don.  `Approximating a Circle or an Ellipse Using Four
+// Bezier Cubic Splines <https://www.tinaja.com/glib/ellipse4.pdf>`_.
+pub fn circle() -> Path<Unit> {
+    let magic = 0.2652031;
+    let sqrt_half = 0.5f32.sqrt();
+    let magic_45 = sqrt_half * magic;
+
+    Path::from([
+        PathCode::MoveTo(Point(0., -1.)),
+        PathCode::Bezier3(
+            Point(magic, -1.),
+            Point(sqrt_half - magic_45, -sqrt_half - magic_45),
+            Point(sqrt_half, -sqrt_half)
+        ),
+        PathCode::Bezier3(
+            Point(sqrt_half + magic_45, -sqrt_half + magic_45),
+            Point(1., -magic),
+            Point(1., 0.)
+        ),
+        PathCode::Bezier3(
+            Point(1.0, magic),
+            Point(sqrt_half + magic_45, sqrt_half - magic_45),
+            Point(-sqrt_half, sqrt_half)
+        ),
+        PathCode::Bezier3(
+            Point(sqrt_half - magic_45, sqrt_half + magic_45),
+            Point(magic, 1.),
+            Point(0., 1.)
+        ),
+        PathCode::Bezier3(
+            Point(-magic, 1.0),
+            Point(-sqrt_half + magic_45, sqrt_half + magic_45),
+            Point(-sqrt_half, sqrt_half)
+        ),
+        PathCode::Bezier3(
+            Point(-sqrt_half - magic_45, sqrt_half - magic_45),
+            Point(-1.0, magic),
+            Point(-1., 0.)
+        ),
+        PathCode::Bezier3(
+            Point(-1., -magic),
+            Point(-sqrt_half - magic_45, -sqrt_half + magic_45),
+            Point(-sqrt_half, -sqrt_half),
+        ),
+        PathCode::Bezier3( 
+            Point(-sqrt_half + magic_45, -sqrt_half - magic_45),
+            Point(-magic, -1.0),
+            Point(0., -1.),
+        ),
+        PathCode::ClosePoly(Point(0., 1.))
+    ])
 }
 
 impl<const N: usize, M: CoordMarker> From<[PathCode; N]> for Path<M> {
@@ -249,11 +304,35 @@ impl<const N: usize, M: CoordMarker> From<[Point; N]> for Path<M> {
 
 // angle in [0., 1.]
 #[derive(Clone, Copy, Debug)]
-pub struct Angle(pub f32, pub f32);
+pub enum Angle {
+    Rad(f32),
+    Deg(f32),
+    Unit(f32),
+}
 
 impl Angle {
-    pub fn to_radians(&self) -> (f32, f32) {
-        (unit_to_radians(self.0), unit_to_radians(self.1))
+    pub fn to_radians(&self) -> f32 {
+        match self {
+            Angle::Rad(rad) => *rad,
+            Angle::Deg(deg) => deg.to_radians(),
+            Angle::Unit(unit) => (unit * 360.).to_radians(),
+        }
+    }
+
+    pub fn to_degrees(&self) -> f32 {
+        match self {
+            Angle::Rad(rad) => rad.to_degrees(),
+            Angle::Deg(deg) => *deg,
+            Angle::Unit(unit) => unit * 360.,
+        }
+    }
+
+    pub fn to_unit(&self) -> f32 {
+        match self {
+            Angle::Rad(rad) => rad.to_degrees() / 360.,
+            Angle::Deg(deg) => deg / 360.,
+            Angle::Unit(unit) => *unit,
+        }
     }
 }
 

@@ -71,11 +71,12 @@ impl ArtistTrait<Data> for Lines2d {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer, 
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
-        renderer.draw_path(style, &self.path, to_device, clip).unwrap();
+        let path = self.path.transform(&to_canvas);
+        renderer.draw_path(style, &path, to_canvas, clip).unwrap();
     }
 }
 
@@ -113,7 +114,7 @@ impl ArtistTrait<Data> for Bezier2 {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
@@ -123,8 +124,9 @@ impl ArtistTrait<Data> for Bezier2 {
         ];
 
         let path = Path::<Data>::new(codes);
+        let path = path.transform(&to_canvas);
 
-        renderer.draw_path(style, &path, &to_device, &clip).unwrap();
+        renderer.draw_path(style, &path, &to_canvas, &clip).unwrap();
 
     }
 }
@@ -139,7 +141,7 @@ impl ArtistTrait<Data> for Bezier3 {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
@@ -149,8 +151,9 @@ impl ArtistTrait<Data> for Bezier3 {
         ];
 
         let path = Path::<Data>::new(codes);
+        let path = path.transform(&to_canvas);
 
-        renderer.draw_path(style, &path, &to_device, &clip).unwrap();
+        renderer.draw_path(style, &path, &to_canvas, &clip).unwrap();
 
     }
 }

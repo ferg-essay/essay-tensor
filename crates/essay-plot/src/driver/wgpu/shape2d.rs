@@ -105,17 +105,23 @@ impl Shape2dRender {
 
         let len = dx.hypot(dy).max(f32::EPSILON);
 
+        let dx = dx / len;
+        let dy = dy / len;
+
         // normal to the line
-        let nx = dy * lw_x / len;
-        let ny = - dx * lw_y / len;
+        let nx = dy * lw_x;
+        let ny = - dx * lw_y;
 
-        self.vertex(x0 - nx, y0 - ny);
-        self.vertex(x0 + nx, y0 + ny);
-        self.vertex(x1 + nx, y1 + ny);
+        let dx2 = dx * lw_x; // for extend
+        let dy2 = dy * lw_y;
 
-        self.vertex(x1 + nx, y1 + ny);
-        self.vertex(x1 - nx, y1 - ny);
-        self.vertex(x0 - nx, y0 - ny);
+        self.vertex(x0 - nx - dx2, y0 - ny - dy2);
+        self.vertex(x0 + nx - dx2, y0 + ny - dy2);
+        self.vertex(x1 + nx + dx2, y1 + ny + dy2);
+
+        self.vertex(x1 + nx + dx2, y1 + ny + dy2);
+        self.vertex(x1 - nx - dx2, y1 - ny + dy2);
+        self.vertex(x0 - nx - dx2, y0 - ny - dy2);
     }
 
     pub(crate) fn draw_triangle(
@@ -132,7 +138,7 @@ impl Shape2dRender {
     pub fn draw_style(
         &mut self, 
         color: Color,
-        affine: Affine2d,
+        affine: &Affine2d,
     ) {
         let end = self.vertex_offset;
 
@@ -140,10 +146,16 @@ impl Shape2dRender {
         let item = &mut self.shape_items[len - 1];
         item.v_end = end;
 
-        self.style_vec[self.style_offset] = Shape2dStyle::new(&affine, color);
+        self.style_vec[self.style_offset] = Shape2dStyle::new(affine, color);
         self.style_offset += 1;
 
         item.s_end = self.style_offset;
+        /*
+        println!("DrawStyle: {:?} {:?}",
+            self.style_vec[self.style_offset -1].affine_0,
+            self.style_vec[self.style_offset -1].affine_1,
+        );
+        */
     }
 
     pub fn flush(
@@ -192,7 +204,8 @@ impl Shape2dRender {
             rpass.set_vertex_buffer(1, self.style_buffer.slice(
                 (stride * item.s_start) as u64..(stride * item.s_end) as u64
             ));
-
+            // println!("Draw {}-{} {}-{}", stride * item.s_start, stride * item.s_end,
+            //    item.s_start, item.s_end);
             if item.v_start < item.v_end {
                 rpass.draw(
                     0..(item.v_end - item.v_start) as u32,
@@ -238,7 +251,7 @@ impl Shape2dVertex {
         }
     }
 }
-
+/*
 pub struct Shape2dBuffer {
     stride: usize,
     vec: Vec<Shape2dVertex>,
@@ -301,7 +314,7 @@ impl Shape2dBuffer {
         self.offset += 1;
     }
 }
-
+*/
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Shape2dStyle {
@@ -320,7 +333,7 @@ impl Shape2dStyle {
 
     pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Shape2dVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<Shape2dStyle>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRS,
         }

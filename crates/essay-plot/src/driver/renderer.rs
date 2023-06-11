@@ -23,8 +23,16 @@ pub trait Renderer {
     fn draw_path(
         &mut self, 
         style: &dyn StyleOpt, 
-        path: &Path<Data>, 
+        path: &Path<Canvas>, 
         to_canvas: &Affine2d,
+        clip: &Bounds<Canvas>,
+    ) -> Result<(), RenderErr>;
+
+    fn draw_markers(
+        &mut self, 
+        marker: &Path<Canvas>, 
+        xy: &Tensor,
+        style: &dyn StyleOpt, 
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr>;
 

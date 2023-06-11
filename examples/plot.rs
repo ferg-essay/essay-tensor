@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use essay_plot::{prelude::*};
 use essay_tensor::{prelude::*, init::linspace};
 
@@ -5,7 +7,7 @@ fn main() {
     //let mut gui = WgpuBackend::new();
 
 
-    let x = linspace(0., 10., 10);
+    let x = linspace(0., 2. * PI, 30);
     let y = x.sin();
 
     // gui.main_loop().unwrap();
@@ -14,16 +16,17 @@ fn main() {
     axes.title("My Title").style().color(0x008033);
     axes.xlabel("X-Label").style().color(0x0030ff);
     axes.ylabel("Y-Label").style().color("r");
-    axes.plot(&x, &y, ()).color(0x003fc0);
+    axes.scatter(&x, &y, ()).color(0x003fc0);
+    // axes.plot(&x, &y, ()).color(0x003fc0);
     
     // axes.scatter(&x, &y, ());
-    let x = tf32!([40., 30., 20., 5., 5.]);
-    let axes = figure.new_graph(());
-    axes.pie(x, ());
+    // let x = tf32!([40., 30., 20., 5., 5.]);
+    // let axes = figure.new_graph(());
+    // axes.pie(x, ());
 
-    let x = linspace(0., 20., 21);
-    let axes = figure.new_graph([1., 1., 2., 2.]);
-    axes.plot(&x, &x.exp(), ());
+    // let x = linspace(0., 20., 21);
+    // let axes = figure.new_graph([1., 1., 2., 2.]);
+    // axes.plot(&x, &x.exp(), ());
     //axes.bezier2([0., 0.], [0.5, 1.0], [1.0, 0.0]);
     //axes.bezier2([-1., 0.], [0.5, 1.0], [1.0, 0.0]);
     // axes.bezier2([0., -1.], [-0.5, 0.0], [0.0, 1.]);

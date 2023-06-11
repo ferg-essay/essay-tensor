@@ -357,6 +357,12 @@ impl From<()> for AxisOpt {
     }
 }
 
+impl From<isize> for AxisOpt {
+    fn from(axis: isize) -> Self {
+        AxisOpt::default().axis(axis)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{prelude::*, tensor::{squeeze, shape::Axis}};

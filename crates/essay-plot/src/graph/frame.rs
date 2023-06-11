@@ -120,6 +120,19 @@ impl Frame {
 }
 
 //
+// FrameExtent
+//
+
+pub struct FrameExtent {
+    data: Bounds<Canvas>,
+
+    bottom: Bounds<Canvas>,
+    left: Bounds<Canvas>,
+    top: Bounds<Canvas>,
+    right: Bounds<Canvas>,
+}
+
+//
 // Top Frame
 //
 

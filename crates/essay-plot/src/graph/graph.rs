@@ -5,11 +5,11 @@ use essay_tensor::Tensor;
 use crate::{
     driver::{Renderer}, 
     plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text}, 
+    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text, Path}, 
     graph::{Layout, GraphId, Point},
 };
 
-use super::{Bounds, Data, Affine2d, frame::{Frame}, Canvas};
+use super::{Bounds, Data, Affine2d, frame::{Frame}, Canvas, Unit, axis::Axis};
 
 pub struct Graph {
     id: GraphId,
@@ -118,7 +118,7 @@ impl Graph {
             let patch = patch::Wedge::new(
                 center, 
                 radius, 
-                Angle(theta1, theta2)
+                (Angle::Unit(theta1), Angle::Unit(theta2))
             );
 
             //patch.color(colors[i]);
@@ -172,8 +172,13 @@ impl Graph {
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
         opt: impl Into<PlotOpt>
-    ) -> &Artist<Data> {
-        let collection = Collection::from_xy(x, y);
+    ) -> &mut Artist<Data> {
+        let x : Tensor = x.into();
+        let y = y.into();
+        let xy = x.stack(&[y], -1); // Axis::axis(-1));
+        let path: Path<Canvas> = Path::<Unit>::unit().transform(&Affine2d::eye().scale(10., 10.));
+
+        let collection = Collection::new(path, &xy);
 
         self.frame.data_mut().artist(collection)
     }

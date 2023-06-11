@@ -8,13 +8,26 @@ use crate::{graph::{Affine2d, Bounds, Data, Point, Canvas}, driver::{Renderer}, 
 use super::{ArtistTrait, Path, PathCode, StyleOpt};
 
 pub struct Collection {
-    lines: Tensor, // 2d tensor representing a graph
-    path: Path<Data>,
+    path: Path<Canvas>,
+    offsets: Tensor, // 2d tensor representing a graph
     style: Style,
-    clip_bounds: Bounds<Canvas>,
+    bounds: Bounds<Data>,
 }
 
 impl Collection {
+    pub fn new(path: Path<Canvas>, xy: impl Into<Tensor>) -> Self {
+        let xy = xy.into();
+
+        assert!(xy.cols() == 2, "Collection requires 2 column data");
+
+        Self {
+            path,
+            bounds: Bounds::from(xy.clone()), // replace clone with &ref
+            offsets: xy,
+            style: Style::new(), // needs to be loop
+        }
+    }
+
     pub fn from_xy(x: impl Into<Tensor>, y: impl Into<Tensor>) -> Self {
         let x = x.into();
         let y = y.into();
@@ -24,13 +37,15 @@ impl Collection {
         let lines = x.stack(&[y], Axis::axis(-1));
 
         let path = build_path(&lines, f32::MIN, f32::MAX);
-
+        /*
         Self {
-            lines,
+            offsets: lines,
             path,
             style: Style::new(),
             clip_bounds: Bounds::<Canvas>::none(),
         }
+        */
+        todo!()
     }
 
     fn style_mut(&mut self) -> &mut Style {
@@ -60,7 +75,7 @@ impl ArtistTrait<Data> for Collection {
     fn get_bounds(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
-        for point in self.lines.iter_slice() {
+        for point in self.offsets.iter_slice() {
             bounds[0] = f32::min(bounds[0], point[0]);
             bounds[1] = f32::min(bounds[1], point[1]);
             bounds[2] = f32::max(bounds[2], point[0]);
@@ -73,75 +88,40 @@ impl ArtistTrait<Data> for Collection {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer, 
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         let mut gc = renderer.new_gc();
 
         gc.color(0x7f3f00ff);
-        gc.linewidth(20.);
-        
-        /*
-        let path = Path::closed_poly(tf32!([
-            [2., 2.], [8., 2.], [8., 8.], [2., 8.],
-        ]));
-        */
-        
-            /*
-        let path = Path::closed_poly(tf32!([
-            [2., 5.], [4., 7.], [6., 7.],
-            [8., 5.], [6., 3.], [4., 3.],
-        ]));
-        */
+        gc.linewidth(10.);
 
-        /*
-        let path = Path::closed_poly(tf32!([
-            [4., 4.], [4., 5.], [5., 5.], 
-            [5., 6.], [6., 6.], [6., 5.],
-            [7., 5.], [7., 4.], [6., 4.], 
-            [6., 3.], [5., 3.], [5., 4.], 
-        ]));
-        */
+        let xy = to_canvas.transform(&self.offsets);
 
-        let len = 3;
-        let s = 4.0;
-        let q = 0.2;
-        let delta = PI / len as f32;
-        let mut vec = TensorVec::<[f32; 2]>::new();
-        for i in 0..len {
-            let theta = 2. * i as f32 * delta;
-
-            // flipped sin/cos so theta=0 is up
-            vec.push([5. + s * theta.sin(), 5. + s * theta.cos()]);
-            vec.push([5. + s * q * (theta + delta).sin(), 5. + s * q * (theta + delta).cos()]);
-        }
-
-        let path = Path::closed_poly(vec.into_tensor());
-
-        renderer.draw_path(style, &path, to_device, clip).unwrap();
+        renderer.draw_markers(&self.path, &xy, style, clip).unwrap();
     }
 }
 
 impl fmt::Debug for Collection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.lines.dim(0) {
+        match self.offsets.dim(0) {
             0 => {
                 write!(f, "Collection[]")
             },
             1 => {
-                write!(f, "Collection[({}, {})]", self.lines[(0, 0)], self.lines[(0, 1)])
+                write!(f, "Collection[({}, {})]", self.offsets[(0, 0)], self.offsets[(0, 1)])
             },
             2 => {
                 write!(f, "Collection[({}, {}), ({}, {})]", 
-                    self.lines[(0, 0)], self.lines[(0, 1)],
-                    self.lines[(1, 0)], self.lines[(1, 1)])
+                    self.offsets[(0, 0)], self.offsets[(0, 1)],
+                    self.offsets[(1, 0)], self.offsets[(1, 1)])
             },
             n => {
                 write!(f, "Collection[({}, {}), ({}, {}), ..., ({}, {})]", 
-                    self.lines[(0, 0)], self.lines[(0, 1)],
-                    self.lines[(1, 0)], self.lines[(1, 1)],
-                    self.lines[(n - 1, 0)], self.lines[(n - 1, 1)])
+                    self.offsets[(0, 0)], self.offsets[(0, 1)],
+                    self.offsets[(1, 0)], self.offsets[(1, 1)],
+                    self.offsets[(n - 1, 0)], self.offsets[(n - 1, 1)])
             }
         }
     }

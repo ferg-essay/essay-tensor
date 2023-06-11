@@ -95,10 +95,10 @@ impl ArtistTrait<Canvas> for DisplayPatch {
         style: &dyn StyleOpt,
     ) {
         let to_canvas = to_canvas.matmul(&self.to_canvas);
-
+        let path = self.patch.get_path().transform(&to_canvas);
         renderer.draw_path(
             &self.style, 
-            self.patch.get_path(),
+            &path,
             &to_canvas, 
             clip
         ).unwrap();
@@ -129,9 +129,11 @@ impl ArtistTrait<Canvas> for PathPatch {
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
+        let path = self.path.transform(&to_canvas);
+
         renderer.draw_path(
             style, 
-            &self.path,
+            &path,
             &to_canvas, 
             clip
         ).unwrap();
@@ -187,12 +189,14 @@ impl ArtistTrait<Data> for Line {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         if let Some(path) = &self.path {
-            renderer.draw_path(style, path, to_device, clip).unwrap();
+            let path = path.transform(&to_canvas);
+
+            renderer.draw_path(style, &path, to_canvas, clip).unwrap();
         }
     }
 }
@@ -206,7 +210,7 @@ impl fmt::Debug for Line {
 pub struct Wedge {
     center: Point,
     radius: f32,
-    angle: Angle,
+    angle: (Angle, Angle),
 
     path: Option<Path<Data>>,
 }
@@ -215,7 +219,7 @@ impl Wedge {
     pub fn new(
         center: Point,
         radius: f32,
-        angle: Angle,
+        angle: (Angle, Angle),
     ) -> Self {
         Self {
             center,
@@ -260,12 +264,13 @@ impl ArtistTrait<Data> for Wedge {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_device: &Affine2d,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
         if let Some(path) = &self.path {
-            renderer.draw_path(style, path, to_device, clip).unwrap();
+            let path = path.transform(to_canvas);
+            renderer.draw_path(style, &path, to_canvas, clip).unwrap();
         }
     }
 }
@@ -275,6 +280,6 @@ impl fmt::Debug for Wedge {
         write!(f, "Wedge(({}, {}), {}, [{}, {}])",
             self.center.x(), self.center.y(),
             self.radius,
-            self.angle.0, self.angle.1)
+            self.angle.0.to_degrees(), self.angle.1.to_degrees())
     }
 }
