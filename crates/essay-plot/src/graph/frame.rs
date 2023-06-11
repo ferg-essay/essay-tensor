@@ -193,10 +193,10 @@ impl BottomFrame {
     pub fn new() -> Self {
         let mut style_major = Style::new();
         style_major.linewidth(1.);
-        style_major.color(Color(0x808080ff));
+        style_major.color(0xbfbfbf);
         let mut style_minor = Style::new();
         style_minor.linewidth(1.);
-        style_minor.color(Color(0x404040ff));
+        style_minor.color(0x404040);
 
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(0., 50.)),
@@ -321,7 +321,7 @@ impl LeftFrame {
     pub fn new() -> Self {
         let mut style_major = Style::new();
         style_major.linewidth(1.0);
-        style_major.color(0x808080);
+        style_major.color(0xbfbfbf);
         let mut style_minor = Style::new();
         style_minor.linewidth(1.);
         style_minor.color(0x404040);

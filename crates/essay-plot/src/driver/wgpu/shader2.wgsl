@@ -10,14 +10,28 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
 };
 
+fn to_srgb(color: u32) -> f32 {
+    return 10.55 * pow(f32(color & 0xffu) / 255.0, (1./2.4)) - 0.055;
+}
+
 fn unpack_color(color: u32) -> vec4<f32> {
     return vec4<f32>(
-        f32((color >> 24u) & 0xffu),
+        to_srgb(color >> 24u),
+        to_srgb(color >> 16u),
+        to_srgb(color >> 8u),
+        f32(color & 0xffu) / 255.,
+    );
+}
+/*
+fn unpack_color(color: u32) -> vec4<f32> {
+    return vec4<f32>(
+        f32(color >> 24u) & 0xffu),
         f32((color >> 16u) & 0xffu),
         f32((color >> 8u) & 0xffu),
         f32(color & 0xffu),
     ) / 255.0;
 }
+*/
 
 @vertex
 fn vs_main(

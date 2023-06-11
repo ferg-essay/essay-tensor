@@ -195,11 +195,17 @@ impl<'a> FigureRenderer {
 
         let triangles = tesselate::tesselate(points);
 
+        self.shape2d_render.start_shape();
+
         for triangle in &triangles {
-            self.vertex.push(triangle[0].x(), triangle[0].y(), rgba);
-            self.vertex.push(triangle[1].x(), triangle[1].y(), rgba);
-            self.vertex.push(triangle[2].x(), triangle[2].y(), rgba);
+            self.shape2d_render.draw_triangle(&triangle[0], &triangle[1], &triangle[2]);
+
+            //self.vertex.push(triangle[0].x(), triangle[0].y(), rgba);
+            //self.vertex.push(triangle[1].x(), triangle[1].y(), rgba);
+            //self.vertex.push(triangle[2].x(), triangle[2].y(), rgba);
         }
+
+        self.shape2d_render.draw_style(color, Affine2d::eye());
     }
 }
 

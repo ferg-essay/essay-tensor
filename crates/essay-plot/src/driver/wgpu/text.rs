@@ -157,7 +157,7 @@ impl TextRender {
             end,
             index: self.style_offset,
         });
-        self.style_vec[self.style_offset] = GpuTextStyle::new(&affine, color.get_srgba());
+        self.style_vec[self.style_offset] = GpuTextStyle::new(&affine, color.get_rgba());
         self.style_offset += 1;
     }
 

@@ -95,8 +95,9 @@ impl Color {
         self.0
     }
 
-    pub(crate) fn get_srgba(&self) -> u32 {
-        self.get_rgba()
+    #[inline]
+    pub(crate) fn to_srgb(color: f32) -> f32 {
+        ((color + 0.055) / 1.055).powf(2.4)
     }
 
     #[inline]

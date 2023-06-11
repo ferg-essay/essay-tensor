@@ -91,7 +91,8 @@ impl Shape2dRender {
         });
     }
 
-    pub(crate) fn draw_line(&mut self, 
+    pub(crate) fn draw_line(
+        &mut self, 
         p0: &Point,
         p1: &Point,
         lw_x: f32, lw_y: f32,
@@ -99,8 +100,8 @@ impl Shape2dRender {
         let Point(x0, y0) = p0;
         let Point(x1, y1) = p1;
 
-        let dx = x1 - x0;
-        let dy = y1 - y0;
+        let dx = p1.x() - p0.x();
+        let dy = p1.y() - p0.y();
 
         let len = dx.hypot(dy).max(f32::EPSILON);
 
@@ -117,6 +118,17 @@ impl Shape2dRender {
         self.vertex(x0 - nx, y0 - ny);
     }
 
+    pub(crate) fn draw_triangle(
+        &mut self, 
+        p0: &Point,
+        p1: &Point,
+        p2: &Point
+    ) {
+        self.vertex(p0.x(), p0.y());
+        self.vertex(p1.x(), p1.y());
+        self.vertex(p2.x(), p2.y());
+    }
+
     pub fn draw_style(
         &mut self, 
         color: Color,
@@ -128,7 +140,7 @@ impl Shape2dRender {
         let item = &mut self.shape_items[len - 1];
         item.v_end = end;
 
-        self.style_vec[self.style_offset] = Shape2dStyle::new(&affine, color.get_srgba());
+        self.style_vec[self.style_offset] = Shape2dStyle::new(&affine, color);
         self.style_offset += 1;
 
         item.s_end = self.style_offset;
@@ -315,20 +327,23 @@ impl Shape2dStyle {
     }
 
     fn empty() -> Self {
-        Self::new(&Affine2d::eye(), 0x000000ff)
+        Self::new(&Affine2d::eye(), Color::black())
     }
 
-    fn new(affine: &Affine2d, color: u32) -> Self {
+    fn new(affine: &Affine2d, color: Color) -> Self {
         let mat = affine.mat();
 
         Self {
             affine_0: [mat[0], mat[1], 0., mat[2]],
             affine_1: [mat[3], mat[4], 0., mat[5]],
             color: [
-                ((color >> 24) & 0xff) as f32 / 255.,
-                ((color >> 16) & 0xff) as f32 / 255.,
-                ((color >> 8) & 0xff) as f32 / 255.,
-                ((color) & 0xff) as f32 / 255.,
+                Color::to_srgb(color.red()),
+                Color::to_srgb(color.green()),
+                Color::to_srgb(color.blue()),
+                //color.red(),
+                //color.green(),
+                //color.blue(),
+                color.alpha(),
             ],
         }
     }
