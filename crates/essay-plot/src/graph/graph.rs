@@ -175,7 +175,7 @@ impl Graph {
         &mut self, 
         x: impl Into<Tensor>, 
         y: impl Into<Tensor>, 
-        opt: impl Into<PlotOpt>
+        _opt: impl Into<PlotOpt>
     ) -> &mut Artist<Data> {
         let x : Tensor = x.into();
         let y = y.into();

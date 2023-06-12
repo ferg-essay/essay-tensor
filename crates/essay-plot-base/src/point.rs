@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Point(pub f32, pub f32);
@@ -87,8 +85,4 @@ impl Angle {
             Angle::Unit(unit) => *unit,
         }
     }
-}
-
-fn unit_to_radians(unit: f32) -> f32 {
-    ((1.25 - unit) % 1.) * 2. * PI
 }

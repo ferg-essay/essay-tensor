@@ -152,7 +152,7 @@ fn compose(x: &Tensor, y: &Tensor) -> Tensor {
     unsafe {
         let mut out = TensorUninit::<f32>::new(9);
 
-        let mut o = out.as_mut_slice();
+        let o = out.as_mut_slice();
         let x = x.as_slice();
         let y = y.as_slice();
 

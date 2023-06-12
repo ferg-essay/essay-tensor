@@ -338,9 +338,11 @@ impl Shape2dStyle {
         }
     }
 
+    /*
     fn empty() -> Self {
         Self::new(&Affine2d::eye(), Color::black())
     }
+    */
 
     fn new(affine: &Affine2d, color: Color) -> Self {
         let mat = affine.mat();
@@ -360,6 +362,7 @@ impl Shape2dStyle {
         }
     }
 
+    /*
     fn create_buffer(this: Self, device: &wgpu::Device) -> wgpu::Buffer {
         device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -369,6 +372,7 @@ impl Shape2dStyle {
             }
         )
     }
+    */
 }
 
 fn create_shape2d_pipeline(

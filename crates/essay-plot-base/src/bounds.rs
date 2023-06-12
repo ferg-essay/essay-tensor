@@ -3,7 +3,7 @@ use std::{marker::PhantomData, any::type_name};
 
 use essay_tensor::{Tensor, tf32};
 
-use super::{Point, CoordMarker, Affine2d, Canvas};
+use super::{Point, CoordMarker, Affine2d};
 
 ///
 /// Boundary box consisting of two unordered points

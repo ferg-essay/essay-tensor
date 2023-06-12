@@ -1,6 +1,4 @@
 use core::fmt;
-use std::ops::Index;
-
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Color(pub u32);
@@ -42,7 +40,7 @@ impl Color {
         Color((r << 24) | (g << 16) | (b << 8) | a)
     }
 
-    pub fn from_hsv(h: f32, s: f32, v: f32, a: f32) -> Color {
+    pub fn from_hsv(h: f32, s: f32, v: f32) -> Color {
         Self::from_hsva(h, s, v, 1.)
     }
 

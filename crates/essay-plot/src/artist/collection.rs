@@ -1,7 +1,6 @@
 use core::fmt;
-use std::{f32::consts::{PI}};
 
-use essay_tensor::{Tensor, tensor::{Axis, TensorVec}};
+use essay_tensor::{Tensor, tensor::{Axis}};
 use essay_plot_base::{Affine2d, Bounds, Path, PathCode, StyleOpt, Point, Canvas, Style, driver::{Renderer}};
 
 use crate::graph::Data;

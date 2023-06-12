@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, f32::consts::{PI, TAU}};
+use std::{marker::PhantomData};
 
 use essay_tensor::{prelude::*};
 
@@ -127,7 +127,7 @@ impl<M: CoordMarker> Clone for Path<M> {
 
 impl<const N: usize, M: CoordMarker> From<[PathCode; N]> for Path<M> {
     fn from(value: [PathCode; N]) -> Self {
-        let mut codes = Vec::<PathCode>::from(value);
+        let codes = Vec::<PathCode>::from(value);
 
         Self {
             codes,

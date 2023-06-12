@@ -129,21 +129,21 @@ impl<'a> Chain<'a> {
 impl StyleOpt for Chain<'_> {
     fn get_color(&self) -> &Option<Color> {
         match self.next.get_color() {
-            Some(color) => self.next.get_color(),
+            Some(_) => self.next.get_color(),
             None => self.prev.get_color()
         }
     }
 
     fn get_linewidth(&self) -> &Option<f32> {
         match self.next.get_linewidth() {
-            Some(linewidth) => self.next.get_linewidth(),
+            Some(_) => self.next.get_linewidth(),
             None => self.prev.get_linewidth()
         }
     }
 
     fn get_joinstyle(&self) -> &Option<JoinStyle> {
         match self.next.get_joinstyle() {
-            Some(joinstyle) => self.next.get_joinstyle(),
+            Some(_) => self.next.get_joinstyle(),
             None => self.prev.get_joinstyle()
         }
     }

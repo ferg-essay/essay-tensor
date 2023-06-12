@@ -36,10 +36,6 @@ impl Text {
         self.pos = pos;
     }
 
-    pub(crate) fn get_pos(&self) -> &Bounds<Canvas> {
-        &self.pos
-    }
-
     pub fn text(&mut self, text: &str) -> &mut Self {
         if text.len() > 0 {
             self.text = Some(text.to_string());
@@ -89,7 +85,7 @@ impl ArtistTrait<Canvas> for Text {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_canvas: &Affine2d,
+        _to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {

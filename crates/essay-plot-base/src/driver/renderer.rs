@@ -37,21 +37,8 @@ pub trait Renderer {
         angle: f32,
         style: &dyn StyleOpt, 
         text_style: &TextStyle,
-        // prop, - font properties
-        // affine: &Affine2d,
         clip: &Bounds<Canvas>,
-    ) -> Result<(), RenderErr> {
-
-        Ok(())
-    }
-
-    // draw_markers(path, marker_path, marker_trans)
-    // i.e. markers only have location differences
-
-    // draw_path_collection(gc, master_transform, paths, all_transforms,
-    // offsets, offset_trans, facecolors, edgecolors, linewidths, linestyles
-
-    // draw_quad_mesh(mesh_width, mesh_height, coord, offses, facecolors, edgecolors))
+    ) -> Result<(), RenderErr>;
 }
 
 #[derive(Debug)]

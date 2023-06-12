@@ -105,7 +105,7 @@ impl ArtistTrait<Canvas> for DataBox {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer, 
-        to_canvas: &Affine2d,
+        _to_canvas: &Affine2d,
         _clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {

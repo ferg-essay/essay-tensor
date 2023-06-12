@@ -1,21 +1,20 @@
 use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, CoordMarker};
 use essay_tensor::Tensor;
-use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush};
 
 use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate};
 
 pub struct FigureRenderer {
     canvas: Canvas,
 
-    vertex_pipeline: wgpu::RenderPipeline,
-    vertex: VertexBuffer,
+    // vertex_pipeline: wgpu::RenderPipeline,
+    // vertex: VertexBuffer,
     bezier_pipeline: wgpu::RenderPipeline,
     bezier_vertex: VertexBuffer,
     bezier_rev_pipeline: wgpu::RenderPipeline,
     bezier_rev_vertex: VertexBuffer,
 
-    staging_belt: wgpu::util::StagingBelt,
-    _glyph: GlyphBrush<()>,
+    // staging_belt: wgpu::util::StagingBelt,
+    // _glyph: GlyphBrush<()>,
 
     shape2d_render: Shape2dRender,
     text_render: TextRender,
@@ -30,6 +29,7 @@ impl<'a> FigureRenderer {
     ) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
 
+        /*
         let vertex_buffer = VertexBuffer::new(1024, &device);
     
         let vertex_pipeline = create_pipeline(
@@ -40,6 +40,7 @@ impl<'a> FigureRenderer {
             format,
             vertex_buffer.desc(),
         );
+        */
 
         let bezier_shader = device.create_shader_module(wgpu::include_wgsl!("bezier.wgsl"));
 
@@ -65,12 +66,14 @@ impl<'a> FigureRenderer {
             bezier_rev_vertex.desc(),
         );
     
+        /*
         let font_opensans = ab_glyph::FontArc::try_from_slice(include_bytes!(
             "fonts/OpenSans-Medium.ttf"
         )).unwrap();
 
         let glyph_brush = GlyphBrushBuilder::using_font(font_opensans)
             .build(&device, format);
+        */
 
         let shape2d_render = Shape2dRender::new(device, format);
         let text_render = TextRender::new(device, format, 512, 512);
@@ -78,15 +81,15 @@ impl<'a> FigureRenderer {
         Self {
             canvas: Canvas::new((), 1.),
 
-            vertex_pipeline,
-            vertex: vertex_buffer,
+            // vertex_pipeline,
+            // vertex: vertex_buffer,
             bezier_pipeline,
             bezier_vertex,
             bezier_rev_pipeline,
             bezier_rev_vertex,
 
-            staging_belt: wgpu::util::StagingBelt::new(1024),
-            _glyph: glyph_brush,
+            //staging_belt: wgpu::util::StagingBelt::new(1024),
+            //_glyph: glyph_brush,
 
             shape2d_render,
             text_render,
@@ -96,7 +99,7 @@ impl<'a> FigureRenderer {
     }
 
     pub(crate) fn clear(&mut self) {
-        self.vertex.clear();
+        // self.vertex.clear();
         self.bezier_vertex.clear();
     }
 
@@ -115,6 +118,7 @@ impl<'a> FigureRenderer {
         self.canvas.set_scale_factor(scale_factor);
     }
 
+    /*
     fn draw_line(&mut self, 
         x0: f32, y0: f32, 
         x1: f32, y1: f32,
@@ -138,6 +142,7 @@ impl<'a> FigureRenderer {
         self.vertex.push(x1 - nx, y1 - ny, color);
         self.vertex.push(x0 - nx, y0 - ny, color);
     }
+    */
 
     fn draw_bezier(&mut self, 
         p0: Point,
@@ -529,7 +534,7 @@ impl FigureRenderer {
         let (width, height) = bounds;
 
         self.clear();
-        self.staging_belt.recall();
+        // self.staging_belt.recall();
 
         self.set_canvas_bounds(width, height);
         self.set_scale_factor(scale_factor);
@@ -551,7 +556,7 @@ impl FigureRenderer {
             // clip 
             // rpass.set_viewport(0., 0., 1., 1., 0.0, 1.0);
             
-
+            /*
             let vertex_len = self.vertex.offset();
             if vertex_len > 0 {
                 write_buffer(queue, &mut self.vertex, vertex_len);
@@ -563,6 +568,7 @@ impl FigureRenderer {
         
                 rpass.draw(0..vertex_len as u32, 0..1);
             }
+            */
 
             let bezier_len = self.bezier_vertex.offset();
             if bezier_len > 0 {
@@ -611,7 +617,7 @@ impl FigureRenderer {
             height as u32,
         ).unwrap();
         */
-        self.staging_belt.finish();
+        // self.staging_belt.finish();
         //self.staging_belt.recall();
     }
 }
