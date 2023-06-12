@@ -1,3 +1,5 @@
+use essay_tensor::Tensor;
+
 use crate::{driver::{Renderer}, graph::{Bounds, Data, Affine2d, CoordMarker, Canvas}};
 
 use super::{Style, StyleOpt, Color, JoinStyle};

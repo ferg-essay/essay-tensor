@@ -1,14 +1,24 @@
 use std::f32::consts::PI;
 
 use essay_plot::{prelude::*};
-use essay_tensor::{prelude::*, init::linspace};
+use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
 fn main() {
     //let mut gui = WgpuBackend::new();
 
 
-    let x = linspace(0., 2. * PI, 30);
-    let y = x.sin();
+    //let x = linspace(0., 2. * PI, 30);
+    //let y = x.sin();
+
+    let x = linspace(-1., 1., 5);
+    let y = linspace(-1., 1., 5);
+    let [x, y] = meshgrid([x, y]);
+
+    let z = 1. - &x * &x + 1. - &y * &y;
+    println!("X: {:?}", x);
+    println!("Y: {:?}", y);
+    println!("z: {:?}", z);
+    //let y = x.sin();
 
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
@@ -16,7 +26,7 @@ fn main() {
     axes.title("My Title").style().color(0x008033);
     axes.xlabel("X-Label").style().color(0x0030ff);
     axes.ylabel("Y-Label").style().color("r");
-    axes.scatter(&x, &y, ()).color(0x003fc0);
+    //axes.scatter(&x, &y, ()).color(0x003fc0);
     // axes.plot(&x, &y, ()).color(0x003fc0);
     
     // axes.scatter(&x, &y, ());

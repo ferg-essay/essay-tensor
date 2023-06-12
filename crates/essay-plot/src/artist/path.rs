@@ -119,10 +119,10 @@ impl<M: CoordMarker> Path<M> {
 impl Path<Unit> {
     pub fn unit() -> Path<Unit> {
         Path::new(vec![
-            PathCode::MoveTo(Point(0.0, 0.0)),
-            PathCode::LineTo(Point(0.0, 1.0)),
-            PathCode::LineTo(Point(1.0, 1.0)),
-            PathCode::ClosePoly(Point(1.0, 0.0)),
+            PathCode::MoveTo(Point(-1., -1.)),
+            PathCode::LineTo(Point(-1., 1.)),
+            PathCode::LineTo(Point(1., 1.)),
+            PathCode::ClosePoly(Point(1., -1.)),
         ])
     }
 
@@ -174,6 +174,15 @@ impl Path<Unit> {
         path
     }
 
+}
+
+impl<M: CoordMarker> Clone for Path<M> {
+    fn clone(&self) -> Self {
+        Self { 
+            codes: self.codes.clone(), 
+            marker: self.marker.clone() 
+        }
+    }
 }
 
 // Via matplotlib

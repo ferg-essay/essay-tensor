@@ -1,8 +1,8 @@
 use essay_tensor::tf32;
 
-use crate::graph::Unit;
+use crate::graph::{Unit, Point};
 
-use super::{Path, Angle};
+use super::{Path, Angle, PathCode};
 
 pub enum Markers {
     None,
@@ -51,6 +51,23 @@ pub enum Markers {
     Asterisk(usize, Angle,)
 }
 
+impl Markers {
+    pub fn is_filled(&self) -> bool {
+        match self {
+            Square => true,
+            _ => false,
+        }
+    }
+
+    pub fn get_path(&self) -> Path<Unit> {
+        match self {
+            Square => Path::unit(),
+            TriangleUp => triangle_path(),
+            Self::Path(path) => path.clone(),
+            _ => todo!(),
+        }
+    }
+}
 // filled_markers = '.', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*',
 // 'h', 'H', 'D', 'd', 'P', 'X'
 
@@ -91,4 +108,13 @@ fn triangle_path_right() -> Path<Unit> {
     Path::closed_poly(tf32!([
         [0., 1.], [0., -1.], [1., -1.],
     ]))
+}
+
+fn plus_path() -> Path<Unit> {
+    Path::new(vec![
+        PathCode::MoveTo(Point(-1., 0.)),
+        PathCode::LineTo(Point(1., 0.)),
+        PathCode::MoveTo(Point(0., -1.)),
+        PathCode::LineTo(Point(0., 1.)),
+    ])
 }

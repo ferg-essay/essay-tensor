@@ -318,16 +318,16 @@ impl Renderer for FigureRenderer {
     ) -> Result<(), RenderErr> {
         let path = transform_path(path);
 
+        let color = match style.get_color() {
+            Some(color) => *color,
+            None => Color(0x000000ff)
+        };
+
         if path.is_closed_path() {
             self.draw_closed_path(style, &path, clip);
         } else {
             self.draw_lines(&path, style, clip);
         }
-
-        let color = match style.get_color() {
-            Some(color) => *color,
-            None => Color(0x000000ff)
-        };
 
         for xy in xy.iter_slice() {
             let offset = Affine2d::eye().translate(xy[0], xy[1]);

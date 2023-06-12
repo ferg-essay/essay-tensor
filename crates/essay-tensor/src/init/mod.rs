@@ -1,3 +1,4 @@
+mod meshgrid;
 mod arange;
 mod initializer;
 mod random_normal;
@@ -14,6 +15,10 @@ pub use fill::fill;
 
 pub use arange::{
     arange,
+};
+
+pub use meshgrid::{
+    meshgrid, Meshgrid,
 };
 
 pub use zeros::{
