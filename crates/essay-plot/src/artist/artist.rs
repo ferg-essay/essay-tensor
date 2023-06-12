@@ -1,8 +1,7 @@
-use essay_tensor::Tensor;
-
-use crate::{driver::{Renderer}, graph::{Bounds, Data, Affine2d, CoordMarker, Canvas}};
-
-use super::{Style, StyleOpt, Color, JoinStyle};
+use essay_plot_base::{
+    CoordMarker, Bounds, Affine2d, Canvas, StyleOpt, Style,
+    driver::Renderer, JoinStyle, Color,
+};
 
 pub trait ArtistTrait<M: CoordMarker> {
     fn get_bounds(&mut self) -> Bounds<M>;
@@ -57,7 +56,7 @@ impl<M: CoordMarker> ArtistTrait<M> for Artist<M> {
 }
 
 impl<M: CoordMarker> StyleOpt for Artist<M> {
-    fn get_color(&self) -> &Option<super::Color> {
+    fn get_color(&self) -> &Option<Color> {
         self.style.get_color()
     }
 

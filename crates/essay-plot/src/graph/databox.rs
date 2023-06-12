@@ -1,8 +1,11 @@
 use core::fmt;
 
-use crate::{driver::{Renderer}, artist::{Style, ArtistTrait, Artist, StyleOpt}};
+use essay_plot_base::{
+    driver::{Renderer}, Style, StyleOpt,
+    Bounds, Affine2d, Point, Canvas, CoordMarker,
+};
 
-use super::{Data, Bounds, Affine2d, Point, canvas::Canvas};
+use crate::artist::{Artist, ArtistTrait};
 
 pub struct DataBox {
     pos_canvas: Bounds<Canvas>,
@@ -132,3 +135,11 @@ impl fmt::Debug for DataBox {
     }
 }
 
+///
+/// Data coordinates
+///
+#[derive(Clone, Copy, Debug)]
+pub struct Data;
+
+impl CoordMarker for Data {
+}

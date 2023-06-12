@@ -1,5 +1,5 @@
 [package]
-name = "essay-plot"
+name = "essay-plot-wgpu"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,7 +8,6 @@ env_logger = { version = "0.10.0" }
 log = { version = "0.4.17" }
 essay-tensor = { path = "../essay-tensor" }
 essay-plot-base = { path = "../essay-plot-base" }
-essay-plot-wgpu = { path = "../essay-plot-wgpu" }
 wgpu = "0.16"
 wgpu_glyph = "0.20"
 winit = "0.28"

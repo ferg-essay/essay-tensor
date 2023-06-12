@@ -1,9 +1,8 @@
 use std::f32::consts::PI;
 
+use essay_plot_base::{Point, Color, Affine2d};
 use wgpu::util::DeviceExt;
 use wgpu_glyph::ab_glyph::{self, Font, PxScale};
-
-use crate::{graph::{Affine2d, Point}, artist::Color};
 
 use super::{text_texture::TextTexture, text_cache::TextCache};
 

@@ -42,11 +42,12 @@ impl Canvas {
         self.scale_factor * size
     }
 
-    pub(crate) fn set_bounds(&mut self, bounds: impl Into<Bounds<Canvas>>) {
+    // TODO: should canvas be immutable?
+    pub fn set_bounds(&mut self, bounds: impl Into<Bounds<Canvas>>) {
         self.bounds = bounds.into();
     }
 
-    pub(crate) fn set_scale_factor(&mut self, scale_factor: f32) {
+    pub fn set_scale_factor(&mut self, scale_factor: f32) {
         assert!(scale_factor > 0.);
 
         self.scale_factor = scale_factor;

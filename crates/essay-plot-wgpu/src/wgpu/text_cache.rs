@@ -1,13 +1,9 @@
 use core::fmt;
 use std::collections::HashMap;
 
-use wgpu_glyph::ab_glyph::{self, PxScale, Font};
+use wgpu_glyph::ab_glyph::{self, Font};
 
 use super::text_texture::TextTexture;
-
-//let font = ab_glyph::FontArc::try_from_slice(include_bytes!(
-//    "fonts/OpenSans-Medium.ttf"
-//)).unwrap();
 
 pub struct TextCache {
     width: u32,

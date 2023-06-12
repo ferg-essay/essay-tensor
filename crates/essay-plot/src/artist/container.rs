@@ -1,6 +1,9 @@
-use crate::{graph::{Bounds, Data, Affine2d, Point, CoordMarker, Canvas}, driver::{Renderer}};
+use essay_plot_base::{
+    Bounds, Affine2d, Point, CoordMarker, Canvas, StyleOpt, Style,
+    driver::{Renderer}
+};
 
-use super::{Artist, ArtistTrait, StyleOpt, Style};
+use super::{Artist, ArtistTrait};
 
 pub struct Container<M: CoordMarker> {
     artists: Vec<Artist<M>>,

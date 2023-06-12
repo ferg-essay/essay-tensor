@@ -3,13 +3,13 @@ use std::{marker::PhantomData, any::type_name};
 
 use essay_tensor::{Tensor, tf32};
 
-use super::{Rect, affine::{Point, Data, CoordMarker}, Affine2d, canvas::Canvas};
+use super::{Point, CoordMarker, Affine2d, Canvas};
 
 ///
 /// Boundary box consisting of two unordered points
 /// 
 #[derive(PartialEq)]
-pub struct Bounds<M: CoordMarker = Data> {
+pub struct Bounds<M: CoordMarker> {
     p0: Point,
     p1: Point,
 
@@ -134,15 +134,6 @@ impl<M: CoordMarker> Bounds<M> {
         self.ymax() - self.ymin()
     }
 
-    pub fn to_rect(&self) -> Rect {
-        Rect::new(
-            self.xmin(), 
-            self.ymin(), 
-            self.xmax() - self.xmin(),
-            self.ymax() - self.ymin(),
-        )
-    }
-
     pub fn corners(&self) -> Tensor {
         tf32!([
             [self.p0.x(), self.p0.y()],
@@ -152,7 +143,7 @@ impl<M: CoordMarker> Bounds<M> {
         ])
     }
 
-    pub(crate) fn affine_to<N>(&self, box_to: &Bounds<N>) -> Affine2d
+    pub fn affine_to<N>(&self, box_to: &Bounds<N>) -> Affine2d
     where
         N: CoordMarker
     {
@@ -175,7 +166,7 @@ impl<M: CoordMarker> Bounds<M> {
             .translate(b_x0, b_y0)
     }
 
-    pub(crate) fn union(&self, b: &Bounds<M>) -> Self {
+    pub fn union(&self, b: &Bounds<M>) -> Self {
         Self {
             p0: Point(
                 self.xmin().min(b.xmin()),
@@ -187,15 +178,6 @@ impl<M: CoordMarker> Bounds<M> {
             ),
             marker: PhantomData,
         }
-    }
-}
-
-impl Bounds<Data> {
-    pub fn to_canvas(&self, to_canvas: &Affine2d) -> Bounds<Canvas> {
-        Bounds::new(
-            to_canvas.transform_point(self.p0),
-            to_canvas.transform_point(self.p1),
-        )
     }
 }
 
@@ -230,17 +212,6 @@ impl<M: CoordMarker> fmt::Debug for Bounds<M> {
     }
 }
 
-impl From<Rect> for Bounds {
-    fn from(value: Rect) -> Self {
-        Bounds::from_bounds(
-            value.left(), 
-            value.bottom(), 
-                value.width(),
-                value.height()
-        )
-    }
-}
-
 impl<M: CoordMarker> From<()> for Bounds<M> {
     fn from(_: ()) -> Self {
         Bounds::zero()
@@ -252,6 +223,15 @@ impl<M: CoordMarker> From<(f32, f32)> for Bounds<M> {
         Bounds::new(
             Point(value.0, value.1),
             Point(value.0, value.1),
+        )
+    }
+}
+
+impl<M: CoordMarker> From<Point> for Bounds<M> {
+    fn from(value: Point) -> Self {
+        Bounds::new(
+            value,
+            value,
         )
     }
 }
@@ -301,8 +281,8 @@ impl<M: CoordMarker> From<Tensor> for Bounds<M> {
     }
 }
 
-impl From<Bounds> for Tensor {
-    fn from(value: Bounds) -> Self {
+impl<M: CoordMarker> From<Bounds<M>> for Tensor {
+    fn from(value: Bounds<M>) -> Self {
         value.corners()
     }
 }

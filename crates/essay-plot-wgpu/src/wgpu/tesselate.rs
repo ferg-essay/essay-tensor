@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use crate::graph::Point;
+use essay_plot_base::Point;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Triangle(Point, Point, Point);

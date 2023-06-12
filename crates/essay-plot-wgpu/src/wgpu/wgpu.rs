@@ -1,4 +1,4 @@
-use crate::{driver::{Backend, Renderer, DeviceErr}, graph::FigureInner};
+use essay_plot_base::driver::{Backend, FigureApi, DeviceErr};
 
 use super::main_loop::main_loop;
 
@@ -14,7 +14,7 @@ impl WgpuBackend {
 }
 
 impl Backend for WgpuBackend {
-    fn main_loop(&mut self, figure: FigureInner) -> Result<(), DeviceErr> {
+    fn main_loop(&mut self, figure: Box<dyn FigureApi>) -> Result<(), DeviceErr> {
         main_loop(figure);
 
         Ok(())

@@ -1,22 +1,27 @@
 use core::fmt;
 
-use crate::{graph::{Point, Data, Affine2d, Bounds, Display, Canvas}, driver::{Renderer}};
+use essay_plot_base::{
+    Style, StyleOpt, Point, Affine2d, Bounds, Canvas, Path, Angle,
+    driver::Renderer, CoordMarker
+};
 
-use super::{Path, path::Angle, ArtistTrait, Color, StyleOpt, Artist, Style};
+use crate::graph::Data;
 
-pub trait PatchTrait {
-    fn get_path(&mut self) -> &Path;
+use super::{ArtistTrait, paths};
+
+pub trait PatchTrait<M: CoordMarker> {
+    fn get_path(&mut self) -> &Path<M>;
 }
 
 pub struct DataPatch {
-    patch: Box<dyn PatchTrait>,
+    patch: Box<dyn PatchTrait<Data>>,
     bounds: Bounds<Data>,
     affine: Affine2d,
     style: Style,
 }
 
 impl DataPatch {
-    pub fn new(patch: impl PatchTrait + 'static) -> Self {
+    pub fn new(patch: impl PatchTrait<Data> + 'static) -> Self {
         let mut patch = Box::new(patch);
 
         let bounds = patch.get_path().get_bounds();
@@ -55,13 +60,13 @@ pub struct DisplayPatch {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
 
-    patch: Box<dyn PatchTrait>,
+    patch: Box<dyn PatchTrait<Canvas>>,
     to_canvas: Affine2d,
     style: Style,
 }
 
 impl DisplayPatch {
-    pub fn new(patch: impl PatchTrait + 'static) -> Self {
+    pub fn new(patch: impl PatchTrait<Canvas> + 'static) -> Self {
         Self {
             bounds: Bounds::unit(),
             pos: Bounds::none(),
@@ -105,19 +110,19 @@ impl ArtistTrait<Canvas> for DisplayPatch {
     }
 }
 
-pub struct PathPatch {
-    path: Path,
+pub struct PathPatch<M: CoordMarker> {
+    path: Path<M>,
 }
 
-impl PathPatch {
-    pub fn new(path: Path) -> Self {
+impl<M: CoordMarker> PathPatch<M> {
+    pub fn new(path: Path<M>) -> Self {
         Self {
             path
         }
     }
 }
 
-impl ArtistTrait<Canvas> for PathPatch {
+impl ArtistTrait<Canvas> for PathPatch<Canvas> {
     fn get_bounds(&mut self) -> Bounds<Canvas> {
         todo!()
     }
@@ -144,7 +149,7 @@ pub struct Line {
     p0: Point,
     p1: Point,
 
-    path: Option<Path<Data>>,
+    path: Option<Path<Canvas>>,
 }
 
 impl Line {
@@ -164,10 +169,10 @@ impl Line {
     //}
 }
 
-impl PatchTrait for Line {
-    fn get_path(&mut self) -> &Path {
+impl PatchTrait<Canvas> for Line {
+    fn get_path(&mut self) -> &Path<Canvas> {
         if self.path.is_none() {
-            let path = Path::<Data>::from([
+            let path = Path::<Canvas>::from([
                 self.p0, self.p1,
             ]);
 
@@ -181,8 +186,8 @@ impl PatchTrait for Line {
     }
 }
 
-impl ArtistTrait<Data> for Line {
-    fn get_bounds(&mut self) -> Bounds<Data> {
+impl ArtistTrait<Canvas> for Line {
+    fn get_bounds(&mut self) -> Bounds<Canvas> {
         self.get_path().get_bounds()
     }
 
@@ -234,10 +239,10 @@ impl Wedge {
     //}
 }
 
-impl PatchTrait for Wedge {
-    fn get_path(&mut self) -> &Path {
+impl PatchTrait<Data> for Wedge {
+    fn get_path(&mut self) -> &Path<Data> {
         if self.path.is_none() {
-            let wedge = Path::wedge(self.angle);
+            let wedge = paths::wedge(self.angle);
             
             //println!("Wedge {:?}", wedge.codes());
             let transform = Affine2d::eye()

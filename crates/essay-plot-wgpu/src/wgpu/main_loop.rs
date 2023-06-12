@@ -1,10 +1,9 @@
+use essay_plot_base::driver::FigureApi;
 use winit::{
     event::{Event, WindowEvent},    
     event_loop::{EventLoop, ControlFlow}, 
     window::Window,
 };
-
-use crate::graph::FigureInner;
 
 use super::{render::{FigureRenderer}};
 
@@ -76,7 +75,7 @@ fn run_event_loop(
     event_loop: EventLoop<()>, 
     window: Window, 
     args: EventLoopArgs,
-    figure: FigureInner,
+    figure: Box<dyn FigureApi>,
 ) {
     let EventLoopArgs {
         instance,
@@ -224,7 +223,7 @@ pub trait ViewRenderer {
     );
 }
 
-pub(crate) fn main_loop(figure: FigureInner) {
+pub(crate) fn main_loop(figure: Box<dyn FigureApi>) {
     let event_loop = EventLoop::new();
     let window = winit::window::Window::new(&event_loop).unwrap();
 

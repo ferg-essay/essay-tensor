@@ -1,15 +1,13 @@
 use std::f32::consts::PI;
 
-use crate::{
-    artist::{Style, 
-        patch::{PatchTrait, self, DisplayPatch, Line, PathPatch}, 
-        ArtistTrait, PathCode, Path, StyleOpt, Color, Text
-    }, 
-    driver::{Renderer}, 
-    graph::Affine2d
+use essay_plot_base::{
+    Style, PathCode, Path, StyleOpt,
+    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, 
 };
 
-use super::{Bounds, Point, databox::DataBox, tick_locator::{Locator, LinearLocator}, axis::Axis, Data, Canvas};
+use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, ArtistTrait};
+
+use super::{databox::DataBox, axis::Axis};
 
 pub struct Frame {
     pos: Bounds<Canvas>,
@@ -99,7 +97,7 @@ impl Frame {
         &mut self.data
     }
 
-    pub(crate) fn draw(&mut self, renderer: &mut impl Renderer) {
+    pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
         self.bottom.draw(renderer, &self.to_canvas, &self.pos, &self.style);
         self.left.draw(renderer, &self.to_canvas, &self.pos, &self.style);
 
@@ -170,10 +168,10 @@ impl ArtistTrait<Canvas> for TopFrame {
 
     fn draw(
         &mut self, 
-        renderer: &mut dyn crate::driver::Renderer,
-        to_canvas: &super::Affine2d,
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn crate::artist::StyleOpt,
+        style: &dyn StyleOpt,
     ) {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
@@ -285,10 +283,10 @@ impl ArtistTrait<Canvas> for BottomFrame {
 
     fn draw(
         &mut self, 
-        renderer: &mut dyn crate::driver::Renderer,
-        to_canvas: &super::Affine2d,
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn crate::artist::StyleOpt,
+        style: &dyn StyleOpt,
     ) {
         //let affine = Affine2d::eye().translate(self.pos.xmin(), self.pos.ymin());
         self.label.draw(renderer, to_canvas, clip, style);
@@ -415,8 +413,8 @@ impl ArtistTrait<Canvas> for LeftFrame {
 
     fn draw(
         &mut self, 
-        renderer: &mut dyn crate::driver::Renderer,
-        to_canvas: &super::Affine2d,
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
@@ -478,10 +476,10 @@ impl ArtistTrait<Canvas> for RightFrame {
 
     fn draw(
         &mut self, 
-        renderer: &mut dyn crate::driver::Renderer,
-        to_canvas: &super::Affine2d,
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn crate::artist::StyleOpt,
+        style: &dyn StyleOpt,
     ) {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);

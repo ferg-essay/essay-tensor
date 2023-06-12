@@ -1,8 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{artist::{Path, StyleOpt, TextStyle}, graph::{Affine2d, Bounds, Point, Data, Canvas}};
-
-use super::{GraphicsContext};
+use crate::{Path, StyleOpt, TextStyle, Affine2d, Bounds, Point, Canvas};
 
 pub trait Renderer {
     ///
@@ -14,10 +12,6 @@ pub trait Renderer {
 
     fn to_px(&self, size: f32) -> f32 {
         size
-    }
-
-    fn new_gc(&mut self) -> GraphicsContext {
-        GraphicsContext::default()
     }
 
     fn draw_path(

@@ -1,13 +1,8 @@
+use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, CoordMarker};
 use essay_tensor::Tensor;
 use wgpu_glyph::{ab_glyph::{self}, GlyphBrushBuilder, GlyphBrush};
 
-use crate::{
-    driver::{Renderer, GraphicsContext, renderer::RenderErr, wgpu::tesselate}, 
-    graph::{Bounds, Point, Affine2d, Data, CoordMarker, Canvas}, 
-    artist::{Path, PathCode, StyleOpt, Color, TextStyle}, graph::FigureInner
-};
-
-use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender};
+use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate};
 
 pub struct FigureRenderer {
     canvas: Canvas,
@@ -194,7 +189,7 @@ impl<'a> FigureRenderer {
             prev = last;
         }
 
-        let triangles = tesselate::tesselate(points);
+        let triangles = tesselate(points);
 
         self.shape2d_render.start_shape();
 
@@ -278,9 +273,11 @@ impl Renderer for FigureRenderer {
         self.canvas.to_px(size)
     }
 
+    /*
     fn new_gc(&mut self) -> GraphicsContext {
         GraphicsContext::default()
     }
+    */
 
     fn draw_path(
         &mut self, 
@@ -521,7 +518,7 @@ fn create_pipeline(
 impl FigureRenderer {
     pub(crate) fn draw(
         &mut self,
-        figure: &mut FigureInner,
+        figure: &mut Box<dyn FigureApi>,
         bounds: (u32, u32),
         scale_factor: f32,
         device: &wgpu::Device,

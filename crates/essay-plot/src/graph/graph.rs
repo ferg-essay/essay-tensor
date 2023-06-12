@@ -2,14 +2,18 @@ use core::fmt;
 
 use essay_tensor::Tensor;
 
-use crate::{
+use essay_plot_base::{
     driver::{Renderer}, 
-    plot::PlotOpt, 
-    artist::{Lines2d, ArtistTrait, Collection, Artist, patch, Angle, Container, Bezier3, Bezier2, ColorCycle, Style, Color, Text, Path}, 
-    graph::{Layout, GraphId, Point},
+    Point, Bounds, Canvas, Affine2d, Style, Angle, Path,
 };
 
-use super::{Bounds, Data, Affine2d, frame::{Frame}, Canvas, Unit, axis::Axis};
+use crate::{artist::{
+    Lines2d, ArtistTrait, Collection, Artist, patch, Container, Bezier3, Bezier2, ColorCycle, Text, paths, 
+}, prelude::PlotOpt};
+
+use crate::graph::{Layout, GraphId};
+
+use super::{Data, frame::{Frame}};
 
 pub struct Graph {
     id: GraphId,
@@ -176,14 +180,14 @@ impl Graph {
         let x : Tensor = x.into();
         let y = y.into();
         let xy = x.stack(&[y], -1); // Axis::axis(-1));
-        let path: Path<Canvas> = Path::<Unit>::unit().transform(&Affine2d::eye().scale(10., 10.));
+        let path: Path<Canvas> = paths::unit().transform(&Affine2d::eye().scale(10., 10.));
 
         let collection = Collection::new(path, &xy);
 
         self.frame.data_mut().artist(collection)
     }
 
-    pub(crate) fn draw(&mut self, renderer: &mut impl Renderer) {
+    pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
         self.title.draw(renderer, &self.to_canvas, &self.pos, &self.style);
 
         self.frame.draw(renderer);

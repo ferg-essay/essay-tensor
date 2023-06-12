@@ -1,13 +1,16 @@
 use std::ops;
 
+use essay_plot_wgpu::WgpuBackend;
 use essay_tensor::Tensor;
 
-use crate::{
-    driver::{Renderer, Backend, wgpu::WgpuBackend}, plot::{PlotOpt}, 
-    graph::{Graph, CoordMarker, Bounds, Point}
+use essay_plot_base::{
+    driver::{Renderer, Backend, FigureApi},
+    CoordMarker, Bounds, Point,
 };
 
-use super::layout::Layout;
+use crate::prelude::PlotOpt;
+
+use super::{layout::Layout, Graph};
 
 pub struct Figure {
     // inner: Arc<Mutex<FigureInner>>,
@@ -56,7 +59,7 @@ impl Figure {
         let inner = self.inner;
         let mut device = self.device;
 
-        device.main_loop(inner).unwrap();
+        device.main_loop(Box::new(inner)).unwrap();
 
         todo!();
     }
@@ -139,8 +142,10 @@ impl FigureInner {
     fn graph_mut(&mut self, id: GraphId) -> &mut Graph {
         &mut self.graphs[id.index()]
     }
+}
 
-    pub fn draw(&mut self, renderer: &mut impl Renderer) {
+impl FigureApi for FigureInner {
+    fn draw(&mut self, renderer: &mut dyn Renderer) {
         let canvas = renderer.get_canvas_bounds();
 
         for item in self.layout.layout(&canvas) {

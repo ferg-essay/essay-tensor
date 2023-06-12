@@ -1,6 +1,4 @@
-use crate::graph::{CoordMarker, Point};
-
-use super::{Bounds, Canvas};
+use essay_plot_base::{Bounds, Canvas, Point, CoordMarker};
 
 pub struct Layout {
     boxes: Vec<Box>,

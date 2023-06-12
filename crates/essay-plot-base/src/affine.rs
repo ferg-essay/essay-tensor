@@ -2,6 +2,8 @@ use core::fmt;
 
 use essay_tensor::{prelude::*, tensor::TensorUninit};
 
+use crate::Point;
+
 pub struct Affine2d {
     mat: Tensor,
 }
@@ -167,88 +169,5 @@ fn compose(x: &Tensor, y: &Tensor) -> Tensor {
         o[8] = 1.;
 
         Tensor::from_uninit(out, [3, 3])
-    }
-}
-
-pub trait CoordMarker {}
-
-///
-/// Data coordinates
-///
-#[derive(Clone, Copy, Debug)]
-pub struct Data {}
-
-impl CoordMarker for Data {
-}
-
-///
-/// Display coordinates are in pixels for screens, or points for text rendering.
-///
-#[derive(Clone, Copy, Debug)]
-pub struct Display {}
-
-impl CoordMarker for Display {
-}
-
-///
-/// Unit coordinates are [0, 1] space, used for markers and similar templates.
-/// 
-#[derive(Clone, Copy, Debug)]
-pub struct Unit {}
-
-impl CoordMarker for Unit {
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Point(pub f32, pub f32);
-
-impl Point {
-    #[inline]
-    pub fn x(&self) -> f32 {
-        self.0
-    }
-
-    #[inline]
-    pub fn y(&self) -> f32 {
-        self.1
-    }
-
-    #[inline]
-    pub fn is_below(&self, p0: &Point, p1: &Point) -> bool {
-        let Point(x, y) = self;
-        let Point(x0, y0) = p0;
-        let Point(x1, y1) = p1;
-
-        if x0 == x1 {
-            false
-        } else if x0 <= x && x < x1 || x1 < x && x <= x0 {
-            let y_line = (y0 * (x1 - x) + y1 * (x - x0)) / (x1 - x0);
-
-            *y < y_line
-        } else {
-            false
-        }
-    }
-
-    #[inline]
-    pub fn norm(&self, p: &Point) -> f32 {
-        let dx = self.0 - p.0;
-        let dy = self.1 - p.1;
-
-        (dx * dx + dy * dy).sqrt()
-    }
-}
-
-impl From<[f32; 2]> for Point {
-    #[inline]
-    fn from(value: [f32; 2]) -> Self {
-        Point(value[0], value[1])
-    }
-}
-
-impl From<&[f32; 2]> for Point {
-    #[inline]
-    fn from(value: &[f32; 2]) -> Self {
-        Point(value[0], value[1])
     }
 }

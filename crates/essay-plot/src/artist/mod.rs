@@ -1,14 +1,12 @@
 mod color;
-mod text;
 mod style;
+pub mod paths;
+mod text;
 mod container;
-mod color_data;
-mod markers;
 pub mod patch;
 mod artist;
 mod collection;
 mod lines;
-mod path;
 
 pub use artist::{
     Artist, ArtistTrait
@@ -23,7 +21,7 @@ pub use container::{
 };
 
 pub use color::{
-    Color, ColorCycle,
+    ColorCycle,
 };
 
 pub use lines::{
@@ -31,18 +29,18 @@ pub use lines::{
     Bezier2, Bezier3,
 };
 
-pub use path::{
-    Path, Angle, PathCode,
-};
+//pub use path::{
+//    Path, Angle, PathCode,
+//};
 
 pub use patch::{
     PatchTrait,
 };
 
-pub use style::{
-    StyleOpt, Style, JoinStyle,
-};
+//pub use style::{
+//    StyleOpt, Style, JoinStyle,
+//};
 
 pub use text::{
-    Text, TextStyle,
+    Text, // TextStyle,
 };

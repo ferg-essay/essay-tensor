@@ -1,6 +1,5 @@
+use essay_plot_base::{Point, Color, Affine2d};
 use wgpu::util::DeviceExt;
-
-use crate::{graph::{Affine2d, Point}, artist::Color};
 
 pub struct Shape2dRender {
     vertex_stride: usize,

@@ -1,6 +1,12 @@
-use crate::{graph::{Bounds, Point, Canvas}};
+use essay_plot_base::{
+    Affine2d, 
+    Bounds, Point, Canvas,
+    Style, StyleOpt,
+    driver::Renderer, 
+    style::Chain, TextStyle,
+};
 
-use super::{Style, ArtistTrait, style::Chain};
+use super::{ArtistTrait};
 
 pub struct Text {
     pos: Bounds<Canvas>,
@@ -82,10 +88,10 @@ impl ArtistTrait<Canvas> for Text {
 
     fn draw(
         &mut self, 
-        renderer: &mut dyn crate::driver::Renderer,
-        to_canvas: &crate::graph::Affine2d,
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn super::StyleOpt,
+        style: &dyn StyleOpt,
     ) {
         if let Some(text) = &self.text {
             let style = Chain::new(style, &self.style);
@@ -101,28 +107,5 @@ impl ArtistTrait<Canvas> for Text {
                 ).unwrap();
             }
         }
-    }
-}
-
-pub struct TextStyle {
-    size: Option<f32>,
-}
-
-impl TextStyle {
-    pub fn new() -> Self {
-        Self {
-            size: None,
-        }
-    }
-
-    #[inline]
-    pub fn get_size(&self) -> &Option<f32> {
-        &self.size
-    }
-
-    pub fn size(&mut self, size: f32) -> &mut Self {
-        self.size = Some(size);
-
-        self
     }
 }

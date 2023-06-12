@@ -2,12 +2,14 @@ use core::fmt;
 
 use essay_tensor::{Tensor, tensor::Axis};
 
-use crate::{
-    graph::{Affine2d, Bounds, Data, Point, Canvas}, 
-    driver::{Renderer}
+use essay_plot_base::{
+    Affine2d, Bounds, Point, Canvas, Path, PathCode, StyleOpt, Style,
+    driver::Renderer
 };
 
-use super::{ArtistTrait, Path, PathCode, StyleOpt, Style};
+use crate::graph::Data;
+
+use super::{ArtistTrait};
 
 pub struct Lines2d {
     lines: Tensor, // 2d tensor representing a graph

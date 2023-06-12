@@ -2,10 +2,11 @@ use core::fmt;
 use std::{f32::consts::{PI}};
 
 use essay_tensor::{Tensor, tensor::{Axis, TensorVec}};
+use essay_plot_base::{Affine2d, Bounds, Path, PathCode, StyleOpt, Point, Canvas, Style, driver::{Renderer}};
 
-use crate::{graph::{Affine2d, Bounds, Data, Point, Canvas}, driver::{Renderer}, artist::Style};
+use crate::graph::Data;
 
-use super::{ArtistTrait, Path, PathCode, StyleOpt};
+use super::{ArtistTrait};
 
 pub struct Collection {
     path: Path<Canvas>,
@@ -92,10 +93,10 @@ impl ArtistTrait<Data> for Collection {
         clip: &Bounds<Canvas>,
         style: &dyn StyleOpt,
     ) {
-        let mut gc = renderer.new_gc();
+        //let mut gc = renderer.new_gc();
 
-        gc.color(0x7f3f00ff);
-        gc.linewidth(10.);
+        //gc.color(0x7f3f00ff);
+        //gc.linewidth(10.);
 
         let xy = to_canvas.transform(&self.offsets);
 
