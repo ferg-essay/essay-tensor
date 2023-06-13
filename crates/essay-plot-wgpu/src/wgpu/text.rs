@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use essay_plot_base::{Point, Color, Affine2d};
+use essay_plot_base::{Point, Color, Affine2d, WidthAlign, HeightAlign};
 use wgpu::util::DeviceExt;
 use wgpu_glyph::ab_glyph::{self, Font, PxScale};
 
@@ -116,12 +116,17 @@ impl TextRender {
         bounds: Point,
         color: Color,
         angle: f32,
+        halign: WidthAlign,
+        valign: HeightAlign,
     ) {
         let font = self.text_cache.font(font_name, size as u16);
         let x0 = pos.x();
         let y0 = pos.y();
 
         let start = self.vertex_offset;
+
+        let w_inside = size * 0.15;
+        let w_space = size * 0.3;
 
         let mut x = x0;
         let y = y0.round();
@@ -131,26 +136,43 @@ impl TextRender {
             x = x.round();
 
             if r.is_none() {
-                x += size * 0.4;
+                x += w_space;
                 continue;
             }
 
+            let y_ch = y - r.py_max() as f32;
+            //let x_ch = x + r.px_min() as f32;
+            let x_ch = x;
+
             let w = r.px_w() as f32;
             let h = r.px_h() as f32;
-            self.vertex(x, y, r.tx_min(), r.ty_min());
-            self.vertex(x + w, y, r.tx_max(), r.ty_min());
-            self.vertex(x + w, y + h, r.tx_max(), r.ty_max());
+            self.vertex(x_ch, y_ch, r.tx_min(), r.ty_min());
+            self.vertex(x_ch + w, y_ch, r.tx_max(), r.ty_min());
+            self.vertex(x_ch + w, y_ch + h, r.tx_max(), r.ty_max());
 
-            self.vertex(x + w, y + h, r.tx_max(), r.ty_max());
-            self.vertex(x, y + h, r.tx_min(), r.ty_max());
-            self.vertex(x, y, r.tx_min(), r.ty_min());
+            self.vertex(x_ch + w, y_ch + h, r.tx_max(), r.ty_max());
+            self.vertex(x_ch, y_ch + h, r.tx_min(), r.ty_max());
+            self.vertex(x_ch, y_ch, r.tx_min(), r.ty_min());
 
-            x += w + size * 0.1;
+            x += w + w_inside;
         }
+
+        let dx = match halign {
+            WidthAlign::Left => 0.,
+            WidthAlign::Center => - 0.5 * (x - x0),
+            WidthAlign::Right => - (x - x0),
+        };
+
+        let dy = match valign {
+            HeightAlign::Top => - size,
+            HeightAlign::Center => - 0.5 * size,
+            HeightAlign::Bottom => 0.,
+        };
 
         let end = self.vertex_offset;
         let affine = Affine2d::eye()
             .rotate_around(0.5 * (x0 + x), y0, angle)
+            .translate(dx, dy)
             .scale(2. / bounds.x(), 2. / bounds.y())
             .translate(-1., -1.);
 

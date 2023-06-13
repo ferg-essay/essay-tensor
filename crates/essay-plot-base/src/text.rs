@@ -1,17 +1,19 @@
 
-
+#[derive(Clone, Copy, Debug)]
 pub struct TextStyle {
     size: Option<f32>,
     height_align: Option<HeightAlign>,
     width_align: Option<WidthAlign>,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum HeightAlign {
     Bottom,
     Center,
     Top,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum WidthAlign {
     Left,
     Center,

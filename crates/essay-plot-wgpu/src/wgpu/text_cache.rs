@@ -82,9 +82,9 @@ impl TextCache {
         }
     }
 
-    fn add_glyph(&mut self, font: &ab_glyph::FontArc, size: u16, glyph: char) -> TextRect {
+    fn add_glyph(&mut self, font: &ab_glyph::FontArc, size: u16, ch: char) -> TextRect {
         let scale = font.pt_to_px_scale(size as f32).unwrap();
-        let glyph = font.glyph_id(glyph).with_scale(scale);
+        let glyph = font.glyph_id(ch).with_scale(scale);
 
         let data = self.data.as_mut_slice();
         let w = self.width as u32;
@@ -94,6 +94,8 @@ impl TextCache {
         let rect = match font.outline_glyph(glyph) {
             Some(og) => {
                 let bounds = og.px_bounds();
+
+                println!("Ch {},{} @{},{}, desc {} bounds {:?}", ch, size, self.x, self.y, og.glyph().position.y, bounds);
             
                 let dx = bounds.max.x - bounds.min.x;
                 let dy = bounds.max.y - bounds.min.y;
@@ -111,6 +113,7 @@ impl TextCache {
                     bounds.min.y as i16,
                     bounds.max.x as i16,
                     bounds.max.y as i16,
+                    og.glyph().position.y as i16,
                     xc as f32 / self.width as f32,
                     yc as f32 / self.height as f32,
                     (xc as f32 + dx) / self.width as f32,
@@ -129,6 +132,8 @@ impl TextCache {
                 TextRect::none()
             }
         };
+
+        self.is_modified = true;
 
         rect
     }
@@ -194,6 +199,8 @@ pub struct TextRect {
     px_max: i16,
     py_max: i16,
 
+    desc: i16,
+
     tx_min: f32,
     ty_min: f32,
     tx_max: f32,
@@ -207,6 +214,8 @@ impl TextRect {
         px_max: i16,
         py_max: i16,
 
+        desc: i16,
+
         tx_min: f32,
         ty_min: f32,
         tx_max: f32,
@@ -217,6 +226,8 @@ impl TextRect {
             py_min,
             px_max,
             py_max,
+
+            desc,
     
             tx_min,
             ty_min,
@@ -231,6 +242,8 @@ impl TextRect {
             py_min: 0,
             px_max: 0,
             py_max: 0,
+
+            desc: 0,
     
             tx_min: 0.,
             ty_min: 0.,
@@ -272,6 +285,11 @@ impl TextRect {
     #[inline]
     pub(crate) fn px_h(&self) -> u16 {
         (self.py_max - self.py_min) as u16
+    }
+
+    #[inline]
+    pub(crate) fn desc(&self) -> u16 {
+        self.desc as u16
     }
 
     #[inline]

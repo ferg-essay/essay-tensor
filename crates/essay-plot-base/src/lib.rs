@@ -48,7 +48,7 @@ pub use style::{
 };
 
 pub use text::{
-    TextStyle,
+    TextStyle, HeightAlign, WidthAlign,
 };
 
 

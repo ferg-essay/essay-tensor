@@ -20,15 +20,17 @@ fn main() {
     println!("z: {:?}", z);
     //let y = x.sin();
 
+    let x = linspace(0., 100., 20);
+    let y = x.clone();
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
     let axes = figure.new_graph([2., 1.]);
-    axes.pcolor();
+    //axes.pcolor();
     axes.title("My Title").style().color(0x008033);
-    axes.xlabel("X-Label").style().color(0x0030ff);
+    axes.xlabel("My X-Label").style().color(0x0030ff);
     axes.ylabel("Y-Label").style().color("r");
     //axes.scatter(&x, &y, ()).color(0x003fc0);
-    // axes.plot(&x, &y, ()).color(0x003fc0);
+    axes.plot(&x, &y, ());
     
     // axes.scatter(&x, &y, ());
     // let x = tf32!([40., 30., 20., 5., 5.]);

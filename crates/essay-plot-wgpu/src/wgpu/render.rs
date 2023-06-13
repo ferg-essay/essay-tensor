@@ -1,4 +1,4 @@
-use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, CoordMarker};
+use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, CoordMarker, WidthAlign, HeightAlign};
 use essay_tensor::Tensor;
 
 use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate, triangle2d::GridMesh2dRender};
@@ -380,6 +380,16 @@ impl Renderer for FigureRenderer {
 
         let size = self.to_px(size);
 
+        let halign = match text_style.get_width_align() {
+            Some(align) => align.clone(),
+            None => WidthAlign::Center,
+        };
+
+        let valign = match text_style.get_height_align() {
+            Some(align) => align.clone(),
+            None => HeightAlign::Bottom,
+        };
+
         self.text_render.draw(
             text,
             "sans-serif", 
@@ -388,6 +398,8 @@ impl Renderer for FigureRenderer {
             Point(self.canvas.width(), self.canvas.height()),
             color,
             angle,
+            halign,
+            valign,
         );
  
         /*

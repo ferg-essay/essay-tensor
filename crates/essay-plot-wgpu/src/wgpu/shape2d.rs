@@ -117,6 +117,7 @@ impl Shape2dRender {
         let nx = dy * lw_x;
         let ny = - dx * lw_y;
 
+        // TODO: incorrect extend
         let dx2 = dx * lw_x; // for extend
         let dy2 = dy * lw_y;
 
@@ -125,7 +126,7 @@ impl Shape2dRender {
         self.vertex(x1 + nx + dx2, y1 + ny + dy2);
 
         self.vertex(x1 + nx + dx2, y1 + ny + dy2);
-        self.vertex(x1 - nx - dx2, y1 - ny + dy2);
+        self.vertex(x1 - nx + dx2, y1 - ny + dy2);
         self.vertex(x0 - nx - dx2, y0 - ny - dy2);
     }
 
