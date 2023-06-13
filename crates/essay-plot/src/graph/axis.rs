@@ -15,10 +15,10 @@ impl Axis {
     //}
 
     pub fn x_ticks(&self, data: &DataBox) -> Vec<(f32, f32)> {
-        let v_width = data.get_view_bounds().width();
         let c_width = data.get_pos().width();
 
         let view = data.get_view_bounds();
+        let v_width = view.width();
 
         let (min, max) = (view.xmin(), view.xmax());
         let (min, max) = self.locator.view_limits(min, max);

@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use essay_plot_base::{
     Style, PathCode, Path, StyleOpt,
-    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, 
+    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, 
 };
 
 use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, ArtistTrait};
@@ -95,6 +95,17 @@ impl Frame {
 
     pub(crate) fn data_mut(&mut self) -> &mut DataBox {
         &mut self.data
+    }
+
+    pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
+        if self.data.get_pos().contains(event.point()) {
+            if self.data.event(renderer, event) {
+                self.left.calculate_axis(&self.data);
+                self.bottom.calculate_axis(&self.data);
+
+                renderer.request_redraw(&self.pos);
+            };
+        }
     }
 
     pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
@@ -244,18 +255,12 @@ impl BottomFrame {
         if let Some(axis) = &mut self.axis {
             let pos = &self.pos;
             let data_pos = data.get_pos();
+
             self.ticks = Vec::new();
             self.grid_major = Vec::new();
 
-            for (xv, x) in axis.x_ticks(data) {
+            for (_xv, x) in axis.x_ticks(data) {
                 if pos.xmin() < x && x < pos.xmax() {
-                    let tick = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(x, pos.ymax() - 10.)),
-                        PathCode::LineTo(Point(x, pos.ymax())),
-                    ]));
-
-                    self.ticks.push(Box::new(tick));
-
                     // grid
                     let grid = PathPatch::new(Path::new(vec![
                         PathCode::MoveTo(Point(x, data_pos.ymin())),
@@ -263,6 +268,13 @@ impl BottomFrame {
                     ]));
 
                     self.grid_major.push(Box::new(grid));
+
+                    let tick = PathPatch::new(Path::new(vec![
+                        PathCode::MoveTo(Point(x, pos.ymax() - 10.)),
+                        PathCode::LineTo(Point(x, pos.ymax())),
+                    ]));
+
+                    self.ticks.push(Box::new(tick));
                 }
             };
         }
@@ -375,18 +387,12 @@ impl LeftFrame {
         if let Some(axis) = &mut self.axis {
             let pos = &self.pos;
             let data_pos = data.get_pos();
+
             self.ticks = Vec::new();
             self.grid_major = Vec::new();
 
-            for (yv, y) in axis.y_ticks(data) {
+            for (_yv, y) in axis.y_ticks(data) {
                 if pos.ymin() < y && y < pos.ymax() {
-                    let tick = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(pos.xmax() - 10., y)),
-                        PathCode::LineTo(Point(pos.xmax(), y)),
-                    ]));
-
-                    self.ticks.push(Box::new(tick));
-
                     // grid
                     let grid = PathPatch::new(Path::new(vec![
                         PathCode::MoveTo(Point(data_pos.xmin(), y)),
@@ -394,6 +400,13 @@ impl LeftFrame {
                     ]));
 
                     self.grid_major.push(Box::new(grid));
+
+                    let tick = PathPatch::new(Path::new(vec![
+                        PathCode::MoveTo(Point(pos.xmax() - 10., y)),
+                        PathCode::LineTo(Point(pos.xmax(), y)),
+                    ]));
+
+                    self.ticks.push(Box::new(tick));
                 }
             };
         }

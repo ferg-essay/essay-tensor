@@ -46,6 +46,11 @@ pub trait Renderer {
         colors: Tensor<u32>,    // N in rgba
         triangles: Tensor<u32>, // Mx3 vertex indices
     ) -> Result<(), RenderErr>;
+
+    fn request_redraw(
+        &mut self,
+        bounds: &Bounds<Canvas>
+    );
 }
 
 #[derive(Debug)]

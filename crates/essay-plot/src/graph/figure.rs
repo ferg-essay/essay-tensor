@@ -5,7 +5,7 @@ use essay_tensor::Tensor;
 
 use essay_plot_base::{
     driver::{Renderer, Backend, FigureApi},
-    CoordMarker, Bounds, Point,
+    CoordMarker, Bounds, Point, CanvasEvent, Canvas,
 };
 
 use crate::prelude::PlotOpt;
@@ -145,7 +145,7 @@ impl FigureInner {
 }
 
 impl FigureApi for FigureInner {
-    fn draw(&mut self, renderer: &mut dyn Renderer) {
+    fn draw(&mut self, renderer: &mut dyn Renderer, _bounds: &Bounds<Canvas>) {
         let canvas = renderer.get_canvas_bounds();
 
         for item in self.layout.layout(&canvas) {
@@ -154,6 +154,14 @@ impl FigureApi for FigureInner {
             graph.set_pos(item.pos_canvas());
 
             graph.draw(renderer);
+        }
+    }
+
+    fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
+        for graph in &mut self.graphs {
+            if graph.pos().contains(event.point()) {
+                graph.event(renderer, event);
+            }
         }
     }
 }

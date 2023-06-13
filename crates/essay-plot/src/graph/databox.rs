@@ -2,7 +2,7 @@ use core::fmt;
 
 use essay_plot_base::{
     driver::{Renderer}, Style, StyleOpt,
-    Bounds, Affine2d, Point, Canvas, CoordMarker,
+    Bounds, Affine2d, Point, Canvas, CoordMarker, CanvasEvent,
 };
 
 use crate::artist::{Artist, ArtistTrait};
@@ -92,12 +92,79 @@ impl DataBox {
         }
     }
 
+    fn reset_view(&mut self) {
+        let x_margin = 0.1;
+        let y_margin = 0.1;
+
+        let data = &self.data_bounds;
+
+        let (height, width) = (data.height(), data.width());
+
+        let (mut xmin, mut xmax) = (data.xmin(), data.xmax());
+        xmin -= x_margin * width;
+        xmax += x_margin * width;
+
+        let (mut ymin, mut ymax) = (data.ymin(), data.ymax());
+        ymin -= y_margin * height;
+        ymax += y_margin * height;
+
+        let bounds = Bounds::new(Point(xmin, ymin), Point(xmax, ymax));
+
+        self.view_bounds = bounds;
+    }
+
     pub(crate) fn get_pos(&self) -> &Bounds<Canvas> {
         &self.pos_canvas
     }
 
     pub(crate) fn get_view_bounds(&self) -> &Bounds<Data> {
         &self.view_bounds
+    }
+
+    // true if request redraw
+    pub fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) -> bool {
+        match event {
+            CanvasEvent::MouseLeftDoubleClick(_) => {
+                self.reset_view();
+                true
+            }
+            CanvasEvent::MouseLeftDrag(_p_start, p_last, p_now) => {
+                let to_data = self.pos_canvas.affine_to(&self.view_bounds);
+                let p0 = to_data.transform_point(*p_last);
+                let p1 = to_data.transform_point(*p_now);
+
+                let dx = p0.x() - p1.x();
+                let dy = p0.y() - p1.y();
+
+                let view = &self.view_bounds;
+                self.view_bounds = Bounds::new(
+                    Point(
+                        view.x0() + dx,
+                        view.y0() + dy,
+                    ),
+                    Point(
+                        view.x1() + dx,
+                        view.y1() + dy,
+                    )
+                );
+
+                true
+            },
+            CanvasEvent::MouseRightDrop(p_start, p_now) => {
+                if self.pos_canvas.contains(*p_now) {
+                    let to_data = self.pos_canvas.affine_to(&self.view_bounds);
+                    let p0 = to_data.transform_point(*p_start);
+                    let p1 = to_data.transform_point(*p_now);
+
+                    // let view = &self.view_bounds;
+                    // TODO: check min size?
+                    self.view_bounds = Bounds::new(p0, p1);
+                }
+
+                true
+            },
+            _ => { false }
+        }
     }
 }
 

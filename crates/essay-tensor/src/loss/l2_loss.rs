@@ -21,6 +21,11 @@ impl Tensor {
 
 impl ReduceKernel<f32> for L2Loss {
     #[inline]
+    fn init(&self) -> f32 {
+        0.
+    }
+    
+    #[inline]
     fn f(&self, acc: f32, x: f32) -> f32 {
         acc + 0.5 * x * x
     }

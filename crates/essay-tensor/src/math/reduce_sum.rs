@@ -23,6 +23,11 @@ impl Tensor {
 
 impl ReduceKernel<f32> for ReduceSum {
     #[inline]
+    fn init(&self) -> f32 {
+        0.
+    }
+    
+    #[inline]
     fn f(&self, acc: f32, a: f32) -> f32 {
         acc + a
     }

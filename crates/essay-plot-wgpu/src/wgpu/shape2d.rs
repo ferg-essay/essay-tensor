@@ -79,6 +79,12 @@ impl Shape2dRender {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.shape_items.drain(..);
+        self.vertex_offset = 0;
+        self.style_offset = 0;
+    }
+
     pub fn start_shape(&mut self) {
         let start = self.vertex_offset;
 

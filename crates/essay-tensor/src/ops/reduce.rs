@@ -8,6 +8,8 @@ use crate::{
 };
 
 pub trait ReduceKernel<S: State, D: Dtype=f32> : Clone + Copy + Send + Sync + 'static {
+    fn init(&self) -> S;
+
     fn f(&self, state: S, a: D) -> S;
 
     fn df_dx(&self, a: D) -> D;
@@ -117,7 +119,7 @@ where
                 for i in 0..inner {
                     let a_ptr = a_ptr.add(n * a_len * inner + i);
 
-                    let mut state = S::default();
+                    let mut state = op.init();
 
                     for k in 0..a_len {
                         state = op.f(state, *a_ptr.add(k * inner));

@@ -11,6 +11,7 @@ mod min;
 mod max;
 mod log;
 mod reduce_mean;
+mod reduce_min;
 mod reduce_sum;
 mod reduce_std;
 mod reduce_variance;
@@ -46,6 +47,7 @@ tensor_binop!(powi, powi::Powi);
 
 pub use reduce_sum::{reduce_sum, reduce_sum_opt};
 pub use reduce_mean::{reduce_mean};
+pub use reduce_min::{reduce_min};
 pub use reduce_variance::{reduce_variance};
 pub use reduce_std::{reduce_std};
 

@@ -134,6 +134,25 @@ impl<M: CoordMarker> Bounds<M> {
         self.ymax() - self.ymin()
     }
 
+    #[inline]
+    pub fn contains(&self, point: Point) -> bool {
+        self.contains_x(point.x()) && self.contains_y(point.y())
+    }
+
+    #[inline]
+    pub fn contains_x(&self, x: f32) -> bool {
+        self.x0() <= x && x <= self.x1()
+            || self.x1() <= x && x <= self.x0()
+
+    }
+
+    #[inline]
+    pub fn contains_y(&self, y: f32) -> bool {
+        self.y0() <= y && y <= self.y1()
+            || self.y1() <= y && y <= self.y0()
+
+    }
+
     pub fn corners(&self) -> Tensor {
         tf32!([
             [self.p0.x(), self.p0.y()],

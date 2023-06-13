@@ -58,7 +58,7 @@ impl LinearLocator {
 impl Locator for LinearLocator {
     fn tick_values(&self, min: f32, max: f32) -> Tensor<f32> {
         let range = linspace(min, max, self.n_ticks);
-
+        
         assert!(range.len() < Self::MAXTICKS);
 
         range
@@ -72,7 +72,7 @@ impl Locator for LinearLocator {
         } else {
             (max, min)
         };
-
+        /*
         let v_log10 = (max - min).log10();
         let n_log10 = ((self.n_ticks - 1).max(1) as f32).log10();
         let mut exp = v_log10 / n_log10;
@@ -84,5 +84,7 @@ impl Locator for LinearLocator {
         let scale = ((self.n_ticks - 1).max(1) as f32).powf(- exp);
 
         ((scale * min).floor() / scale, (scale * max).ceil() / scale)
+        */
+        (min, max)
     }
 }

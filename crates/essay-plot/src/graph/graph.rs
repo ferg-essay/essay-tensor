@@ -4,7 +4,7 @@ use essay_tensor::Tensor;
 
 use essay_plot_base::{
     driver::{Renderer}, 
-    Point, Bounds, Canvas, Affine2d, Style, Angle, Path,
+    Point, Bounds, Canvas, Affine2d, Style, Angle, Path, CanvasEvent,
 };
 
 use crate::{artist::{
@@ -54,6 +54,10 @@ impl Graph {
         self.id
     }
 
+    pub fn pos(&self) -> &Bounds<Canvas> {
+        &self.pos
+    }
+
     pub fn title(&mut self, text: &str) -> &mut Text {
         self.title.text(text);
 
@@ -94,6 +98,14 @@ impl Graph {
 
         self.frame.set_pos(&frame_pos);
     }
+
+    pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
+        self.frame.event(renderer, event);
+    }
+
+    //
+    // TODO: move plots out of graph
+    //
 
     pub fn pie(
         &mut self, 

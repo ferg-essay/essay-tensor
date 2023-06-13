@@ -102,6 +102,11 @@ impl TextRender {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.vertex_offset = 0;
+        self.style_offset = 0;
+    }
+
     pub fn draw(
         &mut self, 
         text: &str, 

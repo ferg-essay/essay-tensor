@@ -14,6 +14,10 @@ pub use graph::{
     Graph,
 };
 
+pub use tick_locator::{
+    IndexLocator,
+};
+
 pub use databox::{
     Data,
 };

@@ -1,9 +1,8 @@
 //
-// 2d grid/mesh where each triangle/grid box is expected to have its own
-// color not shared with neighboring colors.
+// 2d triangles for grids and meshes.
 //
-// So, a vertex might have different colors depending on which triangle
-// it belongs to.
+// Grids with isolated (solid) colors don't share vertices in the triangles.
+// Grids with bleeding colors do share vertices in the triangles.
 //
 
 struct VertexInput {

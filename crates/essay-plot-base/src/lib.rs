@@ -4,6 +4,7 @@ mod affine;
 mod bounds;
 mod canvas;
 mod color;
+mod event;
 mod color_data;
 pub mod driver;
 mod path;
@@ -28,6 +29,10 @@ pub use color::{
 
 pub use coord::{
     CoordMarker,
+};
+
+pub use event::{
+    CanvasEvent,
 };
 
 pub use path::{

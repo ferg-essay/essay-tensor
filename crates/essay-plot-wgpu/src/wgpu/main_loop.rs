@@ -1,8 +1,10 @@
-use essay_plot_base::driver::FigureApi;
+use std::time::Instant;
+
+use essay_plot_base::{driver::FigureApi, Point, CanvasEvent};
 use winit::{
-    event::{Event, WindowEvent},    
+    event::{Event, WindowEvent, ElementState, MouseButton },    
     event_loop::{EventLoop, ControlFlow}, 
-    window::Window,
+    window::Window, dpi::{Position, PhysicalPosition, self},
 };
 
 use super::{render::{FigureRenderer}};
@@ -71,6 +73,44 @@ struct EventLoopArgs {
     surface: wgpu::Surface,
 }
 
+struct MouseState {
+    left: ElementState,
+    left_press_start: Point,
+    left_press_last: Point,
+    left_press_time: Instant,
+
+    right: ElementState,
+    right_press_start: Point,
+    right_press_time: Instant,
+}
+
+impl MouseState {
+    fn new() -> Self {
+        Self {
+            left: ElementState::Released,
+            left_press_start: Point(0., 0.),
+            left_press_last: Point(0., 0.),
+            left_press_time: Instant::now(),
+
+            right: ElementState::Released,
+            right_press_start: Point(0., 0.),
+            right_press_time: Instant::now(),
+        }
+    }
+}
+
+struct CursorState {
+    position: Point,
+}
+
+impl CursorState {
+    fn new() -> Self {
+        Self {
+            position: Point(0., 0.),
+        }
+    }
+}
+
 fn run_event_loop(
     event_loop: EventLoop<()>, 
     window: Window, 
@@ -95,6 +135,15 @@ fn run_event_loop(
         config.format,
     );
 
+    let pan_min = 20.;
+    let zoom_min = 20.;
+
+    // TODO: is double clicking no longer recommended?
+    let dbl_click = 500; // time in millis
+
+    let mut cursor = CursorState::new();
+    let mut mouse = MouseState::new();
+
     event_loop.run(move |event, _, control_flow| {
         let _ = (&instance, &adapter, &figure);
 
@@ -103,6 +152,8 @@ fn run_event_loop(
             &device,
             &queue,
         );
+
+        let mut is_draw = false;
     
         *control_flow = ControlFlow::Wait;
         match event {
@@ -116,19 +167,105 @@ fn run_event_loop(
                 // figure_renderer.set_canvas_bounds(config.width, config.height);
                 window.request_redraw();
             }
+            Event::WindowEvent {
+                event: WindowEvent::MouseInput {
+                    state,
+                    button,
+                    ..
+                },
+                ..
+            } => {
+                match button {
+                    MouseButton::Left => {
+                        mouse.left = state;
+
+                        if state == ElementState::Pressed {
+                            figure.event(
+                                &mut figure_renderer,
+                                &CanvasEvent::MouseLeftPress(cursor.position),
+                            );
+                            let now = Instant::now();
+
+                            if now.duration_since(mouse.left_press_time).as_millis() < dbl_click {
+                                figure.event(
+                                    &mut figure_renderer,
+                                    &CanvasEvent::MouseLeftDoubleClick(cursor.position),
+                                )
+                            }
+
+                            mouse.left_press_start = cursor.position;
+                            mouse.left_press_last = cursor.position;
+                            mouse.left_press_time = now;
+                        }
+                    },
+                    MouseButton::Right => {
+                        mouse.right = state;
+
+                        match state {
+                            ElementState::Pressed => {
+                                figure.event(
+                                    &mut figure_renderer,
+                                    &CanvasEvent::MouseRightPress(cursor.position),
+                                );
+
+                                mouse.right_press_start = cursor.position;
+                                mouse.right_press_time = Instant::now();
+                            }
+                            ElementState::Released => {
+                                figure.event(
+                                    &mut figure_renderer,
+                                    &CanvasEvent::MouseRightRelease(cursor.position),
+                                );
+
+                                if zoom_min <= mouse.right_press_start.norm(&cursor.position) {
+                                    figure.event(
+                                        &mut figure_renderer,
+                                        &CanvasEvent::MouseRightDrop(
+                                            mouse.right_press_start, 
+                                            cursor.position
+                                        )
+                                    );
+                                }
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CursorMoved {
+                    position,
+                    ..
+                },
+                ..
+            } => {
+                cursor.position = Point(position.x as f32, config.height as f32 - position.y as f32);
+
+                if mouse.left == ElementState::Pressed 
+                    && pan_min <= mouse.left_press_start.norm(&cursor.position) {
+                    figure.event(
+                        &mut figure_renderer,
+                        &CanvasEvent::MouseLeftDrag(
+                            mouse.left_press_start, 
+                            mouse.left_press_last, 
+                            cursor.position
+                        ),
+                    );
+
+                    mouse.left_press_last = cursor.position;
+                }
+                if mouse.right == ElementState::Pressed
+                    && pan_min <= mouse.left_press_start.norm(&cursor.position) {
+                        figure.event(
+                            &mut figure_renderer,
+                            &CanvasEvent::MouseRightDrag(mouse.left_press_start, cursor.position),
+                    );
+                }
+            }
             Event::RedrawRequested(_) => {
                 //figure_renderer.clear();
                 //figure.draw(&mut figure_renderer);
-                main_renderer.render(|device, queue, view, encoder| {
-                    figure_renderer.draw(
-                        &mut figure,
-                        (config.width, config.height),
-                        window.scale_factor() as f32,
-                        device, 
-                        queue, 
-                        view, 
-                        encoder);
-                });
+                is_draw = true;
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -136,7 +273,20 @@ fn run_event_loop(
             } => *control_flow = ControlFlow::Exit,
             _ => {}
         }
-    });
+
+        if is_draw || figure_renderer.is_request_redraw() {
+            main_renderer.render(|device, queue, view, encoder| {
+                figure_renderer.draw(
+                    &mut figure,
+                    (config.width, config.height),
+                    window.scale_factor() as f32,
+                    device, 
+                    queue, 
+                    view, 
+                    encoder);
+            });
+        }
+});
 }
 
 struct MainRenderer<'a> {

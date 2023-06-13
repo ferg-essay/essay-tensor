@@ -15,6 +15,14 @@ impl Tensor {
 
 impl ReduceKernel<Acc> for ReduceMean {
     #[inline]
+    fn init(&self) -> Acc {
+        Acc { 
+            n: 0,
+            sum: 0.,
+        }
+    }
+
+    #[inline]
     fn f(&self, state: Acc, a: f32) -> Acc {
         Acc {
             n: state.n + 1,

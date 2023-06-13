@@ -15,6 +15,15 @@ impl Tensor {
 
 impl ReduceKernel<Acc> for ReduceVariance {
     #[inline]
+    fn init(&self) -> Acc {
+        Acc {
+            k: 0,
+            m: 0.,
+            s: 0.,
+        }
+    }
+    
+    #[inline]
     fn f(&self, state: Acc, x: f32) -> Acc {
         // from Welford 1962
         if state.k == 0 {

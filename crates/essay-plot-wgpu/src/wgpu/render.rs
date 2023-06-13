@@ -21,6 +21,8 @@ pub struct FigureRenderer {
     triangle_render: GridMesh2dRender,
 
     to_gpu: Affine2d,
+
+    is_request_redraw: bool,
 }
 
 impl<'a> FigureRenderer {
@@ -98,13 +100,21 @@ impl<'a> FigureRenderer {
             triangle_render,
 
             to_gpu: Affine2d::eye(),
+
+            is_request_redraw: false,
         }
     }
 
+    pub(crate) fn is_request_redraw(&self) -> bool {
+        self.is_request_redraw
+    }
+
     pub(crate) fn clear(&mut self) {
-        // self.vertex.clear();
+        self.is_request_redraw = false;
+
         self.bezier_vertex.clear();
-        // self.text_render.clear();
+        self.text_render.clear();
+        self.shape2d_render.clear();
         self.triangle_render.clear();
     }
 
@@ -431,6 +441,10 @@ impl Renderer for FigureRenderer {
 
         Ok(())
     }
+
+    fn request_redraw(&mut self, bounds: &Bounds<Canvas>) {
+        self.is_request_redraw = true;
+    }
 }
 
 // transform and normalize path
@@ -579,7 +593,8 @@ impl FigureRenderer {
 
         self.set_canvas_bounds(width, height);
         self.set_scale_factor(scale_factor);
-        figure.draw(self);
+        let draw_bounds = self.canvas.bounds().clone();
+        figure.draw(self, &draw_bounds);
 
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
