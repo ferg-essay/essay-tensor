@@ -8,7 +8,7 @@ use essay_plot_base::{
 };
 
 use crate::{artist::{
-    Lines2d, ArtistTrait, Collection, Artist, patch, Container, Bezier3, Bezier2, ColorCycle, Text, paths, 
+    Lines2d, ArtistTrait, Collection, Artist, patch, Container, Bezier3, Bezier2, ColorCycle, Text, paths, PColor, 
 }, prelude::PlotOpt};
 
 use crate::graph::{Layout, GraphId};
@@ -169,6 +169,12 @@ impl Graph {
         p2: impl Into<Point>,
     ) {
         self.frame.data_mut().artist(Bezier2(p0.into(), p1.into(), p2.into()));
+    }
+
+    pub fn pcolor(
+        &mut self, 
+    ) {
+        self.frame.data_mut().artist(PColor {});
     }
 
     pub fn scatter(

@@ -1,7 +1,7 @@
 use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, CoordMarker};
 use essay_tensor::Tensor;
 
-use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate};
+use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate, triangle2d::GridMesh2dRender};
 
 pub struct FigureRenderer {
     canvas: Canvas,
@@ -18,6 +18,7 @@ pub struct FigureRenderer {
 
     shape2d_render: Shape2dRender,
     text_render: TextRender,
+    triangle_render: GridMesh2dRender,
 
     to_gpu: Affine2d,
 }
@@ -27,7 +28,7 @@ impl<'a> FigureRenderer {
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
     ) -> Self {
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
+        //let shader = device.create_shader_module(wgpu::include_wgsl!("shader2.wgsl"));
 
         /*
         let vertex_buffer = VertexBuffer::new(1024, &device);
@@ -77,6 +78,7 @@ impl<'a> FigureRenderer {
 
         let shape2d_render = Shape2dRender::new(device, format);
         let text_render = TextRender::new(device, format, 512, 512);
+        let triangle_render = GridMesh2dRender::new(device, format);
         
         Self {
             canvas: Canvas::new((), 1.),
@@ -93,6 +95,7 @@ impl<'a> FigureRenderer {
 
             shape2d_render,
             text_render,
+            triangle_render,
 
             to_gpu: Affine2d::eye(),
         }
@@ -101,6 +104,8 @@ impl<'a> FigureRenderer {
     pub(crate) fn clear(&mut self) {
         // self.vertex.clear();
         self.bezier_vertex.clear();
+        // self.text_render.clear();
+        self.triangle_render.clear();
     }
 
     pub(crate) fn set_canvas_bounds(&mut self, width: u32, height: u32) {
@@ -211,7 +216,7 @@ impl<'a> FigureRenderer {
         &mut self, 
         path: &Path<Canvas>, 
         style: &dyn StyleOpt, 
-        clip: &Bounds<Canvas>,
+        _clip: &Bounds<Canvas>,
     ) {
         let color = match style.get_color() {
             Some(color) => *color,
@@ -390,6 +395,42 @@ impl Renderer for FigureRenderer {
         Ok(())
     }
 
+    fn draw_triangles(
+        &mut self,
+        vertices: Tensor<f32>,  // Nx2 x,y in canvas coordinates
+        rgba: Tensor<u32>,    // N in rgba
+        triangles: Tensor<u32>, // Mx3 vertex indices
+    ) -> Result<(), RenderErr> {
+        assert!(vertices.rank() == 2, 
+            "vertices must be 2d (rank2) shape={:?}",
+            vertices.shape().as_slice());
+        assert!(vertices.cols() == 2, 
+            "vertices must be rows of 2 columns (x, y) shape={:?}",
+            vertices.shape().as_slice());
+        assert!(rgba.rank() == 1,
+            "colors must be a 1D vector shape={:?}",
+            rgba.shape().as_slice());
+        assert!(vertices.rows() == rgba.cols(), 
+            "number of vertices and colors must match. vertices={:?} colors={:?}",
+            vertices.shape().as_slice(), rgba.shape().as_slice());
+        assert!(triangles.cols() == 3, 
+            "triangle indices must have 3 vertices (3 columns) shape={:?}",
+            triangles.shape().as_slice());
+
+        self.triangle_render.start_triangles();
+
+        for (xy, color) in vertices.iter_slice().zip(rgba.iter()) {
+            self.triangle_render.draw_vertex(xy[0], xy[1], *color);
+        }
+
+        for tri in triangles.iter_slice() {
+            self.triangle_render.draw_triangle(tri[0], tri[1], tri[2]);
+        }
+
+        self.triangle_render.draw_style(&self.to_gpu);
+
+        Ok(())
+    }
 }
 
 // transform and normalize path
@@ -461,8 +502,8 @@ fn transform_path(path: &Path<Canvas>) -> Path<Canvas> {
     Path::<Canvas>::new(codes)
 }
 
-struct Unit {}
-impl CoordMarker for Unit {}
+struct Gpu {}
+impl CoordMarker for Gpu {}
 
 // For BezierQuadratic to BezierCubic, see Truong, et. al. 2020 Quadratic 
 // Approximation of Cubic Curves
@@ -596,6 +637,7 @@ impl FigureRenderer {
         // let (width, height) = (self.canvas.width(), self.canvas.height());
 
         self.shape2d_render.flush(queue, view, encoder);
+        self.triangle_render.flush(queue, view, encoder);
         self.text_render.flush(queue, view, encoder);
 
         /*

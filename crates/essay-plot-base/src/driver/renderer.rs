@@ -39,6 +39,13 @@ pub trait Renderer {
         text_style: &TextStyle,
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr>;
+
+    fn draw_triangles(
+        &mut self,
+        vertices: Tensor<f32>,  // Nx2 x,y in canvas coordinates
+        colors: Tensor<u32>,    // N in rgba
+        triangles: Tensor<u32>, // Mx3 vertex indices
+    ) -> Result<(), RenderErr>;
 }
 
 #[derive(Debug)]

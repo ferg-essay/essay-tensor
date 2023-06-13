@@ -1,3 +1,4 @@
+mod pcolor;
 mod color;
 mod style;
 pub mod paths;
@@ -22,6 +23,10 @@ pub use container::{
 
 pub use color::{
     ColorCycle,
+};
+
+pub use pcolor::{
+    PColor,
 };
 
 pub use lines::{
