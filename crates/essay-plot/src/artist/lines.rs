@@ -57,7 +57,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
 }
 
 impl ArtistTrait<Data> for Lines2d {
-    fn get_bounds(&mut self) -> Bounds<Data> {
+    fn get_extent(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
         for point in self.lines.iter_slice() {
@@ -109,7 +109,7 @@ impl fmt::Debug for Lines2d {
 pub struct Bezier2(pub Point, pub Point, pub Point);
 
 impl ArtistTrait<Data> for Bezier2 {
-    fn get_bounds(&mut self) -> Bounds<Data> {
+    fn get_extent(&mut self) -> Bounds<Data> {
         Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
     }
 
@@ -136,7 +136,7 @@ impl ArtistTrait<Data> for Bezier2 {
 pub struct Bezier3(pub Point, pub Point, pub Point, pub Point);
 
 impl ArtistTrait<Data> for Bezier3 {
-    fn get_bounds(&mut self) -> Bounds<Data> {
+    fn get_extent(&mut self) -> Bounds<Data> {
         Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
     }
 

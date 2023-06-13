@@ -9,7 +9,7 @@ pub struct PColor {
 }
 
 impl ArtistTrait<Data> for PColor {
-    fn get_bounds(&mut self) -> Bounds<Data> {
+    fn get_extent(&mut self) -> Bounds<Data> {
         Bounds::new(Point(0.0, 0.0), Point(1.5, 1.0))
     }
 

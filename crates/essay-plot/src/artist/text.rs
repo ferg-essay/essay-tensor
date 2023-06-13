@@ -10,6 +10,7 @@ use super::{ArtistTrait};
 
 pub struct Text {
     pos: Bounds<Canvas>,
+    extent: Bounds<Canvas>,
 
     text: Option<String>,
 
@@ -23,6 +24,7 @@ impl Text {
     pub fn new() -> Self {
         Self {
             pos: Bounds::none(),
+            extent: Bounds::zero(),
             text: None,
 
             style: Style::new(),
@@ -46,6 +48,10 @@ impl Text {
         self
     }
 
+    pub fn height(&self) -> f32 {
+        2. * 14.
+    }
+
     pub fn font(&mut self) -> &mut TextStyle {
         &mut self.text_style
     }
@@ -66,18 +72,22 @@ impl Text {
 }
 
 impl ArtistTrait<Canvas> for Text {
-    fn get_bounds(&mut self) -> Bounds<Canvas> {
-        match &self.text {
+    fn get_extent(&mut self) -> Bounds<Canvas> {
+        self.extent.clone()
+    }
+
+    fn update_extent(&mut self, canvas: &Canvas) {
+        self.extent = match &self.text {
             None => Bounds::zero(),
             Some(text) => {
-                let size = match self.text_style.get_size() {
+                let height = match self.text_style.get_size() {
                     Some(size) => *size,
-                    None => 16.,
+                    None => 12.,
                 };
 
-                let width = text.len() as f32 * size as f32 * 0.5;
+                let width = text.len() as f32 * height as f32 * 0.5;
 
-                Bounds::extent(width, 2. * size)
+                Bounds::extent(width * canvas.scale_factor(), height * canvas.scale_factor())
             }
         }
     }

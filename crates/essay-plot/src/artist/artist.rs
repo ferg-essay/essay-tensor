@@ -4,7 +4,9 @@ use essay_plot_base::{
 };
 
 pub trait ArtistTrait<M: CoordMarker> {
-    fn get_bounds(&mut self) -> Bounds<M>;
+    fn update_extent(&mut self, canvas: &Canvas) {}
+
+    fn get_extent(&mut self) -> Bounds<M>;
     
     fn draw(
         &mut self, 
@@ -35,8 +37,12 @@ impl<M: CoordMarker> Artist<M> {
 }
 
 impl<M: CoordMarker> ArtistTrait<M> for Artist<M> {
-    fn get_bounds(&mut self) -> Bounds<M> {
-        self.artist.get_bounds()
+    fn update_extent(&mut self, canvas: &Canvas) {
+        self.artist.update_extent(canvas)
+    }
+
+    fn get_extent(&mut self) -> Bounds<M> {
+        self.artist.get_extent()
     }
 
     fn draw(

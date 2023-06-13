@@ -28,13 +28,19 @@ impl<M: CoordMarker> Container<M> {
 }
 
 impl<M: CoordMarker> ArtistTrait<M> for Container<M> {
-    fn get_bounds(&mut self) -> Bounds<M> {
+    fn update_extent(&mut self, canvas: &Canvas) {
+        for artist in &mut self.artists {
+            artist.update_extent(canvas);
+        }
+    }
+
+    fn get_extent(&mut self) -> Bounds<M> {
         let mut bounds : Option<Bounds<M>> = None;
 
         for artist in &mut self.artists {
             bounds = match bounds {
-                None => Some(artist.get_bounds().clone()),
-                Some(bounds) => Some(bounds.union(&artist.get_bounds())),
+                None => Some(artist.get_extent().clone()),
+                Some(bounds) => Some(bounds.union(&artist.get_extent())),
             }
         }
 

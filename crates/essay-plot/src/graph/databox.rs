@@ -50,7 +50,7 @@ impl DataBox {
     pub fn artist(&mut self, artist: impl ArtistTrait<Data> + 'static) -> &mut Artist<Data> {
         let mut artist = artist;
 
-        let bounds = artist.get_bounds();
+        let bounds = artist.get_extent();
 
         self.add_data_bounds(&bounds);
         self.add_view_bounds(&bounds);
@@ -169,6 +169,16 @@ impl DataBox {
 }
 
 impl ArtistTrait<Canvas> for DataBox {
+    fn update_extent(&mut self, canvas: &Canvas) {
+        for artist in &mut self.artists {
+            artist.update_extent(canvas);
+        }
+    }
+
+    fn get_extent(&mut self) -> Bounds<Canvas> {
+        self.pos_canvas.clone()
+    }
+
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer, 
@@ -184,10 +194,6 @@ impl ArtistTrait<Canvas> for DataBox {
         for artist in &mut self.artists {
             artist.draw(renderer, &to_canvas, &self.pos_canvas, &style);
         }
-    }
-
-    fn get_bounds(&mut self) -> Bounds<Canvas> {
-        self.pos_canvas.clone()
     }
 }
 

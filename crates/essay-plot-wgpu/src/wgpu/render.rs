@@ -285,8 +285,8 @@ impl Renderer for FigureRenderer {
     ///
     /// Returns the boundary of the canvas, usually in pixels or points.
     ///
-    fn get_canvas_bounds(&self) -> Bounds<Canvas> {
-        self.canvas.bounds().clone()
+    fn get_canvas(&self) -> &Canvas {
+        &self.canvas
     }
 
     fn to_px(&self, size: f32) -> f32 {

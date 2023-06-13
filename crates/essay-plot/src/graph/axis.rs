@@ -1,7 +1,7 @@
-use super::{tick_locator::{LinearLocator, Locator}, databox::DataBox};
+use super::{tick_locator::{LinearLocator, TickLocator}, databox::DataBox};
 
 pub struct Axis {
-    locator: Box<dyn Locator>,
+    locator: Box<dyn TickLocator>,
 }
 
 impl Axis {

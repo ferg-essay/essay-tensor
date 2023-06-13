@@ -72,7 +72,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
 }
 
 impl ArtistTrait<Data> for Collection {
-    fn get_bounds(&mut self) -> Bounds<Data> {
+    fn get_extent(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
         for point in self.offsets.iter_slice() {

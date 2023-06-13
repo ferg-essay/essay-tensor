@@ -146,11 +146,10 @@ impl FigureInner {
 
 impl FigureApi for FigureInner {
     fn draw(&mut self, renderer: &mut dyn Renderer, _bounds: &Bounds<Canvas>) {
-        let canvas = renderer.get_canvas_bounds();
-
-        for item in self.layout.layout(&canvas) {
+        for item in self.layout.layout(renderer.get_canvas()) {
             let graph = &mut self.graphs[item.id().index()];
 
+            graph.extent(renderer.get_canvas());
             graph.set_pos(item.pos_canvas());
 
             graph.draw(renderer);

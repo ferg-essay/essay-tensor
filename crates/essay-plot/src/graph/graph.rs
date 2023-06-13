@@ -77,12 +77,20 @@ impl Graph {
     }
 
     ///
+    /// Calculate the graph's extents
+    /// 
+    pub(crate) fn extent(&mut self, canvas: &Canvas) {
+        self.title.update_extent(canvas);
+        self.frame.update_extent(canvas);
+    }
+
+    ///
     /// Sets the device bounds and propagates to children
     /// 
     pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) {
         self.pos = pos.clone();
 
-        let title_bounds = self.title.get_bounds();
+        let title_bounds = self.title.get_extent();
 
         let title_pos = Bounds::new(
             Point(pos.xmid(), pos.ymax() - title_bounds.height()),

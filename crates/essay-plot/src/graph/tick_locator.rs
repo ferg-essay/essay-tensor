@@ -2,7 +2,7 @@
 
 use essay_tensor::{Tensor, init::linspace};
 
-pub trait Locator  {
+pub trait TickLocator  {
     fn tick_values(&self, min: f32, max: f32) -> Tensor<f32>;
 
     fn view_limits(&self, min: f32, max: f32) -> (f32, f32) {
@@ -26,7 +26,7 @@ impl IndexLocator {
     }
 }
 
-impl Locator for IndexLocator {
+impl TickLocator for IndexLocator {
     fn tick_values(&self, min: f32, max: f32) -> Tensor<f32> {
         let range = Tensor::arange(min + self.offset, max + 1., self.base);
 
@@ -55,7 +55,7 @@ impl LinearLocator {
     }
 }
 
-impl Locator for LinearLocator {
+impl TickLocator for LinearLocator {
     fn tick_values(&self, min: f32, max: f32) -> Tensor<f32> {
         let range = linspace(min, max, self.n_ticks);
         

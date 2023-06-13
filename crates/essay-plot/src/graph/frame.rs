@@ -7,7 +7,7 @@ use essay_plot_base::{
 
 use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, ArtistTrait};
 
-use super::{databox::DataBox, axis::Axis};
+use super::{databox::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}};
 
 pub struct Frame {
     pos: Bounds<Canvas>,
@@ -45,16 +45,22 @@ impl Frame {
         &self.pos
     }
 
-    ///
+    pub(crate) fn update_extent(&mut self, canvas: &Canvas) {
+        self.bottom.update_extent(canvas);
+        self.left.update_extent(canvas);
+        self.top.update_extent(canvas);
+        self.right.update_extent(canvas);
+    }
+        ///
     /// Sets the device bounds and propagates to children
     /// 
     pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) -> &mut Self {
         self.pos = pos.clone();
 
-        let bottom = self.bottom.get_bounds();
-        let left = self.left.get_bounds();
-        let top = self.top.get_bounds();
-        let right = self.right.get_bounds();
+        let bottom = self.bottom.get_extent();
+        let left = self.left.get_extent();
+        let top = self.top.get_extent();
+        let right = self.right.get_extent();
 
         let pos_data = Bounds::<Canvas>::new(
             Point(pos.xmin() + left.width(), pos.ymin() + bottom.height()), 
@@ -173,7 +179,7 @@ impl TopFrame {
 }
 
 impl ArtistTrait<Canvas> for TopFrame {
-    fn get_bounds(&mut self) -> Bounds<Canvas> {
+    fn get_extent(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
 
@@ -191,13 +197,37 @@ impl ArtistTrait<Canvas> for TopFrame {
     }
 }
 
+pub struct FrameSizes {
+    margin: f32,
+    spine_thickness: f32,
+    tick_length: f32,
+    tick_label_gap: f32,
+    tick_text_height: f32,
+    label_title_gap: f32,
+}
+
+impl FrameSizes {
+    fn new() -> Self {
+        Self {
+            margin: 20.,
+            spine_thickness: 4.,
+            tick_length: 10.,
+            tick_label_gap: 4.,
+            tick_text_height: 28.,
+            label_title_gap: 10.,
+        }
+    }
+}
+
 //
 // Bottom frame
 //
 
 pub struct BottomFrame {
-    bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
+    extent: Bounds<Canvas>,
+
+    sizes: FrameSizes,
 
     spine: Option<DisplayPatch>,
 
@@ -220,9 +250,10 @@ impl BottomFrame {
         style_minor.linewidth(1.);
         style_minor.color(0x404040);
 
-        Self {
-            bounds: Bounds::new(Point(0., 0.), Point(0., 50.)),
+        let frame = Self {
+            extent: Bounds::zero(),
             pos: Bounds::none(),
+            sizes: FrameSizes::new(),
             spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
             axis: Some(Axis::new()),
             ticks: Vec::new(),
@@ -232,7 +263,9 @@ impl BottomFrame {
             style_minor,
 
             label: Text::new(),
-        }
+        };
+
+        frame
     }
 
     pub fn set_pos(&mut self, pos: Bounds<Canvas>) {
@@ -245,9 +278,14 @@ impl BottomFrame {
             ))
         }
 
+        //self.label.set_pos(Bounds::new(
+        //    Point(pos.xmin(), pos.ymin() + self.sizes.margin),
+        //    Point(pos.xmax(), pos.ymin() + self.sizes.margin + self.label.height()),
+        //));
+
         self.label.set_pos(Bounds::new(
             Point(pos.xmin(), pos.ymin()),
-            Point(pos.xmax(), pos.ymax() - 11.)
+            Point(pos.xmax(), pos.ymin() + self.label.height()),
         ));
     }
 
@@ -259,7 +297,9 @@ impl BottomFrame {
             self.ticks = Vec::new();
             self.grid_major = Vec::new();
 
-            for (_xv, x) in axis.x_ticks(data) {
+            let sizes = &self.sizes;
+
+            for (xv, x) in axis.x_ticks(data) {
                 if pos.xmin() < x && x < pos.xmax() {
                     // grid
                     let grid = PathPatch::new(Path::new(vec![
@@ -269,12 +309,20 @@ impl BottomFrame {
 
                     self.grid_major.push(Box::new(grid));
 
+                    let mut y = pos.ymax();
+
                     let tick = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(x, pos.ymax() - 10.)),
-                        PathCode::LineTo(Point(x, pos.ymax())),
+                        PathCode::MoveTo(Point(x, y - sizes.tick_length)),
+                        PathCode::LineTo(Point(x, y)),
                     ]));
+                    y -= sizes.tick_length;
 
                     self.ticks.push(Box::new(tick));
+
+                    let mut label = Text::new();
+                    label.text(&Formatter::Plain.format(xv));
+                    label.set_pos(Bounds::from((x, y - sizes.tick_text_height)));
+                    self.ticks.push(Box::new(label));
                 }
             };
         }
@@ -286,11 +334,24 @@ impl BottomFrame {
 }
 
 impl ArtistTrait<Canvas> for BottomFrame {
-    fn get_bounds(&mut self) -> Bounds<Canvas> {
-        let label = self.label.get_bounds();
-        let height = label.height() + 20.;
-        
-        Bounds::extent(label.width(), height)
+    fn get_extent(&mut self) -> Bounds<Canvas> {
+        self.extent.clone()
+    }
+
+    fn update_extent(&mut self, canvas: &Canvas) {
+        self.label.update_extent(canvas);
+
+        let sizes = &self.sizes;
+        let mut height = sizes.margin;
+        height += sizes.spine_thickness;
+        height += sizes.tick_length;
+        height += sizes.tick_label_gap;
+        height += sizes.tick_text_height; // font size
+        height += self.label.get_extent().height();
+    
+        // self.bounds = Bounds::from([0., height]);
+    
+        self.extent = Bounds::extent(self.label.get_extent().width(), height)
     }
 
     fn draw(
@@ -378,8 +439,8 @@ impl LeftFrame {
         }
 
         self.label.set_pos(Bounds::new(
-            Point(pos.xmin(), pos.ymin()),
-            Point(pos.xmax() - 20., pos.ymax())
+            Point(pos.xmin(), pos.ymid()),
+            Point(pos.xmax() - 20., pos.ymid())
         ));
     }
 
@@ -418,10 +479,14 @@ impl LeftFrame {
 }
 
 impl ArtistTrait<Canvas> for LeftFrame {
-    fn get_bounds(&mut self) -> Bounds<Canvas> {
-        let width = self.label.get_bounds().width() + 20.;
+    fn get_extent(&mut self) -> Bounds<Canvas> {
+        self.bounds.clone()
+    }
+
+    fn update_extent(&mut self, canvas: &Canvas) {
+        let width = self.label.get_extent().width() + 20.;
         
-        Bounds::new(Point(0., 0.), Point(width, 0.))
+        self.bounds = Bounds::new(Point(0., 0.), Point(width, 0.))
     }
 
     fn draw(
@@ -483,7 +548,7 @@ impl RightFrame {
 }
 
 impl ArtistTrait<Canvas> for RightFrame {
-    fn get_bounds(&mut self) -> Bounds<Canvas> {
+    fn get_extent(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
 

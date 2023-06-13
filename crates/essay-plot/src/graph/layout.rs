@@ -35,7 +35,7 @@ impl Layout {
         &self.bounds
     }
 
-    pub fn layout(&mut self, canvas: &Bounds<Canvas>) -> &Vec<Box> {
+    pub fn layout(&mut self, canvas: &Canvas) -> &Vec<Box> {
         let bounds = self.layout_bounds();
 
         assert!(bounds.xmin() == 0.);
