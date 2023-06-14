@@ -1,6 +1,6 @@
 // Locator(TickHelper)
 
-use essay_tensor::{Tensor, init::linspace};
+use essay_tensor::{Tensor, init::linspace, tf32};
 
 pub trait TickLocator  {
     fn tick_values(&self, min: f32, max: f32) -> Tensor<f32>;
@@ -87,4 +87,120 @@ impl TickLocator for LinearLocator {
         */
         (min, max)
     }
+}
+
+pub struct MaxNLocator {
+    n_bins: usize,
+    min_ticks: usize,
+    steps: Tensor,
+}
+
+impl MaxNLocator {
+    const MAXTICKS : usize = 1000;
+
+    pub fn new(n_bins: Option<usize>) -> Self {
+        let n_bins = match n_bins {
+            Some(n_bins) => n_bins,
+            None => 9
+        };
+        /*
+        let steps = vec![
+            1., 1.5, 2., 2.5, 3., 4., 5., 6., 8., 10.
+        ];
+
+        let steps = Tensor::from(steps);
+        */
+        let steps = vec![
+            1., 2., 2.5, 5., 10.
+        ];
+
+        let steps = Tensor::from(steps);
+
+        // TODO staircase
+
+        Self {
+            n_bins,
+            min_ticks: 2,
+            steps,
+        }
+    }
+
+    fn raw_ticks(&self, vmin: f32, vmax: f32) -> Tensor<f32> {
+        let n_bins = self.n_bins;
+        // let (vmin, vmax) = (0., 1.);
+        let (scale, offset) = scale_range(vmin, vmax, n_bins);
+
+        let vmin = vmin - offset;
+        let vmax = vmax - offset;
+        let raw_step = (vmax - vmin) / n_bins as f32;
+        let steps = &self.steps * scale;
+        let istep = steps.iter().position(|s| raw_step < *s ).unwrap();
+
+        let mut ticks: Tensor = tf32!([1.]);
+        
+        for i in (0..=istep).rev() {
+            let step = steps[i];
+            let best_vmin = (vmin / step).trunc() * step;
+            // TODO: see matplotlib handling of floating point limits
+            //let low = (vmin - best_vmin) / step;
+            let low = best_vmin / step;
+            let high = (vmax - vmin + best_vmin) / step;
+            ticks = Tensor::arange(low, high + 1., 1.) * step + best_vmin;
+
+            let n_ticks = ticks.iter()
+                .filter(|s| vmin <= **s && **s <= vmax)
+                .count();
+
+            if self.min_ticks <= n_ticks && n_ticks < n_bins {
+                break;
+            }
+        }
+
+        return ticks + offset;
+    }
+}
+
+impl TickLocator for MaxNLocator {
+    fn tick_values(&self, vmin: f32, vmax: f32) -> Tensor<f32> {
+        let (vmin, vmax) = nonsingular_range(vmin, vmax, 1e-13, 1e-14);;
+
+        let ticks = self.raw_ticks(vmin, vmax);
+
+        ticks
+    }
+
+    fn view_limits(&self, min: f32, max: f32) -> (f32, f32) {
+        let (min, max) = if min < max {
+            (min, max)
+        } else {
+            (max, min)
+        };
+
+        nonsingular_range(min, max, 1e-12, 1e-13)
+    }
+}
+
+fn nonsingular_range(min: f32, max: f32, expander: f32, tiny: f32) -> (f32, f32) {
+    if tiny < max - min {
+        (min, max)
+    }  else {
+        (min, min + expander)
+    }
+}
+
+fn scale_range(vmin: f32, vmax: f32, n_bins: usize) -> (f32, f32) {
+    let threshold = 100.;
+
+    let dv = (vmax - vmin).abs();
+    let vmid = (vmin + vmax) / 2.;
+
+    let offset = if vmid.abs() / dv < threshold {
+        0.
+    } else {
+        10.0f32.powf(vmid.abs().log10().floor()).copysign(vmid)
+    };
+
+    let scale = 10.0f32.powf((dv / n_bins as f32).log10().floor());
+
+    (scale, offset)
 }

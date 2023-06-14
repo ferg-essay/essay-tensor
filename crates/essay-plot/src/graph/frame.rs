@@ -297,14 +297,16 @@ impl BottomFrame {
             self.ticks = Vec::new();
             self.grid_major = Vec::new();
 
+            let x0 = data_pos.xmin();
+
             let sizes = &self.sizes;
 
             for (xv, x) in axis.x_ticks(data) {
-                if pos.xmin() < x && x < pos.xmax() {
+                if 0. <= x && x <= data_pos.width() {
                     // grid
                     let grid = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(x, data_pos.ymin())),
-                        PathCode::LineTo(Point(x, data_pos.ymax())),
+                        PathCode::MoveTo(Point(x + x0, data_pos.ymin())),
+                        PathCode::LineTo(Point(x + x0, data_pos.ymax())),
                     ]));
 
                     self.grid_major.push(Box::new(grid));
@@ -312,8 +314,8 @@ impl BottomFrame {
                     let mut y = pos.ymax();
 
                     let tick = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(x, y - sizes.tick_length)),
-                        PathCode::LineTo(Point(x, y)),
+                        PathCode::MoveTo(Point(x + x0, y - sizes.tick_length)),
+                        PathCode::LineTo(Point(x + x0, y)),
                     ]));
                     y -= sizes.tick_length;
 
@@ -321,7 +323,7 @@ impl BottomFrame {
 
                     let mut label = Text::new();
                     label.text(&Formatter::Plain.format(xv));
-                    label.set_pos(Bounds::from((x, y - sizes.tick_text_height)));
+                    label.set_pos(Bounds::from((x + x0, y - sizes.tick_text_height)));
                     self.ticks.push(Box::new(label));
                 }
             };
@@ -452,19 +454,21 @@ impl LeftFrame {
             self.ticks = Vec::new();
             self.grid_major = Vec::new();
 
+            let y0 = data_pos.ymin();
+
             for (_yv, y) in axis.y_ticks(data) {
-                if pos.ymin() < y && y < pos.ymax() {
+                if 0. <= y && y <= data_pos.height() {
                     // grid
                     let grid = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(data_pos.xmin(), y)),
-                        PathCode::LineTo(Point(data_pos.xmax(), y)),
+                        PathCode::MoveTo(Point(data_pos.xmin(), y + y0)),
+                        PathCode::LineTo(Point(data_pos.xmax(), y + y0)),
                     ]));
 
                     self.grid_major.push(Box::new(grid));
 
                     let tick = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(pos.xmax() - 10., y)),
-                        PathCode::LineTo(Point(pos.xmax(), y)),
+                        PathCode::MoveTo(Point(pos.xmax() - 10., y + y0)),
+                        PathCode::LineTo(Point(pos.xmax(), y + y0)),
                     ]));
 
                     self.ticks.push(Box::new(tick));

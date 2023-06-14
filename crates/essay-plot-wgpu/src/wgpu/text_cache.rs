@@ -95,7 +95,7 @@ impl TextCache {
             Some(og) => {
                 let bounds = og.px_bounds();
 
-                println!("Ch {},{} @{},{}, desc {} bounds {:?}", ch, size, self.x, self.y, og.glyph().position.y, bounds);
+                // println!("Ch {},{} @{},{}, desc {} bounds {:?}", ch, size, self.x, self.y, og.glyph().position.y, bounds);
             
                 let dx = bounds.max.x - bounds.min.x;
                 let dy = bounds.max.y - bounds.min.y;

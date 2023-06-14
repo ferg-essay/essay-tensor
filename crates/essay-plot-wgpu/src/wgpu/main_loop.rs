@@ -4,7 +4,7 @@ use essay_plot_base::{driver::FigureApi, Point, CanvasEvent};
 use winit::{
     event::{Event, WindowEvent, ElementState, MouseButton },    
     event_loop::{EventLoop, ControlFlow}, 
-    window::Window, dpi::{Position, PhysicalPosition, self},
+    window::Window,
 };
 
 use super::{render::{FigureRenderer}};
