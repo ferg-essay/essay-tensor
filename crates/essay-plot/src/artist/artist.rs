@@ -39,9 +39,31 @@ impl<M: CoordMarker> Artist<M> {
     pub fn id(&self) -> ArtistId {
         self.id
     }
+    
+    pub fn style(&self) -> &Style {
+        &self.style
+    }
 
     pub fn style_mut(&mut self) -> &mut Style {
         &mut self.style
+    }
+    
+    pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
+        self.style.color(color);
+
+        self
+    }
+
+    pub fn linewidth(&mut self, width: f32) -> &mut Self {
+        self.style.linewidth(width);
+
+        self
+    }
+
+    pub fn joinstyle(&mut self, joinstyle: impl Into<JoinStyle>) -> &mut Self {
+        self.style.joinstyle(joinstyle);
+
+        self
     }
 }
 
@@ -71,8 +93,12 @@ impl<M: CoordMarker> ArtistTrait<M> for Artist<M> {
 }
 
 impl<M: CoordMarker> StyleOpt for Artist<M> {
-    fn get_color(&self) -> &Option<Color> {
-        self.style.get_color()
+    fn get_facecolor(&self) -> &Option<Color> {
+        self.style.get_facecolor()
+    }
+
+    fn get_edgecolor(&self) -> &Option<Color> {
+        self.style.get_edgecolor()
     }
 
     fn get_linewidth(&self) -> &Option<f32> {
@@ -81,25 +107,5 @@ impl<M: CoordMarker> StyleOpt for Artist<M> {
 
     fn get_joinstyle(&self) -> &Option<JoinStyle> {
         self.style.get_joinstyle()
-    }
-}
-
-impl<M: CoordMarker> Artist<M> {
-    pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
-        self.style.color(color);
-
-        self
-    }
-
-    pub fn linewidth(&mut self, width: f32) -> &mut Self {
-        self.style.linewidth(width);
-
-        self
-    }
-
-    pub fn joinstyle(&mut self, joinstyle: impl Into<JoinStyle>) -> &mut Self {
-        self.style.joinstyle(joinstyle);
-
-        self
     }
 }

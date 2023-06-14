@@ -188,7 +188,7 @@ impl<'a> FigureRenderer {
         path: &Path<Canvas>, 
         _clip: &Bounds<Canvas>,
     ) {
-        let color = match style.get_color() {
+        let color = match style.get_facecolor() {
             Some(color) => *color,
             None => Color(0x000000ff),
         };
@@ -228,7 +228,7 @@ impl<'a> FigureRenderer {
         style: &dyn StyleOpt, 
         _clip: &Bounds<Canvas>,
     ) {
-        let color = match style.get_color() {
+        let color = match style.get_facecolor() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -242,7 +242,7 @@ impl<'a> FigureRenderer {
         let lw_x = self.to_px(linewidth); // / self.canvas.width();
         let lw_y = self.to_px(linewidth); // / self.canvas.height();
 
-        let color = match style.get_color() {
+        let color = match style.get_facecolor() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -310,7 +310,7 @@ impl Renderer for FigureRenderer {
 
         let path = transform_path(path);
 
-        let color = match style.get_color() {
+        let color = match style.get_facecolor() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -335,7 +335,7 @@ impl Renderer for FigureRenderer {
     ) -> Result<(), RenderErr> {
         let path = transform_path(path);
 
-        let color = match style.get_color() {
+        let color = match style.get_facecolor() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -368,7 +368,7 @@ impl Renderer for FigureRenderer {
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
 
-        let color = match style.get_color() {
+        let color = match style.get_facecolor() {
             Some(color) => *color,
             None => Color(0x000000ff),
         };

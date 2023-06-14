@@ -1,4 +1,4 @@
-use std::{sync::Arc, ops::{Deref, DerefMut}, cell::{RefCell, Ref, RefMut}, rc::Rc};
+use std::{cell::{RefCell, Ref, RefMut}, rc::Rc};
 
 use essay_plot_base::{Bounds, Canvas, Point, CoordMarker, driver::Renderer, CanvasEvent};
 
@@ -139,6 +139,14 @@ impl LayoutArc {
         self.0.borrow_mut()
     }
 
+    pub fn read<R>(&self, fun: impl FnOnce(&Layout) -> R) -> R {
+        fun(&self.0.borrow())
+    }
+
+    pub fn write<R>(&self, fun: impl FnOnce(&mut Layout) -> R) -> R {
+        fun(&mut self.0.borrow_mut())
+    }
+
     /*
     #[inline]
     pub fn frame(&self, id: FrameId) -> &Frame {
@@ -186,6 +194,7 @@ impl LayoutBox {
         }
     }
 
+    /*
     #[inline]
     pub fn id(&self) -> FrameId {
         self.frame.id()
@@ -200,6 +209,7 @@ impl LayoutBox {
     pub fn pos_canvas(&self) -> &Bounds<Canvas> {
         &self.pos_canvas
     }
+    */
 
     #[inline]
     pub fn frame(&self) -> &Frame {

@@ -1,7 +1,8 @@
 use super::Color;
 
 pub trait StyleOpt {
-    fn get_color(&self) -> &Option<Color>;
+    fn get_facecolor(&self) -> &Option<Color>;
+    fn get_edgecolor(&self) -> &Option<Color>;
 
     fn get_linewidth(&self) -> &Option<f32>;
     fn get_joinstyle(&self) -> &Option<JoinStyle>;
@@ -53,6 +54,8 @@ pub enum LineStyle {
 #[derive(Clone)]
 pub struct Style {
     color: Option<Color>,
+    facecolor: Option<Color>,
+    edgecolor: Option<Color>,
 
     linewidth: Option<f32>,
     joinstyle: Option<JoinStyle>,
@@ -64,7 +67,20 @@ impl Style {
     }
 
     pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
+        // TODO: is color a default or an assignment?
         self.color = Some(color.into());
+
+        self
+    }
+
+    pub fn facecolor(&mut self, color: impl Into<Color>) -> &mut Self {
+        self.facecolor = Some(color.into());
+
+        self
+    }
+
+    pub fn edgecolor(&mut self, color: impl Into<Color>) -> &mut Self {
+        self.edgecolor = Some(color.into());
 
         self
     }
@@ -90,8 +106,18 @@ impl Style {
 }
 
 impl StyleOpt for Style {
-    fn get_color(&self) -> &Option<Color> {
-        &self.color
+    fn get_facecolor(&self) -> &Option<Color> {
+        match &self.facecolor {
+            Some(color) => &self.facecolor,
+            None => &self.color,
+        }
+    }
+
+    fn get_edgecolor(&self) -> &Option<Color> {
+        match &self.edgecolor {
+            Some(color) => &self.edgecolor,
+            None => &self.color,
+        }
     }
 
     fn get_linewidth(&self) -> &Option<f32> {
@@ -107,6 +133,8 @@ impl Default for Style {
     fn default() -> Self {
         Self { 
             color: Default::default(), 
+            facecolor: Default::default(), 
+            edgecolor: Default::default(), 
             linewidth: Default::default(), 
             joinstyle: Default::default(),
         }
@@ -127,10 +155,17 @@ impl<'a> Chain<'a> {
     }
 }
 impl StyleOpt for Chain<'_> {
-    fn get_color(&self) -> &Option<Color> {
-        match self.next.get_color() {
-            Some(_) => self.next.get_color(),
-            None => self.prev.get_color()
+    fn get_facecolor(&self) -> &Option<Color> {
+        match self.next.get_facecolor() {
+            Some(_) => self.next.get_facecolor(),
+            None => self.prev.get_facecolor()
+        }
+    }
+
+    fn get_edgecolor(&self) -> &Option<Color> {
+        match self.next.get_edgecolor() {
+            Some(_) => self.next.get_edgecolor(),
+            None => self.prev.get_edgecolor()
         }
     }
 
