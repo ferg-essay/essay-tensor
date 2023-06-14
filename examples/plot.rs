@@ -23,19 +23,19 @@ fn main() {
     let y = x.clone();
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
-    let axes = figure.new_graph([1., 1.]);
+    let graph = figure.new_graph([1., 1.]);
     //axes.pcolor();
 
     // axes.title("My Title").style().color(0x008033);
     // axes.xlabel("My X-Label").style().color(0x0030ff);
     // axes.ylabel("Y-Label").style().color("r");
 
-    axes.title("My Title");
-    axes.xlabel("My X-Label");
-    axes.ylabel("Y-Label");
+    graph.title("My Title");
+    graph.xlabel("My X-Label");
+    graph.ylabel("Y-Label");
 
     //axes.scatter(&x, &y, ()).color(0x003fc0);
-    axes.plot(&x, &y);
+    graph.plot(&x, &y).color(0xc08000);
     
     // axes.scatter(&x, &y, ());
     // let x = tf32!([40., 30., 20., 5., 5.]);

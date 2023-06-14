@@ -5,9 +5,9 @@ use essay_plot_base::{
     driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, WidthAlign, HeightAlign, 
 };
 
-use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, ArtistTrait};
+use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, ArtistTrait, Artist};
 
-use super::{databox::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId};
+use super::{databox::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, ArtistId, Data};
 
 pub struct Frame {
     id: FrameId,
@@ -162,6 +162,10 @@ impl Frame {
 
     pub fn ylabel(&mut self, text: &str) -> &mut Text {
         self.left.label(text)
+    }
+
+    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut Artist<Data> {
+        self.data_mut().artist_mut(id)
     }
 }
 

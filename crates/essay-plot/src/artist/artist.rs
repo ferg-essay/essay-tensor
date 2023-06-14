@@ -3,6 +3,8 @@ use essay_plot_base::{
     driver::Renderer, JoinStyle, Color,
 };
 
+use crate::frame::ArtistId;
+
 pub trait ArtistTrait<M: CoordMarker> {
     fn update_extent(&mut self, canvas: &Canvas) {}
 
@@ -18,17 +20,24 @@ pub trait ArtistTrait<M: CoordMarker> {
 }
 
 pub struct Artist<M: CoordMarker> {
+    id: ArtistId,
+
     artist: Box<dyn ArtistTrait<M>>,
 
     style: Style,
 }
 
 impl<M: CoordMarker> Artist<M> {
-    pub fn new(artist: impl ArtistTrait<M> + 'static) -> Self {
+    pub fn new(id: ArtistId, artist: impl ArtistTrait<M> + 'static) -> Self {
         Self {
+            id,
             artist: Box::new(artist),
             style: Style::default(),
         }
+    }
+
+    pub fn id(&self) -> ArtistId {
+        self.id
     }
 
     pub fn style_mut(&mut self) -> &mut Style {

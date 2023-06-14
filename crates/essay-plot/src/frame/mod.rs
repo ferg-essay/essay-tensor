@@ -10,7 +10,7 @@ pub use tick_locator::{
 };
 
 pub use databox::{
-    Data,
+    Data, ArtistId,
 };
 
 pub use frame::{

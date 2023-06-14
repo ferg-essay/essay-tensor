@@ -17,7 +17,6 @@ pub struct DataBox {
 
     to_canvas: Affine2d,
     style: Style,
-
 }
 
 impl DataBox {
@@ -55,10 +54,12 @@ impl DataBox {
         self.add_data_bounds(&bounds);
         self.add_view_bounds(&bounds);
 
-        self.artists.push(Artist::new(artist));
-
         let len = self.artists.len();
-        &mut self.artists[len - 1]
+        let id = ArtistId(len);
+        
+        self.artists.push(Artist::new(id, artist));
+
+        &mut self.artists[len]
     }
 
     fn add_data_bounds(&mut self, bounds: &Bounds<Data>) {
@@ -166,6 +167,10 @@ impl DataBox {
             _ => { false }
         }
     }
+
+    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut Artist<Data> {
+        &mut self.artists[id.index()]
+    }
 }
 
 impl ArtistTrait<Canvas> for DataBox {
@@ -205,6 +210,20 @@ impl fmt::Debug for DataBox {
             self.view_bounds.ymin(),
             self.view_bounds.width(),
             self.view_bounds.height())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ArtistId(usize);
+
+impl ArtistId {
+    pub fn index(&self) -> usize {
+        self.0
+    }
+
+    // TODO: eliminate need for this function
+    pub(crate) fn new(index: usize) -> ArtistId {
+        ArtistId(index)
     }
 }
 

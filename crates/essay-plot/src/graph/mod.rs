@@ -1,3 +1,4 @@
+mod plot;
 mod figure;
 pub mod graph;
 
@@ -9,3 +10,6 @@ pub use figure::{
     Figure, FigureInner, GraphId,
 };
 
+pub use plot::{
+    PlotOpt,
+};

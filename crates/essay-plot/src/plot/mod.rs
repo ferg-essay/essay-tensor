@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{graph::{Graph, graph::PlotOpt}};
+use crate::{graph::{Graph, PlotOpt}};
 
 mod pie;
 mod scatter;

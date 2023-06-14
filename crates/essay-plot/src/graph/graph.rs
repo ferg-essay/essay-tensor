@@ -12,6 +12,8 @@ use crate::{artist::{
 
 use crate::frame::{Layout};
 
+use super::plot::PlotOpt;
+
 pub struct Graph {
     id: FrameId,
 
@@ -115,18 +117,10 @@ impl Graph {
         let mut layout = self.layout.borrow_mut();
         let frame = layout.frame_mut(self.id);
 
-        let id = frame.data_mut().artist(artist);
+        let artist_id = frame.data_mut().artist(artist).id();
 
-        PlotOpt {
-            layout: self.layout.clone(),
-            id: frame.id(),
-        }
+        PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
     }
-}
-
-pub struct PlotOpt {
-    layout: LayoutArc,
-    id: FrameId,
 }
 
 impl fmt::Debug for Graph {
