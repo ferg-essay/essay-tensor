@@ -1,6 +1,5 @@
-use std::f32::consts::PI;
-
-use essay_plot::{prelude::*};
+use essay_plot::{prelude::*, graph::Graph, artist::{Bezier3, Bezier2, PColor}};
+use essay_plot_base::Point;
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
 fn main() {
@@ -30,7 +29,7 @@ fn main() {
     axes.xlabel("My X-Label").style().color(0x0030ff);
     axes.ylabel("Y-Label").style().color("r");
     //axes.scatter(&x, &y, ()).color(0x003fc0);
-    axes.plot(&x, &y, ());
+    axes.plot(&x, &y);
     
     // axes.scatter(&x, &y, ());
     // let x = tf32!([40., 30., 20., 5., 5.]);
@@ -61,4 +60,29 @@ fn main() {
 
     figure.show();
     */
+}
+
+pub fn bezier3(
+    graph: &mut Graph, 
+    p0: impl Into<Point>,
+    p1: impl Into<Point>,
+    p2: impl Into<Point>,
+    p3: impl Into<Point>
+) {
+    graph.add_data_artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
+}
+
+pub fn bezier2(
+    graph: &mut Graph, 
+    p0: impl Into<Point>,
+    p1: impl Into<Point>,
+    p2: impl Into<Point>,
+) {
+    graph.add_data_artist(Bezier2(p0.into(), p1.into(), p2.into()));
+}
+
+pub fn pcolor(
+    graph: &mut Graph, 
+) {
+    graph.add_data_artist(PColor {});
 }

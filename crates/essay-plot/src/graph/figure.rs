@@ -8,8 +8,6 @@ use essay_plot_base::{
     CoordMarker, Bounds, Point, CanvasEvent, Canvas,
 };
 
-use crate::prelude::PlotOpt;
-
 use super::{layout::Layout, Graph};
 
 pub struct Figure {
@@ -41,6 +39,7 @@ impl Figure {
         todo!()
     }
 
+    /*
     pub fn plot(
         &mut self, 
         x: impl Into<Tensor>, 
@@ -53,6 +52,7 @@ impl Figure {
 
         graph
     }
+    */
 
     pub fn show(self) {
         // let mut figure = self;

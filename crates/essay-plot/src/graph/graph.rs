@@ -8,8 +8,9 @@ use essay_plot_base::{
 };
 
 use crate::{artist::{
-    Lines2d, ArtistTrait, Collection, Artist, patch, Container, Bezier3, Bezier2, ColorCycle, Text, paths, PColor, 
-}, prelude::PlotOpt};
+    Lines2d, ArtistTrait, Collection, Artist, patch, Container, 
+    Bezier3, Bezier2, ColorCycle, Text, paths, PColor, 
+}};
 
 use crate::graph::{Layout, GraphId};
 
@@ -118,108 +119,17 @@ impl Graph {
     // TODO: move plots out of graph
     //
 
-    pub fn pie(
-        &mut self, 
-        x: impl Into<Tensor>, 
-        opt: impl Into<PlotOpt>
-    ) { // -> &mut Artist {
-        let x = x.into();
-        
-        assert!(x.rank() == 1, "pie chart must have rank 1 data");
-
-        let sum = x.reduce_sum()[0];
-
-        let x = x / sum;
-
-        let radius = 1.;
-
-        let startangle = 0.;
-        let mut theta1 = startangle / 360.;
-        let center = Point(0., 0.);
-
-        let mut container = Container::new();
-        let colors = ColorCycle::tableau();
-        let mut i = 0;
-        for frac in x.iter() {
-            let theta2 = (theta1 - frac + 1.) % 1.;
-            let patch = patch::Wedge::new(
-                center, 
-                radius, 
-                (Angle::Unit(theta1), Angle::Unit(theta2))
-            );
-
-            //patch.color(colors[i]);
-            let mut artist = Artist::new(patch);
-            artist.color(colors[i]);
-            
-            container.push(artist);
-
-            theta1 = theta2;
-            i += 1;
-        }
-
-        self.frame.data_mut().artist(container);
-
-        // todo!()
-    }
-
-    pub fn plot(
-        &mut self, 
-        x: impl Into<Tensor>, 
-        y: impl Into<Tensor>, 
-        opt: impl Into<PlotOpt>
-    ) -> &mut Artist<Data> {
-        let lines = Lines2d::from_xy(x, y);
-
-        //self.artist(lines)
-        self.frame.data_mut().artist(lines)
-    }
-
-    pub fn bezier3(
-        &mut self, 
-        p0: impl Into<Point>,
-        p1: impl Into<Point>,
-        p2: impl Into<Point>,
-        p3: impl Into<Point>
-    ) {
-        self.frame.data_mut().artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
-    }
-
-    pub fn bezier2(
-        &mut self, 
-        p0: impl Into<Point>,
-        p1: impl Into<Point>,
-        p2: impl Into<Point>,
-    ) {
-        self.frame.data_mut().artist(Bezier2(p0.into(), p1.into(), p2.into()));
-    }
-
-    pub fn pcolor(
-        &mut self, 
-    ) {
-        self.frame.data_mut().artist(PColor {});
-    }
-
-    pub fn scatter(
-        &mut self, 
-        x: impl Into<Tensor>, 
-        y: impl Into<Tensor>, 
-        _opt: impl Into<PlotOpt>
-    ) -> &mut Artist<Data> {
-        let x : Tensor = x.into();
-        let y = y.into();
-        let xy = x.stack(&[y], -1); // Axis::axis(-1));
-        let path: Path<Canvas> = paths::unit().transform(&Affine2d::eye().scale(10., 10.));
-
-        let collection = Collection::new(path, &xy);
-
-        self.frame.data_mut().artist(collection)
-    }
-
     pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
         self.title.draw(renderer, &self.to_canvas, &self.pos, &self.style);
 
         self.frame.draw(renderer);
+    }
+
+    pub fn add_data_artist(
+        &mut self, 
+        artist: impl ArtistTrait<Data> + 'static
+    ) -> &mut Artist<Data> {
+        self.frame.data_mut().artist(artist)
     }
 }
 

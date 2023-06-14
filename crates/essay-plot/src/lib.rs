@@ -4,5 +4,5 @@ pub mod plot;
 
 pub mod prelude {
     pub use crate::graph::{Figure};
-    pub use crate::plot::{Plot, PlotOpt};
+    // pub use crate::plot::{Plot, PlotOpt};
 }
