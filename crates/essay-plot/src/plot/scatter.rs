@@ -1,7 +1,7 @@
 use essay_plot_base::{Canvas, Path, Affine2d};
 use essay_tensor::Tensor;
 
-use crate::{graph::{Graph, Data}, artist::{Artist, Collection, paths}};
+use crate::{frame::{Graph, Data}, artist::{Artist, Collection, paths}};
 
 
 pub fn scatter(

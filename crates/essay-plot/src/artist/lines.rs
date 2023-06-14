@@ -7,7 +7,7 @@ use essay_plot_base::{
     driver::Renderer
 };
 
-use crate::graph::Data;
+use crate::frame::Data;
 
 use super::{ArtistTrait};
 

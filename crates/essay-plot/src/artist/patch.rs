@@ -5,7 +5,7 @@ use essay_plot_base::{
     driver::Renderer, CoordMarker
 };
 
-use crate::graph::Data;
+use crate::frame::Data;
 
 use super::{ArtistTrait, paths};
 

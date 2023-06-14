@@ -17,6 +17,8 @@ pub struct Frame {
 
     data: DataBox,
 
+    title: Text,
+
     bottom: BottomFrame,
     left: LeftFrame,
     top: TopFrame,
@@ -29,6 +31,8 @@ impl Frame {
             pos: Bounds::none(),
 
             data: DataBox::new(),
+
+            title: Text::new(),
 
             bottom: BottomFrame::new(),
             left: LeftFrame::new(),
@@ -46,6 +50,10 @@ impl Frame {
     }
 
     pub(crate) fn update_extent(&mut self, canvas: &Canvas) {
+        self.title.update_extent(canvas);
+
+        self.data.update_extent(canvas);
+
         self.bottom.update_extent(canvas);
         self.left.update_extent(canvas);
         self.top.update_extent(canvas);
@@ -57,14 +65,20 @@ impl Frame {
     pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) -> &mut Self {
         self.pos = pos.clone();
 
+        let title = self.title.get_extent();
+
         let bottom = self.bottom.get_extent();
         let left = self.left.get_extent();
         let top = self.top.get_extent();
         let right = self.right.get_extent();
 
+        let ymax = pos.ymax() - title.height();
+
+        self.title.set_pos([pos.xmin(), ymax, pos.xmax(), pos.ymax()]); 
+
         let pos_data = Bounds::<Canvas>::new(
             Point(pos.xmin() + left.width(), pos.ymin() + bottom.height()), 
-            Point(pos.xmax() - right.width(), pos.ymax() - top.height())
+            Point(pos.xmax() - right.width(), ymax - top.height())
         );
 
         self.data.set_pos(&pos_data);
@@ -83,7 +97,7 @@ impl Frame {
 
         let pos_top = Bounds::<Canvas>::new(
             Point(pos_data.xmin(), pos_data.ymax()),
-            Point(pos_data.xmax(), pos.ymax()),
+            Point(pos_data.xmax(), ymax),
         );
         self.top.set_pos(pos_top);
 
@@ -115,6 +129,8 @@ impl Frame {
     }
 
     pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
+        self.title.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+
         self.bottom.draw(renderer, &self.to_canvas, &self.pos, &self.style);
         self.left.draw(renderer, &self.to_canvas, &self.pos, &self.style);
 
@@ -123,6 +139,12 @@ impl Frame {
 
         // TODO: grid order
         self.data.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+    }
+
+    pub fn title(&mut self, text: &str) -> &mut Text {
+        self.title.text(text);
+
+        &mut self.title
     }
 
     pub fn xlabel(&mut self, text: &str) -> &mut Text {

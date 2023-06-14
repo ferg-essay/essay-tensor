@@ -1,18 +1,16 @@
 use core::fmt;
 
-use essay_tensor::Tensor;
-
 use essay_plot_base::{
     driver::{Renderer}, 
-    Point, Bounds, Canvas, Affine2d, Style, Angle, Path, CanvasEvent,
+    Bounds, Canvas, CanvasEvent,
 };
 
 use crate::{artist::{
-    Lines2d, ArtistTrait, Collection, Artist, patch, Container, 
-    Bezier3, Bezier2, ColorCycle, Text, paths, PColor, 
+    ArtistTrait, Artist,
+    Text,
 }};
 
-use crate::graph::{Layout, GraphId};
+use crate::frame::{Layout, GraphId};
 
 use super::{Data, frame::{Frame}};
 
@@ -21,28 +19,22 @@ pub struct Graph {
 
     pos: Bounds<Canvas>,
 
-    pos_layout: Bounds<Layout>, // position of the Graph in layout coordinates
-
-    title: Text,
     frame: Frame,
-
-    to_canvas: Affine2d,
-    style: Style,
 }
 
 impl Graph {
-    pub(crate) fn new(id: GraphId, layout: impl Into<Bounds<Layout>>) -> Self {
+    pub(crate) fn new(id: GraphId, _layout: impl Into<Bounds<Layout>>) -> Self {
         let mut graph = Self {
             id, 
-            pos_layout: layout.into(),
+            //pos_layout: layout.into(),
             pos: Bounds::none(),
 
-            title: Text::new(),
+            //title: Text::new(),
             frame: Frame::new(),
 
-            style: Style::default(),
+            //style: Style::default(),
 
-            to_canvas: Affine2d::eye(),
+            //to_canvas: Affine2d::eye(),
         };
 
         graph.default_properties();
@@ -60,9 +52,7 @@ impl Graph {
     }
 
     pub fn title(&mut self, text: &str) -> &mut Text {
-        self.title.text(text);
-
-        &mut self.title
+        self.frame.title(text)
     }
 
     pub fn xlabel(&mut self, text: &str) -> &mut Text {
@@ -74,14 +64,14 @@ impl Graph {
     }
 
     fn default_properties(&mut self) {
-        self.title.font().size(12.);
+        //self.title.font().size(12.);
     }
 
     ///
     /// Calculate the graph's extents
     /// 
     pub(crate) fn extent(&mut self, canvas: &Canvas) {
-        self.title.update_extent(canvas);
+        //self.title.update_extent(canvas);
         self.frame.update_extent(canvas);
     }
 
@@ -89,6 +79,7 @@ impl Graph {
     /// Sets the device bounds and propagates to children
     /// 
     pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) {
+        /*
         self.pos = pos.clone();
 
         let title_bounds = self.title.get_extent();
@@ -107,8 +98,9 @@ impl Graph {
             Point(pos.xmin(), pos.ymin()),
             Point(pos.xmax(), pos.ymax() - margin - title_bounds.height() - title_gap),
         );
+        */
 
-        self.frame.set_pos(&frame_pos);
+        self.frame.set_pos(pos);
     }
 
     pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
@@ -120,7 +112,7 @@ impl Graph {
     //
 
     pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
-        self.title.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+        // self.title.draw(renderer, &self.to_canvas, &self.pos, &self.style);
 
         self.frame.draw(renderer);
     }

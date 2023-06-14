@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{graph::{Graph, Data}, artist::Artist};
+use crate::{frame::{Graph, Data}, artist::Artist};
 
 mod pie;
 mod scatter;

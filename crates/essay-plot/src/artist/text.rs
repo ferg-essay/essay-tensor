@@ -36,8 +36,8 @@ impl Text {
         }
     }
 
-    pub(crate) fn set_pos(&mut self, pos: Bounds<Canvas>) {
-        self.pos = pos;
+    pub(crate) fn set_pos(&mut self, pos: impl Into<Bounds<Canvas>>) {
+        self.pos = pos.into();
     }
 
     pub fn text(&mut self, text: &str) -> &mut Self {

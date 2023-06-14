@@ -1,7 +1,7 @@
 use essay_plot_base::{Bounds, Point};
 use essay_tensor::{tf32, tensor, Tensor};
 
-use crate::graph::Data;
+use crate::frame::Data;
 
 use super::ArtistTrait;
 
