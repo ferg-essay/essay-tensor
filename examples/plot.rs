@@ -1,4 +1,4 @@
-use essay_plot::{prelude::*, frame::Graph, artist::{Bezier3, Bezier2, PColor}};
+use essay_plot::{prelude::*, graph::Graph, artist::{Bezier3, Bezier2, PColor}};
 use essay_plot_base::Point;
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 

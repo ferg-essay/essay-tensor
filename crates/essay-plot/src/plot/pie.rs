@@ -1,7 +1,7 @@
 use essay_plot_base::{Angle, Point};
 use essay_tensor::Tensor;
 
-use crate::{frame::Graph, artist::{patch, ColorCycle, Container, Artist}};
+use crate::{artist::{patch, ColorCycle, Container, Artist}, graph::Graph};
 
 pub fn pie(
     graph: &mut Graph, 

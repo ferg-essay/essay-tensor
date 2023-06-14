@@ -8,11 +8,11 @@ use essay_plot_base::{
 use crate::{artist::{
     ArtistTrait, Artist,
     Text,
-}};
+}, frame::{Frame, Data}};
 
-use crate::frame::{Layout, GraphId};
+use crate::frame::{Layout};
 
-use super::{Data, frame::{Frame}};
+use super::GraphId;
 
 pub struct Graph {
     id: GraphId,

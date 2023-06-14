@@ -1,14 +1,13 @@
 use std::ops;
 
 use essay_plot_wgpu::WgpuBackend;
-use essay_tensor::Tensor;
 
 use essay_plot_base::{
     driver::{Renderer, Backend, FigureApi},
     CoordMarker, Bounds, Point, CanvasEvent, Canvas,
 };
 
-use super::{layout::Layout, Graph};
+use crate::{graph::Graph, frame::Layout};
 
 pub struct Figure {
     // inner: Arc<Mutex<FigureInner>>,

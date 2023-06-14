@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{frame::{Graph, Data}, artist::{Artist, Lines2d}};
+use crate::{frame::{Data}, artist::{Artist, Lines2d}, graph::Graph};
 
 pub fn plot(
     graph: &mut Graph, 
