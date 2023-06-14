@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use essay_plot_base::{
     Style, PathCode, Path, StyleOpt,
-    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, 
+    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, WidthAlign, HeightAlign, 
 };
 
 use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, ArtistTrait};
@@ -134,6 +134,28 @@ impl Frame {
     }
 }
 
+pub struct FrameSizes {
+    spine_thickness: f32,
+    tick_length: f32,
+    tick_label_gap: f32,
+    tick_text_height: f32,
+    label_title_gap: f32,
+    margin: f32,
+}
+
+impl FrameSizes {
+    fn new() -> Self {
+        Self {
+            margin: 20.,
+            spine_thickness: 4.,
+            tick_length: 10.,
+            tick_label_gap: 4.,
+            tick_text_height: 28.,
+            label_title_gap: 10.,
+        }
+    }
+}
+
 //
 // FrameExtent
 //
@@ -194,28 +216,6 @@ impl ArtistTrait<Canvas> for TopFrame {
             patch.draw(renderer, to_canvas, clip, style);
         }
         
-    }
-}
-
-pub struct FrameSizes {
-    margin: f32,
-    spine_thickness: f32,
-    tick_length: f32,
-    tick_label_gap: f32,
-    tick_text_height: f32,
-    label_title_gap: f32,
-}
-
-impl FrameSizes {
-    fn new() -> Self {
-        Self {
-            margin: 20.,
-            spine_thickness: 4.,
-            tick_length: 10.,
-            tick_label_gap: 4.,
-            tick_text_height: 28.,
-            label_title_gap: 10.,
-        }
     }
 }
 
@@ -389,8 +389,12 @@ impl ArtistTrait<Canvas> for BottomFrame {
 //
 
 pub struct LeftFrame {
-    bounds: Bounds<Canvas>,
+    extent: Bounds<Canvas>,
     pos: Bounds<Canvas>,
+
+    sizes: FrameSizes,
+
+
     spine: Option<DisplayPatch>,
 
     axis: Option<Axis>,
@@ -416,8 +420,11 @@ impl LeftFrame {
         label.angle(PI / 2.);
 
         Self {
-            bounds: Bounds::new(Point(0., 0.), Point(20., 0.)),
+            extent: Bounds::new(Point(0., 0.), Point(20., 0.)),
             pos: Bounds::none(),
+
+            sizes: FrameSizes::new(),
+
             spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
             axis: Some(Axis::new()),
             ticks: Vec::new(),
@@ -440,9 +447,10 @@ impl LeftFrame {
             ))
         }
 
+        let x0 = pos.xmin() + self.sizes.margin;
         self.label.set_pos(Bounds::new(
-            Point(pos.xmin(), pos.ymid()),
-            Point(pos.xmax() - 20., pos.ymid())
+            Point(x0, pos.ymid()),
+            Point(x0 + self.label.height(), pos.ymid())
         ));
     }
 
@@ -472,6 +480,18 @@ impl LeftFrame {
                     ]));
 
                     self.ticks.push(Box::new(tick));
+
+                    let x = pos.xmax()
+                        - self.sizes.spine_thickness
+                        - self.sizes.tick_length
+                        - self.sizes.tick_label_gap;
+
+                    let mut label = Text::new();
+                    label.font().width_align(WidthAlign::Right);
+                    label.font().height_align(HeightAlign::Center);
+                    label.text(&Formatter::Plain.format(_yv));
+                    label.set_pos(Bounds::from((x, y + y0)));
+                    self.ticks.push(Box::new(label));
                 }
             };
         }
@@ -483,14 +503,22 @@ impl LeftFrame {
 }
 
 impl ArtistTrait<Canvas> for LeftFrame {
-    fn get_extent(&mut self) -> Bounds<Canvas> {
-        self.bounds.clone()
+    fn update_extent(&mut self, canvas: &Canvas) {
+        self.label.update_extent(canvas);
+
+        let mut width = self.sizes.spine_thickness;
+        width += self.sizes.tick_length;
+        width += self.sizes.tick_label_gap;
+
+        self.sizes.tick_text_height = 5. * canvas.scale_factor() * 14.;
+        width += self.sizes.tick_text_height;
+        width += self.sizes.margin;
+        
+        self.extent = Bounds::new(Point(0., 0.), Point(width, 0.))
     }
 
-    fn update_extent(&mut self, canvas: &Canvas) {
-        let width = self.label.get_extent().width() + 20.;
-        
-        self.bounds = Bounds::new(Point(0., 0.), Point(width, 0.))
+    fn get_extent(&mut self) -> Bounds<Canvas> {
+        self.extent.clone()
     }
 
     fn draw(
@@ -501,14 +529,6 @@ impl ArtistTrait<Canvas> for LeftFrame {
         style: &dyn StyleOpt,
     ) {
         self.label.draw(renderer, to_canvas, clip, style);
-
-        if let Some(patch) = &mut self.spine {
-            patch.draw(renderer, to_canvas, clip, style);
-        }
-        
-        for tick in &mut self.ticks {
-            tick.draw(renderer, to_canvas, clip, style);
-        }
         
         for grid in &mut self.grid_major {
             grid.draw(renderer, to_canvas, clip, &self.style_major);
@@ -516,6 +536,14 @@ impl ArtistTrait<Canvas> for LeftFrame {
 
         for grid in &mut self.grid_minor {
             grid.draw(renderer, to_canvas, clip, &self.style_minor);
+        }
+        
+        for tick in &mut self.ticks {
+            tick.draw(renderer, to_canvas, clip, style);
+        }
+
+        if let Some(patch) = &mut self.spine {
+            patch.draw(renderer, to_canvas, clip, style);
         }
     }
 }

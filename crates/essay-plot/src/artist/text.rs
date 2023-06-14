@@ -21,6 +21,8 @@ pub struct Text {
 }
 
 impl Text {
+    pub const DESC : f32 = 0.3;
+
     pub fn new() -> Self {
         Self {
             pos: Bounds::none(),
@@ -80,14 +82,17 @@ impl ArtistTrait<Canvas> for Text {
         self.extent = match &self.text {
             None => Bounds::zero(),
             Some(text) => {
-                let height = match self.text_style.get_size() {
+                let size = match self.text_style.get_size() {
                     Some(size) => *size,
-                    None => 12.,
+                    None => TextStyle::SIZE_DEFAULT,
                 };
 
-                let width = text.len() as f32 * height as f32 * 0.5;
+                let width = text.len() as f32 * size as f32 * 0.5;
 
-                Bounds::extent(width * canvas.scale_factor(), height * canvas.scale_factor())
+                Bounds::extent(
+                    width * canvas.scale_factor(), 
+                    size * (1. + Self::DESC) * canvas.scale_factor()
+                )
             }
         }
     }
@@ -103,8 +108,10 @@ impl ArtistTrait<Canvas> for Text {
             let style = Chain::new(style, &self.style);
 
             if ! self.pos.is_none() {
+                let desc = Self::DESC * self.extent.height();
+
                 renderer.draw_text(
-                    Point(self.pos.xmid(), self.pos.ymid()),
+                    Point(self.pos.xmid(), self.pos.ymin() + desc),
                     text,
                     self.get_angle(),
                     &style,

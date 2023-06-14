@@ -92,16 +92,19 @@ impl Graph {
 
         let title_bounds = self.title.get_extent();
 
+        let margin = 10.;
+        let title_gap = 10.;
+
         let title_pos = Bounds::new(
-            Point(pos.xmid(), pos.ymax() - title_bounds.height()),
-            Point(pos.xmid(), pos.ymax())
+            Point(pos.xmid(), pos.ymax() - margin - title_bounds.height()),
+            Point(pos.xmid(), pos.ymax() - margin)
         );
 
         self.title.set_pos(title_pos);
 
         let frame_pos = Bounds::new(
             Point(pos.xmin(), pos.ymin()),
-            Point(pos.xmax(), pos.ymax() - title_bounds.height()),
+            Point(pos.xmax(), pos.ymax() - margin - title_bounds.height() - title_gap),
         );
 
         self.frame.set_pos(&frame_pos);

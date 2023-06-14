@@ -21,6 +21,10 @@ pub enum WidthAlign {
 }
 
 impl TextStyle {
+    pub const SIZE_DEFAULT : f32 = 12.;
+    pub const HALIGN_DEFAULT : WidthAlign = WidthAlign::Center;
+    pub const VALIGN_DEFAULT : HeightAlign = HeightAlign::Bottom;
+
     pub fn new() -> Self {
         Self {
             size: None,
