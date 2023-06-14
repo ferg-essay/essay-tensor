@@ -43,7 +43,7 @@ pub struct LinearLocator {
 impl LinearLocator {
     const MAXTICKS : usize = 1000;
 
-    pub fn new(n_ticks: Option<usize>) -> Self {
+    pub fn _new(n_ticks: Option<usize>) -> Self {
         let n_ticks = match n_ticks {
             Some(n_ticks) => n_ticks,
             None => 11
@@ -96,8 +96,6 @@ pub struct MaxNLocator {
 }
 
 impl MaxNLocator {
-    const MAXTICKS : usize = 1000;
-
     pub fn new(n_bins: Option<usize>) -> Self {
         let n_bins = match n_bins {
             Some(n_bins) => n_bins,
@@ -162,7 +160,7 @@ impl MaxNLocator {
 
 impl TickLocator for MaxNLocator {
     fn tick_values(&self, vmin: f32, vmax: f32) -> Tensor<f32> {
-        let (vmin, vmax) = nonsingular_range(vmin, vmax, 1e-13, 1e-14);;
+        let (vmin, vmax) = nonsingular(vmin, vmax, 1e-13, 1e-14);
 
         let ticks = self.raw_ticks(vmin, vmax);
 
@@ -176,11 +174,11 @@ impl TickLocator for MaxNLocator {
             (max, min)
         };
 
-        nonsingular_range(min, max, 1e-12, 1e-13)
+        nonsingular(min, max, 1e-12, 1e-13)
     }
 }
 
-fn nonsingular_range(min: f32, max: f32, expander: f32, tiny: f32) -> (f32, f32) {
+fn nonsingular(min: f32, max: f32, expander: f32, tiny: f32) -> (f32, f32) {
     if tiny < max - min {
         (min, max)
     }  else {

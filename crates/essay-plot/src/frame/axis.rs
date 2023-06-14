@@ -1,4 +1,4 @@
-use super::{tick_locator::{LinearLocator, TickLocator, MaxNLocator}, databox::DataBox};
+use super::{tick_locator::{TickLocator, MaxNLocator}, databox::DataBox};
 
 pub struct Axis {
     locator: Box<dyn TickLocator>,

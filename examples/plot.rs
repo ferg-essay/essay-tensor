@@ -1,4 +1,4 @@
-use essay_plot::{prelude::*, graph::Graph, artist::{Bezier3, Bezier2, PColor}};
+use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor}, graph::Graph};
 use essay_plot_base::Point;
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
@@ -25,9 +25,15 @@ fn main() {
     let mut figure = Figure::new();
     let axes = figure.new_graph([1., 1.]);
     //axes.pcolor();
-    axes.title("My Title").style().color(0x008033);
-    axes.xlabel("My X-Label").style().color(0x0030ff);
-    axes.ylabel("Y-Label").style().color("r");
+
+    // axes.title("My Title").style().color(0x008033);
+    // axes.xlabel("My X-Label").style().color(0x0030ff);
+    // axes.ylabel("Y-Label").style().color("r");
+
+    axes.title("My Title");
+    axes.xlabel("My X-Label");
+    axes.ylabel("Y-Label");
+
     //axes.scatter(&x, &y, ()).color(0x003fc0);
     axes.plot(&x, &y);
     

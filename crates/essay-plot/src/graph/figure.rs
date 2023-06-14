@@ -7,7 +7,7 @@ use essay_plot_base::{
     CoordMarker, Bounds, Point, CanvasEvent, Canvas,
 };
 
-use crate::{graph::Graph, frame::Layout};
+use crate::{graph::Graph, frame::{Layout, LayoutArc}};
 
 pub struct Figure {
     // inner: Arc<Mutex<FigureInner>>,
@@ -90,7 +90,7 @@ impl GraphId {
 
 pub struct FigureInner {
     gridspec: Bounds<Layout>,
-    layout: Layout,
+    layout: LayoutArc,
 
     graphs: Vec<Graph>,
 }
@@ -98,7 +98,7 @@ pub struct FigureInner {
 impl FigureInner {
     fn new() -> Self {
         Self {
-            layout: Layout::new(),
+            layout: LayoutArc::new(),
             gridspec: Bounds::none(),
             graphs: Default::default(),
         }
@@ -125,9 +125,9 @@ impl FigureInner {
             }
         }
 
-        self.layout.push(id.index(), grid.clone());
+        let frame_id = self.layout.add_frame(grid.clone());
 
-        let graph = Graph::new(id, grid);
+        let graph = Graph::new(frame_id, self.layout.clone());
 
         self.graphs.push(graph);
 
@@ -145,22 +145,11 @@ impl FigureInner {
 
 impl FigureApi for FigureInner {
     fn draw(&mut self, renderer: &mut dyn Renderer, _bounds: &Bounds<Canvas>) {
-        for item in self.layout.layout(renderer.get_canvas()) {
-            let graph = &mut self.graphs[item.id().index()];
-
-            graph.extent(renderer.get_canvas());
-            graph.set_pos(item.pos_canvas());
-
-            graph.draw(renderer);
-        }
+        self.layout.draw(renderer);
     }
 
     fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
-        for graph in &mut self.graphs {
-            if graph.pos().contains(event.point()) {
-                graph.event(renderer, event);
-            }
-        }
+        self.layout.event(renderer, event);
     }
 }
 
@@ -208,7 +197,8 @@ impl<'a> PolyRow<'a> for [usize; 2] {
 
         row.0 += rows;
 
-        graph.id()
+        //graph.id()
+        todo!()
     }
 }
 

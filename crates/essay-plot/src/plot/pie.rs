@@ -1,12 +1,12 @@
 use essay_plot_base::{Angle, Point};
 use essay_tensor::Tensor;
 
-use crate::{artist::{patch, ColorCycle, Container, Artist}, graph::Graph};
+use crate::{artist::{patch, ColorCycle, Container, Artist}, graph::{Graph, graph::PlotOpt}};
 
 pub fn pie(
     graph: &mut Graph, 
     x: impl Into<Tensor>, 
-) { // -> &mut Artist {
+) -> PlotOpt {
     let x = x.into();
     
     assert!(x.rank() == 1, "pie chart must have rank 1 data");
@@ -42,7 +42,7 @@ pub fn pie(
         i += 1;
     }
 
-    graph.add_data_artist(container);
+    graph.add_data_artist(container)
 
     // todo!()
 }

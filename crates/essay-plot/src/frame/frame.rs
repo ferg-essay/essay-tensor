@@ -7,9 +7,11 @@ use essay_plot_base::{
 
 use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, ArtistTrait};
 
-use super::{databox::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}};
+use super::{databox::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId};
 
 pub struct Frame {
+    id: FrameId,
+    
     pos: Bounds<Canvas>,
 
     to_canvas: Affine2d,
@@ -26,8 +28,10 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(id: FrameId) -> Self {
         Self {
+            id,
+
             pos: Bounds::none(),
 
             data: DataBox::new(),
@@ -43,6 +47,11 @@ impl Frame {
 
             to_canvas: Affine2d::eye(),
         }
+    }
+
+    #[inline]
+    pub fn id(&self) -> FrameId {
+        self.id
     }
 
     pub(crate) fn pos(&self) -> &Bounds<Canvas> {
@@ -161,7 +170,7 @@ pub struct FrameSizes {
     tick_length: f32,
     tick_label_gap: f32,
     tick_text_height: f32,
-    label_title_gap: f32,
+    _label_title_gap: f32,
     margin: f32,
 }
 
@@ -173,22 +182,9 @@ impl FrameSizes {
             tick_length: 10.,
             tick_label_gap: 4.,
             tick_text_height: 28.,
-            label_title_gap: 10.,
+            _label_title_gap: 10.,
         }
     }
-}
-
-//
-// FrameExtent
-//
-
-pub struct FrameExtent {
-    data: Bounds<Canvas>,
-
-    bottom: Bounds<Canvas>,
-    left: Bounds<Canvas>,
-    top: Bounds<Canvas>,
-    right: Bounds<Canvas>,
 }
 
 //

@@ -122,7 +122,7 @@ impl DataBox {
     }
 
     // true if request redraw
-    pub fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) -> bool {
+    pub fn event(&mut self, _renderer: &mut dyn Renderer, event: &CanvasEvent) -> bool {
         match event {
             CanvasEvent::MouseLeftDoubleClick(_) => {
                 self.reset_view();

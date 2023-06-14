@@ -18,5 +18,5 @@ pub use frame::{
 };
 
 pub use layout::{
-    Layout,
+    Layout, LayoutArc, FrameId,
 };

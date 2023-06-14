@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{frame::{Data}, artist::Artist, graph::Graph};
+use crate::{graph::{Graph, graph::PlotOpt}};
 
 mod pie;
 mod scatter;
@@ -23,7 +23,7 @@ impl Graph {
         &mut self, 
         x: impl Into<Tensor>,
         y: impl Into<Tensor>,
-    ) -> &mut Artist<Data> {
+    ) -> PlotOpt {
         lineplot::plot(self, x, y)
     }
 
@@ -31,14 +31,14 @@ impl Graph {
         &mut self, 
         x: impl Into<Tensor>,
         y: impl Into<Tensor>,
-    ) -> &mut Artist<Data> {
+    ) -> PlotOpt {
         scatter::scatter(self, x, y)
     }
 
     pub fn pie(
         graph: &mut Graph, 
         x: impl Into<Tensor>, 
-    ) { // -> &mut Artist {
+    ) -> PlotOpt {
         pie::pie(graph, x)
     }
 }

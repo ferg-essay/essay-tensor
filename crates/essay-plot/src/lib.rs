@@ -1,4 +1,4 @@
-mod graph;
+pub mod graph;
 pub mod artist;
 pub mod frame;
 pub mod plot;

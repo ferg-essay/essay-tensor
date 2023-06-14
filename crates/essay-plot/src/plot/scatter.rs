@@ -1,14 +1,14 @@
 use essay_plot_base::{Canvas, Path, Affine2d};
 use essay_tensor::Tensor;
 
-use crate::{frame::{Data}, artist::{Artist, Collection, paths}, graph::Graph};
+use crate::{artist::{Collection, paths}, graph::{Graph, graph::PlotOpt}};
 
 
 pub fn scatter(
     graph: &mut Graph, 
     x: impl Into<Tensor>, 
     y: impl Into<Tensor>, 
-) -> &mut Artist<Data> {
+) -> PlotOpt {
     let x : Tensor = x.into();
     let y = y.into();
     let xy = x.stack(&[y], -1); // Axis::axis(-1));
