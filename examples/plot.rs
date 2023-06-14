@@ -19,7 +19,7 @@ fn main() {
     println!("z: {:?}", z);
     //let y = x.sin();
 
-    let x = linspace(0., 1., 20);
+    let x = linspace(0., 1., 6);
     let y = x.clone();
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
@@ -35,7 +35,8 @@ fn main() {
     graph.ylabel("Y-Label");
 
     //axes.scatter(&x, &y, ()).color(0x003fc0);
-    graph.plot(&x, &y).color(0xc08000);
+    //graph.plot(&x, &y).color(0xc08000);
+    graph.bar_y(&y).edgecolor(0x000000).facecolor(0xe08000);
     
     // axes.scatter(&x, &y, ());
     // let x = tf32!([40., 30., 20., 5., 5.]);

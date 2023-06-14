@@ -44,9 +44,7 @@ impl<M: CoordMarker> ArtistTrait<M> for Container<M> {
             }
         }
 
-        bounds.unwrap();
-
-        Bounds::new(Point(-1.5, -1.5), Point(1.5, 1.5))
+        bounds.unwrap()
     }
 
     fn draw(

@@ -6,13 +6,13 @@ use crate::Point;
 pub enum CanvasEvent {
     MouseLeftPress(Point),
     MouseLeftRelease(Point),
-    MouseLeftDrag(Point, Point, Point),
-    MouseLeftDoubleClick(Point),
+    Pan(Point, Point, Point),
+    ResetView(Point),
 
     MouseRightPress(Point),
     MouseRightRelease(Point),
     MouseRightDrag(Point, Point),
-    MouseRightDrop(Point, Point),
+    ZoomBounds(Point, Point),
     MouseRightDoubleClick(Point),
 
     MouseMiddlePress(Point),
@@ -27,13 +27,13 @@ impl CanvasEvent {
         match self {
             CanvasEvent::MouseLeftPress(point) => *point,
             CanvasEvent::MouseLeftRelease(point) => *point,
-            CanvasEvent::MouseLeftDrag(point, _, _) => *point,
-            CanvasEvent::MouseLeftDoubleClick(point) => *point,
+            CanvasEvent::Pan(point, _, _) => *point,
+            CanvasEvent::ResetView(point) => *point,
 
             CanvasEvent::MouseRightPress(point) => *point,
             CanvasEvent::MouseRightRelease(point) => *point,
             CanvasEvent::MouseRightDrag(point, _) => *point,
-            CanvasEvent::MouseRightDrop(point, _) => *point,
+            CanvasEvent::ZoomBounds(point, _) => *point,
             CanvasEvent::MouseRightDoubleClick(point) => *point,
 
             CanvasEvent::MouseMiddlePress(point) => *point,

@@ -18,6 +18,12 @@ pub fn tesselate(points: Vec<Point>) -> Vec<Triangle> {
         let p1 = points[(index + 1) % len];
         let p2 = points[(index + 2) % len];
 
+        if p0 == p1 || p1 == p2 {
+            points.remove((index + 1) % len);
+            index = index % points.len();
+            continue;
+        }
+
         let triangle = Triangle(p0, p1, p2);
 
         if triangle.is_inside(&points) {
@@ -28,8 +34,10 @@ pub fn tesselate(points: Vec<Point>) -> Vec<Triangle> {
             index_start = index;
         }
 
+        // TODO: fix empty poly
+
         index = (index + 1) % points.len();
-        assert_ne!(index, index_start);
+        assert_ne!(index, index_start, "remaining points {:?}", points);
     }
 
     triangles

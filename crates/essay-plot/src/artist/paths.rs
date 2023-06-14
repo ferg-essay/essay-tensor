@@ -13,10 +13,10 @@ impl CoordMarker for Unit {}
 
 pub fn unit() -> Path<Unit> {
     Path::new(vec![
-        PathCode::MoveTo(Point(-1., -1.)),
-        PathCode::LineTo(Point(-1., 1.)),
+        PathCode::MoveTo(Point(0., 0.)),
+        PathCode::LineTo(Point(1., 0.)),
         PathCode::LineTo(Point(1., 1.)),
-        PathCode::ClosePoly(Point(1., -1.)),
+        PathCode::ClosePoly(Point(0., 1.)),
     ])
 }
 

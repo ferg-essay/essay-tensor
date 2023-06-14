@@ -228,19 +228,13 @@ impl<'a> FigureRenderer {
         style: &dyn StyleOpt, 
         _clip: &Bounds<Canvas>,
     ) {
-        let color = match style.get_facecolor() {
-            Some(color) => *color,
-            None => Color(0x000000ff)
-        };
-
         // TODO: thickness in points
         let linewidth  = match style.get_linewidth() {
             Some(linewidth) => *linewidth,
             None => 1.5,
         };
         
-        let lw_x = self.to_px(linewidth); // / self.canvas.width();
-        let lw_y = self.to_px(linewidth); // / self.canvas.height();
+        let lw = self.to_px(linewidth); // / self.canvas.width();
 
         let color = match style.get_facecolor() {
             Some(color) => *color,
@@ -251,14 +245,15 @@ impl<'a> FigureRenderer {
         self.shape2d_render.start_shape();
 
         let mut p0 = Point(0.0f32, 0.0f32);
+        let mut p_move = p0;
         for code in path.codes() {
             p0 = match code {
                 PathCode::MoveTo(p0) => {
+                    p_move = *p0;
                     *p0
                 }
                 PathCode::LineTo(p1) => {
-                    //self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), lw_x, lw_y, rgba);
-                    self.shape2d_render.draw_line(&p0, p1, lw_x, lw_y);
+                    self.shape2d_render.draw_line(&p0, p1, lw, lw);
                     // TODO: clip
                     *p1
                 }
@@ -272,7 +267,8 @@ impl<'a> FigureRenderer {
                 }
                 PathCode::ClosePoly(p1) => {
                     //self.draw_line(p0.x(), p0.y(), p1.x(), p1.y(), lw_x, lw_y, rgba);
-                    self.shape2d_render.draw_line(&p0, p1, lw_x, lw_y);
+                    self.shape2d_render.draw_line(&p0, p1, lw, lw);
+                    self.shape2d_render.draw_line(p1, &p_move, lw, lw);
 
                     *p1
                 }
@@ -310,18 +306,32 @@ impl Renderer for FigureRenderer {
 
         let path = transform_path(path);
 
-        let color = match style.get_facecolor() {
+        let facecolor = match style.get_facecolor() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
 
-        if path.is_closed_path() {
+        let edgecolor = match style.get_edgecolor() {
+            Some(color) => *color,
+            None => Color(0x000000ff)
+        };
+
+        if path.is_closed_path() && ! facecolor.is_none() {
             self.draw_closed_path(style, &path, clip);
+
+            self.shape2d_render.draw_style(facecolor, &self.to_gpu);
+
+            if facecolor != edgecolor {
+                self.draw_lines(&path, style, clip);
+
+                self.shape2d_render.draw_style(edgecolor, &self.to_gpu);
+            }
         } else {
             self.draw_lines(&path, style, clip);
+
+            self.shape2d_render.draw_style(edgecolor, &self.to_gpu);
         }
 
-        self.shape2d_render.draw_style(color, &self.to_gpu);
 
         return Ok(());
     }

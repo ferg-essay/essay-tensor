@@ -125,11 +125,11 @@ impl DataBox {
     // true if request redraw
     pub fn event(&mut self, _renderer: &mut dyn Renderer, event: &CanvasEvent) -> bool {
         match event {
-            CanvasEvent::MouseLeftDoubleClick(_) => {
+            CanvasEvent::ResetView(_) => {
                 self.reset_view();
                 true
             }
-            CanvasEvent::MouseLeftDrag(_p_start, p_last, p_now) => {
+            CanvasEvent::Pan(_p_start, p_last, p_now) => {
                 let to_data = self.pos_canvas.affine_to(&self.view_bounds);
                 let p0 = to_data.transform_point(*p_last);
                 let p1 = to_data.transform_point(*p_now);
@@ -151,7 +151,7 @@ impl DataBox {
 
                 true
             },
-            CanvasEvent::MouseRightDrop(p_start, p_now) => {
+            CanvasEvent::ZoomBounds(p_start, p_now) => {
                 if self.pos_canvas.contains(*p_now) {
                     let to_data = self.pos_canvas.affine_to(&self.view_bounds);
                     let p0 = to_data.transform_point(*p_start);

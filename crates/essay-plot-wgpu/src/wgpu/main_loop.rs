@@ -189,7 +189,7 @@ fn run_event_loop(
                             if now.duration_since(mouse.left_press_time).as_millis() < dbl_click {
                                 figure.event(
                                     &mut figure_renderer,
-                                    &CanvasEvent::MouseLeftDoubleClick(cursor.position),
+                                    &CanvasEvent::ResetView(cursor.position),
                                 )
                             }
 
@@ -220,7 +220,7 @@ fn run_event_loop(
                                 if zoom_min <= mouse.right_press_start.norm(&cursor.position) {
                                     figure.event(
                                         &mut figure_renderer,
-                                        &CanvasEvent::MouseRightDrop(
+                                        &CanvasEvent::ZoomBounds(
                                             mouse.right_press_start, 
                                             cursor.position
                                         )
@@ -245,7 +245,7 @@ fn run_event_loop(
                     && pan_min <= mouse.left_press_start.norm(&cursor.position) {
                     figure.event(
                         &mut figure_renderer,
-                        &CanvasEvent::MouseLeftDrag(
+                        &CanvasEvent::Pan(
                             mouse.left_press_start, 
                             mouse.left_press_last, 
                             cursor.position

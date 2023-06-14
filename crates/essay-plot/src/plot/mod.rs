@@ -1,3 +1,4 @@
+mod bar;
 use essay_tensor::Tensor;
 
 use crate::{graph::{Graph, PlotOpt}};
@@ -5,6 +6,10 @@ use crate::{graph::{Graph, PlotOpt}};
 mod pie;
 mod scatter;
 mod lineplot;
+
+pub use bar::{
+    bar_y, 
+};
 
 pub use lineplot::{
     plot, 
@@ -41,4 +46,12 @@ impl Graph {
     ) -> PlotOpt {
         pie::pie(graph, x)
     }
+
+    pub fn bar_y(
+        &mut self, 
+        y: impl Into<Tensor>,
+    ) -> PlotOpt {
+        bar::bar_y(self, y)
+    }
+
 }

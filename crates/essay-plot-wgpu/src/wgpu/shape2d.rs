@@ -202,17 +202,17 @@ impl Shape2dRender {
         rpass.set_pipeline(&self.pipeline);
 
         for item in self.shape_items.drain(..) {
-            let stride = self.vertex_stride;
-            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(
-                (stride * item.v_start) as u64..(stride * item.v_end) as u64
-            ));
-            let stride = self.style_stride;
-            rpass.set_vertex_buffer(1, self.style_buffer.slice(
-                (stride * item.s_start) as u64..(stride * item.s_end) as u64
-            ));
-            // println!("Draw {}-{} {}-{}", stride * item.s_start, stride * item.s_end,
-            //    item.s_start, item.s_end);
-            if item.v_start < item.v_end {
+            if item.v_start < item.v_end && item.s_start < item.s_end {
+                let stride = self.vertex_stride;
+                rpass.set_vertex_buffer(0, self.vertex_buffer.slice(
+                    (stride * item.v_start) as u64..(stride * item.v_end) as u64
+                ));
+
+                let stride = self.style_stride;
+                rpass.set_vertex_buffer(1, self.style_buffer.slice(
+                    (stride * item.s_start) as u64..(stride * item.s_end) as u64
+                ));
+
                 rpass.draw(
                     0..(item.v_end - item.v_start) as u32,
                     0..(item.s_end - item.s_start) as u32,

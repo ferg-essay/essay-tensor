@@ -145,6 +145,29 @@ impl ArtistTrait<Canvas> for PathPatch<Canvas> {
     }
 }
 
+impl ArtistTrait<Data> for PathPatch<Data> {
+    fn get_extent(&mut self) -> Bounds<Data> {
+        self.path.get_bounds()
+    }
+
+    fn draw(
+        &mut self, 
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
+        clip: &Bounds<Canvas>,
+        style: &dyn StyleOpt,
+    ) {
+        let path = self.path.transform(&to_canvas);
+
+        renderer.draw_path(
+            style, 
+            &path,
+            &to_canvas, 
+            clip
+        ).unwrap();
+    }
+}
+
 pub struct Line {
     p0: Point,
     p1: Point,

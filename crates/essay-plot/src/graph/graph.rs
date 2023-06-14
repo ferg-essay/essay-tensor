@@ -17,11 +17,7 @@ use super::plot::PlotOpt;
 pub struct Graph {
     id: FrameId,
 
-    // pos: Bounds<Canvas>,
-
     layout: LayoutArc,
-
-    // frame: Frame,
 }
 
 impl Graph {
@@ -29,15 +25,6 @@ impl Graph {
         let mut graph = Self {
             id, 
             layout,
-            // pos_layout: layout.into(),
-            // pos: Bounds::none(),
-
-            //title: Text::new(),
-            // frame: Frame::new(),
-
-            //style: Style::default(),
-
-            //to_canvas: Affine2d::eye(),
         };
 
         graph.default_properties();
@@ -49,12 +36,6 @@ impl Graph {
     pub fn id(&self) -> FrameId {
         self.id
     }
-
-    /*
-    pub fn pos(&self) -> &Bounds<Canvas> {
-        &self.pos
-    }
-    */
 
     pub fn title(&mut self, text: &str) { // -> &mut Text {
         self.layout.borrow_mut().frame_mut(self.id).title(text);
@@ -71,44 +52,6 @@ impl Graph {
     fn default_properties(&mut self) {
         //self.title.font().size(12.);
     }
-    /*
-    #[inline]
-    fn frame(&self) -> &Frame {
-        self.layout.frame(self.id)
-    }
-
-    #[inline]
-    fn frame_mut(&mut self) -> &mut Frame {
-        self.layout.frame_mut(self.id)
-    }
-    */
-
-    ///
-    /// Calculate the graph's extents
-    /// 
-    /*
-    pub(crate) fn extent(&mut self, canvas: &Canvas) {
-        //self.title.update_extent(canvas);
-        self.frame.update_extent(canvas);
-    }
-    */
-
-    ///
-    /// Sets the device bounds and propagates to children
-    /// 
-    /*
-    pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) {
-        self.frame.set_pos(pos);
-    }
-
-    pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
-        self.frame.event(renderer, event);
-    }
-    */
-
-    //
-    // TODO: move plots out of graph
-    //
 
     pub fn add_data_artist(
         &mut self, 
