@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, any::{TypeId, Any, type_name}, rc::Rc, cell::RefCell};
 
-use essay_plot_base::Coord;
+use essay_plot_base::{Coord, Canvas};
 
 use crate::frame::Data;
 
@@ -31,6 +31,9 @@ pub struct Art {
 }
 
 impl Artist<Data> for Art {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> essay_plot_base::Bounds<Data> {
         todo!()
     }
@@ -91,6 +94,9 @@ where
     M: Coord,
     A: Artist<M>,
 {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> essay_plot_base::Bounds<M> {
         todo!()
     }

@@ -36,7 +36,10 @@ fn main() {
 
     //axes.scatter(&x, &y, ()).color(0x003fc0);
     //graph.plot(&x, &y).color(0xc08000);
-    graph.bar_y(&y).edgecolor(0x000000).facecolor(0xe08000);
+    graph.bar_y(&y)
+        .edgecolor(0x000000)
+        .facecolor(0xe08000)
+        .width(0.8);
     
     // axes.scatter(&x, &y, ());
     // let x = tf32!([40., 30., 20., 5., 5.]);

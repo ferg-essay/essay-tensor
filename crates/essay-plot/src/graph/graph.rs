@@ -13,7 +13,7 @@ use crate::{artist::{
 
 use crate::frame::{Layout};
 
-use super::plot::PlotOpt;
+use super::plot::{PlotOpt, PlotRef};
 
 pub struct Graph {
     id: FrameId,
@@ -61,9 +61,26 @@ impl Graph {
         let mut layout = self.layout.borrow_mut();
         let frame = layout.frame_mut(self.id);
 
-        let artist_id = frame.data_mut().artist(artist);
+        let artist_id = frame.data_mut().add_artist(artist);
 
         PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
+    }
+
+    pub fn add_plot<'a, A>(
+        &'a mut self, 
+        artist: A
+    ) -> PlotRef<Data, A>
+    where
+        A: Artist<Data> + 'static,
+    {
+        let mut layout = self.layout.borrow_mut();
+        let frame = layout.frame_mut(self.id);
+
+        let artist_id = frame.data_mut().add_artist(artist);
+
+        //PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
+
+        PlotRef::new(self.layout.clone(), frame.id(), artist_id)
     }
 
     pub fn add_artist_holder<'a, A>(
@@ -81,7 +98,7 @@ impl Graph {
         let accessor = ArtAccessor::new(rcart.clone());
         let holder = ArtHolder::new(rcart.clone());
 
-        let _artist_id = frame.data_mut().artist(holder);
+        let _artist_id = frame.data_mut().add_artist(holder);
 
         //PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
         accessor

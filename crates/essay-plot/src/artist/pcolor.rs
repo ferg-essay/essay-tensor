@@ -1,4 +1,4 @@
-use essay_plot_base::{Bounds, Point};
+use essay_plot_base::{Bounds, Point, Canvas};
 use essay_tensor::{tf32, tensor, Tensor};
 
 use crate::frame::Data;
@@ -9,6 +9,9 @@ pub struct PColor {
 }
 
 impl Artist<Data> for PColor {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Data> {
         Bounds::new(Point(0.0, 0.0), Point(1.5, 1.0))
     }

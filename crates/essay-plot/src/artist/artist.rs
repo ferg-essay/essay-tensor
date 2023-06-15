@@ -6,7 +6,7 @@ use essay_plot_base::{
 use crate::frame::ArtistId;
 
 pub trait Artist<M: Coord> {
-    fn update(&mut self, canvas: &Canvas) {}
+    fn update(&mut self, canvas: &Canvas);
 
     fn get_extent(&mut self) -> Bounds<M>;
     

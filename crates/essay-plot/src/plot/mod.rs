@@ -8,7 +8,7 @@ mod scatter;
 mod lineplot;
 
 pub use bar::{
-    bar_y, 
+    bar_y, BarOpt,
 };
 
 pub use lineplot::{
@@ -50,7 +50,7 @@ impl Graph {
     pub fn bar_y(
         &mut self, 
         y: impl Into<Tensor>,
-    ) -> PlotOpt {
+    ) -> BarOpt {
         bar::bar_y(self, y)
     }
 

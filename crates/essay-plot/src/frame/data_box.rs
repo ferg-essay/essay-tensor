@@ -19,6 +19,8 @@ pub struct DataBox {
 
     to_canvas: Affine2d,
     style: Style,
+
+    is_modified: bool,
 }
 
 impl DataBox {
@@ -34,6 +36,7 @@ impl DataBox {
             style: Style::default(),
 
             to_canvas: Affine2d::eye(),
+            is_modified: true,
         }
     }
 
@@ -48,7 +51,7 @@ impl DataBox {
         self
     }
 
-    pub fn artist(&mut self, artist: impl Artist<Data> + 'static) -> ArtistId {
+    pub fn add_artist(&mut self, artist: impl Artist<Data> + 'static) -> ArtistId {
         let mut artist = artist;
 
         let bounds = artist.get_extent();
@@ -167,14 +170,46 @@ impl DataBox {
         }
     }
 
-    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut Style {
+    pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut Style {
         self.artists.style_mut(id)
+    }
+
+    pub(crate) fn artist<A>(&self, id: ArtistId) -> &A
+    where
+        A: Artist<Data> + 'static
+    {
+        self.artists.artist(id)
+    }
+
+    pub(crate) fn artist_mut<A>(&mut self, id: ArtistId) -> &mut A
+    where
+        A: Artist<Data> + 'static
+    {
+        self.artists.artist_mut(id)
     }
 }
 
 impl Artist<Canvas> for DataBox {
     fn update(&mut self, canvas: &Canvas) {
         self.artists.update(canvas);
+
+        if self.is_modified {
+            self.is_modified = false;
+
+            self.data_bounds =self.artists.get_extent();
+            /*
+
+            for id in self.artists.iter() {
+                let bounds = self.artists.get_extent();
+
+                self.add_data_bounds(&bounds);
+                // self.add_view_bounds(&bounds);
+            }
+            */
+    
+            self.reset_view();
+            println!("Reset: {:?}", self.view_bounds);
+        }
     }
 
     fn get_extent(&mut self) -> Bounds<Canvas> {

@@ -1,3 +1,4 @@
+use core::slice;
 use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{ManuallyDrop, self}};
 
 use essay_plot_base::{Coord, Bounds, Style, driver::Renderer, Affine2d, Canvas, StyleOpt, style::Chain};
@@ -44,9 +45,39 @@ impl<M: Coord> PlotContainer<M> {
     pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut Style {
         self.artists[id.index()].style_mut()
     }
+
+    pub(crate) fn artist<A>(&self, id: ArtistId) -> &A
+    where
+        A: Artist<M> + 'static
+    {
+        unsafe { self.ptrs[id.index()].deref() }
+    }
+
+    pub(crate) fn artist_mut<A>(&mut self, id: ArtistId) -> &mut A
+    where
+        A: Artist<M> + 'static
+    {
+        unsafe { self.ptrs[id.index()].deref_mut() }
+    }
+
+    /*
+    pub(crate) fn iter(&self) -> slice::Iter<ArtistId> {
+        let vec : Vec<ArtistId> = self.artists.iter()
+            .map(|a| a.id())
+            .collect();
+
+        vec.iter()
+    }
+    */
 }
 
 impl<M: Coord> Artist<M> for PlotContainer<M> {
+    fn update(&mut self, canvas: &Canvas) {
+        for artist in &self.artists {
+            artist.update(self, canvas);
+        }
+    }
+    
     fn get_extent(&mut self) -> Bounds<M> {
         let mut bounds = Bounds::none();
 
@@ -75,9 +106,13 @@ impl<M: Coord> Artist<M> for PlotContainer<M> {
 }
 
 trait PlotArtistTrait<M: Coord> {
+    fn id(&self) -> ArtistId;
+
     fn style_mut(&mut self) -> &mut Style;
 
+    fn update(&self, container: &PlotContainer<M>, canvas: &Canvas);
     fn get_extent(&self, container: &PlotContainer<M>) -> Bounds<M>;
+
     fn draw(
         &self, 
         container: &PlotContainer<M>,
@@ -113,8 +148,16 @@ where
     M: Coord,
     A: Artist<M> + 'static,
 {
+    fn id(&self) -> ArtistId {
+        self.id
+    }
+
     fn style_mut(&mut self) -> &mut Style {
         &mut self.style
+    }
+
+    fn update(&self, container: &PlotContainer<M>, canvas: &Canvas) {
+        container.deref_mut::<A>(self.id).update(canvas);
     }
 
     fn get_extent(&self, container: &PlotContainer<M>) -> Bounds<M> {

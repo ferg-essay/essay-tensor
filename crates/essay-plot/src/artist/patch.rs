@@ -41,6 +41,9 @@ impl DataPatch {
 }
 
 impl Artist<Data> for DataPatch {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Data> {
         self.bounds.clone()
     }
@@ -88,6 +91,9 @@ impl DisplayPatch {
 }
 
 impl Artist<Canvas> for DisplayPatch {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
@@ -123,6 +129,9 @@ impl<M: Coord> PathPatch<M> {
 }
 
 impl Artist<Canvas> for PathPatch<Canvas> {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Canvas> {
         todo!()
     }
@@ -146,6 +155,9 @@ impl Artist<Canvas> for PathPatch<Canvas> {
 }
 
 impl Artist<Data> for PathPatch<Data> {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Data> {
         self.path.get_bounds()
     }
@@ -210,6 +222,9 @@ impl PatchTrait<Canvas> for Line {
 }
 
 impl Artist<Canvas> for Line {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.get_path().get_bounds()
     }
@@ -285,6 +300,9 @@ impl PatchTrait<Data> for Wedge {
 }
 
 impl Artist<Data> for Wedge {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Data> {
         self.get_path().get_bounds()
     }

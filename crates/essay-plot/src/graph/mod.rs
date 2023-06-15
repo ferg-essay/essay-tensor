@@ -11,5 +11,5 @@ pub use figure::{
 };
 
 pub use plot::{
-    PlotOpt,
+    PlotOpt, PlotRef,
 };

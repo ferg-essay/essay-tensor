@@ -25,6 +25,10 @@ impl<M: Coord> Container<M> {
     pub fn push(&mut self, artist: ArtistStyle<M>) {
         self.artists.push(artist);
     }
+
+    pub(crate) fn clear(&mut self) {
+        self.artists.drain(..);
+    }
 }
 
 impl<M: Coord> Artist<M> for Container<M> {
@@ -35,16 +39,17 @@ impl<M: Coord> Artist<M> for Container<M> {
     }
 
     fn get_extent(&mut self) -> Bounds<M> {
-        let mut bounds : Option<Bounds<M>> = None;
+        let mut bounds = Bounds::<M>::none();
 
         for artist in &mut self.artists {
-            bounds = match bounds {
-                None => Some(artist.get_extent().clone()),
-                Some(bounds) => Some(bounds.union(&artist.get_extent())),
-            }
+            bounds = if bounds.is_none() {
+                    artist.get_extent().clone()
+            } else {
+                bounds.union(&artist.get_extent())
+            };
         }
 
-        bounds.unwrap()
+        bounds
     }
 
     fn draw(

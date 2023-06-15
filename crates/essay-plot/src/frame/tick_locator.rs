@@ -132,7 +132,10 @@ impl MaxNLocator {
         let vmax = vmax - offset;
         let raw_step = (vmax - vmin) / n_bins as f32;
         let steps = &self.steps * scale;
-        let istep = steps.iter().position(|s| raw_step < *s ).unwrap();
+        let istep = match steps.iter().position(|s| raw_step < *s ) {
+            Some(istep) => istep,
+            None => 0,
+        };
 
         let mut ticks: Tensor = tf32!([1.]);
         
@@ -190,6 +193,11 @@ fn scale_range(vmin: f32, vmax: f32, n_bins: usize) -> (f32, f32) {
     let threshold = 100.;
 
     let dv = (vmax - vmin).abs();
+
+    if dv == 0. {
+        return (1., 0.);
+    }
+
     let vmid = (vmin + vmax) / 2.;
 
     let offset = if vmid.abs() / dv < threshold {

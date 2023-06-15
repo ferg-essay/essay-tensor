@@ -25,6 +25,8 @@ pub struct Frame {
     left: LeftFrame,
     top: TopFrame,
     right: RightFrame,
+
+    is_modified: bool, 
 }
 
 impl Frame {
@@ -46,6 +48,8 @@ impl Frame {
             style: Style::default(),
 
             to_canvas: Affine2d::eye(),
+
+            is_modified: true,
         }
     }
 
@@ -219,6 +223,9 @@ impl TopFrame {
 }
 
 impl Artist<Canvas> for TopFrame {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
@@ -598,6 +605,9 @@ impl RightFrame {
 }
 
 impl Artist<Canvas> for RightFrame {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }

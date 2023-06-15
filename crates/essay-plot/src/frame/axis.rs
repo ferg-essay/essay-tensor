@@ -1,4 +1,7 @@
-use super::{tick_locator::{TickLocator, MaxNLocator}, data_box::DataBox};
+use super::{
+    data_box::DataBox,
+    tick_locator::{MaxNLocator, TickLocator},
+};
 
 pub struct Axis {
     locator: Box<dyn TickLocator>,
@@ -21,18 +24,22 @@ impl Axis {
         let view = data.get_view_bounds();
         let v_width = view.width();
 
-        let (vmin, vmax) = (view.xmin(), view.xmax());
-        let (min, max) = self.locator.view_limits(vmin, vmax);
+        if view.is_none() {
+            Vec::new()
+        } else {
+            let (vmin, vmax) = (view.xmin(), view.xmax());
+            let (min, max) = self.locator.view_limits(vmin, vmax);
 
-        // self.locator.tick_values(min, max)
+            // self.locator.tick_values(min, max)
 
-        let mut x_vec = Vec::<(f32, f32)>::new();
+            let mut x_vec = Vec::<(f32, f32)>::new();
 
-        for x in self.locator.tick_values(min, max).iter() {
-            x_vec.push((*x, ((x - vmin) * c_width / v_width).round()));
+            for x in self.locator.tick_values(min, max).iter() {
+                x_vec.push((*x, ((x - vmin) * c_width / v_width).round()));
+            }
+
+            x_vec
         }
-
-        x_vec
     }
 
     pub fn y_ticks(&self, data: &DataBox) -> Vec<(f32, f32)> {
@@ -41,17 +48,21 @@ impl Axis {
 
         let view = data.get_view_bounds();
 
-        let (vmin, vmax) = (view.ymin(), view.ymax());
-        let (min, max) = self.locator.view_limits(vmin, vmax);
-        
-        // self.locator.tick_values(min, max)
+        if view.is_none() {
+            Vec::new()
+        } else {
+            let (vmin, vmax) = (view.ymin(), view.ymax());
+            let (min, max) = self.locator.view_limits(vmin, vmax);
 
-        let mut y_vec = Vec::<(f32, f32)>::new();
+            // self.locator.tick_values(min, max)
 
-        for y in self.locator.tick_values(min, max).iter() {
-            y_vec.push((*y, ((y - vmin) * c_height / v_height).round()));
+            let mut y_vec = Vec::<(f32, f32)>::new();
+
+            for y in self.locator.tick_values(min, max).iter() {
+                y_vec.push((*y, ((y - vmin) * c_height / v_height).round()));
+            }
+
+            y_vec
         }
-
-        y_vec
     }
 }

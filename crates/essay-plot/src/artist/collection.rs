@@ -72,6 +72,9 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
 }
 
 impl Artist<Data> for Collection {
+    fn update(&mut self, _canvas: &Canvas) {
+    }
+    
     fn get_extent(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
