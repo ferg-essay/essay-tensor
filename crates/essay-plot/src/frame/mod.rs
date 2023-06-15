@@ -1,3 +1,4 @@
+mod typed_plot;
 mod tick_formatter;
 mod axis;
 mod tick_locator;

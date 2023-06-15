@@ -1,4 +1,5 @@
 use core::fmt;
+use std::{rc::Rc, cell::RefCell};
 
 use essay_plot_base::{
     driver::{Renderer}, 
@@ -6,8 +7,8 @@ use essay_plot_base::{
 };
 
 use crate::{artist::{
-    ArtistTrait, Artist,
-    Text,
+    Artist, ArtistStyle,
+    Text, ArtAccessor, ArtHolder,
 }, frame::{Frame, Data, LayoutArc, FrameId}};
 
 use crate::frame::{Layout};
@@ -55,7 +56,7 @@ impl Graph {
 
     pub fn add_data_artist(
         &mut self, 
-        artist: impl ArtistTrait<Data> + 'static
+        artist: impl Artist<Data> + 'static
     ) -> PlotOpt {
         let mut layout = self.layout.borrow_mut();
         let frame = layout.frame_mut(self.id);
@@ -63,6 +64,27 @@ impl Graph {
         let artist_id = frame.data_mut().artist(artist).id();
 
         PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
+    }
+
+    pub fn add_artist_holder<'a, A>(
+        &'a mut self, 
+        artist: A
+    ) -> ArtAccessor<'a, Data, A> 
+    where
+        A: Artist<Data> + 'static
+    {
+        let mut layout = self.layout.borrow_mut();
+        let frame = layout.frame_mut(self.id);
+
+        let rcart = Rc::new(RefCell::new(artist));
+
+        let accessor = ArtAccessor::new(rcart.clone());
+        let holder = ArtHolder::new(rcart.clone());
+
+        let _artist_id = frame.data_mut().artist(holder).id();
+
+        //PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
+        accessor
     }
 }
 

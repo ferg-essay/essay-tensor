@@ -6,7 +6,7 @@ use essay_plot_base::{
     style::Chain, TextStyle,
 };
 
-use super::{ArtistTrait};
+use super::{Artist};
 
 pub struct Text {
     pos: Bounds<Canvas>,
@@ -73,12 +73,12 @@ impl Text {
     }
 }
 
-impl ArtistTrait<Canvas> for Text {
+impl Artist<Canvas> for Text {
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.extent.clone()
     }
 
-    fn update_extent(&mut self, canvas: &Canvas) {
+    fn update(&mut self, canvas: &Canvas) {
         self.extent = match &self.text {
             None => Bounds::zero(),
             Some(text) => {

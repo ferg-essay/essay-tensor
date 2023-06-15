@@ -2,14 +2,14 @@ use core::fmt;
 
 use essay_plot_base::{
     Style, StyleOpt, Point, Affine2d, Bounds, Canvas, Path, Angle,
-    driver::Renderer, CoordMarker
+    driver::Renderer, Coord
 };
 
 use crate::frame::Data;
 
-use super::{ArtistTrait, paths};
+use super::{Artist, paths};
 
-pub trait PatchTrait<M: CoordMarker> {
+pub trait PatchTrait<M: Coord> {
     fn get_path(&mut self) -> &Path<M>;
 }
 
@@ -40,7 +40,7 @@ impl DataPatch {
     }
 }
 
-impl ArtistTrait<Data> for DataPatch {
+impl Artist<Data> for DataPatch {
     fn get_extent(&mut self) -> Bounds<Data> {
         self.bounds.clone()
     }
@@ -87,7 +87,7 @@ impl DisplayPatch {
     }
 }
 
-impl ArtistTrait<Canvas> for DisplayPatch {
+impl Artist<Canvas> for DisplayPatch {
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
@@ -110,11 +110,11 @@ impl ArtistTrait<Canvas> for DisplayPatch {
     }
 }
 
-pub struct PathPatch<M: CoordMarker> {
+pub struct PathPatch<M: Coord> {
     path: Path<M>,
 }
 
-impl<M: CoordMarker> PathPatch<M> {
+impl<M: Coord> PathPatch<M> {
     pub fn new(path: Path<M>) -> Self {
         Self {
             path
@@ -122,7 +122,7 @@ impl<M: CoordMarker> PathPatch<M> {
     }
 }
 
-impl ArtistTrait<Canvas> for PathPatch<Canvas> {
+impl Artist<Canvas> for PathPatch<Canvas> {
     fn get_extent(&mut self) -> Bounds<Canvas> {
         todo!()
     }
@@ -145,7 +145,7 @@ impl ArtistTrait<Canvas> for PathPatch<Canvas> {
     }
 }
 
-impl ArtistTrait<Data> for PathPatch<Data> {
+impl Artist<Data> for PathPatch<Data> {
     fn get_extent(&mut self) -> Bounds<Data> {
         self.path.get_bounds()
     }
@@ -209,7 +209,7 @@ impl PatchTrait<Canvas> for Line {
     }
 }
 
-impl ArtistTrait<Canvas> for Line {
+impl Artist<Canvas> for Line {
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.get_path().get_bounds()
     }
@@ -284,7 +284,7 @@ impl PatchTrait<Data> for Wedge {
     }
 }
 
-impl ArtistTrait<Data> for Wedge {
+impl Artist<Data> for Wedge {
     fn get_extent(&mut self) -> Bounds<Data> {
         self.get_path().get_bounds()
     }

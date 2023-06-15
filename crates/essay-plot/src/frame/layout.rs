@@ -1,6 +1,6 @@
 use std::{cell::{RefCell, Ref, RefMut}, rc::Rc};
 
-use essay_plot_base::{Bounds, Canvas, Point, CoordMarker, driver::Renderer, CanvasEvent};
+use essay_plot_base::{Bounds, Canvas, Point, Coord, driver::Renderer, CanvasEvent};
 
 use super::Frame;
 
@@ -110,7 +110,7 @@ impl Layout {
     }
 }
 
-impl CoordMarker for Layout {}
+impl Coord for Layout {}
 
 impl LayoutArc {
     pub(crate) fn new() -> LayoutArc {

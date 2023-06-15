@@ -1,6 +1,6 @@
 use std::f32::consts::{PI, TAU};
 
-use essay_plot_base::{Angle, CoordMarker, Path, PathCode, Point};
+use essay_plot_base::{Angle, Coord, Path, PathCode, Point};
 use essay_tensor::init::linspace;
 
 ///
@@ -9,7 +9,7 @@ use essay_tensor::init::linspace;
 
 pub struct Unit;
 
-impl CoordMarker for Unit {}
+impl Coord for Unit {}
 
 pub fn unit() -> Path<Unit> {
     Path::new(vec![

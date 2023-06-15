@@ -5,7 +5,7 @@ use essay_plot_base::{
     driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, WidthAlign, HeightAlign, 
 };
 
-use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, ArtistTrait, Artist};
+use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, Artist, ArtistStyle};
 
 use super::{databox::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, ArtistId, Data};
 
@@ -59,14 +59,14 @@ impl Frame {
     }
 
     pub(crate) fn update_extent(&mut self, canvas: &Canvas) {
-        self.title.update_extent(canvas);
+        self.title.update(canvas);
 
-        self.data.update_extent(canvas);
+        self.data.update(canvas);
 
-        self.bottom.update_extent(canvas);
-        self.left.update_extent(canvas);
-        self.top.update_extent(canvas);
-        self.right.update_extent(canvas);
+        self.bottom.update(canvas);
+        self.left.update(canvas);
+        self.top.update(canvas);
+        self.right.update(canvas);
     }
         ///
     /// Sets the device bounds and propagates to children
@@ -164,7 +164,7 @@ impl Frame {
         self.left.label(text)
     }
 
-    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut Artist<Data> {
+    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut ArtistStyle<Data> {
         self.data_mut().artist_mut(id)
     }
 }
@@ -222,7 +222,7 @@ impl TopFrame {
     }
 }
 
-impl ArtistTrait<Canvas> for TopFrame {
+impl Artist<Canvas> for TopFrame {
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }
@@ -254,11 +254,11 @@ pub struct BottomFrame {
     spine: Option<DisplayPatch>,
 
     axis: Option<Axis>,
-    ticks: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    ticks: Vec<Box<dyn Artist<Canvas>>>,
     style_major: Style,
-    grid_major: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    grid_major: Vec<Box<dyn Artist<Canvas>>>,
     style_minor: Style,
-    grid_minor: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    grid_minor: Vec<Box<dyn Artist<Canvas>>>,
 
     label: Text,
 }
@@ -357,13 +357,13 @@ impl BottomFrame {
     }
 }
 
-impl ArtistTrait<Canvas> for BottomFrame {
+impl Artist<Canvas> for BottomFrame {
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.extent.clone()
     }
 
-    fn update_extent(&mut self, canvas: &Canvas) {
-        self.label.update_extent(canvas);
+    fn update(&mut self, canvas: &Canvas) {
+        self.label.update(canvas);
 
         let sizes = &self.sizes;
         let mut height = sizes.margin;
@@ -420,11 +420,11 @@ pub struct LeftFrame {
     spine: Option<DisplayPatch>,
 
     axis: Option<Axis>,
-    ticks: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    ticks: Vec<Box<dyn Artist<Canvas>>>,
     style_major: Style,
-    grid_major: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    grid_major: Vec<Box<dyn Artist<Canvas>>>,
     style_minor: Style,
-    grid_minor: Vec<Box<dyn ArtistTrait<Canvas>>>,
+    grid_minor: Vec<Box<dyn Artist<Canvas>>>,
 
     label: Text,
 }
@@ -524,9 +524,9 @@ impl LeftFrame {
     }
 }
 
-impl ArtistTrait<Canvas> for LeftFrame {
-    fn update_extent(&mut self, canvas: &Canvas) {
-        self.label.update_extent(canvas);
+impl Artist<Canvas> for LeftFrame {
+    fn update(&mut self, canvas: &Canvas) {
+        self.label.update(canvas);
 
         let mut width = self.sizes.spine_thickness;
         width += self.sizes.tick_length;
@@ -601,7 +601,7 @@ impl RightFrame {
     }
 }
 
-impl ArtistTrait<Canvas> for RightFrame {
+impl Artist<Canvas> for RightFrame {
     fn get_extent(&mut self) -> Bounds<Canvas> {
         self.bounds.clone()
     }

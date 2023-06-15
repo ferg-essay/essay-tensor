@@ -5,7 +5,7 @@ use essay_plot_base::{Affine2d, Bounds, Path, PathCode, StyleOpt, Point, Canvas,
 
 use crate::frame::Data;
 
-use super::{ArtistTrait};
+use super::{Artist};
 
 pub struct Collection {
     path: Path<Canvas>,
@@ -71,7 +71,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
     Path::new(codes)
 }
 
-impl ArtistTrait<Data> for Collection {
+impl Artist<Data> for Collection {
     fn get_extent(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 

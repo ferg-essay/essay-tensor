@@ -3,20 +3,20 @@ use std::{marker::PhantomData, any::type_name};
 
 use essay_tensor::{Tensor, tf32};
 
-use super::{Point, CoordMarker, Affine2d};
+use super::{Point, Coord, Affine2d};
 
 ///
 /// Boundary box consisting of two unordered points
 /// 
 #[derive(PartialEq)]
-pub struct Bounds<M: CoordMarker> {
+pub struct Bounds<M: Coord> {
     p0: Point,
     p1: Point,
 
     marker: PhantomData<M>,
 }
 
-impl<M: CoordMarker> Bounds<M> {
+impl<M: Coord> Bounds<M> {
     pub fn new(p0: Point, p1: Point) -> Self {
         Self {
             p0,
@@ -164,7 +164,7 @@ impl<M: CoordMarker> Bounds<M> {
 
     pub fn affine_to<N>(&self, box_to: &Bounds<N>) -> Affine2d
     where
-        N: CoordMarker
+        N: Coord
     {
         let a_x0 = self.xmin();
         let a_y0 = self.ymin();
@@ -200,7 +200,7 @@ impl<M: CoordMarker> Bounds<M> {
     }
 }
 
-impl<M: CoordMarker> Clone for Bounds<M> {
+impl<M: Coord> Clone for Bounds<M> {
     fn clone(&self) -> Self {
         Self { 
             p0: self.p0.clone(), 
@@ -210,7 +210,7 @@ impl<M: CoordMarker> Clone for Bounds<M> {
     }
 }
 
-impl<M: CoordMarker> fmt::Debug for Bounds<M> {
+impl<M: Coord> fmt::Debug for Bounds<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: add marker to debug?
         let name = type_name::<M>();
@@ -231,13 +231,13 @@ impl<M: CoordMarker> fmt::Debug for Bounds<M> {
     }
 }
 
-impl<M: CoordMarker> From<()> for Bounds<M> {
+impl<M: Coord> From<()> for Bounds<M> {
     fn from(_: ()) -> Self {
         Bounds::zero()
     }
 }
 
-impl<M: CoordMarker> From<(f32, f32)> for Bounds<M> {
+impl<M: Coord> From<(f32, f32)> for Bounds<M> {
     fn from(value: (f32, f32)) -> Self {
         Bounds::new(
             Point(value.0, value.1),
@@ -246,7 +246,7 @@ impl<M: CoordMarker> From<(f32, f32)> for Bounds<M> {
     }
 }
 
-impl<M: CoordMarker> From<Point> for Bounds<M> {
+impl<M: Coord> From<Point> for Bounds<M> {
     fn from(value: Point) -> Self {
         Bounds::new(
             value,
@@ -255,7 +255,7 @@ impl<M: CoordMarker> From<Point> for Bounds<M> {
     }
 }
 
-impl<M: CoordMarker> From<[f32; 2]> for Bounds<M> {
+impl<M: Coord> From<[f32; 2]> for Bounds<M> {
     fn from(value: [f32; 2]) -> Self {
         Bounds::new(
             Point(0., 0.),
@@ -264,7 +264,7 @@ impl<M: CoordMarker> From<[f32; 2]> for Bounds<M> {
     }
 }
 
-impl<M: CoordMarker> From<[f32; 4]> for Bounds<M> {
+impl<M: Coord> From<[f32; 4]> for Bounds<M> {
     fn from(value: [f32; 4]) -> Self {
         Bounds::new(
             Point(value[0], value[1]),
@@ -273,7 +273,7 @@ impl<M: CoordMarker> From<[f32; 4]> for Bounds<M> {
     }
 }
 
-impl<M: CoordMarker> From<Tensor> for Bounds<M> {
+impl<M: Coord> From<Tensor> for Bounds<M> {
     fn from(value: Tensor) -> Self {
         assert!(value.rank() == 2);
         assert!(value.cols() == 2);
@@ -300,7 +300,7 @@ impl<M: CoordMarker> From<Tensor> for Bounds<M> {
     }
 }
 
-impl<M: CoordMarker> From<Bounds<M>> for Tensor {
+impl<M: Coord> From<Bounds<M>> for Tensor {
     fn from(value: Bounds<M>) -> Self {
         value.corners()
     }

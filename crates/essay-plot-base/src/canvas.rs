@@ -1,4 +1,4 @@
-use super::{Bounds, CoordMarker};
+use super::{Bounds, Coord};
 
 
 pub struct Canvas {
@@ -54,4 +54,4 @@ impl Canvas {
     }
 }
 
-impl CoordMarker for Canvas {}
+impl Coord for Canvas {}

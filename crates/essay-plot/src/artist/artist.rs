@@ -1,12 +1,12 @@
 use essay_plot_base::{
-    CoordMarker, Bounds, Affine2d, Canvas, StyleOpt, Style,
+    Coord, Bounds, Affine2d, Canvas, StyleOpt, Style,
     driver::Renderer, JoinStyle, Color,
 };
 
 use crate::frame::ArtistId;
 
-pub trait ArtistTrait<M: CoordMarker> {
-    fn update_extent(&mut self, canvas: &Canvas) {}
+pub trait Artist<M: Coord> {
+    fn update(&mut self, canvas: &Canvas) {}
 
     fn get_extent(&mut self) -> Bounds<M>;
     
@@ -19,16 +19,16 @@ pub trait ArtistTrait<M: CoordMarker> {
     );
 }
 
-pub struct Artist<M: CoordMarker> {
+pub struct ArtistStyle<M: Coord> {
     id: ArtistId,
 
-    artist: Box<dyn ArtistTrait<M>>,
+    artist: Box<dyn Artist<M>>,
 
     style: Style,
 }
 
-impl<M: CoordMarker> Artist<M> {
-    pub fn new(id: ArtistId, artist: impl ArtistTrait<M> + 'static) -> Self {
+impl<M: Coord> ArtistStyle<M> {
+    pub fn new(id: ArtistId, artist: impl Artist<M> + 'static) -> Self {
         Self {
             id,
             artist: Box::new(artist),
@@ -39,7 +39,7 @@ impl<M: CoordMarker> Artist<M> {
     pub fn id(&self) -> ArtistId {
         self.id
     }
-    
+
     pub fn style(&self) -> &Style {
         &self.style
     }
@@ -67,9 +67,9 @@ impl<M: CoordMarker> Artist<M> {
     }
 }
 
-impl<M: CoordMarker> ArtistTrait<M> for Artist<M> {
-    fn update_extent(&mut self, canvas: &Canvas) {
-        self.artist.update_extent(canvas)
+impl<M: Coord> Artist<M> for ArtistStyle<M> {
+    fn update(&mut self, canvas: &Canvas) {
+        self.artist.update(canvas)
     }
 
     fn get_extent(&mut self) -> Bounds<M> {
@@ -92,7 +92,7 @@ impl<M: CoordMarker> ArtistTrait<M> for Artist<M> {
     }
 }
 
-impl<M: CoordMarker> StyleOpt for Artist<M> {
+impl<M: Coord> StyleOpt for ArtistStyle<M> {
     fn get_facecolor(&self) -> &Option<Color> {
         self.style.get_facecolor()
     }

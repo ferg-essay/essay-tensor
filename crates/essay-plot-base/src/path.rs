@@ -2,15 +2,15 @@ use std::{marker::PhantomData};
 
 use essay_tensor::{prelude::*};
 
-use crate::{CoordMarker, Affine2d, Bounds, Point};
+use crate::{Coord, Affine2d, Bounds, Point};
 
-pub struct Path<M: CoordMarker> {
+pub struct Path<M: Coord> {
     codes: Vec<PathCode>,
 
     marker: PhantomData<M>,
 }
 
-impl<M: CoordMarker> Path<M> {
+impl<M: Coord> Path<M> {
     pub fn new(codes: Vec<PathCode>) -> Self {
         Self {
             codes,
@@ -80,7 +80,7 @@ impl<M: CoordMarker> Path<M> {
         Bounds::<M>::new(Point(bounds[0], bounds[1]), Point(bounds[2], bounds[3]))
     }
 
-    pub fn transform<C: CoordMarker>(&self, affine: &Affine2d) -> Path<C> {
+    pub fn transform<C: Coord>(&self, affine: &Affine2d) -> Path<C> {
         let mut codes = Vec::<PathCode>::new();
 
         for code in &self.codes {
@@ -116,7 +116,7 @@ impl<M: CoordMarker> Path<M> {
     }
 }
 
-impl<M: CoordMarker> Clone for Path<M> {
+impl<M: Coord> Clone for Path<M> {
     fn clone(&self) -> Self {
         Self { 
             codes: self.codes.clone(), 
@@ -125,7 +125,7 @@ impl<M: CoordMarker> Clone for Path<M> {
     }
 }
 
-impl<const N: usize, M: CoordMarker> From<[PathCode; N]> for Path<M> {
+impl<const N: usize, M: Coord> From<[PathCode; N]> for Path<M> {
     fn from(value: [PathCode; N]) -> Self {
         let codes = Vec::<PathCode>::from(value);
 
@@ -136,7 +136,7 @@ impl<const N: usize, M: CoordMarker> From<[PathCode; N]> for Path<M> {
     }
 }
 
-impl<M: CoordMarker> From<&[[f32; 2]]> for Path<M> {
+impl<M: Coord> From<&[[f32; 2]]> for Path<M> {
     fn from(value: &[[f32; 2]]) -> Self {
         let mut codes = Vec::<PathCode>::new();
 
@@ -155,7 +155,7 @@ impl<M: CoordMarker> From<&[[f32; 2]]> for Path<M> {
     }
 }
 
-impl<const N: usize, M: CoordMarker> From<[[f32; 2]; N]> for Path<M> {
+impl<const N: usize, M: Coord> From<[[f32; 2]; N]> for Path<M> {
     fn from(value: [[f32; 2]; N]) -> Self {
         let mut codes = Vec::<PathCode>::new();
 
@@ -176,7 +176,7 @@ impl<const N: usize, M: CoordMarker> From<[[f32; 2]; N]> for Path<M> {
     }
 }
 
-impl<const N: usize, M: CoordMarker> From<[Point; N]> for Path<M> {
+impl<const N: usize, M: Coord> From<[Point; N]> for Path<M> {
     fn from(value: [Point; N]) -> Self {
         let mut codes = Vec::<PathCode>::new();
 

@@ -9,7 +9,7 @@ use essay_plot_base::{
 
 use crate::frame::Data;
 
-use super::{ArtistTrait};
+use super::{Artist};
 
 pub struct Lines2d {
     lines: Tensor, // 2d tensor representing a graph
@@ -56,7 +56,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
     Path::new(codes)
 }
 
-impl ArtistTrait<Data> for Lines2d {
+impl Artist<Data> for Lines2d {
     fn get_extent(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
@@ -108,7 +108,7 @@ impl fmt::Debug for Lines2d {
 
 pub struct Bezier2(pub Point, pub Point, pub Point);
 
-impl ArtistTrait<Data> for Bezier2 {
+impl Artist<Data> for Bezier2 {
     fn get_extent(&mut self) -> Bounds<Data> {
         Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
     }
@@ -135,7 +135,7 @@ impl ArtistTrait<Data> for Bezier2 {
 
 pub struct Bezier3(pub Point, pub Point, pub Point, pub Point);
 
-impl ArtistTrait<Data> for Bezier3 {
+impl Artist<Data> for Bezier3 {
     fn get_extent(&mut self) -> Bounds<Data> {
         Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
     }

@@ -28,7 +28,7 @@ pub use color::{
 };
 
 pub use coord::{
-    CoordMarker,
+    Coord,
 };
 
 pub use event::{

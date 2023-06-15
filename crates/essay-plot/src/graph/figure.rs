@@ -4,7 +4,7 @@ use essay_plot_wgpu::WgpuBackend;
 
 use essay_plot_base::{
     driver::{Renderer, Backend, FigureApi},
-    CoordMarker, Bounds, Point, CanvasEvent, Canvas,
+    Coord, Bounds, Point, CanvasEvent, Canvas,
 };
 
 use crate::{graph::Graph, frame::{Layout, LayoutArc}};
@@ -153,7 +153,7 @@ impl FigureApi for FigureInner {
     }
 }
 
-impl CoordMarker for Figure {}
+impl Coord for Figure {}
 
 pub trait PolyRow<'a> {
     type Item;

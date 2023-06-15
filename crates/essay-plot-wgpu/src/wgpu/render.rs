@@ -1,4 +1,4 @@
-use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, CoordMarker, WidthAlign, HeightAlign};
+use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, Coord, WidthAlign, HeightAlign};
 use essay_tensor::Tensor;
 
 use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate, triangle2d::GridMesh2dRender};
@@ -539,7 +539,7 @@ fn transform_path(path: &Path<Canvas>) -> Path<Canvas> {
 }
 
 struct Gpu {}
-impl CoordMarker for Gpu {}
+impl Coord for Gpu {}
 
 // For BezierQuadratic to BezierCubic, see Truong, et. al. 2020 Quadratic 
 // Approximation of Cubic Curves

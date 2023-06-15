@@ -1,5 +1,5 @@
 
-pub trait CoordMarker {}
+pub trait Coord: 'static {}
 
 ///
 /// Display coordinates are in pixels for screens, or points for text rendering.
@@ -7,7 +7,7 @@ pub trait CoordMarker {}
 #[derive(Clone, Copy, Debug)]
 pub struct Display {}
 
-impl CoordMarker for Display {
+impl Coord for Display {
 }
 
 ///
@@ -16,5 +16,5 @@ impl CoordMarker for Display {
 #[derive(Clone, Copy, Debug)]
 pub struct Unit {}
 
-impl CoordMarker for Unit {
+impl Coord for Unit {
 }

@@ -1,16 +1,16 @@
 use essay_plot_base::{
-    Bounds, Affine2d, Point, CoordMarker, Canvas, StyleOpt, Style,
+    Bounds, Affine2d, Point, Coord, Canvas, StyleOpt, Style,
     driver::{Renderer}
 };
 
-use super::{Artist, ArtistTrait};
+use super::{ArtistStyle, Artist};
 
-pub struct Container<M: CoordMarker> {
-    artists: Vec<Artist<M>>,
+pub struct Container<M: Coord> {
+    artists: Vec<ArtistStyle<M>>,
     style: Style,
 }
 
-impl<M: CoordMarker> Container<M> {
+impl<M: Coord> Container<M> {
     pub fn new() -> Self {
         Self {
             artists: Vec::new(),
@@ -22,15 +22,15 @@ impl<M: CoordMarker> Container<M> {
         &mut self.style
     }
 
-    pub fn push(&mut self, artist: Artist<M>) {
+    pub fn push(&mut self, artist: ArtistStyle<M>) {
         self.artists.push(artist);
     }
 }
 
-impl<M: CoordMarker> ArtistTrait<M> for Container<M> {
-    fn update_extent(&mut self, canvas: &Canvas) {
+impl<M: Coord> Artist<M> for Container<M> {
+    fn update(&mut self, canvas: &Canvas) {
         for artist in &mut self.artists {
-            artist.update_extent(canvas);
+            artist.update(canvas);
         }
     }
 

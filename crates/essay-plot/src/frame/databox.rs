@@ -2,10 +2,10 @@ use core::fmt;
 
 use essay_plot_base::{
     driver::{Renderer}, Style, StyleOpt,
-    Bounds, Affine2d, Point, Canvas, CoordMarker, CanvasEvent,
+    Bounds, Affine2d, Point, Canvas, Coord, CanvasEvent,
 };
 
-use crate::artist::{Artist, ArtistTrait};
+use crate::artist::{ArtistStyle, Artist};
 
 pub struct DataBox {
     pos_canvas: Bounds<Canvas>,
@@ -13,7 +13,7 @@ pub struct DataBox {
     data_bounds: Bounds<Data>,
     view_bounds: Bounds<Data>,
 
-    artists: Vec<Artist<Data>>,
+    artists: Vec<ArtistStyle<Data>>,
 
     to_canvas: Affine2d,
     style: Style,
@@ -46,7 +46,7 @@ impl DataBox {
         self
     }
 
-    pub fn artist(&mut self, artist: impl ArtistTrait<Data> + 'static) -> &mut Artist<Data> {
+    pub fn artist(&mut self, artist: impl Artist<Data> + 'static) -> &mut ArtistStyle<Data> {
         let mut artist = artist;
 
         let bounds = artist.get_extent();
@@ -57,7 +57,7 @@ impl DataBox {
         let len = self.artists.len();
         let id = ArtistId(len);
         
-        self.artists.push(Artist::new(id, artist));
+        self.artists.push(ArtistStyle::new(id, artist));
 
         &mut self.artists[len]
     }
@@ -168,15 +168,15 @@ impl DataBox {
         }
     }
 
-    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut Artist<Data> {
+    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut ArtistStyle<Data> {
         &mut self.artists[id.index()]
     }
 }
 
-impl ArtistTrait<Canvas> for DataBox {
-    fn update_extent(&mut self, canvas: &Canvas) {
+impl Artist<Canvas> for DataBox {
+    fn update(&mut self, canvas: &Canvas) {
         for artist in &mut self.artists {
-            artist.update_extent(canvas);
+            artist.update(canvas);
         }
     }
 
@@ -214,7 +214,7 @@ impl fmt::Debug for DataBox {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ArtistId(usize);
+pub struct ArtistId(pub(crate) usize);
 
 impl ArtistId {
     pub fn index(&self) -> usize {
@@ -233,5 +233,5 @@ impl ArtistId {
 #[derive(Clone, Copy, Debug)]
 pub struct Data;
 
-impl CoordMarker for Data {
+impl Coord for Data {
 }

@@ -1,3 +1,4 @@
+mod holder;
 mod pcolor;
 mod color;
 mod style;
@@ -10,7 +11,7 @@ mod collection;
 mod lines;
 
 pub use artist::{
-    Artist, ArtistTrait
+    ArtistStyle, Artist
 };
 
 pub use collection::{
@@ -32,6 +33,10 @@ pub use pcolor::{
 pub use lines::{
     Lines2d,
     Bezier2, Bezier3,
+};
+
+pub use holder::{
+    ArtHolder, ArtAccessor
 };
 
 //pub use path::{
