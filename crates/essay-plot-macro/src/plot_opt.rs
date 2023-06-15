@@ -1,7 +1,7 @@
 use proc_macro::{self};
 use syn::{DeriveInput, parse_macro_input, DataStruct, Result, 
     parse::{ParseStream, Parse}, 
-    Fields, Ident, Type
+    Fields, Ident, Type, Attribute
 };
 use quote::{*, __private::TokenStream};
 
@@ -18,12 +18,12 @@ impl Parse for OptAttribute {
     }
 }
 
-pub(crate) fn derive_plot(
+pub(crate) fn derive_plot_opt(
     attr: proc_macro::TokenStream, 
     item: proc_macro::TokenStream
 ) -> proc_macro::TokenStream {
     if attr.is_empty() {
-        panic!("missing required attribute to #[derive_plot(Opt)]")
+        panic!("missing required attribute to #[derive_plot_opt(Opt)]")
     }
 
     let OptAttribute {
@@ -59,113 +59,120 @@ pub(crate) fn derive_plot(
         syn::Data::Union(_) => todo!("union not supported for derive_opt"),
     };
 
-    // println!("zop {}", style_prompt(&data));
     //println!("Struct: {:?}", &struct_token.to_token_stream());
     //println!("Fields: {:?}", &fields.to_token_stream());
     //println!("Attrs: {:?}", &attrs.iter().map(|x| x.to_token_stream()));
     // struct_token.
     // println!("Item: {}", item.as);
 
-    let trait_methods = trait_methods(&fields, &ident);
-    let arg_methods = arg_methods(&fields);
-    let nil_methods = nil_methods(&fields, &ident);
+    //let trait_methods = trait_methods(&fields, &ident);
+    let struct_fields = struct_fields(&fields);
+    let field_methods = field_methods(&fields);
 
     //if true { return quote! {}.into(); }
 
     quote! {
         #(#attrs)*
         #vis #struct_token #ident #generics 
-            #fields
+            #struct_fields
         #semi_token
 
-        #vis trait #opt {
-            #trait_methods
-
-            fn into_arg(self) -> #ident;
+        #vis struct #opt {
+            plot: crate::graph::PlotRef<crate::frame::Data, #ident>,
         }
 
-        impl #opt for #ident {
-            #arg_methods
+        impl #opt {
+            pub fn new(
+                plot: crate::graph::PlotRef<crate::frame::Data, #ident>,
+            ) -> Self {
+                Self {
+                    plot
+                }
+            }
 
-            fn into_arg(self) -> Self {
+            #field_methods
+
+            pub fn edgecolor(
+                &mut self,
+                color: impl Into<essay_plot_base::Color>
+            ) -> &mut Self {
+                self.plot.write_style(|s| { s.edgecolor(color); } );
                 self
             }
-        }
 
-        impl #opt for () {
-            #nil_methods
+            pub fn facecolor(
+                &mut self,
+                color: impl Into<essay_plot_base::Color>
+            ) -> &mut Self {
+                self.plot.write_style(|s| { s.facecolor(color); } );
+                self
+            }
 
-            fn into_arg(self) -> #ident {
-                #ident::default()
+            pub fn color(
+                &mut self,
+                color: impl Into<essay_plot_base::Color>
+            ) -> &mut Self {
+                self.plot.write_style(|s| { s.color(color); } );
+                self
             }
         }
     }.into()
 }
 
-fn trait_methods(fields: &Fields, arg: &Ident) -> TokenStream {
+fn struct_fields(fields: &Fields) -> TokenStream {
     match fields {
         Fields::Named(ref fields) => {
             let iter = fields.named.iter().map(|field| {
-                let name = &field.ident;
+                let ident = &field.ident;
                 let ty = &field.ty;
+                let vis = &field.vis;
+                let attrs = print_opt(&field.attrs);
+                // let generics = &field.generics;
+                println!("Attrs {:?}", field.attrs.len());
+                //println!("Ty {:?}", ty.to_token_stream());
 
-                match option_type(ty) {
-                    Some(ty) => {
-                        if is_into_type(&ty) {
-                            quote! {
-                                fn #name(self, #name: impl Into<#ty>) -> #arg;
-                            }
-                        } else {
-                            quote! {
-                                fn #name(self, #name: #ty) -> #arg;
-                            }
-                        }
-                    },
-                    None => {
-                        quote! {
-                            fn #name(self, value: #ty) -> #arg;
-                        }
-                    }
+                quote! {
+                    #attrs
+                    #vis #ident: #ty,
                 }
-                
             });
 
-            quote! { #(#iter)* }
+            quote! { { #(#iter)* } }
         }
-        _ => quote! {}
+        // _ => quote! {}
+        _ => todo!()
     }
 }
 
-fn arg_methods(fields: &Fields) -> TokenStream {
+fn field_methods(fields: &Fields) -> TokenStream {
     match fields {
         Fields::Named(ref fields) => {
             let iter = fields.named.iter().map(|field| {
                 let name = &field.ident;
                 let ty = &field.ty;
+                println!("Attrs {:?}", field.attrs.len());
+                //println!("Ty {:?}", ty.to_token_stream());
 
-                match option_type(ty) {
-                    Some(ty) => {
-                        if is_into_type(&ty) {
-                            quote! {
-                                fn #name(self, #name: impl Into<#ty>) -> Self {
-                                    Self { #name: Some(#name.into()), ..self }
-                                }
-                            }
-                        } else {
-                            quote! {
-                                fn #name(self, #name: #ty) -> Self {
-                                    Self { #name: Some(#name), ..self }
-                                }
+                if is_opt(&field.attrs) {
+                    if is_opt_into(&field.attrs) {
+                        quote! {
+                            pub fn #name(&mut self, #name: impl Into<#ty>) -> &mut Self {
+                                self.plot.write_artist(|a| { a.#name(#name); });
+
+                                self
                             }
                         }
-                    },
-                    None => {
+                    } else {
                         quote! {
-                            fn #name(self, #name: #ty) -> Self {
-                                Self { #name: #name, ..self }
+                            pub fn #name(&mut self, #name: #ty) -> &mut Self {
+                                self.plot.write_artist(|a| { a.#name(#name); });
+
+                                self
                             }
                         }
                     }
+                } else {
+                    quote! {}
                 }
 
             });
@@ -176,7 +183,49 @@ fn arg_methods(fields: &Fields) -> TokenStream {
     }
 }
 
-fn is_into_type(ty: &Type) -> bool {
+fn is_opt(attrs: &Vec<Attribute>) -> bool {
+    for attr in attrs {
+        if attr.path().is_ident("option") {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn is_opt_into(attrs: &Vec<Attribute>) -> bool {
+    let mut is_into = false;
+
+    for attr in attrs {
+        if attr.path().is_ident("option") {
+            match &attr.meta {
+                syn::Meta::Path(_path) => { return false; }
+                syn::Meta::List(_list) => {
+                    attr.parse_nested_meta(|meta| {
+                        if meta.path.is_ident("Into") {
+                            is_into = true;
+                        } else {
+                            panic!("Expected 'option(Into)'");
+                        }
+                        Ok(())
+                    }).unwrap();
+                }
+                syn::Meta::NameValue(_) => todo!("unexpected name-value"),
+            }
+        }
+    }
+
+    is_into
+}
+
+fn print_opt(attrs: &Vec<Attribute>) -> TokenStream {
+    let iter = attrs.iter().filter(|a| ! a.path().is_ident("option"));
+
+    quote! { #(#iter)* }
+}
+
+fn is_into_type(_ty: &Type) -> bool {
+    /*
     if let syn::Type::Path(syn::TypePath { qself: None, path }) = ty {
         let path = path_to_string(&path);
 
@@ -186,67 +235,8 @@ fn is_into_type(ty: &Type) -> bool {
     }
 
     true
-}
-
-fn nil_methods(fields: &Fields, arg: &Ident) -> TokenStream {
-    match fields {
-        Fields::Named(ref fields) => {
-            let iter = fields.named.iter().map(|field| {
-                let name = &field.ident;
-                let ty = &field.ty;
-
-                match option_type(ty) {
-                    Some(ty) => {
-                        if is_into_type(&ty) {
-                            quote! {
-                                fn #name(self, #name: impl Into<#ty>) -> #arg {
-                                    #arg::default().#name(#name)
-                                }
-                            }
-                        } else {
-                            quote! {
-                                fn #name(self, #name: #ty) -> #arg {
-                                    #arg::default().#name(#name)
-                                }
-                            }
-                        }
-                    },
-                    None => {
-                        quote! {
-                            fn #name(self, #name: #ty) -> #arg {
-                                #arg::default().#name(#name)
-                            }
-                        }
-                    }
-                }
-            });
-
-            quote! { #(#iter)* }
-        }
-        _ => quote! {}
-    }
-}
-
-fn option_type(ty: &Type) -> Option<Type> {
-    if let syn::Type::Path(syn::TypePath { qself: None, path }) = ty {
-        if path_to_string(&path) == "Option" {
-            if let Some(tail) = path.segments.last() {
-                match &tail.arguments {
-                    syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
-                        args,
-                        ..
-                    }) => {
-                        if let Some(syn::GenericArgument::Type(ty)) = args.first() {
-                            return Some(ty.clone())
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    None
+    */
+    false
 }
 
 fn path_to_string(path: &syn::Path) -> String {

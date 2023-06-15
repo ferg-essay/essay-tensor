@@ -1,4 +1,4 @@
-use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor}, graph::Graph};
+use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor}, graph::Graph, plot::bar_y};
 use essay_plot_base::Point;
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
@@ -36,10 +36,10 @@ fn main() {
 
     //axes.scatter(&x, &y, ()).color(0x003fc0);
     //graph.plot(&x, &y).color(0xc08000);
-    graph.bar_y(&y)
-        .edgecolor(0x000000)
-        .facecolor(0xe08000)
-        .width(0.8);
+    bar_y(graph, &y)
+        .edgecolor(0x400080)
+        .facecolor(0x80c0e0)
+        .width(0.2);
     
     // axes.scatter(&x, &y, ());
     // let x = tf32!([40., 30., 20., 5., 5.]);

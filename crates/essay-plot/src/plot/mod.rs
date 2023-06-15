@@ -46,12 +46,13 @@ impl Graph {
     ) -> PlotOpt {
         pie::pie(graph, x)
     }
-
+    /*
     pub fn bar_y(
         &mut self, 
         y: impl Into<Tensor>,
     ) -> BarOpt {
         bar::bar_y(self, y)
     }
+    */
 
 }

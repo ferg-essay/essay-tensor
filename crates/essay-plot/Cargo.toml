@@ -8,6 +8,7 @@ env_logger = { version = "0.10.0" }
 log = { version = "0.4.17" }
 essay-tensor = { path = "../essay-tensor" }
 essay-plot-base = { path = "../essay-plot-base" }
+essay-plot-macro = { path = "../essay-plot-macro" }
 essay-plot-wgpu = { path = "../essay-plot-wgpu" }
 wgpu = "0.16"
 wgpu_glyph = "0.20"
