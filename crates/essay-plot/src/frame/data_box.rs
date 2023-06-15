@@ -208,7 +208,6 @@ impl Artist<Canvas> for DataBox {
             */
     
             self.reset_view();
-            println!("Reset: {:?}", self.view_bounds);
         }
     }
 
