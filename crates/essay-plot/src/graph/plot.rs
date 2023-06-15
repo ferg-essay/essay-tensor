@@ -24,8 +24,8 @@ impl PlotOpt {
     pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
+            .data_mut()
             .artist_mut(self.artist_id)
-            .style_mut()
             .color(color);
         
         self
@@ -34,8 +34,8 @@ impl PlotOpt {
     pub fn facecolor(&mut self, color: impl Into<Color>) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
+            .data_mut()
             .artist_mut(self.artist_id)
-            .style_mut()
             .facecolor(color);
         
         self
@@ -44,8 +44,8 @@ impl PlotOpt {
     pub fn edgecolor(&mut self, color: impl Into<Color>) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
+            .data_mut()
             .artist_mut(self.artist_id)
-            .style_mut()
             .edgecolor(color);
         
         self

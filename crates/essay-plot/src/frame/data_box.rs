@@ -7,13 +7,15 @@ use essay_plot_base::{
 
 use crate::artist::{ArtistStyle, Artist};
 
+use super::plot_container::PlotContainer;
+
 pub struct DataBox {
     pos_canvas: Bounds<Canvas>,
 
     data_bounds: Bounds<Data>,
     view_bounds: Bounds<Data>,
 
-    artists: Vec<ArtistStyle<Data>>,
+    artists: PlotContainer<Data>,
 
     to_canvas: Affine2d,
     style: Style,
@@ -27,7 +29,7 @@ impl DataBox {
             data_bounds: Bounds::<Data>::unit(),
             view_bounds: Bounds::<Data>::unit(),
 
-            artists: Vec::new(),
+            artists: PlotContainer::new(),
 
             style: Style::default(),
 
@@ -46,7 +48,7 @@ impl DataBox {
         self
     }
 
-    pub fn artist(&mut self, artist: impl Artist<Data> + 'static) -> &mut ArtistStyle<Data> {
+    pub fn artist(&mut self, artist: impl Artist<Data> + 'static) -> ArtistId {
         let mut artist = artist;
 
         let bounds = artist.get_extent();
@@ -54,16 +56,13 @@ impl DataBox {
         self.add_data_bounds(&bounds);
         self.add_view_bounds(&bounds);
 
-        let len = self.artists.len();
-        let id = ArtistId(len);
-        
-        self.artists.push(ArtistStyle::new(id, artist));
+        let id = self.artists.add_artist(artist);
 
-        &mut self.artists[len]
+        id
     }
 
     fn add_data_bounds(&mut self, bounds: &Bounds<Data>) {
-        if self.artists.len() == 0 {
+        if self.data_bounds.is_none() {
             self.data_bounds = bounds.clone();
         } else {
             self.data_bounds = self.data_bounds.union(&bounds);
@@ -86,7 +85,7 @@ impl DataBox {
 
         let bounds = Bounds::new(Point(xmin, ymin), Point(xmax, ymax));
 
-        if self.artists.len() == 0 {
+        if self.view_bounds.is_none() {
             self.view_bounds = bounds;
         } else {
             self.view_bounds = self.view_bounds.union(&bounds);
@@ -168,16 +167,14 @@ impl DataBox {
         }
     }
 
-    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut ArtistStyle<Data> {
-        &mut self.artists[id.index()]
+    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut Style {
+        self.artists.style_mut(id)
     }
 }
 
 impl Artist<Canvas> for DataBox {
     fn update(&mut self, canvas: &Canvas) {
-        for artist in &mut self.artists {
-            artist.update(canvas);
-        }
+        self.artists.update(canvas);
     }
 
     fn get_extent(&mut self) -> Bounds<Canvas> {
@@ -195,10 +192,12 @@ impl Artist<Canvas> for DataBox {
         let to_canvas = &self.to_canvas;
         let style = Style::chain(style, &self.style);
 
+        self.artists.draw(renderer, &to_canvas, &self.pos_canvas, &style);
+
         // TODO: intersect clip
-        for artist in &mut self.artists {
-            artist.draw(renderer, &to_canvas, &self.pos_canvas, &style);
-        }
+        //for artist in &mut self.artists {
+        //    artist.draw(renderer, &to_canvas, &self.pos_canvas, &style);
+        //}
     }
 }
 

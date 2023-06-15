@@ -1,8 +1,8 @@
-mod typed_plot;
+mod plot_container;
 mod tick_formatter;
 mod axis;
 mod tick_locator;
-mod databox;
+mod data_box;
 mod frame;
 mod layout;
 
@@ -10,7 +10,7 @@ pub use tick_locator::{
     IndexLocator,
 };
 
-pub use databox::{
+pub use data_box::{
     Data, ArtistId,
 };
 

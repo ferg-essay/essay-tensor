@@ -7,7 +7,7 @@ use essay_plot_base::{
 
 use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, Artist, ArtistStyle};
 
-use super::{databox::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, ArtistId, Data};
+use super::{data_box::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, ArtistId, Data};
 
 pub struct Frame {
     id: FrameId,
@@ -162,10 +162,6 @@ impl Frame {
 
     pub fn ylabel(&mut self, text: &str) -> &mut Text {
         self.left.label(text)
-    }
-
-    pub(crate) fn artist_mut(&mut self, id: ArtistId) -> &mut ArtistStyle<Data> {
-        self.data_mut().artist_mut(id)
     }
 }
 

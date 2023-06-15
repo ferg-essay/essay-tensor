@@ -61,7 +61,7 @@ impl Graph {
         let mut layout = self.layout.borrow_mut();
         let frame = layout.frame_mut(self.id);
 
-        let artist_id = frame.data_mut().artist(artist).id();
+        let artist_id = frame.data_mut().artist(artist);
 
         PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
     }
@@ -81,7 +81,7 @@ impl Graph {
         let accessor = ArtAccessor::new(rcart.clone());
         let holder = ArtHolder::new(rcart.clone());
 
-        let _artist_id = frame.data_mut().artist(holder).id();
+        let _artist_id = frame.data_mut().artist(holder);
 
         //PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
         accessor

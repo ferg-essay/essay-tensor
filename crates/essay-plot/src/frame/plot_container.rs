@@ -1,6 +1,6 @@
 use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{ManuallyDrop, self}};
 
-use essay_plot_base::{Coord, Bounds, Style, driver::Renderer, Affine2d, Canvas, StyleOpt};
+use essay_plot_base::{Coord, Bounds, Style, driver::Renderer, Affine2d, Canvas, StyleOpt, style::Chain};
 
 use crate::artist::Artist;
 
@@ -40,6 +40,10 @@ impl<M: Coord> PlotContainer<M> {
     fn deref_mut<A: Artist<M> + 'static>(&self, id: ArtistId) -> &mut A {
         unsafe { self.ptrs[id.index()].deref_mut() }
     }
+
+    pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut Style {
+        self.artists[id.index()].style_mut()
+    }
 }
 
 impl<M: Coord> Artist<M> for PlotContainer<M> {
@@ -71,6 +75,8 @@ impl<M: Coord> Artist<M> for PlotContainer<M> {
 }
 
 trait PlotArtistTrait<M: Coord> {
+    fn style_mut(&mut self) -> &mut Style;
+
     fn get_extent(&self, container: &PlotContainer<M>) -> Bounds<M>;
     fn draw(
         &self, 
@@ -84,7 +90,8 @@ trait PlotArtistTrait<M: Coord> {
 
 struct PlotArtist<M: Coord, A: Artist<M>> {
     id: ArtistId,
-    marker: PhantomData<(M, A)>
+    marker: PhantomData<(M, A)>,
+    style: Style,
 }
 
 impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
@@ -92,7 +99,12 @@ impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
         Self {
             id,
             marker: PhantomData,
+            style: Style::new(),
         }
+    }
+
+    pub(crate) fn style(&self) -> &Style {
+        &self.style
     }
 }
 
@@ -101,6 +113,10 @@ where
     M: Coord,
     A: Artist<M> + 'static,
 {
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
+    }
+
     fn get_extent(&self, container: &PlotContainer<M>) -> Bounds<M> {
         container.deref_mut::<A>(self.id).get_extent()
     }
@@ -113,7 +129,9 @@ where
         clip: &Bounds<essay_plot_base::Canvas>,
         style: &dyn essay_plot_base::StyleOpt,
     ) {
-        container.deref_mut::<A>(self.id).draw(renderer, to_canvas, clip, style)
+        let style = Chain::new(style, &self.style);
+
+        container.deref_mut::<A>(self.id).draw(renderer, to_canvas, clip, &style)
     }
 }
 
@@ -122,7 +140,6 @@ pub(crate) struct PlotPtr<M: Coord> {
     type_id: TypeId, 
     marker: PhantomData<M>,
     data: NonNull<u8>,
-
 }
 
 impl<M: Coord> PlotPtr<M> {
