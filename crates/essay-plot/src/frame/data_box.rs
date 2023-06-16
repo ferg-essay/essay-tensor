@@ -1,11 +1,11 @@
 use core::fmt;
 
 use essay_plot_base::{
-    driver::{Renderer}, Style, StyleOpt,
+    driver::{Renderer}, StyleOpt,
     Bounds, Affine2d, Point, Canvas, Coord, CanvasEvent,
 };
 
-use crate::artist::{ArtistStyle, Artist};
+use crate::artist::{ArtistStyle, Artist, Style};
 
 use super::plot_container::PlotContainer;
 

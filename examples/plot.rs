@@ -52,14 +52,14 @@ fn main() {
     // axes.plot(&x, &x.exp(), ());
     //bezier2(graph, [-0.5, 0.], [-1.0, 1.0], [-1.5, 0.0]).color(Color(0x0080c080));
     
-    /*
+    
     plot_quad(graph, [0.0, 0.0], [1.0, 0.0], [1., 1.], [0., 1.])
         .facecolor(Color(0))
         .edgecolor(0xe08000)
         .linewidth(20.)
-        .joinstyle(JoinStyle::Mitre);
-    */
-
+        .joinstyle(JoinStyle::Bevel);
+    
+    /*
     plot_line(graph, 
         [0.0, 0.0], [1.0, 0.0],
         [1., 1.], [0., 1.],
@@ -69,6 +69,7 @@ fn main() {
         .linewidth(20.)
         .joinstyle(JoinStyle::Miter)
         .capstyle(CapStyle::Round);
+    */
     
     //bezier2(graph, [0.5, 0.], [1.0, 1.0], [1.5, 0.0]).color(Color(0x0080c080));
     //bezier2(graph, [-1.5, 0.], [-1.0, -1.0], [-0.5, 0.0]).color(Color(0x0080c080));

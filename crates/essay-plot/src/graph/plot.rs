@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use essay_plot_base::{Color, Coord, Style, JoinStyle, CapStyle};
+use essay_plot_base::{Color, Coord, JoinStyle, CapStyle};
 
-use crate::{frame::{LayoutArc, FrameId, ArtistId, Data}, artist::Artist};
+use crate::{frame::{LayoutArc, FrameId, ArtistId, Data}, artist::{Artist, Style}};
 
 pub struct PlotOpt {
     layout: LayoutArc,

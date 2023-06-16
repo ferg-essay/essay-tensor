@@ -1,12 +1,12 @@
 use essay_plot_base::{
     Affine2d, 
     Bounds, Point, Canvas,
-    Style, StyleOpt,
+    StyleOpt,
     driver::Renderer, 
-    style::Chain, TextStyle,
+    TextStyle,
 };
 
-use super::{Artist};
+use super::{Artist, Style, style::StyleChain};
 
 pub struct Text {
     pos: Bounds<Canvas>,
@@ -105,7 +105,7 @@ impl Artist<Canvas> for Text {
         style: &dyn StyleOpt,
     ) {
         if let Some(text) = &self.text {
-            let style = Chain::new(style, &self.style);
+            let style = StyleChain::new(style, &self.style);
 
             if ! self.pos.is_none() {
                 let desc = Self::DESC * self.extent.height();

@@ -1,13 +1,13 @@
 use core::fmt;
 
 use essay_plot_base::{
-    Style, StyleOpt, Point, Affine2d, Bounds, Canvas, Path, Angle,
+    StyleOpt, Point, Affine2d, Bounds, Canvas, Path, Angle,
     driver::Renderer, Coord
 };
 
 use crate::frame::Data;
 
-use super::{Artist, paths};
+use super::{Artist, paths, Style};
 
 pub trait PatchTrait<M: Coord> {
     fn get_path(&mut self) -> &Path<M>;

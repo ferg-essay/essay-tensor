@@ -44,7 +44,7 @@ pub use point::{
 };
 
 pub use style::{
-    Style, StyleOpt, JoinStyle, CapStyle,
+    StyleOpt, JoinStyle, CapStyle,
 };
 
 pub use text::{

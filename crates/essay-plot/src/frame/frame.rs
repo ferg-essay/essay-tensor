@@ -1,11 +1,11 @@
 use std::f32::consts::PI;
 
 use essay_plot_base::{
-    Style, PathCode, Path, StyleOpt,
+    PathCode, Path, StyleOpt,
     driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, WidthAlign, HeightAlign, 
 };
 
-use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, Artist, ArtistStyle};
+use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, Artist, ArtistStyle, Style};
 
 use super::{data_box::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, ArtistId, Data};
 

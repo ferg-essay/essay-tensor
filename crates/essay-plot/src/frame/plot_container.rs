@@ -1,9 +1,9 @@
 use core::slice;
 use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{ManuallyDrop, self}};
 
-use essay_plot_base::{Coord, Bounds, Style, driver::Renderer, Affine2d, Canvas, StyleOpt, style::Chain};
+use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, StyleOpt};
 
-use crate::artist::Artist;
+use crate::artist::{Artist, Style, StyleChain};
 
 use super::ArtistId;
 
@@ -172,7 +172,7 @@ where
         clip: &Bounds<essay_plot_base::Canvas>,
         style: &dyn essay_plot_base::StyleOpt,
     ) {
-        let style = Chain::new(style, &self.style);
+        let style = StyleChain::new(style, &self.style);
 
         container.deref_mut::<A>(self.id).draw(renderer, to_canvas, clip, &style)
     }

@@ -1,9 +1,9 @@
 use core::fmt;
 
 use essay_tensor::{Tensor, tensor::{Axis}};
-use essay_plot_base::{Affine2d, Bounds, Path, PathCode, StyleOpt, Point, Canvas, Style, driver::{Renderer}};
+use essay_plot_base::{Affine2d, Bounds, Path, PathCode, StyleOpt, Point, Canvas, driver::{Renderer}};
 
-use crate::frame::Data;
+use crate::{frame::Data, artist::Style};
 
 use super::{Artist};
 

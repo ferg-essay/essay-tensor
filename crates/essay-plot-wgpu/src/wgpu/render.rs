@@ -1,7 +1,11 @@
-use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, Coord, WidthAlign, HeightAlign, JoinStyle, CapStyle};
+use essay_plot_base::{
+    Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, 
+    driver::{RenderErr, Renderer, FigureApi}, 
+    TextStyle, Coord, WidthAlign, HeightAlign, JoinStyle, CapStyle
+};
 use essay_tensor::Tensor;
 
-use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate, triangle2d::GridMesh2dRender, bezier::BezierRender};
+use super::{text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate, triangle2d::GridMesh2dRender, bezier::BezierRender};
 
 pub struct FigureRenderer {
     canvas: Canvas,
@@ -69,7 +73,7 @@ impl<'a> FigureRenderer {
         self.canvas.set_scale_factor(scale_factor);
     }
 
-    fn draw_closed_path(
+    fn fill_path(
         &mut self, 
         path: &Path<Canvas>, 
         _clip: &Bounds<Canvas>,
@@ -78,7 +82,6 @@ impl<'a> FigureRenderer {
         self.bezier_render.start_shape();
 
         let mut points = Vec::<Point>::new();
-        let mut prev = Point(0., 0.);
         for code in path.codes() {
             let last = code.tail();
 
@@ -87,8 +90,6 @@ impl<'a> FigureRenderer {
             if let PathCode::Bezier2(p1, p2) = code {
                 self.bezier_render.draw_bezier_fill(&last, p1, p2);
             }
-
-            prev = last;
         }
 
         let triangles = tesselate(points);
@@ -116,7 +117,7 @@ impl<'a> FigureRenderer {
 
         let capstyle  = match style.get_capstyle() {
             Some(capstyle) => capstyle.clone(),
-            None => CapStyle::Projecting,
+            None => CapStyle::Butt,
         };
         
         let lw2 = self.to_px(0.5 * linewidth); // / self.canvas.width();
@@ -146,9 +147,6 @@ impl<'a> FigureRenderer {
                     *p1
                 }
                 PathCode::Bezier2(p1, p2) => {
-                    //self.draw_bezier(p0, *p1, *p2, rgba);
-                    //self.bezier_render.draw_line(&p0, p2, lw, lw);
-                    //self.bezier_render.draw_line(&p0, p2, lw);
                     self.bezier_render.draw_bezier_line(&p0, p1, p2, lw2);
 
                     *p2
@@ -268,29 +266,9 @@ impl<'a> FigureRenderer {
                 self.shape2d_render.draw_triangle(&q1, &q0, &p0);
             },
             CapStyle::Butt => {
-                panic!()
+                panic!(); // Butt has early exit
             }
         }
-        // add bevel triangle
-        /*
-        match join_style {
-            JoinStyle::Bevel => {},
-            JoinStyle::Mitre => {
-                let mp = line_intersection(p0, p1, q1, q2);
-
-                if mp != p0 { // non-parallel
-                    self.shape2d_render.draw_triangle(&p1, &mp, &q1);
-                }
-            },
-            JoinStyle::Rounded => {
-                let mp = line_intersection(p0, p1, q1, q2);
-
-                if mp != p0 { // non-parallel
-                    self.bezier_render.draw_bezier_fill(&p1, &mp, &q1);
-                }
-            }
-        }
-        */
     }
 }
 
@@ -356,7 +334,7 @@ impl Renderer for FigureRenderer {
         &mut self, 
         style: &dyn StyleOpt, 
         path: &Path<Canvas>, 
-        to_device: &Affine2d,
+        _to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
         // let to_unit = self.to_gpu.matmul(to_device);
@@ -374,7 +352,7 @@ impl Renderer for FigureRenderer {
         };
 
         if path.is_closed_path() && ! facecolor.is_none() {
-            self.draw_closed_path(&path, clip);
+            self.fill_path(&path, clip);
 
             self.shape2d_render.draw_style(facecolor, &self.to_gpu);
             self.bezier_render.draw_style(facecolor, &self.to_gpu);
@@ -411,7 +389,7 @@ impl Renderer for FigureRenderer {
         };
 
         if path.is_closed_path() {
-            self.draw_closed_path(&path, clip);
+            self.fill_path(&path, clip);
         } else {
             self.draw_lines(&path, style, clip);
         }
@@ -432,10 +410,7 @@ impl Renderer for FigureRenderer {
         angle: f32,
         style: &dyn StyleOpt, 
         text_style: &TextStyle,
-       // prop, - font properties
-        // affine: &Affine2d,
-        //angle: f32, // rotation
-        clip: &Bounds<Canvas>,
+        _clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
 
         let color = match style.get_facecolor() {
@@ -472,18 +447,6 @@ impl Renderer for FigureRenderer {
             valign,
         );
  
-        /*
-        self.glyph.queue(Section {
-            screen_position: (xy.0, self.pos_canvas.height() - xy.1),
-            bounds: (self.pos_canvas.width(), self.pos_canvas.height()),
-            text: vec![Text::new(s)
-                .with_color([color.red(), color.green(), color.blue(), color.alpha()])
-                .with_scale(64.)
-                ],
-            ..Section::default()
-        });
-        */
-
         Ok(())
     }
 
@@ -524,7 +487,7 @@ impl Renderer for FigureRenderer {
         Ok(())
     }
 
-    fn request_redraw(&mut self, bounds: &Bounds<Canvas>) {
+    fn request_redraw(&mut self, _bounds: &Bounds<Canvas>) {
         self.is_request_redraw = true;
     }
 }
@@ -535,7 +498,7 @@ fn transform_path(path: &Path<Canvas>) -> Path<Canvas> {
 
     let mut p0 = Point(0.0f32, 0.0f32);
 
-    // TODO: clip
+    // TODO: clip and compress
     for code in path.codes() {
         p0 = match code {
             PathCode::MoveTo(p0) => {
@@ -601,69 +564,13 @@ fn transform_path(path: &Path<Canvas>) -> Path<Canvas> {
 struct Gpu {}
 impl Coord for Gpu {}
 
-// For BezierQuadratic to BezierCubic, see Truong, et. al. 2020 Quadratic 
-// Approximation of Cubic Curves
-
-fn create_pipeline(
-    device: &wgpu::Device,
-    shader: &wgpu::ShaderModule,
-    // pipeline_layout: &wgpu::PipelineLayout,
-    vertex_entry: &str,
-    fragment_entry: &str,
-    texture_format: wgpu::TextureFormat,
-    vertex_layout: wgpu::VertexBufferLayout,
-) -> wgpu::RenderPipeline {
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        bind_group_layouts: &[],
-        push_constant_ranges: &[],
-    });
-
-    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: vertex_entry,
-            buffers: &[
-                vertex_layout
-            ],
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: fragment_entry,
-            targets: &[
-                Some(wgpu::ColorTargetState {
-                    format: texture_format,
-
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent {
-                            src_factor: wgpu::BlendFactor::SrcAlpha,
-                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                            operation: wgpu::BlendOperation::Add
-                        },
-
-                        alpha: wgpu::BlendComponent::OVER
-                    }),
-
-                    write_mask: wgpu::ColorWrites::ALL,
-                })
-            ],
-        }),
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        multiview: None,
-    })
-}
-
 impl FigureRenderer {
     pub(crate) fn draw(
         &mut self,
         figure: &mut Box<dyn FigureApi>,
         bounds: (u32, u32),
         scale_factor: f32,
-        device: &wgpu::Device,
+        _device: &wgpu::Device,
         queue: &wgpu::Queue,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
@@ -671,100 +578,16 @@ impl FigureRenderer {
         let (width, height) = bounds;
 
         self.clear();
-        // self.staging_belt.recall();
 
         self.set_canvas_bounds(width, height);
         self.set_scale_factor(scale_factor);
         let draw_bounds = self.canvas.bounds().clone();
+
         figure.draw(self, &draw_bounds);
-
-        {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    }
-                })],
-                depth_stencil_attachment: None,
-            });
-            // clip 
-            // rpass.set_viewport(0., 0., 1., 1., 0.0, 1.0);
-            
-            /*
-            let vertex_len = self.vertex.offset();
-            if vertex_len > 0 {
-                write_buffer(queue, &mut self.vertex, vertex_len);
-
-                rpass.set_pipeline(&self.vertex_pipeline);
-
-                let size = (vertex_len * self.vertex.stride()) as u64;
-                rpass.set_vertex_buffer(0, self.vertex.buffer().slice(..size));
-        
-                rpass.draw(0..vertex_len as u32, 0..1);
-            }
-            */
-
-            /*
-            let bezier_len = self.bezier_vertex.offset();
-            if bezier_len > 0 {
-                write_buffer(queue, &mut self.bezier_vertex, bezier_len);
-                rpass.set_pipeline(&self.bezier_pipeline);
-
-                let size = (bezier_len * self.bezier_vertex.stride()) as u64;
-                rpass.set_vertex_buffer(0, self.bezier_vertex.buffer().slice(..size));
-        
-                rpass.draw(0..bezier_len as u32, 0..1);
-            }
-
-            let bezier_rev_len = self.bezier_rev_vertex.offset();
-            if bezier_rev_len > 0 {
-                let size = (bezier_rev_len * self.bezier_rev_vertex.stride()) as u64;
-                write_buffer(queue, &mut self.bezier_rev_vertex, bezier_rev_len);
-                rpass.set_pipeline(&self.bezier_rev_pipeline);
-
-                rpass.set_vertex_buffer(0, self.bezier_rev_vertex.buffer().slice(..size));
-        
-                rpass.draw(0..bezier_rev_len as u32, 0..1);
-            }
-            */
-        }
-
-        // let (width, height) = (self.canvas.width(), self.canvas.height());
 
         self.shape2d_render.flush(queue, view, encoder);
         self.bezier_render.flush(queue, view, encoder);
         self.triangle_render.flush(queue, view, encoder);
         self.text_render.flush(queue, view, encoder);
-
-        /*
-        self.glyph.queue(Section {
-            screen_position: (100., 100.),
-            bounds: (width, height),
-            text: vec![Text::new("Hello")
-                .with_color([0.0, 0., 0., 1.])
-                .with_scale(40.)],
-            ..Section::default()
-        });
-
-        self.glyph.draw_queued(
-            device,
-            &mut self.staging_belt,
-            encoder,
-            &view,
-            width as u32,
-            height as u32,
-        ).unwrap();
-        */
-        // self.staging_belt.finish();
-        //self.staging_belt.recall();
     }
-}
-
-pub fn write_buffer(queue: &wgpu::Queue, vertices: &mut VertexBuffer, _size: usize) {
-    //queue.write_buffer(vertices.buffer(), 0, bytemuck::cast_slice(vertices.as_slice()));
-    queue.write_buffer(vertices.buffer(), 0, bytemuck::cast_slice(vertices.as_slice()));
 }

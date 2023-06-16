@@ -47,9 +47,9 @@ pub use patch::{
     PatchTrait,
 };
 
-//pub use style::{
-//    StyleOpt, Style, JoinStyle,
-//};
+pub use style::{
+    Style, StyleChain,
+};
 
 pub use text::{
     Text, // TextStyle,

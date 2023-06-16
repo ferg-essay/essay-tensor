@@ -1,8 +1,5 @@
-use std::f32::consts::PI;
-
 use essay_plot_base::{Point, Color, Affine2d, WidthAlign, HeightAlign};
 use wgpu::util::DeviceExt;
-use wgpu_glyph::ab_glyph::{self, Font, PxScale};
 
 use super::{text_texture::TextTexture, text_cache::TextCache};
 
@@ -13,14 +10,12 @@ pub struct TextRender {
     vertex_stride: usize,
     vertex_vec: Vec<TextVertex>,
     vertex_buffer: wgpu::Buffer,
-
     vertex_offset: usize,
 
     style_stride: usize,
     style_vec: Vec<GpuTextStyle>,
     style_buffer: wgpu::Buffer,
     style_offset: usize,
-    // style_bind_group: wgpu::BindGroup,
 
     text_items: Vec<TextItem>,
 
@@ -95,7 +90,6 @@ impl TextRender {
             style_vec,
             style_buffer,
             style_offset: 0,
-            // style_bind_group,
 
             text_items: Vec::new(),
             pipeline,

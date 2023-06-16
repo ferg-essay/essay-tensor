@@ -1,6 +1,4 @@
-use std::mem;
-
-use essay_plot_base::{Color, Affine2d};
+use essay_plot_base::{Affine2d};
 use wgpu::util::DeviceExt;
 
 pub struct GridMesh2dRender {
@@ -228,16 +226,6 @@ impl GridMesh2dRender {
                 );
             }
         }
-    }
-
-    fn vertex(&mut self, x: f32, y: f32, color: Color) {
-        let vertex = GridMesh2dVertex { 
-            position: [x, y],
-            color: color.get_rgba(),
-        };
-
-        self.vertex_vec[self.vertex_offset] = vertex;
-        self.vertex_offset += 1;
     }
 }
 

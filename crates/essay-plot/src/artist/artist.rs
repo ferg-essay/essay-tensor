@@ -1,9 +1,11 @@
 use essay_plot_base::{
-    Coord, Bounds, Affine2d, Canvas, StyleOpt, Style,
+    Coord, Bounds, Affine2d, Canvas, StyleOpt,
     driver::Renderer, JoinStyle, Color, CapStyle,
 };
 
 use crate::frame::ArtistId;
+
+use super::Style;
 
 pub trait Artist<M: Coord> {
     fn update(&mut self, canvas: &Canvas);

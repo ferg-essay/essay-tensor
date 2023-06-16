@@ -1,9 +1,9 @@
 use essay_plot_base::{
-    Bounds, Affine2d, Point, Coord, Canvas, StyleOpt, Style,
+    Bounds, Affine2d, Point, Coord, Canvas, StyleOpt,
     driver::{Renderer}
 };
 
-use super::{ArtistStyle, Artist};
+use super::{ArtistStyle, Artist, Style};
 
 pub struct Container<M: Coord> {
     artists: Vec<ArtistStyle<M>>,
