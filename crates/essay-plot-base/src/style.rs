@@ -6,6 +6,7 @@ pub trait StyleOpt {
 
     fn get_linewidth(&self) -> &Option<f32>;
     fn get_joinstyle(&self) -> &Option<JoinStyle>;
+    fn get_capstyle(&self) -> &Option<CapStyle>;
 
     // drawstyle
     // antialiased
@@ -24,14 +25,15 @@ pub trait StyleOpt {
 #[derive(Clone, PartialEq, Debug)]
 pub enum JoinStyle {
     Bevel,
-    Mitre,
-    Rounded,
+    Miter,
+    Round,
 }
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum CapStyle {
-    Rounded,
-    Extended,
+    Butt,
+    Round,
+    Projecting,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -59,6 +61,7 @@ pub struct Style {
 
     linewidth: Option<f32>,
     joinstyle: Option<JoinStyle>,
+    capstyle: Option<CapStyle>,
 }
 
 impl Style {
@@ -99,6 +102,12 @@ impl Style {
         self
     }
 
+    pub fn capstyle(&mut self, capstyle: impl Into<CapStyle>) -> &mut Self {
+        self.capstyle = Some(capstyle.into());
+
+        self
+    }
+
     pub fn chain<'a>(prev: &'a dyn StyleOpt, next: &'a dyn StyleOpt) -> Chain<'a>
     {
         Chain::new(prev, next)
@@ -127,6 +136,10 @@ impl StyleOpt for Style {
     fn get_joinstyle(&self) -> &Option<JoinStyle> {
         &self.joinstyle
     }
+
+    fn get_capstyle(&self) -> &Option<CapStyle> {
+        &self.capstyle
+    }
 }
 
 impl Default for Style {
@@ -137,6 +150,7 @@ impl Default for Style {
             edgecolor: Default::default(), 
             linewidth: Default::default(), 
             joinstyle: Default::default(),
+            capstyle: Default::default(),
         }
     }
 }
@@ -180,6 +194,13 @@ impl StyleOpt for Chain<'_> {
         match self.next.get_joinstyle() {
             Some(_) => self.next.get_joinstyle(),
             None => self.prev.get_joinstyle()
+        }
+    }
+
+    fn get_capstyle(&self) -> &Option<CapStyle> {
+        match self.next.get_capstyle() {
+            Some(_) => self.next.get_capstyle(),
+            None => self.prev.get_capstyle()
         }
     }
 }

@@ -1,6 +1,6 @@
 use essay_plot_base::{
     Coord, Bounds, Affine2d, Canvas, StyleOpt, Style,
-    driver::Renderer, JoinStyle, Color,
+    driver::Renderer, JoinStyle, Color, CapStyle,
 };
 
 use crate::frame::ArtistId;
@@ -107,5 +107,9 @@ impl<M: Coord> StyleOpt for ArtistStyle<M> {
 
     fn get_joinstyle(&self) -> &Option<JoinStyle> {
         self.style.get_joinstyle()
+    }
+
+    fn get_capstyle(&self) -> &Option<CapStyle> {
+        self.style.get_capstyle()
     }
 }

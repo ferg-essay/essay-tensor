@@ -1,5 +1,5 @@
 use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor, patch::PathPatch}, graph::{Graph, PlotOpt}, plot::bar_y};
-use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle};
+use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
 fn main() {
@@ -52,11 +52,23 @@ fn main() {
     // axes.plot(&x, &x.exp(), ());
     //bezier2(graph, [-0.5, 0.], [-1.0, 1.0], [-1.5, 0.0]).color(Color(0x0080c080));
     
+    /*
     plot_quad(graph, [0.0, 0.0], [1.0, 0.0], [1., 1.], [0., 1.])
         .facecolor(Color(0))
         .edgecolor(0xe08000)
         .linewidth(20.)
         .joinstyle(JoinStyle::Mitre);
+    */
+
+    plot_line(graph, 
+        [0.0, 0.0], [1.0, 0.0],
+        [1., 1.], [0., 1.],
+        [0.5, 0.25], [0.5, 0.75],
+    ).facecolor(Color(0))
+        .edgecolor(0xe08000)
+        .linewidth(20.)
+        .joinstyle(JoinStyle::Miter)
+        .capstyle(CapStyle::Round);
     
     //bezier2(graph, [0.5, 0.], [1.0, 1.0], [1.5, 0.0]).color(Color(0x0080c080));
     //bezier2(graph, [-1.5, 0.], [-1.0, -1.0], [-0.5, 0.0]).color(Color(0x0080c080));
@@ -115,6 +127,25 @@ pub fn plot_quad(
         PathCode::LineTo(p1.into()),
         PathCode::LineTo(p2.into()),
         PathCode::ClosePoly(p3.into()),
+    ])))
+}
+
+pub fn plot_line(
+    graph: &mut Graph, 
+    p0: impl Into<Point>,
+    p1: impl Into<Point>,
+    p2: impl Into<Point>,
+    p3: impl Into<Point>,
+    p4: impl Into<Point>,
+    p5: impl Into<Point>,
+) -> PlotOpt {
+    graph.add_data_artist(PathPatch::new(Path::new(vec![
+        PathCode::MoveTo(p0.into()),
+        PathCode::LineTo(p1.into()),
+        PathCode::MoveTo(p2.into()),
+        PathCode::LineTo(p3.into()),
+        PathCode::MoveTo(p4.into()),
+        PathCode::LineTo(p5.into()),
     ])))
 }
 

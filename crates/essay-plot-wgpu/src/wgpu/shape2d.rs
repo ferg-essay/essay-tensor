@@ -1,6 +1,8 @@
 use essay_plot_base::{Point, Color, Affine2d};
 use wgpu::util::DeviceExt;
 
+use super::render::line_normal;
+
 pub struct Shape2dRender {
     vertex_stride: usize,
     vertex_vec: Vec<Shape2dVertex>,
@@ -93,8 +95,11 @@ impl Shape2dRender {
         &mut self, 
         p0: &Point,
         p1: &Point,
-        lw_x: f32, lw_y: f32,
+        lw2: f32,
     ) {
+        let (nx, ny) = line_normal(*p0, *p1, lw2);
+
+        /*
         let Point(x0, y0) = p0;
         let Point(x1, y1) = p1;
 
@@ -107,22 +112,17 @@ impl Shape2dRender {
         let dy = dy / len;
 
         // normal to the line
-        let nx = dy * lw_x;
-        let ny = - dx * lw_y;
+        let nx = dy * lw2;
+        let ny = - dx * lw2;
+        */
 
-        // TODO: incorrect extend
-        let dx2 = dx * lw_x; // for extend
-        let dy2 = dy * lw_y;
-        let dx2 = 0.;
-        let dy2 = 0.;
+        self.vertex(p0.x() - nx, p0.y() - ny);
+        self.vertex(p0.x() + nx, p0.y() + ny);
+        self.vertex(p1.x() + nx, p1.y() + ny);
 
-        self.vertex(x0 - nx - dx2, y0 - ny - dy2);
-        self.vertex(x0 + nx - dx2, y0 + ny - dy2);
-        self.vertex(x1 + nx + dx2, y1 + ny + dy2);
-
-        self.vertex(x1 + nx + dx2, y1 + ny + dy2);
-        self.vertex(x1 - nx + dx2, y1 - ny + dy2);
-        self.vertex(x0 - nx - dx2, y0 - ny - dy2);
+        self.vertex(p1.x() + nx, p1.y() + ny);
+        self.vertex(p1.x() - nx, p1.y() - ny);
+        self.vertex(p0.x() - nx, p0.y() - ny);
     }
 
     pub(crate) fn draw_triangle(

@@ -131,7 +131,7 @@ impl BezierRender {
         b0: &Point,
         b1: &Point,
         b2: &Point,
-        lw: f32,
+        lw2: f32,
     ) {
         let dx = b2.x() - b0.x();
         let dy = b2.y() - b0.y();
@@ -141,7 +141,7 @@ impl BezierRender {
         let min_bezier = 3.0;
 
         if len <= min_bezier {
-            self.draw_line(b0, b2, lw);
+            self.draw_line(b0, b2, lw2);
             return;
         }
 
@@ -149,8 +149,8 @@ impl BezierRender {
         let dy = dy / len;
 
         // normal to the line
-        let mut nx = dy * lw;
-        let mut ny = dx * lw;
+        let mut nx = dy * lw2;
+        let mut ny = dx * lw2;
 
         let ccw = 
             (b1.x() - b0.x()) * (b2.y() - b0.y())
@@ -158,7 +158,7 @@ impl BezierRender {
 
         let min_bezier_area = 1.;
         if ccw.abs() < min_bezier_area {
-            self.draw_line(b0, b2, lw);
+            self.draw_line(b0, b2, lw2);
             return;
         } 
         if ccw < 0. {
@@ -233,7 +233,7 @@ impl BezierRender {
             // height of p1 from p0 to p2 line 
             let v_height = vertex_height(p0, p1, p2);
             // linewidth in uv coordinates
-            let v_factor = lw / v_height;
+            let v_factor = lw2 / v_height;
 
             // outer bezier
             self.vertex_bezier(p0.x(), p0.y(), -1.0, 1., 1.0 - v_factor);
