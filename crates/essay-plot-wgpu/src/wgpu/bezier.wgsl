@@ -1,6 +1,6 @@
 struct VertexInput {
     @location(0) pos: vec2<f32>,
-    @location(1) tex_coord: vec2<f32>,
+    @location(1) tex_coord: vec3<f32>,
 }
 
 struct StyleInput {
@@ -10,7 +10,7 @@ struct StyleInput {
 }
 
 struct VertexOutput {
-    @location(0) tex_coord: vec2<f32>,
+    @location(0) tex_coord: vec3<f32>,
     @location(1) color: vec4<f32>,
     @builtin(position) pos: vec4<f32>,
 };
@@ -48,8 +48,10 @@ fn fs_bezier(
 ) -> @location(0) vec4<f32> {
     let u = in.tex_coord[0];
     let v = in.tex_coord[1];
+    let w = in.tex_coord[2];
+    let u_sq = u * u;
     //if u * u < 1. - v {
-    if u * u <= v {
+    if w <= u_sq && u_sq <= v {
         return in.color; // vec4<f32>(0.0, 1.0, 1.1, 1.0); // in.color;
     } else {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);

@@ -1,5 +1,5 @@
-use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor}, graph::Graph, plot::bar_y};
-use essay_plot_base::Point;
+use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor}, graph::{Graph, PlotOpt}, plot::bar_y};
+use essay_plot_base::{Point, Color};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
 fn main() {
@@ -51,7 +51,12 @@ fn main() {
     // let x = linspace(0., 20., 21);
     // let axes = figure.new_graph([1., 1., 2., 2.]);
     // axes.plot(&x, &x.exp(), ());
-    //axes.bezier2([0., 0.], [0.5, 1.0], [1.0, 0.0]);
+    //bezier2(graph, [-0.5, 0.], [-1.0, 1.0], [-1.5, 0.0]).color(Color(0x0080c080));
+
+    //bezier2(graph, [0.5, 0.], [1.0, 1.0], [1.5, 0.0]).color(Color(0x0080c080));
+    //bezier2(graph, [-1.5, 0.], [-1.0, -1.0], [-0.5, 0.0]).color(Color(0x0080c080));
+    //bezier2(graph, [0., -0.5], [1.0, -1.0], [0.0, -1.5]).color(Color(0x0080c080));
+
     //axes.bezier2([-1., 0.], [0.5, 1.0], [1.0, 0.0]);
     // axes.bezier2([0., -1.], [-0.5, 0.0], [0.0, 1.]);
     //axes.bezier3([0., 0.], [0.25, 1.0], [0.5, -1.0], [1.0, 0.0]);
@@ -89,8 +94,8 @@ pub fn bezier2(
     p0: impl Into<Point>,
     p1: impl Into<Point>,
     p2: impl Into<Point>,
-) {
-    graph.add_data_artist(Bezier2(p0.into(), p1.into(), p2.into()));
+) -> PlotOpt {
+    graph.add_data_artist(Bezier2(p0.into(), p1.into(), p2.into()))
 }
 
 pub fn pcolor(

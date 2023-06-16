@@ -27,7 +27,7 @@ impl BezierRender {
         let mut vertex_vec = Vec::<BezierVertex>::new();
         vertex_vec.resize(len, BezierVertex { 
             position: [0.0, 0.0],
-            uv: [0., 0.]
+            uv: [0., 0., 0.]
         });
 
         let vertex_buffer = device.create_buffer_init(
@@ -128,11 +128,126 @@ impl BezierRender {
 
     pub(crate) fn draw_bezier_line(
         &mut self, 
-        p0: &Point,
-        p1: &Point,
-        p2: &Point,
+        b0: &Point,
+        b1: &Point,
+        b2: &Point,
         lw: f32,
     ) {
+        let lw = 10.;
+
+        let dx = b2.x() - b0.x();
+        let dy = b2.y() - b0.y();
+
+        let len = dx.hypot(dy).max(f32::EPSILON);
+
+        let min_bezier = 3.0;
+
+        if len <= min_bezier {
+            self.draw_line(b0, b2, lw);
+            return;
+        }
+
+        let dx = dx / len;
+        let dy = dy / len;
+
+        // normal to the line
+        let mut nx = dy * lw;
+        let mut ny = dx * lw;
+
+        let ccw = 
+            (b1.x() - b0.x()) * (b2.y() - b0.y())
+            - (b2.x() - b0.x()) * (b1.y() - b0.y());
+
+        let min_bezier_area = 1.;
+        if ccw.abs() < min_bezier_area {
+            self.draw_line(b0, b2, lw);
+            return;
+        } 
+        if ccw < 0. {
+            (nx, ny) = (-nx, -ny);
+        }
+
+        // outer bezier's points
+        let p0 = Point(b0.x() + nx, b0.y() - ny);
+        let p1 = Point(b1.x() + nx, b1.y() - ny);
+        let p2 = Point(b2.x() + nx, b2.y() - ny);
+
+        // inner bezier's points
+        let q0 = Point(b0.x() - nx, b0.y() + ny);
+        let q1 = Point(b1.x() - nx, b1.y() + ny);
+        let q2 = Point(b2.x() - nx, b2.y() + ny);
+
+        // if inner bezier point is inside line's rectangle
+        // (0 < AM dot AB < AB dot AB) && (0 < AM dot AD < AD dot AD)
+
+        let Point(a_x, a_y) = q2;
+        let Point(b_x, b_y) = q0;
+        let Point(d_x, d_y) = p2;
+        
+        let Point(m_x, m_y) = q1;
+
+        let am_ab = (a_x - m_x) * (a_x - b_x) + (a_y - m_y) * (a_y - b_y);
+        let ab_ab = (a_x - b_x).powi(2) + (a_y - b_y).powi(2);
+        let am_ad = (a_x - m_x) * (a_x - d_x) + (a_y - m_y) * (a_y - d_y);
+        let ad_ad = (a_x - d_x).powi(2) + (a_y - d_y).powi(2);
+
+        if 0. <= am_ab && am_ab <= ab_ab && 0. <= am_ad && am_ad <= ad_ad {
+            // inner bezier's control point inside line's rectangle
+            self.vertex(q0.x(), q0.y()); // inner q0
+            self.vertex(p0.x(), p0.y()); // outer p0
+            self.vertex(q1.x(), q1.y()); // inner q1
+
+            self.vertex(p0.x(), p0.y()); // outer p0
+            self.vertex(p2.x(), p2.y()); // outer p2
+            self.vertex(q1.x(), q1.y()); // inner q1
+
+            self.vertex(p2.x(), p2.y()); // outer p2
+            self.vertex(q2.x(), q2.y()); // inner q2
+            self.vertex(q1.x(), q1.y()); // inner q1
+
+            // outer bezier
+            self.vertex_bezier(p0.x(), p0.y(), -1.0,  1.0, 0.);
+            self.vertex_bezier(p1.x(), p1.y(),  0.0, -1.0, 0.);
+            self.vertex_bezier(p2.x(), p2.y(),  1.0,  1.0, 0.);
+            // inner bezier
+            self.vertex_bezier(q0.x(), q0.y(), -1.0, 1.0, 1.);
+            self.vertex_bezier(q1.x(), q1.y(), 0.0, 1.0, -1.);
+            self.vertex_bezier(q2.x(), q2.y(), 1.0, 1.0, 1.);
+        } else {
+            // intersection of outer base p0 to p2 with inner q0 to q1
+            let mp = intersection(p0, p2, q0, q1);
+
+            if mp != p0 { // non-zero
+                self.vertex(q0.x(), q0.y());
+                self.vertex(p0.x(), p0.y());
+                self.vertex(mp.x(), mp.y());
+            }
+
+            // intersection of outer base p0 to p2 with inner q1 to q2
+            let mp = intersection(p0, p2, q1, q2);
+
+            if mp != p0 { // non-zero
+                self.vertex(q2.x(), q2.y());
+                self.vertex(p2.x(), p2.y());
+                self.vertex(mp.x(), mp.y());
+            }
+
+            // height of p1 from p0 to p2 line 
+            let v_height = vertex_height(p0, p1, p2);
+            // linewidth in uv coordinates
+            let v_factor = lw / v_height;
+
+            // outer bezier
+            self.vertex_bezier(p0.x(), p0.y(), -1.0, 1., 1.0 - v_factor);
+            self.vertex_bezier(p1.x(), p1.y(), 0.0, -1., -1.0 - v_factor);
+            self.vertex_bezier(p2.x(), p2.y(), 1.0, 1., 1.0 - v_factor);
+            // inner bezier
+            self.vertex_bezier(q0.x(), q0.y(), -1.0, 1. + v_factor, 1.);
+            self.vertex_bezier(q1.x(), q1.y(), 0.0, -1. + v_factor, -1.);
+            self.vertex_bezier(q2.x(), q2.y(), 1.0, 1. + v_factor, 1.);
+        }
+    }
+
         //self.vertex_buffer.push(p0.x(), p0.y(), 0x000000ff);
         //self.vertex_buffer.push(p1.x(), p1.y(), 0x000000ff);
         //self.vertex_buffer.push(p2.x(), p2.y(), 0x0000000ff);
@@ -141,14 +256,13 @@ impl BezierRender {
         //self.bezier_vertex.push_tex(p1.x(), p1.y(), 0.0, 2.0, color);
         //self.bezier_vertex.push_tex(p2.x(), p2.y(), 1.0, 0.0, color);
 
-        self.vertex_bezier(p0.x(), p0.y(), -1.0,1.0);
-        self.vertex_bezier(p1.x(), p1.y(), 0.0, -1.0);
-        self.vertex_bezier(p2.x(), p2.y(), 1.0, 1.0);
+        //self.vertex_bezier(p0.x(), p0.y(), -1.0,1.0);
+        //self.vertex_bezier(p1.x(), p1.y(), 0.0, -1.0);
+        //self.vertex_bezier(p2.x(), p2.y(), 1.0, 1.0);
 
         //self.bezier_rev_vertex.push_tex(p0.x(), p0.y(), -1.0,1.0, color);
         //self.bezier_rev_vertex.push_tex(p1.x(), p1.y(), 0.0, -1.0, color);
         //self.bezier_rev_vertex.push_tex(p2.x(), p2.y(), 1.0, 1.0, color);
-    }
 
     pub(crate) fn draw_bezier_fill(
         &mut self, 
@@ -156,9 +270,9 @@ impl BezierRender {
         p1: &Point,
         p2: &Point,
     ) {
-        self.vertex_bezier(p0.x(), p0.y(), -1.0,1.0);
-        self.vertex_bezier(p1.x(), p1.y(), 0.0, -1.0);
-        self.vertex_bezier(p2.x(), p2.y(), 1.0, 1.0);
+        self.vertex_bezier(p0.x(), p0.y(), -1.0,1.0, 0.);
+        self.vertex_bezier(p1.x(), p1.y(), 0.0, -1.0, 0.);
+        self.vertex_bezier(p2.x(), p2.y(), 1.0, 1.0, 0.);
     }
 
     pub fn draw_style(
@@ -238,19 +352,46 @@ impl BezierRender {
     }
 
     fn vertex(&mut self, x: f32, y: f32) {
-        let (u, v) = (0., 0.);
-        let vertex = BezierVertex { position: [x, y], uv: [u, v] };
+        let vertex = BezierVertex { position: [x, y], uv: [0., 0., 0.] };
 
         self.vertex_vec[self.vertex_offset] = vertex;
         self.vertex_offset += 1;
     }
 
-    fn vertex_bezier(&mut self, x: f32, y: f32, u: f32, v: f32) {
-        let vertex = BezierVertex { position: [x, y], uv: [u, v] };
+    fn vertex_bezier(&mut self, x: f32, y: f32, u: f32, v: f32, w: f32) {
+        let vertex = BezierVertex { position: [x, y], uv: [u, v, w] };
 
         self.vertex_vec[self.vertex_offset] = vertex;
         self.vertex_offset += 1;
     }
+}
+
+fn intersection(p0: Point, p1: Point, q0: Point, q1: Point) -> Point {
+    let det = (p0.x() - p1.x()) * (q0.y() - q1.y())
+        - (p0.y() - p1.y()) * (q0.x() - q1.x());
+
+    if det.abs() <= f32::EPSILON {
+        return p0; // p0 is marker for coincident or parallel lines
+    }
+
+    let p_xy = p0.x() * p1.y() - p0.y() * p1.x();
+    let q_xy = q0.x() * q1.y() - q0.y() * q1.x();
+
+    let x = (p_xy * (q0.x() - q1.x()) - (p0.x() - p1.x()) * q_xy) / det;
+    let y = (p_xy * (q0.y() - q1.y()) - (p0.y() - p1.y()) * q_xy) / det;
+
+    Point(x, y)
+}
+
+fn vertex_height(p0: Point, p1: Point, p2: Point) -> f32 {
+    let a = p0.norm(&p1);
+    let b = p1.norm(&p2);
+    let c = p2.norm(&p0);
+    // Heron's formula
+    let s = 0.5 * (a + b + c);
+    let area = (s * (s - a) * (s - b) * (s - c)).sqrt();
+
+    0.5 * area / c
 }
 
 pub struct BezierItem {
@@ -265,12 +406,12 @@ pub struct BezierItem {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct BezierVertex {
     position: [f32; 2],
-    uv: [f32; 2],
+    uv: [f32; 3],
 }
 
 impl BezierVertex {
     const ATTRS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2 ];
+        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x3 ];
 
     pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
