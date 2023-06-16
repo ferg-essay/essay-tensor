@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use essay_plot_base::{Color, Coord, Style};
+use essay_plot_base::{Color, Coord, Style, JoinStyle};
 
 use crate::{frame::{LayoutArc, FrameId, ArtistId, Data}, artist::Artist};
 
@@ -49,6 +49,26 @@ impl PlotOpt {
             .data_mut()
             .style_mut(self.artist_id)
             .edgecolor(color);
+        
+        self
+    }
+
+    pub fn linewidth(&mut self, linewidth: f32) -> &mut Self {
+        self.layout.borrow_mut()
+            .frame_mut(self.frame_id)
+            .data_mut()
+            .style_mut(self.artist_id)
+            .linewidth(linewidth);
+        
+        self
+    }
+
+    pub fn joinstyle(&mut self, joinstyle: impl Into<JoinStyle>) -> &mut Self {
+        self.layout.borrow_mut()
+            .frame_mut(self.frame_id)
+            .data_mut()
+            .style_mut(self.artist_id)
+            .joinstyle(joinstyle);
         
         self
     }

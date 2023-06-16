@@ -133,8 +133,6 @@ impl BezierRender {
         b2: &Point,
         lw: f32,
     ) {
-        let lw = 10.;
-
         let dx = b2.x() - b0.x();
         let dy = b2.y() - b0.y();
 

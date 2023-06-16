@@ -1,5 +1,5 @@
-use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor}, graph::{Graph, PlotOpt}, plot::bar_y};
-use essay_plot_base::{Point, Color};
+use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor, patch::PathPatch}, graph::{Graph, PlotOpt}, plot::bar_y};
+use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
 fn main() {
@@ -46,13 +46,18 @@ fn main() {
     //let x = tf32!([40., 30.]);
     let x = tf32!([25., 25., 50.]);
     // let axes = figure.new_graph(());
-    graph.pie(x);
-
+    // graph.pie(x).linewidth(20.);
     // let x = linspace(0., 20., 21);
     // let axes = figure.new_graph([1., 1., 2., 2.]);
     // axes.plot(&x, &x.exp(), ());
     //bezier2(graph, [-0.5, 0.], [-1.0, 1.0], [-1.5, 0.0]).color(Color(0x0080c080));
-
+    
+    plot_quad(graph, [0.0, 0.0], [1.0, 0.0], [1., 1.], [0., 1.])
+        .facecolor(Color(0))
+        .edgecolor(0xe08000)
+        .linewidth(20.)
+        .joinstyle(JoinStyle::Mitre);
+    
     //bezier2(graph, [0.5, 0.], [1.0, 1.0], [1.5, 0.0]).color(Color(0x0080c080));
     //bezier2(graph, [-1.5, 0.], [-1.0, -1.0], [-0.5, 0.0]).color(Color(0x0080c080));
     //bezier2(graph, [0., -0.5], [1.0, -1.0], [0.0, -1.5]).color(Color(0x0080c080));
@@ -96,6 +101,21 @@ pub fn bezier2(
     p2: impl Into<Point>,
 ) -> PlotOpt {
     graph.add_data_artist(Bezier2(p0.into(), p1.into(), p2.into()))
+}
+
+pub fn plot_quad(
+    graph: &mut Graph, 
+    p0: impl Into<Point>,
+    p1: impl Into<Point>,
+    p2: impl Into<Point>,
+    p3: impl Into<Point>,
+) -> PlotOpt {
+    graph.add_data_artist(PathPatch::new(Path::new(vec![
+        PathCode::MoveTo(p0.into()),
+        PathCode::LineTo(p1.into()),
+        PathCode::LineTo(p2.into()),
+        PathCode::ClosePoly(p3.into()),
+    ])))
 }
 
 pub fn pcolor(

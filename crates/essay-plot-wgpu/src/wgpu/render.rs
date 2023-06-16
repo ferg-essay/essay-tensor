@@ -1,4 +1,4 @@
-use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, Coord, WidthAlign, HeightAlign};
+use essay_plot_base::{Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, driver::{RenderErr, Renderer, FigureApi}, TextStyle, Coord, WidthAlign, HeightAlign, JoinStyle};
 use essay_tensor::Tensor;
 
 use super::{vertex::VertexBuffer, text::{TextRender}, shape2d::Shape2dRender, tesselate::tesselate, triangle2d::GridMesh2dRender, bezier::BezierRender};
@@ -69,40 +69,11 @@ impl<'a> FigureRenderer {
         self.canvas.set_scale_factor(scale_factor);
     }
 
-    fn draw_bezier(&mut self, 
-        p0: Point,
-        p1: Point,
-        p2: Point,
-        color: u32
-    ) {
-        //self.vertex_buffer.push(p0.x(), p0.y(), 0x000000ff);
-        //self.vertex_buffer.push(p1.x(), p1.y(), 0x000000ff);
-        //self.vertex_buffer.push(p2.x(), p2.y(), 0x0000000ff);
-
-        //self.bezier_vertex.push_tex(p0.x(), p0.y(), -1.0,0.0, color);
-        //self.bezier_vertex.push_tex(p1.x(), p1.y(), 0.0, 2.0, color);
-        //self.bezier_vertex.push_tex(p2.x(), p2.y(), 1.0, 0.0, color);
-
-        //self.bezier_vertex.push_tex(p0.x(), p0.y(), -1.0,1.0, color);
-        //self.bezier_vertex.push_tex(p1.x(), p1.y(), 0.0, -1.0, color);
-        //self.bezier_vertex.push_tex(p2.x(), p2.y(), 1.0, 1.0, color);
-
-        //self.bezier_rev_vertex.push_tex(p0.x(), p0.y(), -1.0,1.0, color);
-        //self.bezier_rev_vertex.push_tex(p1.x(), p1.y(), 0.0, -1.0, color);
-        //self.bezier_rev_vertex.push_tex(p2.x(), p2.y(), 1.0, 1.0, color);
-    }
-
     fn draw_closed_path(
         &mut self, 
-        style: &dyn StyleOpt, 
         path: &Path<Canvas>, 
         _clip: &Bounds<Canvas>,
     ) {
-        let color = match style.get_facecolor() {
-            Some(color) => *color,
-            None => Color(0x000000ff),
-        };
-
         self.shape2d_render.start_shape();
         self.bezier_render.start_shape();
 
@@ -114,7 +85,6 @@ impl<'a> FigureRenderer {
             points.push(last);
 
             if let PathCode::Bezier2(p1, p2) = code {
-                let lw = 10.;
                 self.bezier_render.draw_bezier_fill(&last, p1, p2);
             }
 
@@ -134,28 +104,32 @@ impl<'a> FigureRenderer {
         style: &dyn StyleOpt, 
         _clip: &Bounds<Canvas>,
     ) {
-        // TODO: thickness in points
         let linewidth  = match style.get_linewidth() {
             Some(linewidth) => *linewidth,
-            None => 1.5,
+            None => 0.5,
+        };
+
+        let joinstyle  = match style.get_joinstyle() {
+            Some(joinstyle) => joinstyle.clone(),
+            None => JoinStyle::Bevel,
         };
         
         let lw = self.to_px(linewidth); // / self.canvas.width();
-
-        let color = match style.get_facecolor() {
-            Some(color) => *color,
-            None => Color(0x000000ff)
-        };
 
         self.shape2d_render.start_shape();
         self.bezier_render.start_shape();
 
         let mut p0 = Point(0.0f32, 0.0f32);
         let mut p_move = p0;
+        let mut p_first = p0;
+        let mut p_last = p0;
+
         for code in path.codes() {
-            p0 = match code {
+            let p_next = match code {
                 PathCode::MoveTo(p0) => {
                     p_move = *p0;
+                    p_first = *p0;
+                    p_last = *p0;
                     *p0
                 }
                 PathCode::LineTo(p1) => {
@@ -179,11 +153,113 @@ impl<'a> FigureRenderer {
                     self.shape2d_render.draw_line(&p0, p1, lw, lw);
                     self.shape2d_render.draw_line(p1, &p_move, lw, lw);
 
+                    self.join_lines(p0, *p1, p_move, lw, &joinstyle);
+                    self.join_lines(*p1, p_move, p_first, lw, &joinstyle);
+
                     *p1
+                }
+            };
+
+            self.join_lines(p_last, p0, p_next, lw, &joinstyle);
+
+            if p_first == p_move {
+                p_first = p_next;
+            }
+            p_last = p0;
+            p0 = p_next;
+        }
+    }
+
+    fn join_lines(
+        &mut self, 
+        b0: Point, 
+        b1: Point, 
+        b2: Point, 
+        lw: f32, 
+        join_style: &JoinStyle
+    ) {
+        let min_join = 1.;
+
+        if b0 == b1 || b1 == b2 || lw < min_join {
+            // small lines can ignore joining.
+            return;
+        }
+
+        let (nx, ny) = line_normal(b0, b1, lw);
+
+        // outside edge
+        let p0 = Point(b0.x() + nx, b0.y() - ny);
+        let p1 = Point(b1.x() + nx, b1.y() - ny);
+
+        let (nx, ny) = line_normal(b1, b2, lw);
+
+        // outside edge
+        let q1 = Point(b1.x() + nx, b1.y() - ny);
+        let q2 = Point(b2.x() + nx, b2.y() - ny);
+
+        // add bevel triangle
+        self.shape2d_render.draw_triangle(&p1, &q1, &b1);
+
+        match join_style {
+            JoinStyle::Bevel => {},
+            JoinStyle::Mitre => {
+                let mp = line_intersection(p0, p1, q1, q2);
+
+                if mp != p0 { // non-parallel
+                    self.shape2d_render.draw_triangle(&p1, &mp, &q1);
+                }
+            },
+            JoinStyle::Rounded => {
+                let mp = line_intersection(p0, p1, q1, q2);
+
+                if mp != p0 { // non-parallel
+                    self.bezier_render.draw_bezier_fill(&p1, &mp, &q1);
                 }
             }
         }
     }
+}
+
+pub(crate) fn line_normal(
+    p0: Point, 
+    p1: Point, 
+    lw: f32, 
+) -> (f32, f32) {
+    let dx = p1.x() - p0.x();
+    let dy = p1.y() - p0.y();
+
+    let len = dx.hypot(dy).max(f32::EPSILON);
+
+    let dx = dx / len;
+    let dy = dy / len;
+
+    // normal to the line
+    let nx = dy * lw;
+    let ny = dx * lw;
+
+    (nx, ny)
+}
+
+pub(crate) fn line_intersection(
+    p0: Point, 
+    p1: Point, 
+    q0: Point, 
+    q1: Point
+) -> Point {
+    let det = (p0.x() - p1.x()) * (q0.y() - q1.y())
+        - (p0.y() - p1.y()) * (q0.x() - q1.x());
+
+    if det.abs() <= f32::EPSILON {
+        return p0; // p0 is marker for coincident or parallel lines
+    }
+
+    let p_xy = p0.x() * p1.y() - p0.y() * p1.x();
+    let q_xy = q0.x() * q1.y() - q0.y() * q1.x();
+
+    let x = (p_xy * (q0.x() - q1.x()) - (p0.x() - p1.x()) * q_xy) / det;
+    let y = (p_xy * (q0.y() - q1.y()) - (p0.y() - p1.y()) * q_xy) / det;
+
+    Point(x, y)
 }
 
 impl Renderer for FigureRenderer {
@@ -220,7 +296,7 @@ impl Renderer for FigureRenderer {
         };
 
         if path.is_closed_path() && ! facecolor.is_none() {
-            self.draw_closed_path(style, &path, clip);
+            self.draw_closed_path(&path, clip);
 
             self.shape2d_render.draw_style(facecolor, &self.to_gpu);
             self.bezier_render.draw_style(facecolor, &self.to_gpu);
@@ -257,7 +333,7 @@ impl Renderer for FigureRenderer {
         };
 
         if path.is_closed_path() {
-            self.draw_closed_path(style, &path, clip);
+            self.draw_closed_path(&path, clip);
         } else {
             self.draw_lines(&path, style, clip);
         }
