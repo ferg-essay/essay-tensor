@@ -1,7 +1,7 @@
 use proc_macro::{self};
 use syn::{DeriveInput, parse_macro_input, DataStruct, Result, 
     parse::{ParseStream, Parse}, 
-    Fields, Ident, Type, Attribute
+    Fields, Attribute
 };
 use quote::{*, __private::TokenStream};
 
@@ -30,17 +30,6 @@ pub(crate) fn derive_plot_opt(
         opt,
     } = parse_macro_input!(attr as OptAttribute);
 
-    //Attribute::parse_inner(ParseStream::call(attr));
-
-    //let opt = attr.into_iter().next();
-    //let attr: syn::Attribute = parse_macro_input!(attr);
-    //let attr = parse_macro_input!(attr as Attribute);
-    // let attr = attr.into_iter().next();
-    
-    //let opt : Ident = syn::parse(attr).unwrap();
-    
-    //println!("Attr {:?}", opt.to_token_stream());
-
     let DeriveInput {
         ident,
         data,
@@ -59,17 +48,8 @@ pub(crate) fn derive_plot_opt(
         syn::Data::Union(_) => todo!("union not supported for derive_opt"),
     };
 
-    //println!("Struct: {:?}", &struct_token.to_token_stream());
-    //println!("Fields: {:?}", &fields.to_token_stream());
-    //println!("Attrs: {:?}", &attrs.iter().map(|x| x.to_token_stream()));
-    // struct_token.
-    // println!("Item: {}", item.as);
-
-    //let trait_methods = trait_methods(&fields, &ident);
     let struct_fields = struct_fields(&fields);
     let field_methods = field_methods(&fields);
-
-    //if true { return quote! {}.into(); }
 
     quote! {
         #(#attrs)*
@@ -78,12 +58,12 @@ pub(crate) fn derive_plot_opt(
         #semi_token
 
         #vis struct #opt {
-            plot: crate::graph::PlotRef<crate::frame::Data, #ident>,
+            plot: essay_plot::graph::PlotRef<essay_plot::frame::Data, #ident>,
         }
 
         impl #opt {
             pub fn new(
-                plot: crate::graph::PlotRef<crate::frame::Data, #ident>,
+                plot: essay_plot::graph::PlotRef<essay_plot::frame::Data, #ident>,
             ) -> Self {
                 Self {
                     plot
@@ -127,9 +107,6 @@ fn struct_fields(fields: &Fields) -> TokenStream {
                 let ty = &field.ty;
                 let vis = &field.vis;
                 let attrs = print_opt(&field.attrs);
-                // let generics = &field.generics;
-                println!("Attrs {:?}", field.attrs.len());
-                //println!("Ty {:?}", ty.to_token_stream());
 
                 quote! {
                     #attrs
@@ -150,8 +127,6 @@ fn field_methods(fields: &Fields) -> TokenStream {
             let iter = fields.named.iter().map(|field| {
                 let name = &field.ident;
                 let ty = &field.ty;
-                println!("Attrs {:?}", field.attrs.len());
-                //println!("Ty {:?}", ty.to_token_stream());
 
                 if is_opt(&field.attrs) {
                     if is_opt_into(&field.attrs) {
@@ -222,28 +197,4 @@ fn print_opt(attrs: &Vec<Attribute>) -> TokenStream {
     let iter = attrs.iter().filter(|a| ! a.path().is_ident("option"));
 
     quote! { #(#iter)* }
-}
-
-fn is_into_type(_ty: &Type) -> bool {
-    /*
-    if let syn::Type::Path(syn::TypePath { qself: None, path }) = ty {
-        let path = path_to_string(&path);
-
-        if path == "usize" {
-            return false;
-        }
-    }
-
-    true
-    */
-    false
-}
-
-fn path_to_string(path: &syn::Path) -> String {
-    path
-        .segments
-        .iter()
-        .map(|segment| segment.ident.to_string())
-        .collect::<Vec<_>>()
-        .join(":")
 }

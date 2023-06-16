@@ -4,6 +4,9 @@ use essay_plot_macro::*;
 
 use crate::{artist::{Container, paths, patch::{PathPatch}, ArtistStyle, Artist}, graph::{Graph}, frame::{Data, ArtistId}};
 
+// self as essay_plot needed for #[derive_plot_opt]
+extern crate self as essay_plot;
+
 pub fn bar_y(
     graph: &mut Graph, 
     y: impl Into<Tensor>, 

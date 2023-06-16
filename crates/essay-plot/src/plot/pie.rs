@@ -1,4 +1,4 @@
-use essay_plot_base::{Angle, Point};
+use essay_plot_base::{Angle, Point, Color};
 use essay_tensor::Tensor;
 
 use crate::{artist::{patch, ColorCycle, Container, ArtistStyle}, graph::{Graph, PlotOpt}, frame::ArtistId};
@@ -25,7 +25,8 @@ pub fn pie(
     let colors = ColorCycle::tableau();
     let mut i = 0;
     for frac in x.iter() {
-        let theta2 = (theta1 - frac + 1.) % 1.;
+        let theta2 = (theta1 + frac + 1.) % 1.;
+        println!("Angle {:?} - {:?}", Angle::Unit(theta1), Angle::Unit(theta2));
         let patch = patch::Wedge::new(
             center, 
             radius, 
@@ -36,7 +37,9 @@ pub fn pie(
         let id = ArtistId::new(0);
 
         let mut artist = ArtistStyle::new(id, patch);
-        artist.color(colors[i]);
+        //artist.color(colors[i]);
+        artist.style_mut().edgecolor(colors[i]);
+        artist.style_mut().facecolor(Color(0x0));
         
         container.push(artist);
 

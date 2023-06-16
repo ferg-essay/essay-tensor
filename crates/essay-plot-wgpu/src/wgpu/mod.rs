@@ -1,3 +1,4 @@
+mod bezier;
 mod triangle2d;
 mod shape2d;
 mod main_loop;

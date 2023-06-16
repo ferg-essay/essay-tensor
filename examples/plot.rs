@@ -36,15 +36,17 @@ fn main() {
 
     //axes.scatter(&x, &y, ()).color(0x003fc0);
     //graph.plot(&x, &y).color(0xc08000);
-    bar_y(graph, &y)
-        .edgecolor(0x400080)
-        .facecolor(0x80c0e0)
-        .width(0.2);
+    //bar_y(graph, &y)
+    //    .edgecolor(0x400080)
+    //    .facecolor(0x80c0e0)
+    //    .width(0.2);
     
     // axes.scatter(&x, &y, ());
-    // let x = tf32!([40., 30., 20., 5., 5.]);
+    //let x = tf32!([40., 30., 20., 5., 5.]);
+    //let x = tf32!([40., 30.]);
+    let x = tf32!([25., 25., 50.]);
     // let axes = figure.new_graph(());
-    // axes.pie(x, ());
+    graph.pie(x);
 
     // let x = linspace(0., 20., 21);
     // let axes = figure.new_graph([1., 1., 2., 2.]);

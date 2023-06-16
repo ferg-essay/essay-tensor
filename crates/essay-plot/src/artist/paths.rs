@@ -24,7 +24,7 @@ pub fn wedge(angle: (Angle, Angle)) -> Path<Unit> {
     let halfpi = 0.5 * PI;
 
     let (t0, t1) = (angle.0.to_radians(), angle.1.to_radians());
-
+    println!("Wedge: {} - {} ({:?}, {:?})", t0, t1, angle.0, angle.1);
     let t1 = if t0 < t1 { t1 } else { t1 + TAU };
 
     // TODO:

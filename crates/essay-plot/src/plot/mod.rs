@@ -41,10 +41,10 @@ impl Graph {
     }
 
     pub fn pie(
-        graph: &mut Graph, 
+        &mut self,
         x: impl Into<Tensor>, 
     ) -> PlotOpt {
-        pie::pie(graph, x)
+        pie::pie(self, x)
     }
     /*
     pub fn bar_y(
