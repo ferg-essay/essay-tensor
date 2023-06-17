@@ -1,4 +1,4 @@
-use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor, patch::PathPatch}, graph::{Graph, PlotOpt}, plot::bar_y};
+use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::bar_y};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
@@ -19,7 +19,7 @@ fn main() {
     println!("z: {:?}", z);
     //let y = x.sin();
 
-    let x = linspace(0., 1., 6);
+    let x = linspace(0., 1., 1);
     let y = x.clone();
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
@@ -34,30 +34,31 @@ fn main() {
     graph.xlabel("My X-Label");
     graph.ylabel("Y-Label");
 
-    //axes.scatter(&x, &y, ()).color(0x003fc0);
+    graph.scatter(&x, &y).color("blue").marker("X").size(2500.).capstyle(CapStyle::Round);
     //graph.plot(&x, &y).color(0xc08000);
     //bar_y(graph, &y)
     //    .edgecolor(0x400080)
     //    .facecolor(0x80c0e0)
     //    .width(0.2);
     
-    // axes.scatter(&x, &y, ());
+    //axes.scatter(&x, &y, ());
     //let x = tf32!([40., 30., 20., 5., 5.]);
     //let x = tf32!([40., 30.]);
     let x = tf32!([25., 25., 50.]);
     // let axes = figure.new_graph(());
-    // graph.pie(x).linewidth(20.);
+     //graph.pie(x);
     // let x = linspace(0., 20., 21);
     // let axes = figure.new_graph([1., 1., 2., 2.]);
     // axes.plot(&x, &x.exp(), ());
     //bezier2(graph, [-0.5, 0.], [-1.0, 1.0], [-1.5, 0.0]).color(Color(0x0080c080));
     
-    
+    /*
     plot_quad(graph, [0.0, 0.0], [1.0, 0.0], [1., 1.], [0., 1.])
         .facecolor(Color(0))
         .edgecolor(0xe08000)
         .linewidth(20.)
         .joinstyle(JoinStyle::Bevel);
+    */
     
     /*
     plot_line(graph, 

@@ -35,7 +35,7 @@ impl<M: Coord> Path<M> {
             codes.push(PathCode::LineTo(Point(points[(i, 0)], points[(i, 1)])));
         }
 
-        codes.push(PathCode::ClosePoly(Point(points[(len - 1, 0)], points[(len - 1, 1)])));
+        codes.push(PathCode::ClosePoly(Point(points[(len, 0)], points[(len, 1)])));
 
         assert!(codes.len() == points.rows());
 

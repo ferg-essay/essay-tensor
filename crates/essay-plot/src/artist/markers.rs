@@ -1,8 +1,7 @@
+use essay_plot_base::{Path, Angle, PathCode, Point, Affine2d, Canvas};
 use essay_tensor::tf32;
 
-use crate::graph::{Unit, Point};
-
-use super::{Path, Angle, PathCode};
+use super::paths::{Unit, self};
 
 pub enum Markers {
     None,
@@ -54,17 +53,111 @@ pub enum Markers {
 impl Markers {
     pub fn is_filled(&self) -> bool {
         match self {
-            Square => true,
+            Self::Square => true,
             _ => false,
+        }
+    }
+
+    pub fn get_scaled_path(&self, scale: f32) -> Path<Canvas> {
+        match self {
+            Self::Pixel => {
+                self.get_path().transform(&Affine2d::eye().scale(2., 2.))
+            }
+            _ => {
+                self.get_path().transform(&Affine2d::eye().scale(scale, scale))
+            }
         }
     }
 
     pub fn get_path(&self) -> Path<Unit> {
         match self {
-            Square => Path::unit(),
-            TriangleUp => triangle_path(),
+            Self::Circle => paths::circle(),
+            Self::Point => paths::circle().transform(&Affine2d::eye().scale(0.5, 0.5)),
+            Self::Pixel => paths::square(), // seems to be identical to square
+            Self::TriangleDown => triangle_path().transform(&Affine2d::eye().rotate_deg(180.)),
+            Self::TriangleUp => triangle_path(),
+            Self::TriangleLeft => triangle_path().transform(&Affine2d::eye().rotate_deg(90.)),
+            Self::TriangleRight => triangle_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::TriDown => tri_path().transform(&Affine2d::eye().rotate_deg(180.)),
+            Self::TriUp => tri_path(),
+            Self::TriLeft => tri_path().transform(&Affine2d::eye().rotate_deg(90.)),
+            Self::TriRight => tri_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::Square => paths::square(),
+            Self::Pentagon => paths::polygon(5),
+            Self::Hexagon => paths::polygon(6),
+            Self::Hexagon2 => paths::polygon(6).transform(&Affine2d::eye().rotate_deg(30.)),
+            Self::Octagon => paths::polygon_alt(8),
+            Self::Diamond => paths::polygon(4),
+            Self::ThinDiamond => paths::polygon(4).transform(&Affine2d::eye().scale(0.5, 1.)),
+            Self::Plus => plus_path(),
+            Self::PlusFilled => plus_filled_path(),
+            Self::X => plus_path().transform(&Affine2d::eye().rotate_deg(45.)),
+            Self::XFilled => plus_filled_path().transform(&Affine2d::eye().rotate_deg(45.)),
+
+            Self::TickLeft => tick_path().transform(&Affine2d::eye().rotate_deg(90.)),
+            Self::TickRight => tick_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::TickUp => tick_path(),
+            Self::TickDown => tick_path().transform(&Affine2d::eye().rotate_deg(180.)),
+            Self::CaretLeft => caret_path().transform(&Affine2d::eye().rotate_deg(90.)),
+            Self::CaretRight => caret_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::CaretUp => caret_path(),
+            Self::CaretDown => caret_path().transform(&Affine2d::eye().rotate_deg(180.)),
+            Self::CaretLeftBase => caret_base_path().transform(&Affine2d::eye().rotate_deg(90.)),
+            Self::CaretRightBase => caret_base_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::CaretUpBase => caret_base_path(),
+            Self::CaretDownBase => caret_base_path().transform(&Affine2d::eye().rotate_deg(180.)),
+
             Self::Path(path) => path.clone(),
             _ => todo!(),
+        }
+    }
+}
+
+impl From<&str> for Markers {
+    fn from(value: &str) -> Self {
+        match value {
+            "o" => Self::Circle,
+            "." => Self::Point,
+            "," => Self::Pixel,
+            "v" => Self::TriangleDown,
+            "^" => Self::TriangleUp,
+            "<" => Self::TriangleLeft,
+            ">" => Self::TriangleRight,
+            "1" => Self::TriDown,
+            "2" => Self::TriUp,
+            "3" => Self::TriLeft,
+            "4" => Self::TriRight,
+            "8" => Self::Octagon,
+            "s" => Self::Square,
+            "h" => Self::Hexagon,
+            "H" => Self::Hexagon2,
+            "p" => Self::Pentagon,
+            "P" => Self::PlusFilled,
+            "+" => Self::Plus,
+            "x" => Self::X,
+            "X" => Self::XFilled,
+            "d" => Self::ThinDiamond,
+            "D" => Self::Diamond,
+            "|" => Self::VertLine,
+            "_" => Self::HorizLine,
+
+            "#0" => Self::TickLeft,
+            "#1" => Self::TickRight,
+            "#2" => Self::TickUp,
+            "#3" => Self::TickDown,
+            "#4" => Self::CaretLeft,
+            "#5" => Self::CaretRight,
+            "#6" => Self::CaretUp,
+            "#7" => Self::CaretDown,
+            "#8" => Self::CaretLeftBase,
+            "#9" => Self::CaretRightBase,
+            "#10" => Self::CaretUpBase,
+            "#11" => Self::CaretDownBase,
+
+            "" => Self::None,
+            "none" => Self::None,
+
+            _ => { panic!("'{}' is an unknown marker symbol", value); }
         }
     }
 }
@@ -110,6 +203,17 @@ fn triangle_path_right() -> Path<Unit> {
     ]))
 }
 
+fn tri_path() -> Path<Unit> {
+    Path::new(vec![
+        PathCode::MoveTo(Point(0., 1.)),
+        PathCode::LineTo(Point(0., 0.)),
+        PathCode::MoveTo(Point(-0.86, -0.5)),
+        PathCode::LineTo(Point(0., 0.)),
+        PathCode::MoveTo(Point(0.86, -0.5)),
+        PathCode::LineTo(Point(0., 0.)),
+    ])
+}
+
 fn plus_path() -> Path<Unit> {
     Path::new(vec![
         PathCode::MoveTo(Point(-1., 0.)),
@@ -117,4 +221,40 @@ fn plus_path() -> Path<Unit> {
         PathCode::MoveTo(Point(0., -1.)),
         PathCode::LineTo(Point(0., 1.)),
     ])
+}
+
+fn plus_filled_path() -> Path<Unit> {
+    Path::closed_poly(tf32!([
+        [-3., -1.],
+        [-3., 1.],
+        [-1., 1.],
+        [-1., 3.],
+        [1., 3.],
+        [1., 1.],
+        [3., 1.],
+        [3., -1.],
+        [1., -1.],
+        [1., -3.],
+        [-1., -3.],
+        [-1., -1.],
+    ]) / 3.)
+}
+
+fn tick_path() -> Path<Unit> {
+    Path::new(vec![
+        PathCode::MoveTo(Point(0., 0.)),
+        PathCode::LineTo(Point(0., 1.)),
+    ])
+}
+
+fn caret_path() -> Path<Unit> {
+    Path::closed_poly(tf32!([
+        [0., 0.], [-0.86, 1.], [0.86, -1.]
+    ]))
+}
+
+fn caret_base_path() -> Path<Unit> {
+    Path::closed_poly(tf32!([
+        [-0.86, 0.], [0.86, 0.], [0., 1.]
+    ]))
 }

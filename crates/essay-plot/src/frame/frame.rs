@@ -258,6 +258,7 @@ pub struct BottomFrame {
 
     axis: Option<Axis>,
     ticks: Vec<Box<dyn Artist<Canvas>>>,
+    is_grid_major: bool,
     style_major: Style,
     grid_major: Vec<Box<dyn Artist<Canvas>>>,
     style_minor: Style,
@@ -282,6 +283,8 @@ impl BottomFrame {
             spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
             axis: Some(Axis::new()),
             ticks: Vec::new(),
+
+            is_grid_major: false,
             grid_major: Vec::new(),
             style_major,
             grid_minor: Vec::new(),
@@ -328,13 +331,15 @@ impl BottomFrame {
 
             for (xv, x) in axis.x_ticks(data) {
                 if 0. <= x && x <= data_pos.width() {
-                    // grid
-                    let grid = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(x + x0, data_pos.ymin())),
-                        PathCode::LineTo(Point(x + x0, data_pos.ymax())),
-                    ]));
+                    if self.is_grid_major {
+                        // grid
+                        let grid = PathPatch::new(Path::new(vec![
+                            PathCode::MoveTo(Point(x + x0, data_pos.ymin())),
+                            PathCode::LineTo(Point(x + x0, data_pos.ymax())),
+                        ]));
 
-                    self.grid_major.push(Box::new(grid));
+                        self.grid_major.push(Box::new(grid));
+                    }
 
                     let mut y = pos.ymax();
 
@@ -424,6 +429,8 @@ pub struct LeftFrame {
 
     axis: Option<Axis>,
     ticks: Vec<Box<dyn Artist<Canvas>>>,
+
+    is_grid_major: bool,
     style_major: Style,
     grid_major: Vec<Box<dyn Artist<Canvas>>>,
     style_minor: Style,
@@ -453,6 +460,8 @@ impl LeftFrame {
             spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
             axis: Some(Axis::new()),
             ticks: Vec::new(),
+
+            is_grid_major: false,
             grid_major: Vec::new(),
             style_major,
             grid_minor: Vec::new(),
@@ -491,13 +500,15 @@ impl LeftFrame {
 
             for (_yv, y) in axis.y_ticks(data) {
                 if 0. <= y && y <= data_pos.height() {
-                    // grid
-                    let grid = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(data_pos.xmin(), y + y0)),
-                        PathCode::LineTo(Point(data_pos.xmax(), y + y0)),
-                    ]));
+                    if self.is_grid_major {
+                        // grid
+                        let grid = PathPatch::new(Path::new(vec![
+                            PathCode::MoveTo(Point(data_pos.xmin(), y + y0)),
+                            PathCode::LineTo(Point(data_pos.xmax(), y + y0)),
+                        ]));
 
-                    self.grid_major.push(Box::new(grid));
+                        self.grid_major.push(Box::new(grid));
+                    }
 
                     let tick = PathPatch::new(Path::new(vec![
                         PathCode::MoveTo(Point(pos.xmax() - 10., y + y0)),

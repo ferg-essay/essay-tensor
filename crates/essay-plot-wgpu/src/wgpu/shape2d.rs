@@ -93,36 +93,19 @@ impl Shape2dRender {
 
     pub(crate) fn draw_line(
         &mut self, 
-        p0: &Point,
-        p1: &Point,
+        b0: &Point,
+        b1: &Point,
         lw2: f32,
     ) {
-        let (nx, ny) = line_normal(*p0, *p1, lw2);
+        let (nx, ny) = line_normal(*b0, *b1, lw2);
 
-        /*
-        let Point(x0, y0) = p0;
-        let Point(x1, y1) = p1;
+        self.vertex(b0.x() - nx, b0.y() + ny);
+        self.vertex(b0.x() + nx, b0.y() - ny);
+        self.vertex(b1.x() + nx, b1.y() - ny);
 
-        let dx = p1.x() - p0.x();
-        let dy = p1.y() - p0.y();
-
-        let len = dx.hypot(dy).max(f32::EPSILON);
-
-        let dx = dx / len;
-        let dy = dy / len;
-
-        // normal to the line
-        let nx = dy * lw2;
-        let ny = - dx * lw2;
-        */
-
-        self.vertex(p0.x() - nx, p0.y() - ny);
-        self.vertex(p0.x() + nx, p0.y() + ny);
-        self.vertex(p1.x() + nx, p1.y() + ny);
-
-        self.vertex(p1.x() + nx, p1.y() + ny);
-        self.vertex(p1.x() - nx, p1.y() - ny);
-        self.vertex(p0.x() - nx, p0.y() - ny);
+        self.vertex(b1.x() + nx, b1.y() - ny);
+        self.vertex(b1.x() - nx, b1.y() + ny);
+        self.vertex(b0.x() - nx, b0.y() + ny);
     }
 
     pub(crate) fn draw_triangle(

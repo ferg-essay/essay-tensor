@@ -1,7 +1,7 @@
 use std::f32::consts::{PI, TAU};
 
 use essay_plot_base::{Angle, Coord, Path, PathCode, Point};
-use essay_tensor::init::linspace;
+use essay_tensor::{init::linspace, tensor::TensorVec};
 
 ///
 /// Unit coordinates centered around 0: [-1, 1] x [-1, 1]
@@ -11,7 +11,16 @@ pub struct Unit;
 
 impl Coord for Unit {}
 
-pub fn unit() -> Path<Unit> {
+pub fn square() -> Path<Unit> {
+    Path::new(vec![
+        PathCode::MoveTo(Point(-1., -1.)),
+        PathCode::LineTo(Point(1., -1.)),
+        PathCode::LineTo(Point(1., 1.)),
+        PathCode::ClosePoly(Point(-1., 1.)),
+    ])
+}
+
+pub fn unit_pos() -> Path<Unit> {
     Path::new(vec![
         PathCode::MoveTo(Point(0., 0.)),
         PathCode::LineTo(Point(1., 0.)),
@@ -20,11 +29,43 @@ pub fn unit() -> Path<Unit> {
     ])
 }
 
+pub fn polygon(n: usize) -> Path<Unit> {
+    assert!(n > 2);
+
+    let mut tensor = TensorVec::<f32>::new();
+
+    for i in 0..n {
+        let theta = (i as f32 * 360. / n as f32 + 90.).to_radians();
+        
+        tensor.push(theta.cos());
+        tensor.push(theta.sin());
+    }
+    let tensor = tensor.into_tensor().reshape([n, 2]);
+
+    Path::closed_poly(tensor)
+}
+
+pub fn polygon_alt(n: usize) -> Path<Unit> {
+    assert!(n > 2);
+
+    let mut tensor = TensorVec::<f32>::new();
+
+    for i in 0..n {
+        let theta = (i as f32 * 360. / n as f32 + 180. / n as f32).to_radians();
+        
+        tensor.push(theta.cos());
+        tensor.push(theta.sin());
+    }
+    let tensor = tensor.into_tensor().reshape([n, 2]);
+    
+    Path::closed_poly(tensor)
+}
+
 pub fn wedge(angle: (Angle, Angle)) -> Path<Unit> {
     let halfpi = 0.5 * PI;
 
     let (t0, t1) = (angle.0.to_radians(), angle.1.to_radians());
-    println!("Wedge: {} - {} ({:?}, {:?})", t0, t1, angle.0, angle.1);
+    
     let t1 = if t0 < t1 { t1 } else { t1 + TAU };
 
     // TODO:
@@ -88,7 +129,7 @@ pub fn circle() -> Path<Unit> {
         PathCode::Bezier3(
             Point(1.0, magic),
             Point(sqrt_half + magic_45, sqrt_half - magic_45),
-            Point(-sqrt_half, sqrt_half),
+            Point(sqrt_half, sqrt_half),
         ),
         PathCode::Bezier3(
             Point(sqrt_half - magic_45, sqrt_half + magic_45),
@@ -115,6 +156,6 @@ pub fn circle() -> Path<Unit> {
             Point(-magic, -1.0),
             Point(0., -1.),
         ),
-        PathCode::ClosePoly(Point(0., 1.)),
+        PathCode::ClosePoly(Point(0., -1.)),
     ])
 }

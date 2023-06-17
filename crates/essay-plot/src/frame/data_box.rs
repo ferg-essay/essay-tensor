@@ -111,6 +111,17 @@ impl DataBox {
         ymin -= y_margin * height;
         ymax += y_margin * height;
 
+        // single point
+        if xmin == xmax {
+            xmin = xmin - 0.1;
+            xmax = xmax + 0.1;
+        }
+
+        if ymin == ymax {
+            ymin = ymin - 0.1;
+            ymax = ymax + 0.1;
+        }
+
         let bounds = Bounds::new(Point(xmin, ymin), Point(xmax, ymax));
 
         self.view_bounds = bounds;

@@ -70,7 +70,10 @@ impl<'a> FigureRenderer {
     }
 
     pub(crate) fn set_scale_factor(&mut self, scale_factor: f32) {
-        self.canvas.set_scale_factor(scale_factor);
+        // traditional pt to px
+        let pt_to_px = 4. / 3.;
+
+        self.canvas.set_scale_factor(scale_factor * pt_to_px);
     }
 
     fn fill_path(
@@ -82,14 +85,15 @@ impl<'a> FigureRenderer {
         self.bezier_render.start_shape();
 
         let mut points = Vec::<Point>::new();
+        let mut last = Point(0., 0.);
         for code in path.codes() {
-            let last = code.tail();
-
-            points.push(last);
-
             if let PathCode::Bezier2(p1, p2) = code {
                 self.bezier_render.draw_bezier_fill(&last, p1, p2);
             }
+
+            last = code.tail();
+
+            points.push(last);
         }
 
         let triangles = tesselate(points);
@@ -383,21 +387,34 @@ impl Renderer for FigureRenderer {
     ) -> Result<(), RenderErr> {
         let path = transform_path(path);
 
-        let color = match style.get_facecolor() {
+        let facecolor = match style.get_facecolor() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
 
-        if path.is_closed_path() {
+        let edgecolor = match style.get_edgecolor() {
+            Some(color) => *color,
+            None => Color(0x000000ff)
+        };
+
+        if path.is_closed_path() && ! facecolor.is_none() {
             self.fill_path(&path, clip);
-        } else {
+
+            for xy in xy.iter_slice() {
+                let offset = Affine2d::eye().translate(xy[0], xy[1]);
+
+                self.shape2d_render.draw_style(facecolor, &self.to_gpu.matmul(&offset));
+                self.bezier_render.draw_style(facecolor, &self.to_gpu.matmul(&offset));
+            }
+        } else if ! edgecolor.is_none() {
             self.draw_lines(&path, style, clip);
-        }
 
-        for xy in xy.iter_slice() {
-            let offset = Affine2d::eye().translate(xy[0], xy[1]);
+            for xy in xy.iter_slice() {
+                let offset = Affine2d::eye().translate(xy[0], xy[1]);
 
-            self.shape2d_render.draw_style(color, &self.to_gpu.matmul(&offset));
+                self.shape2d_render.draw_style(edgecolor, &self.to_gpu.matmul(&offset));
+                self.bezier_render.draw_style(edgecolor, &self.to_gpu.matmul(&offset));
+            }
         }
 
         Ok(())

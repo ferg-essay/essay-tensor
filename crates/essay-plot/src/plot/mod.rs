@@ -20,7 +20,7 @@ pub use pie::{
 };
 
 pub use scatter::{
-    scatter, 
+    scatter, ScatterOpt,
 };
 
 impl Graph {
@@ -36,7 +36,7 @@ impl Graph {
         &mut self, 
         x: impl Into<Tensor>,
         y: impl Into<Tensor>,
-    ) -> PlotOpt {
+    ) -> ScatterOpt {
         scatter::scatter(self, x, y)
     }
 

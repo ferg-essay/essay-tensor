@@ -95,6 +95,30 @@ pub(crate) fn derive_plot_opt(
                 self.plot.write_style(|s| { s.color(color); } );
                 self
             }
+
+            pub fn linewidth(
+                &mut self,
+                linewidth: f32,
+            ) -> &mut Self {
+                self.plot.write_style(|s| { s.linewidth(linewidth); } );
+                self
+            }
+
+            pub fn capstyle(
+                &mut self,
+                capstyle: impl Into<essay_plot_base::CapStyle>,
+            ) -> &mut Self {
+                self.plot.write_style(|s| { s.capstyle(capstyle); } );
+                self
+            }
+
+            pub fn joinstyle(
+                &mut self,
+                joinstyle: impl Into<essay_plot_base::JoinStyle>,
+            ) -> &mut Self {
+                self.plot.write_style(|s| { s.joinstyle(joinstyle); } );
+                self
+            }
         }
     }.into()
 }

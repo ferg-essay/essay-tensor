@@ -5,6 +5,7 @@ mod style;
 pub mod paths;
 mod text;
 mod container;
+mod markers;
 pub mod patch;
 mod artist;
 mod collection;
@@ -33,6 +34,10 @@ pub use pcolor::{
 pub use lines::{
     Lines2d,
     Bezier2, Bezier3,
+};
+
+pub use markers::{
+    Markers,
 };
 
 pub use holder::{

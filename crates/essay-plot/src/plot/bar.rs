@@ -13,28 +13,13 @@ pub fn bar_y(
 ) -> BarOpt {
     let y : Tensor = y.into();
 
-    /*
-    let mut container = Container::new();
-    let width = 1.;
-
-    for (i, value) in y.iter().enumerate() {
-        let scale = Affine2d::eye()
-            .scale(width, *value)
-            .translate(i as f32 - 0.4, 0.);
-        let path: Path<Data> = paths::unit().transform(&scale);
-        
-        let id = ArtistId::new(0);
-        container.push(ArtistStyle::new(id, PathPatch::<Data>::new(path)));
-    }
-    */
-
     let plot = BarPlot::new(y);
-    //self.artist(lines)
-    // graph.add_data_artist(plot)
+
     let plot_ref = graph.add_plot(plot);
 
     BarOpt::new(plot_ref)
 }
+
 #[derive_plot_opt(BarOpt)]
 pub struct BarPlot {
     y: Tensor,
@@ -76,7 +61,7 @@ impl Artist<Data> for BarPlot {
                 let scale = Affine2d::eye()
                     .scale(self.width, *value)
                     .translate(i as f32 - self.width * 0.5, 0.);
-                let path: Path<Data> = paths::unit().transform(&scale);
+                let path: Path<Data> = paths::unit_pos().transform(&scale);
             
                 let id = ArtistId::new(0);
                 self.container.push(ArtistStyle::new(id, PathPatch::<Data>::new(path)));

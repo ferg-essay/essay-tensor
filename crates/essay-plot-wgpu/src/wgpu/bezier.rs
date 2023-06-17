@@ -86,9 +86,9 @@ impl BezierRender {
 
         self.shape_items.push(BezierItem {
             v_start: start,
-            v_end: usize::MAX,
+            v_end: start,
             s_start: self.style_offset,
-            s_end: usize::MAX,
+            s_end: self.style_offset,
         });
     }
 
@@ -268,9 +268,9 @@ impl BezierRender {
         p1: &Point,
         p2: &Point,
     ) {
-        self.vertex_bezier(p0.x(), p0.y(), -1.0,1.0, 0.);
-        self.vertex_bezier(p1.x(), p1.y(), 0.0, -1.0, 0.);
-        self.vertex_bezier(p2.x(), p2.y(), 1.0, 1.0, 0.);
+        self.vertex_bezier(p0.x(), p0.y(), -1.0,1., 0.);
+        self.vertex_bezier(p1.x(), p1.y(), 0.0, -1., 0.);
+        self.vertex_bezier(p2.x(), p2.y(), 1.0, 1., 0.);
     }
 
     pub fn draw_style(

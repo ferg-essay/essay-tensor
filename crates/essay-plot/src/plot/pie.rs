@@ -26,7 +26,7 @@ pub fn pie(
     let mut i = 0;
     for frac in x.iter() {
         let theta2 = (theta1 + frac + 1.) % 1.;
-        println!("Angle {:?} - {:?}", Angle::Unit(theta1), Angle::Unit(theta2));
+
         let patch = patch::Wedge::new(
             center, 
             radius, 
@@ -38,8 +38,8 @@ pub fn pie(
 
         let mut artist = ArtistStyle::new(id, patch);
         //artist.color(colors[i]);
-        artist.style_mut().edgecolor(colors[i]);
-        artist.style_mut().facecolor(Color(0x0));
+        artist.style_mut().facecolor(colors[i]);
+        //artist.style_mut().facecolor(Color(0x0));
         
         container.push(artist);
 

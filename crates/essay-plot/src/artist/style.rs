@@ -65,14 +65,14 @@ impl Style {
 impl StyleOpt for Style {
     fn get_facecolor(&self) -> &Option<Color> {
         match &self.facecolor {
-            Some(color) => &self.facecolor,
+            Some(_color) => &self.facecolor,
             None => &self.color,
         }
     }
 
     fn get_edgecolor(&self) -> &Option<Color> {
         match &self.edgecolor {
-            Some(color) => &self.edgecolor,
+            Some(_color) => &self.edgecolor,
             None => &self.color,
         }
     }
