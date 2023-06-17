@@ -16,7 +16,7 @@ pub use artist::{
 };
 
 pub use collection::{
-    Collection
+    PathCollection
 };
 
 pub use container::{
@@ -53,7 +53,7 @@ pub use patch::{
 };
 
 pub use style::{
-    Style, // StyleChain,
+    PathStyle, // StyleChain,
 };
 
 pub use text::{

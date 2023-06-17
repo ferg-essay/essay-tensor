@@ -1,4 +1,4 @@
-use essay_plot_base::{Path, Angle, PathCode, Point, Affine2d, Canvas, affine};
+use essay_plot_base::{Path, Angle, PathCode, Point, Canvas};
 use essay_tensor::tf32;
 
 use super::paths::{Unit, self};

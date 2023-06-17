@@ -3,7 +3,7 @@ use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{M
 
 use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt};
 
-use crate::artist::{Artist, Style};
+use crate::artist::{Artist, PathStyle};
 
 use super::ArtistId;
 
@@ -42,7 +42,7 @@ impl<M: Coord> PlotContainer<M> {
         unsafe { self.ptrs[id.index()].deref_mut() }
     }
 
-    pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut Style {
+    pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut PathStyle {
         self.artists[id.index()].style_mut()
     }
 
@@ -108,7 +108,7 @@ impl<M: Coord> Artist<M> for PlotContainer<M> {
 trait PlotArtistTrait<M: Coord> {
     fn id(&self) -> ArtistId;
 
-    fn style_mut(&mut self) -> &mut Style;
+    fn style_mut(&mut self) -> &mut PathStyle;
 
     fn update(&self, container: &PlotContainer<M>, canvas: &Canvas);
     fn get_extent(&self, container: &PlotContainer<M>) -> Bounds<M>;
@@ -126,7 +126,7 @@ trait PlotArtistTrait<M: Coord> {
 struct PlotArtist<M: Coord, A: Artist<M>> {
     id: ArtistId,
     marker: PhantomData<(M, A)>,
-    style: Style,
+    style: PathStyle,
 }
 
 impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
@@ -134,11 +134,11 @@ impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
         Self {
             id,
             marker: PhantomData,
-            style: Style::new(),
+            style: PathStyle::new(),
         }
     }
 
-    pub(crate) fn style(&self) -> &Style {
+    pub(crate) fn style(&self) -> &PathStyle {
         &self.style
     }
 }
@@ -152,7 +152,7 @@ where
         self.id
     }
 
-    fn style_mut(&mut self) -> &mut Style {
+    fn style_mut(&mut self) -> &mut PathStyle {
         &mut self.style
     }
 

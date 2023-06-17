@@ -7,7 +7,7 @@ use essay_plot_base::{
 
 use crate::frame::Data;
 
-use super::{Artist, paths, Style};
+use super::{Artist, paths, PathStyle};
 
 pub trait PatchTrait<M: Coord> {
     fn get_path(&mut self) -> &Path<M>;
@@ -17,7 +17,7 @@ pub struct DataPatch {
     patch: Box<dyn PatchTrait<Data>>,
     bounds: Bounds<Data>,
     affine: Affine2d,
-    style: Style,
+    style: PathStyle,
 }
 
 impl DataPatch {
@@ -31,11 +31,11 @@ impl DataPatch {
             patch,
             bounds,
             affine: Affine2d::eye(),
-            style: Style::new(),
+            style: PathStyle::new(),
         }
     }
 
-    fn style_mut(&mut self) -> &mut Style {
+    fn style_mut(&mut self) -> &mut PathStyle {
         &mut self.style
     }
 }
@@ -65,7 +65,7 @@ pub struct DisplayPatch {
 
     patch: Box<dyn PatchTrait<Canvas>>,
     to_canvas: Affine2d,
-    style: Style,
+    style: PathStyle,
 }
 
 impl DisplayPatch {
@@ -76,7 +76,7 @@ impl DisplayPatch {
 
             patch: Box::new(patch),
             to_canvas: Affine2d::eye(),
-            style: Style::new(),
+            style: PathStyle::new(),
         }
     }
 
@@ -85,7 +85,7 @@ impl DisplayPatch {
         self.to_canvas = self.bounds.affine_to(&pos);
     }
 
-    fn style_mut(&mut self) -> &mut Style {
+    fn style_mut(&mut self) -> &mut PathStyle {
         &mut self.style
     }
 }

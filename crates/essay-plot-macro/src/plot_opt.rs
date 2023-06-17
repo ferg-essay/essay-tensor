@@ -1,7 +1,7 @@
 use proc_macro::{self};
 use syn::{DeriveInput, parse_macro_input, DataStruct, Result, 
     parse::{ParseStream, Parse}, 
-    Fields, Attribute
+    Fields, Attribute, Field, Ident
 };
 use quote::{*, __private::TokenStream};
 
@@ -88,6 +88,7 @@ pub(crate) fn derive_plot_opt(
                 self
             }
 
+            /*
             pub fn color(
                 &mut self,
                 color: impl Into<essay_plot_base::Color>
@@ -95,6 +96,7 @@ pub(crate) fn derive_plot_opt(
                 self.plot.write_style(|s| { s.color(color); } );
                 self
             }
+            */
 
             pub fn linewidth(
                 &mut self,
@@ -161,6 +163,8 @@ fn field_methods(fields: &Fields) -> TokenStream {
                                 self
                             }
                         }
+                    } else if is_path_opt(&field) {
+                        path_opt_methods(name)
                     } else {
                         quote! {
                             pub fn #name(&mut self, #name: #ty) -> &mut Self {
@@ -182,6 +186,77 @@ fn field_methods(fields: &Fields) -> TokenStream {
     }
 }
 
+fn path_opt_methods(name: &Option<Ident>) -> TokenStream {
+    quote! {
+        /// Sets the path's fill_color and edge_color
+        pub fn color(
+            &mut self, 
+            color: impl Into<essay_plot_base::Color>
+        ) -> &mut Self {
+            self.plot.write_artist(|a| { a.#name.color(color); });
+            self
+        }
+
+        /// Sets the path's fill color, which is used for both filling
+        /// and as a default line color.
+        pub fn fill_color(
+            &mut self, 
+            color: impl Into<essay_plot_base::Color>
+        ) -> &mut Self {
+            self.plot.write_artist(|a| { a.#name.facecolor(color); });
+            self
+        }
+
+        /// Sets the path's line color when it's distinct from the fill color.
+        pub fn line_color(
+            &mut self, 
+            color: impl Into<essay_plot_base::Color>
+        ) -> &mut Self {
+            self.plot.write_artist(|a| { a.#name.edgecolor(color); });
+            self
+        }
+
+        /// Sets the line style to Solid, Dashed, DashDot, etc.
+        pub fn line_style(
+            &mut self, 
+            style: impl Into<essay_plot_base::LineStyle>
+        ) -> &mut Self {
+            self.plot.write_artist(|a| { a.#name.line_style(style); });
+            self
+        }
+
+        /// Sets the path's line width in logical pixels.
+        pub fn line_width(
+            &mut self, 
+            width: f32,
+        ) -> &mut Self {
+            self.plot.write_artist(|a| { a.#name.linewidth(width); });
+            self
+        }
+
+        /// Sets the path's style for joining two line 
+        /// segments. One of Bevel, Miter, or Round.
+        pub fn join_style(
+            &mut self, 
+            style: impl Into<essay_plot_base::JoinStyle>,
+        ) -> &mut Self {
+            self.plot.write_artist(|a| { a.#name.joinstyle(style); });
+            self
+        }
+
+        /// Sets the path's style for the end of a line segment.
+        /// One of Butt, Projecting, or Round.
+        pub fn cap_style(
+            &mut self, 
+            style: impl Into<essay_plot_base::CapStyle>,
+        ) -> &mut Self {
+            self.plot.write_artist(|a| { a.#name.capstyle(style); });
+            self
+        }
+
+    }
+}
+
 fn is_opt(attrs: &Vec<Attribute>) -> bool {
     for attr in attrs {
         if attr.path().is_ident("option") {
@@ -190,6 +265,15 @@ fn is_opt(attrs: &Vec<Attribute>) -> bool {
     }
 
     false
+}
+
+fn is_path_opt(field: &Field) -> bool {
+    match &field.ty {
+        syn::Type::Path(path) => {
+            path.path.is_ident("PathStyle")
+        },
+        _ => false,
+    }
 }
 
 fn is_opt_into(attrs: &Vec<Attribute>) -> bool {

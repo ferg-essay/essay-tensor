@@ -5,7 +5,7 @@ use essay_plot_base::{
 
 use crate::frame::ArtistId;
 
-use super::Style;
+use super::PathStyle;
 
 pub trait Artist<M: Coord> {
     fn update(&mut self, canvas: &Canvas);
@@ -26,7 +26,7 @@ pub struct ArtistStyle<M: Coord> {
 
     artist: Box<dyn Artist<M>>,
 
-    style: Style,
+    style: PathStyle,
 }
 
 impl<M: Coord> ArtistStyle<M> {
@@ -34,7 +34,7 @@ impl<M: Coord> ArtistStyle<M> {
         Self {
             id,
             artist: Box::new(artist),
-            style: Style::default(),
+            style: PathStyle::default(),
         }
     }
 
@@ -42,11 +42,11 @@ impl<M: Coord> ArtistStyle<M> {
         self.id
     }
 
-    pub fn style(&self) -> &Style {
+    pub fn style(&self) -> &PathStyle {
         &self.style
     }
 
-    pub fn style_mut(&mut self) -> &mut Style {
+    pub fn style_mut(&mut self) -> &mut PathStyle {
         &mut self.style
     }
     

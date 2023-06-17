@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use essay_plot_base::{Color, Coord, JoinStyle, CapStyle};
 
-use crate::{frame::{LayoutArc, FrameId, ArtistId, Data}, artist::{Artist, Style}};
+use crate::{frame::{LayoutArc, FrameId, ArtistId, Data}, artist::{Artist, PathStyle}};
 
 pub struct PlotOpt {
     layout: LayoutArc,
@@ -105,14 +105,14 @@ impl<M: Coord, A: Artist<M>> PlotRef<M, A> {
         }
     }
 
-    pub fn read_style<R>(&self, fun: impl FnOnce(&Style) -> R) -> R {
+    pub fn read_style<R>(&self, fun: impl FnOnce(&PathStyle) -> R) -> R {
         fun(self.layout.borrow_mut()
                 .frame_mut(self.frame_id)
                 .data_mut()
                 .style_mut(self.artist_id))
     }
 
-    pub fn write_style<R>(&mut self, fun: impl FnOnce(&mut Style) -> R) -> R {
+    pub fn write_style<R>(&mut self, fun: impl FnOnce(&mut PathStyle) -> R) -> R {
         fun(self.layout.borrow_mut()
                 .frame_mut(self.frame_id)
                 .data_mut()

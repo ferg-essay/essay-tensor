@@ -3,18 +3,18 @@ use core::fmt;
 use essay_tensor::{Tensor, tensor::{Axis}};
 use essay_plot_base::{Affine2d, Bounds, Path, PathCode, PathOpt, Point, Canvas, driver::{Renderer}};
 
-use crate::{frame::Data, artist::Style};
+use crate::{frame::Data, artist::PathStyle};
 
 use super::{Artist};
 
-pub struct Collection {
+pub struct PathCollection {
     path: Path<Canvas>,
     offsets: Tensor, // 2d tensor representing a graph
-    style: Style,
+    style: PathStyle,
     bounds: Bounds<Data>,
 }
 
-impl Collection {
+impl PathCollection {
     pub fn new(path: Path<Canvas>, xy: impl Into<Tensor>) -> Self {
         let xy = xy.into();
 
@@ -24,7 +24,7 @@ impl Collection {
             path,
             bounds: Bounds::from(xy.clone()), // replace clone with &ref
             offsets: xy,
-            style: Style::new(), // needs to be loop
+            style: PathStyle::new(), // needs to be loop
         }
     }
 
@@ -48,7 +48,7 @@ impl Collection {
         todo!()
     }
 
-    fn style_mut(&mut self) -> &mut Style {
+    fn style_mut(&mut self) -> &mut PathStyle {
         &mut self.style
     }
 }
@@ -71,7 +71,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
     Path::new(codes)
 }
 
-impl Artist<Data> for Collection {
+impl Artist<Data> for PathCollection {
     fn update(&mut self, _canvas: &Canvas) {
     }
     
@@ -106,7 +106,7 @@ impl Artist<Data> for Collection {
     }
 }
 
-impl fmt::Debug for Collection {
+impl fmt::Debug for PathCollection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.offsets.dim(0) {
             0 => {

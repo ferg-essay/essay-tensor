@@ -3,22 +3,22 @@ use essay_plot_base::{
     driver::{Renderer}
 };
 
-use super::{ArtistStyle, Artist, Style};
+use super::{ArtistStyle, Artist, PathStyle};
 
 pub struct Container<M: Coord> {
     artists: Vec<ArtistStyle<M>>,
-    style: Style,
+    style: PathStyle,
 }
 
 impl<M: Coord> Container<M> {
     pub fn new() -> Self {
         Self {
             artists: Vec::new(),
-            style: Style::new(),
+            style: PathStyle::new(),
         }
     }
 
-    fn style_mut(&mut self) -> &mut Style {
+    fn style_mut(&mut self) -> &mut PathStyle {
         &mut self.style
     }
 

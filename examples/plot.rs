@@ -30,13 +30,15 @@ fn main() {
     // axes.xlabel("My X-Label").style().color(0x0030ff);
     // axes.ylabel("Y-Label").style().color("r");
 
-    graph.title("My Title");
+    graph.title("My Title"); // .color(0x008033);
     graph.xlabel("My X-Label");
     graph.ylabel("Y-Label");
 
-    graph.scatter(&x, &y).color("blue").marker("X").size(2500.)
-        .edgecolor(0xff8000).facecolor("none")
-        .linewidth(5.);
+    graph.scatter(&x, &y).color("blue").marker("X")
+        .line_color(0xff8000)
+        .size(2500.)
+        .fill_color("none")
+        .line_width(5.);
     //graph.plot(&x, &y).color(0xc08000);
     //bar_y(graph, &y)
     //    .edgecolor(0x400080)

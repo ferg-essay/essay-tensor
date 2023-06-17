@@ -5,7 +5,7 @@ use essay_plot_base::{
     Bounds, Affine2d, Point, Canvas, Coord, CanvasEvent,
 };
 
-use crate::artist::{Artist, Style};
+use crate::artist::{Artist, PathStyle};
 
 use super::plot_container::PlotContainer;
 
@@ -18,7 +18,7 @@ pub struct DataBox {
     artists: PlotContainer<Data>,
 
     to_canvas: Affine2d,
-    style: Style,
+    style: PathStyle,
 
     is_modified: bool,
 }
@@ -33,7 +33,7 @@ impl DataBox {
 
             artists: PlotContainer::new(),
 
-            style: Style::default(),
+            style: PathStyle::default(),
 
             to_canvas: Affine2d::eye(),
             is_modified: true,
@@ -181,7 +181,7 @@ impl DataBox {
         }
     }
 
-    pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut Style {
+    pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut PathStyle {
         self.artists.style_mut(id)
     }
 

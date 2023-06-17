@@ -7,7 +7,7 @@ use essay_plot_base::{
     driver::Renderer
 };
 
-use crate::{frame::Data, artist::Style};
+use crate::{frame::Data, artist::PathStyle};
 
 use super::{Artist};
 
@@ -21,7 +21,7 @@ pub enum DrawStyle {
 pub struct Lines2d {
     lines: Tensor, // 2d tensor representing a graph
     path: Path<Data>,
-    style: Style,
+    style: PathStyle,
     clip_bounds: Bounds<Canvas>,
 }
 
@@ -39,7 +39,7 @@ impl Lines2d {
         Self {
             lines,
             path,
-            style: Style::new(),
+            style: PathStyle::new(),
             clip_bounds: Bounds::<Canvas>::none(),
         }
     }

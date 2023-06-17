@@ -5,7 +5,7 @@ use essay_plot_base::{
     driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, HorizAlign, VertAlign, 
 };
 
-use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, Artist, ArtistStyle, Style};
+use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, Artist, ArtistStyle, PathStyle};
 
 use super::{data_box::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, ArtistId, Data};
 
@@ -15,7 +15,7 @@ pub struct Frame {
     pos: Bounds<Canvas>,
 
     to_canvas: Affine2d,
-    style: Style,
+    style: PathStyle,
 
     data: DataBox,
 
@@ -45,7 +45,7 @@ impl Frame {
             top: TopFrame::new(),
             right: RightFrame::new(),
 
-            style: Style::default(),
+            style: PathStyle::default(),
 
             to_canvas: Affine2d::eye(),
 
@@ -259,9 +259,9 @@ pub struct BottomFrame {
     axis: Option<Axis>,
     ticks: Vec<Box<dyn Artist<Canvas>>>,
     is_grid_major: bool,
-    style_major: Style,
+    style_major: PathStyle,
     grid_major: Vec<Box<dyn Artist<Canvas>>>,
-    style_minor: Style,
+    style_minor: PathStyle,
     grid_minor: Vec<Box<dyn Artist<Canvas>>>,
 
     label: Text,
@@ -269,10 +269,10 @@ pub struct BottomFrame {
 
 impl BottomFrame {
     pub fn new() -> Self {
-        let mut style_major = Style::new();
+        let mut style_major = PathStyle::new();
         style_major.linewidth(1.);
         style_major.color(0xbfbfbf);
-        let mut style_minor = Style::new();
+        let mut style_minor = PathStyle::new();
         style_minor.linewidth(1.);
         style_minor.color(0x404040);
 
@@ -431,9 +431,9 @@ pub struct LeftFrame {
     ticks: Vec<Box<dyn Artist<Canvas>>>,
 
     is_grid_major: bool,
-    style_major: Style,
+    style_major: PathStyle,
     grid_major: Vec<Box<dyn Artist<Canvas>>>,
-    style_minor: Style,
+    style_minor: PathStyle,
     grid_minor: Vec<Box<dyn Artist<Canvas>>>,
 
     label: Text,
@@ -441,10 +441,10 @@ pub struct LeftFrame {
 
 impl LeftFrame {
     pub fn new() -> Self {
-        let mut style_major = Style::new();
+        let mut style_major = PathStyle::new();
         style_major.linewidth(1.0);
         style_major.color(0xbfbfbf);
-        let mut style_minor = Style::new();
+        let mut style_minor = PathStyle::new();
         style_minor.linewidth(1.);
         style_minor.color(0x404040);
 

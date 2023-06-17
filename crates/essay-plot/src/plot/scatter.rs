@@ -2,7 +2,7 @@ use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer,
 use essay_tensor::Tensor;
 use essay_plot_macro::*;
 
-use crate::{artist::{paths::{self}, Artist, Collection, Markers, Style}, graph::{Graph}, frame::{Data}};
+use crate::{artist::{paths::{self}, Artist, PathCollection, Markers, PathStyle}, graph::{Graph}, frame::{Data}};
 
 // self as essay_plot needed for #[derive_plot_opt]
 extern crate self as essay_plot;
@@ -23,10 +23,11 @@ pub fn scatter(
 #[derive_plot_opt(ScatterOpt)]
 pub struct ScatterPlot {
     xy: Tensor,
-    collection: Collection,
-    is_modified: bool,
+    collection: PathCollection,
+    is_stale: bool,
 
-    style: Style,
+    #[option]
+    style: PathStyle,
 
     #[option]
     size: f32,
@@ -43,8 +44,8 @@ impl ScatterPlot {
             &affine::scale(scale, scale)
         );
 
-        let collection = Collection::new(path, xy.clone());
-        let mut style = Style::new();
+        let collection = PathCollection::new(path, xy.clone());
+        let mut style = PathStyle::new();
 
         //style.linewidth(1.5);
         style.joinstyle(JoinStyle::Round);
@@ -55,7 +56,7 @@ impl ScatterPlot {
             size,
             marker: Markers::Circle,
             collection,
-            is_modified: true,
+            is_stale: true,
         }
     }
 
@@ -76,15 +77,15 @@ impl ScatterPlot {
 
 impl Artist<Data> for ScatterPlot {
     fn update(&mut self, canvas: &Canvas) {
-        if self.is_modified {
-            self.is_modified = false;
+        if self.is_stale {
+            self.is_stale = false;
 
             // 0.5 because source is [-1, 1]
             let scale = 0.5 * self.size.sqrt() * canvas.scale_factor();
 
             let path: Path<Canvas> = self.marker.get_scaled_path(scale);
 
-            self.collection = Collection::new(path, &self.xy);
+            self.collection = PathCollection::new(path, &self.xy);
         }
 
         self.collection.update(canvas);

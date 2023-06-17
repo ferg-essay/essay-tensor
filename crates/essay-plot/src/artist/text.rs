@@ -6,7 +6,7 @@ use essay_plot_base::{
     TextStyle,
 };
 
-use super::{Artist, Style};
+use super::{Artist, PathStyle};
 
 pub struct Text {
     pos: Bounds<Canvas>,
@@ -14,7 +14,7 @@ pub struct Text {
 
     text: Option<String>,
 
-    style: Style,
+    style: PathStyle,
     text_style: TextStyle,
 
     angle: f32,
@@ -29,7 +29,7 @@ impl Text {
             extent: Bounds::zero(),
             text: None,
 
-            style: Style::new(),
+            style: PathStyle::new(),
             text_style: TextStyle::new(),
 
             angle: 0.
@@ -58,7 +58,7 @@ impl Text {
         &mut self.text_style
     }
 
-    pub fn style(&mut self) -> &mut Style {
+    pub fn style(&mut self) -> &mut PathStyle {
         &mut self.style
     }
 
