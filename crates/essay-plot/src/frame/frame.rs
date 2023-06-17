@@ -1,8 +1,8 @@
 use std::f32::consts::PI;
 
 use essay_plot_base::{
-    PathCode, Path, StyleOpt,
-    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, WidthAlign, HeightAlign, 
+    PathCode, Path, PathOpt,
+    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, HorizAlign, VertAlign, 
 };
 
 use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, Artist, ArtistStyle, Style};
@@ -235,7 +235,7 @@ impl Artist<Canvas> for TopFrame {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
@@ -391,7 +391,7 @@ impl Artist<Canvas> for BottomFrame {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         //let affine = Affine2d::eye().translate(self.pos.xmin(), self.pos.ymin());
         self.label.draw(renderer, to_canvas, clip, style);
@@ -523,8 +523,8 @@ impl LeftFrame {
                         - self.sizes.tick_label_gap;
 
                     let mut label = Text::new();
-                    label.font().width_align(WidthAlign::Right);
-                    label.font().height_align(HeightAlign::Center);
+                    label.font().width_align(HorizAlign::Right);
+                    label.font().height_align(VertAlign::Center);
                     label.text(&Formatter::Plain.format(_yv));
                     label.set_pos(Bounds::from((x, y + y0)));
                     self.ticks.push(Box::new(label));
@@ -562,7 +562,7 @@ impl Artist<Canvas> for LeftFrame {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         self.label.draw(renderer, to_canvas, clip, style);
         
@@ -628,7 +628,7 @@ impl Artist<Canvas> for RightFrame {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);

@@ -43,7 +43,7 @@ impl Artist<Data> for Art {
         renderer: &mut dyn essay_plot_base::driver::Renderer,
         to_canvas: &essay_plot_base::Affine2d,
         clip: &essay_plot_base::Bounds<essay_plot_base::Canvas>,
-        style: &dyn essay_plot_base::StyleOpt,
+        style: &dyn essay_plot_base::PathOpt,
     ) {
         todo!()
     }
@@ -106,7 +106,7 @@ where
         renderer: &mut dyn essay_plot_base::driver::Renderer,
         to_canvas: &essay_plot_base::Affine2d,
         clip: &essay_plot_base::Bounds<essay_plot_base::Canvas>,
-        style: &dyn essay_plot_base::StyleOpt,
+        style: &dyn essay_plot_base::PathOpt,
     ) {
         todo!()
     }

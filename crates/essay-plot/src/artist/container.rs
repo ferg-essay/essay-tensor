@@ -1,5 +1,5 @@
 use essay_plot_base::{
-    Bounds, Affine2d, Point, Coord, Canvas, StyleOpt,
+    Bounds, Affine2d, Point, Coord, Canvas, PathOpt,
     driver::{Renderer}
 };
 
@@ -57,7 +57,7 @@ impl<M: Coord> Artist<M> for Container<M> {
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         //let style_cycle = Style::new();
         //let style = Style::chain(style, &style_cycle);

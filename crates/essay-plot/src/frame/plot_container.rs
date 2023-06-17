@@ -1,9 +1,9 @@
 use core::slice;
 use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{ManuallyDrop, self}};
 
-use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, StyleOpt};
+use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt};
 
-use crate::artist::{Artist, Style, StyleChain};
+use crate::artist::{Artist, Style};
 
 use super::ArtistId;
 
@@ -97,7 +97,7 @@ impl<M: Coord> Artist<M> for PlotContainer<M> {
         renderer: &mut dyn essay_plot_base::driver::Renderer,
         to_canvas: &essay_plot_base::Affine2d,
         clip: &Bounds<essay_plot_base::Canvas>,
-        style: &dyn essay_plot_base::StyleOpt,
+        style: &dyn essay_plot_base::PathOpt,
     ) {
         for artist in &self.artists {
             artist.draw(self, renderer, to_canvas, clip, style);
@@ -119,7 +119,7 @@ trait PlotArtistTrait<M: Coord> {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     );
 }
 
@@ -170,9 +170,9 @@ where
         renderer: &mut dyn essay_plot_base::driver::Renderer,
         to_canvas: &essay_plot_base::Affine2d,
         clip: &Bounds<essay_plot_base::Canvas>,
-        style: &dyn essay_plot_base::StyleOpt,
+        style: &dyn essay_plot_base::PathOpt,
     ) {
-        let style = StyleChain::new(style, &self.style);
+        let style = self.style.push(style);
 
         container.deref_mut::<A>(self.id).draw(renderer, to_canvas, clip, &style)
     }

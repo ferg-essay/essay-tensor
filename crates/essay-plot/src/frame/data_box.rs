@@ -1,11 +1,11 @@
 use core::fmt;
 
 use essay_plot_base::{
-    driver::{Renderer}, StyleOpt,
+    driver::{Renderer}, PathOpt,
     Bounds, Affine2d, Point, Canvas, Coord, CanvasEvent,
 };
 
-use crate::artist::{ArtistStyle, Artist, Style};
+use crate::artist::{Artist, Style};
 
 use super::plot_container::PlotContainer;
 
@@ -231,11 +231,11 @@ impl Artist<Canvas> for DataBox {
         renderer: &mut dyn Renderer, 
         _to_canvas: &Affine2d,
         _clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         //let to_canvas = to_canvas.matmul(&self.to_canvas);
         let to_canvas = &self.to_canvas;
-        let style = Style::chain(style, &self.style);
+        let style = self.style.push(style);
 
         self.artists.draw(renderer, &to_canvas, &self.pos_canvas, &style);
 

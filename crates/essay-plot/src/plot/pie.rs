@@ -1,4 +1,4 @@
-use essay_plot_base::{Angle, Point, Color};
+use essay_plot_base::{Angle, Point};
 use essay_tensor::Tensor;
 
 use crate::{artist::{patch, ColorCycle, Container, ArtistStyle}, graph::{Graph, PlotOpt}, frame::ArtistId};

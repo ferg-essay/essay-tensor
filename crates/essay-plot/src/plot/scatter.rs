@@ -1,8 +1,8 @@
-use essay_plot_base::{Affine2d, Path, Bounds, Canvas, StyleOpt, driver::Renderer, JoinStyle};
+use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer, JoinStyle, affine};
 use essay_tensor::Tensor;
 use essay_plot_macro::*;
 
-use crate::{artist::{Container, paths::{self, Unit}, patch::{PathPatch}, ArtistStyle, Artist, Collection, Markers, Style, StyleChain}, graph::{Graph}, frame::{Data, ArtistId}};
+use crate::{artist::{paths::{self}, Artist, Collection, Markers, Style}, graph::{Graph}, frame::{Data}};
 
 // self as essay_plot needed for #[derive_plot_opt]
 extern crate self as essay_plot;
@@ -17,9 +17,7 @@ pub fn scatter(
 
     let plot = ScatterPlot::new(x.stack(&[y], -1));
 
-    let plot_ref = graph.add_plot(plot);
-
-    ScatterOpt::new(plot_ref)
+    ScatterOpt::new(graph.add_plot(plot))
 }
 
 #[derive_plot_opt(ScatterOpt)]
@@ -41,7 +39,9 @@ impl ScatterPlot {
     fn new(xy: Tensor) -> Self {
         let scale = 10.;
         let size = scale * scale;
-        let path = paths::unit_pos().transform(&Affine2d::eye().scale(scale, scale));
+        let path = paths::unit_pos().transform(
+            &affine::scale(scale, scale)
+        );
 
         let collection = Collection::new(path, xy.clone());
         let mut style = Style::new();
@@ -99,9 +99,9 @@ impl Artist<Data> for ScatterPlot {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
-        let style = StyleChain::new(style, &self.style);
+        let style = self.style.push(style);
 
         self.collection.draw(renderer, to_canvas, clip, &style)
     }

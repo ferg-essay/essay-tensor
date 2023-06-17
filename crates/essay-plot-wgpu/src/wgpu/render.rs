@@ -1,7 +1,7 @@
 use essay_plot_base::{
-    Canvas, Affine2d, Point, Bounds, Path, StyleOpt, Color, PathCode, 
+    Canvas, Affine2d, Point, Bounds, Path, PathOpt, Color, PathCode, 
     driver::{RenderErr, Renderer, FigureApi}, 
-    TextStyle, Coord, WidthAlign, HeightAlign, JoinStyle, CapStyle
+    TextStyle, Coord, HorizAlign, VertAlign, JoinStyle, CapStyle
 };
 use essay_tensor::Tensor;
 
@@ -106,26 +106,27 @@ impl<'a> FigureRenderer {
     fn draw_lines(
         &mut self, 
         path: &Path<Canvas>, 
-        style: &dyn StyleOpt, 
+        style: &dyn PathOpt, 
         _clip: &Bounds<Canvas>,
     ) {
-        let linewidth  = match style.get_linewidth() {
+        let linewidth  = match style.get_line_width() {
             Some(linewidth) => *linewidth,
             None => 0.5,
         };
 
-        let joinstyle  = match style.get_joinstyle() {
+        let joinstyle  = match style.get_join_style() {
             Some(joinstyle) => joinstyle.clone(),
             None => JoinStyle::Bevel,
         };
 
-        let capstyle  = match style.get_capstyle() {
+        let capstyle  = match style.get_cap_style() {
             Some(capstyle) => capstyle.clone(),
             None => CapStyle::Butt,
         };
         
         let lw2 = self.to_px(0.5 * linewidth); // / self.canvas.width();
-
+        let test = vec![1, 2, 3];
+        test.iter().zip(0..2);
         self.shape2d_render.start_shape();
         self.bezier_render.start_shape();
 
@@ -352,7 +353,7 @@ impl Renderer for FigureRenderer {
 
     fn draw_path(
         &mut self, 
-        style: &dyn StyleOpt, 
+        style: &dyn PathOpt, 
         path: &Path<Canvas>, 
         _to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
@@ -361,12 +362,12 @@ impl Renderer for FigureRenderer {
 
         let path = transform_path(path);
 
-        let facecolor = match style.get_facecolor() {
+        let facecolor = match style.get_fill_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
 
-        let edgecolor = match style.get_edgecolor() {
+        let edgecolor = match style.get_line_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -398,17 +399,17 @@ impl Renderer for FigureRenderer {
         &mut self, 
         path: &Path<Canvas>, 
         xy: &Tensor,
-        style: &dyn StyleOpt, 
+        style: &dyn PathOpt, 
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
         let path = transform_path(path);
 
-        let facecolor = match style.get_facecolor() {
+        let facecolor = match style.get_fill_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
 
-        let edgecolor = match style.get_edgecolor() {
+        let edgecolor = match style.get_line_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -430,7 +431,7 @@ impl Renderer for FigureRenderer {
                 self.bezier_render.draw_style(edgecolor, &self.to_gpu);
             }
         } else if ! edgecolor.is_none() {
-            println!("LineWidth: {:?}", style.get_linewidth());
+            println!("LineWidth: {:?}", style.get_line_width());
             self.draw_lines(&path, style, clip);
 
             for xy in xy.iter_slice() {
@@ -449,12 +450,12 @@ impl Renderer for FigureRenderer {
         xy: Point, // location in Canvas coordinates
         text: &str,
         angle: f32,
-        style: &dyn StyleOpt, 
+        style: &dyn PathOpt, 
         text_style: &TextStyle,
         _clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
 
-        let color = match style.get_facecolor() {
+        let color = match style.get_fill_color() {
             Some(color) => *color,
             None => Color(0x000000ff),
         };
@@ -468,12 +469,12 @@ impl Renderer for FigureRenderer {
 
         let halign = match text_style.get_width_align() {
             Some(align) => align.clone(),
-            None => WidthAlign::Center,
+            None => HorizAlign::Center,
         };
 
         let valign = match text_style.get_height_align() {
             Some(align) => align.clone(),
-            None => HeightAlign::Bottom,
+            None => VertAlign::Bottom,
         };
 
         self.text_render.draw(

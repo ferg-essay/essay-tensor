@@ -21,7 +21,7 @@ impl Artist<Data> for PColor {
         renderer: &mut dyn essay_plot_base::driver::Renderer,
         to_canvas: &essay_plot_base::Affine2d,
         clip: &essay_plot_base::Bounds<essay_plot_base::Canvas>,
-        style: &dyn essay_plot_base::StyleOpt,
+        style: &dyn essay_plot_base::PathOpt,
     ) {
         let vertices = tf32!([
             [0.0, 0.0], [1.0, 0.0], [0.5, 1.0],

@@ -2,19 +2,19 @@
 #[derive(Clone, Copy, Debug)]
 pub struct TextStyle {
     size: Option<f32>,
-    height_align: Option<HeightAlign>,
-    width_align: Option<WidthAlign>,
+    vert_align: Option<VertAlign>,
+    horiz_align: Option<HorizAlign>,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum HeightAlign {
+pub enum VertAlign {
     Bottom,
     Center,
     Top,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum WidthAlign {
+pub enum HorizAlign {
     Left,
     Center,
     Right,
@@ -22,14 +22,14 @@ pub enum WidthAlign {
 
 impl TextStyle {
     pub const SIZE_DEFAULT : f32 = 12.;
-    pub const HALIGN_DEFAULT : WidthAlign = WidthAlign::Center;
-    pub const VALIGN_DEFAULT : HeightAlign = HeightAlign::Bottom;
+    pub const HALIGN_DEFAULT : HorizAlign = HorizAlign::Center;
+    pub const VALIGN_DEFAULT : VertAlign = VertAlign::Bottom;
 
     pub fn new() -> Self {
         Self {
             size: None,
-            height_align: None,
-            width_align: None,
+            vert_align: None,
+            horiz_align: None,
         }
     }
 
@@ -45,21 +45,21 @@ impl TextStyle {
     }
 
     #[inline]
-    pub fn get_height_align(&self) -> &Option<HeightAlign> {
-        &self.height_align
+    pub fn get_height_align(&self) -> &Option<VertAlign> {
+        &self.vert_align
     }
 
-    pub fn height_align(&mut self, align: HeightAlign) {
-        self.height_align = Some(align);
+    pub fn height_align(&mut self, align: VertAlign) {
+        self.vert_align = Some(align);
     }
 
     #[inline]
-    pub fn get_width_align(&self) -> &Option<WidthAlign> {
-        &self.width_align
+    pub fn get_width_align(&self) -> &Option<HorizAlign> {
+        &self.horiz_align
     }
 
-    pub fn width_align(&mut self, align: WidthAlign) {
-        self.width_align = Some(align);
+    pub fn width_align(&mut self, align: HorizAlign) {
+        self.horiz_align = Some(align);
     }
 
 }

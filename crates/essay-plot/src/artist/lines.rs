@@ -3,13 +3,20 @@ use core::fmt;
 use essay_tensor::{Tensor, tensor::Axis};
 
 use essay_plot_base::{
-    Affine2d, Bounds, Point, Canvas, Path, PathCode, StyleOpt,
+    Affine2d, Bounds, Point, Canvas, Path, PathCode, PathOpt,
     driver::Renderer
 };
 
 use crate::{frame::Data, artist::Style};
 
 use super::{Artist};
+
+#[derive(Clone, PartialEq, Debug)]
+pub enum DrawStyle {
+    StepsPre,
+    StepsMid,
+    StepsPost
+}
 
 pub struct Lines2d {
     lines: Tensor, // 2d tensor representing a graph
@@ -78,7 +85,7 @@ impl Artist<Data> for Lines2d {
         renderer: &mut dyn Renderer, 
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         let path = self.path.transform(&to_canvas);
         renderer.draw_path(style, &path, to_canvas, clip).unwrap();
@@ -124,7 +131,7 @@ impl Artist<Data> for Bezier2 {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         let codes = vec![
             PathCode::MoveTo(self.0),
@@ -154,7 +161,7 @@ impl Artist<Data> for Bezier3 {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         let codes = vec![
             PathCode::MoveTo(self.0),

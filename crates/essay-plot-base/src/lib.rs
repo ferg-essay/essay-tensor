@@ -1,6 +1,7 @@
+mod marker;
 mod point;
 mod coord;
-mod affine;
+pub mod affine;
 mod bounds;
 mod canvas;
 mod color;
@@ -8,7 +9,7 @@ mod event;
 mod color_data;
 pub mod driver;
 mod path;
-pub mod style;
+pub mod path_opt;
 mod text;
 
 pub use affine::{
@@ -39,16 +40,20 @@ pub use path::{
     Path, PathCode,
 };
 
+pub use marker::{
+    Instance,
+};
+
 pub use point::{
     Point, Angle,
 };
 
-pub use style::{
-    StyleOpt, JoinStyle, CapStyle,
+pub use path_opt::{
+    PathOpt, JoinStyle, CapStyle, LineStyle, TextureId,
 };
 
 pub use text::{
-    TextStyle, HeightAlign, WidthAlign,
+    TextStyle, VertAlign, HorizAlign,
 };
 
 

@@ -1,4 +1,4 @@
-use essay_plot_base::{Color, JoinStyle, CapStyle, StyleOpt};
+use essay_plot_base::{Color, JoinStyle, CapStyle, PathOpt, LineStyle};
 
 
 #[derive(Clone)]
@@ -10,6 +10,9 @@ pub struct Style {
     linewidth: Option<f32>,
     joinstyle: Option<JoinStyle>,
     capstyle: Option<CapStyle>,
+
+    linestyle: Option<LineStyle>,
+    gapcolor: Option<Color>,
 }
 
 impl Style {
@@ -55,38 +58,51 @@ impl Style {
 
         self
     }
-
+    /*
     pub fn chain<'a>(prev: &'a dyn StyleOpt, next: &'a dyn StyleOpt) -> StyleChain<'a>
     {
         StyleChain::new(prev, next)
     }
+    */
 }
 
-impl StyleOpt for Style {
-    fn get_facecolor(&self) -> &Option<Color> {
+impl PathOpt for Style {
+    fn get_fill_color(&self) -> &Option<Color> {
         match &self.facecolor {
             Some(_color) => &self.facecolor,
             None => &self.color,
         }
     }
 
-    fn get_edgecolor(&self) -> &Option<Color> {
+    fn get_line_color(&self) -> &Option<Color> {
         match &self.edgecolor {
             Some(_color) => &self.edgecolor,
             None => &self.color,
         }
     }
 
-    fn get_linewidth(&self) -> &Option<f32> {
+    fn get_line_width(&self) -> &Option<f32> {
         &self.linewidth
     }
 
-    fn get_joinstyle(&self) -> &Option<JoinStyle> {
+    fn get_join_style(&self) -> &Option<JoinStyle> {
         &self.joinstyle
     }
 
-    fn get_capstyle(&self) -> &Option<CapStyle> {
+    fn get_cap_style(&self) -> &Option<CapStyle> {
         &self.capstyle
+    }
+
+    fn get_line_style(&self) -> &Option<LineStyle> {
+        &self.linestyle
+    }
+
+    fn get_alpha(&self) -> &Option<f32> {
+        todo!()
+    }
+
+    fn get_texture(&self) -> &Option<essay_plot_base::TextureId> {
+        todo!()
     }
 }
 
@@ -99,10 +115,19 @@ impl Default for Style {
             linewidth: Default::default(), 
             joinstyle: Default::default(),
             capstyle: Default::default(),
+            linestyle: Default::default(),
+            gapcolor: Default::default(),
         }
     }
 }
 
+struct PropCycle {
+    fill_colors: Option<Vec<Color>>,
+    edge_colors: Option<Vec<Color>>,
+    line_widths: Option<Vec<f32>>,
+    line_styles: Option<LineStyle>,
+}
+/*
 pub struct StyleChain<'a> {
     prev: &'a dyn StyleOpt,
     next: &'a dyn StyleOpt,
@@ -117,38 +142,39 @@ impl<'a> StyleChain<'a> {
     }
 }
 impl StyleOpt for StyleChain<'_> {
-    fn get_facecolor(&self) -> &Option<Color> {
-        match self.next.get_facecolor() {
-            Some(_) => self.next.get_facecolor(),
-            None => self.prev.get_facecolor()
+    fn get_fill_color(&self) -> &Option<Color> {
+        match self.next.get_fill_color() {
+            Some(_) => self.next.get_fill_color(),
+            None => self.prev.get_fill_color()
         }
     }
 
-    fn get_edgecolor(&self) -> &Option<Color> {
-        match self.next.get_edgecolor() {
-            Some(_) => self.next.get_edgecolor(),
-            None => self.prev.get_edgecolor()
+    fn get_line_color(&self) -> &Option<Color> {
+        match self.next.get_line_color() {
+            Some(_) => self.next.get_line_color(),
+            None => self.prev.get_line_color()
         }
     }
 
-    fn get_linewidth(&self) -> &Option<f32> {
-        match self.next.get_linewidth() {
-            Some(_) => self.next.get_linewidth(),
-            None => self.prev.get_linewidth()
+    fn get_line_width(&self) -> &Option<f32> {
+        match self.next.get_line_width() {
+            Some(_) => self.next.get_line_width(),
+            None => self.prev.get_line_width()
         }
     }
 
-    fn get_joinstyle(&self) -> &Option<JoinStyle> {
-        match self.next.get_joinstyle() {
-            Some(_) => self.next.get_joinstyle(),
-            None => self.prev.get_joinstyle()
+    fn get_join_style(&self) -> &Option<JoinStyle> {
+        match self.next.get_join_style() {
+            Some(_) => self.next.get_join_style(),
+            None => self.prev.get_join_style()
         }
     }
 
-    fn get_capstyle(&self) -> &Option<CapStyle> {
-        match self.next.get_capstyle() {
-            Some(_) => self.next.get_capstyle(),
-            None => self.prev.get_capstyle()
+    fn get_cap_style(&self) -> &Option<CapStyle> {
+        match self.next.get_cap_style() {
+            Some(_) => self.next.get_cap_style(),
+            None => self.prev.get_cap_style()
         }
     }
 }
+*/

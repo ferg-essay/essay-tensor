@@ -1,6 +1,6 @@
 use essay_plot_base::{
-    Coord, Bounds, Affine2d, Canvas, StyleOpt,
-    driver::Renderer, JoinStyle, Color, CapStyle,
+    Coord, Bounds, Affine2d, Canvas, PathOpt,
+    driver::Renderer, JoinStyle, Color, CapStyle, LineStyle,
 };
 
 use crate::frame::ArtistId;
@@ -17,7 +17,7 @@ pub trait Artist<M: Coord> {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     );
 }
 
@@ -83,35 +83,48 @@ impl<M: Coord> Artist<M> for ArtistStyle<M> {
         renderer: &mut dyn Renderer, 
         to_canvas: &Affine2d, 
         clip: &Bounds<Canvas>,
-        style: &dyn StyleOpt,
+        style: &dyn PathOpt,
     ) {
         self.artist.draw(
             renderer, 
             to_canvas,
             clip,
-            &Style::chain(style, &self.style)
+            //&Style::chain(style, &self.style)
+            &self.style.push(style)
         );
     }
 }
 
-impl<M: Coord> StyleOpt for ArtistStyle<M> {
-    fn get_facecolor(&self) -> &Option<Color> {
-        self.style.get_facecolor()
+impl<M: Coord> PathOpt for ArtistStyle<M> {
+    fn get_fill_color(&self) -> &Option<Color> {
+        self.style.get_fill_color()
     }
 
-    fn get_edgecolor(&self) -> &Option<Color> {
-        self.style.get_edgecolor()
+    fn get_line_color(&self) -> &Option<Color> {
+        self.style.get_line_color()
     }
 
-    fn get_linewidth(&self) -> &Option<f32> {
-        self.style.get_linewidth()
+    fn get_line_width(&self) -> &Option<f32> {
+        self.style.get_line_width()
     }
 
-    fn get_joinstyle(&self) -> &Option<JoinStyle> {
-        self.style.get_joinstyle()
+    fn get_join_style(&self) -> &Option<JoinStyle> {
+        self.style.get_join_style()
     }
 
-    fn get_capstyle(&self) -> &Option<CapStyle> {
-        self.style.get_capstyle()
+    fn get_cap_style(&self) -> &Option<CapStyle> {
+        self.style.get_cap_style()
+    }
+
+    fn get_line_style(&self) -> &Option<LineStyle> {
+        self.style.get_line_style()
+    }
+
+    fn get_alpha(&self) -> &Option<f32> {
+        todo!()
+    }
+
+    fn get_texture(&self) -> &Option<essay_plot_base::TextureId> {
+        todo!()
     }
 }

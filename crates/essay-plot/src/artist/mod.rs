@@ -53,7 +53,7 @@ pub use patch::{
 };
 
 pub use style::{
-    Style, StyleChain,
+    Style, // StyleChain,
 };
 
 pub use text::{

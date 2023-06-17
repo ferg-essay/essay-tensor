@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{Path, StyleOpt, TextStyle, Affine2d, Bounds, Point, Canvas};
+use crate::{Path, PathOpt, TextStyle, Affine2d, Bounds, Point, Canvas};
 
 pub trait Renderer {
     ///
@@ -14,7 +14,7 @@ pub trait Renderer {
 
     fn draw_path(
         &mut self, 
-        style: &dyn StyleOpt, 
+        style: &dyn PathOpt, 
         path: &Path<Canvas>, 
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
@@ -24,7 +24,7 @@ pub trait Renderer {
         &mut self, 
         marker: &Path<Canvas>, 
         xy: &Tensor,
-        style: &dyn StyleOpt, 
+        style: &dyn PathOpt, 
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr>;
 
@@ -33,7 +33,7 @@ pub trait Renderer {
         xy: Point, // location in Canvas coordinates
         text: &str,
         angle: f32,
-        style: &dyn StyleOpt, 
+        style: &dyn PathOpt, 
         text_style: &TextStyle,
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr>;

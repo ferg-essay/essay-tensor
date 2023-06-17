@@ -1,4 +1,4 @@
-use essay_plot_base::{Point, Color, Affine2d, WidthAlign, HeightAlign};
+use essay_plot_base::{Point, Color, Affine2d, HorizAlign, VertAlign};
 use wgpu::util::DeviceExt;
 
 use super::{text_texture::TextTexture, text_cache::TextCache};
@@ -110,8 +110,8 @@ impl TextRender {
         bounds: Point,
         color: Color,
         angle: f32,
-        halign: WidthAlign,
-        valign: HeightAlign,
+        halign: HorizAlign,
+        valign: VertAlign,
     ) {
         let font = self.text_cache.font(font_name, size as u16);
         let x0 = pos.x();
@@ -152,15 +152,15 @@ impl TextRender {
         }
 
         let dx = match halign {
-            WidthAlign::Left => 0.,
-            WidthAlign::Center => - 0.5 * (x - x0),
-            WidthAlign::Right => - (x - x0),
+            HorizAlign::Left => 0.,
+            HorizAlign::Center => - 0.5 * (x - x0),
+            HorizAlign::Right => - (x - x0),
         };
 
         let dy = match valign {
-            HeightAlign::Top => - size,
-            HeightAlign::Center => - 0.5 * size,
-            HeightAlign::Bottom => 0.,
+            VertAlign::Top => - size,
+            VertAlign::Center => - 0.5 * size,
+            VertAlign::Bottom => 0.,
         };
 
         let end = self.vertex_offset;

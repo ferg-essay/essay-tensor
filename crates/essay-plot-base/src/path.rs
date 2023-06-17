@@ -2,7 +2,7 @@ use std::{marker::PhantomData};
 
 use essay_tensor::{prelude::*};
 
-use crate::{Coord, Affine2d, Bounds, Point};
+use crate::{Coord, Affine2d, Bounds, Point, affine};
 
 pub struct Path<M: Coord> {
     codes: Vec<PathCode>,
@@ -113,6 +113,22 @@ impl<M: Coord> Path<M> {
         }
 
         Path::new(codes)
+    }
+
+    pub fn translate<C: Coord>(&self, x: f32, y: f32) -> Path<C> {
+        self.transform(&affine::translate(x, y))
+    }
+
+    pub fn scale<C: Coord>(&self, scale_x: f32, scale_y: f32) -> Path<C> {
+        self.transform(&affine::scale(scale_x, scale_y))
+    }
+
+    pub fn rotate<C: Coord>(&self, theta: f32) -> Path<C> {
+        self.transform(&affine::rotate(theta))
+    }
+
+    pub fn rotate_deg<C: Coord>(&self, deg: f32) -> Path<C> {
+        self.transform(&affine::rotate_deg(deg))
     }
 }
 

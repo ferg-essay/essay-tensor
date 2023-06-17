@@ -1,4 +1,4 @@
-use essay_plot_base::{Path, Angle, PathCode, Point, Affine2d, Canvas};
+use essay_plot_base::{Path, Angle, PathCode, Point, Affine2d, Canvas, affine};
 use essay_tensor::tf32;
 
 use super::paths::{Unit, self};
@@ -30,24 +30,24 @@ pub enum Markers {
     ThinDiamond, // 'd' 
     VertLine, // '|'
     HorizLine, // '_'
-    TickLeft, // `0
-    TickRight, // `1
-    TickUp, // `2
-    TickDown, // `3
-    CaretLeft, // `4
-    CaretRight, // `5
-    CaretUp, // `6
-    CaretDown, // `7
-    CaretLeftBase, // `8
-    CaretRightBase, // `9
-    CaretUpBase, // `10
-    CaretDownBase, // `11
+    TickLeft, // #0
+    TickRight, // #1
+    TickUp, // #2
+    TickDown, // #3
+    CaretLeft, // #4
+    CaretRight, // #5
+    CaretUp, // #6
+    CaretDown, // #7
+    CaretLeftBase, // #8
+    CaretRightBase, // #9
+    CaretUpBase, // #10
+    CaretDownBase, // #11
 
     Vertices(Vec<[f32; 2]>),
     Path(Path<Unit>),
     Polygon(usize, Angle),
     PolyStar(usize, Angle),
-    Asterisk(usize, Angle,)
+    Asterisk(usize, Angle),
 }
 
 impl Markers {
@@ -61,10 +61,10 @@ impl Markers {
     pub fn get_scaled_path(&self, scale: f32) -> Path<Canvas> {
         match self {
             Self::Pixel => {
-                self.get_path().transform(&Affine2d::eye().scale(2., 2.))
+                self.get_path().scale(2., 2.)
             }
             _ => {
-                self.get_path().transform(&Affine2d::eye().scale(scale, scale))
+                self.get_path().scale(scale, scale)
             }
         }
     }
@@ -72,40 +72,43 @@ impl Markers {
     pub fn get_path(&self) -> Path<Unit> {
         match self {
             Self::Circle => paths::circle(),
-            Self::Point => paths::circle().transform(&Affine2d::eye().scale(0.5, 0.5)),
+            Self::Point => paths::circle().scale(0.5, 0.5),
             Self::Pixel => paths::square(), // seems to be identical to square
-            Self::TriangleDown => triangle_path().transform(&Affine2d::eye().rotate_deg(180.)),
+            Self::TriangleDown => triangle_path().rotate_deg(180.),
             Self::TriangleUp => triangle_path(),
-            Self::TriangleLeft => triangle_path().transform(&Affine2d::eye().rotate_deg(90.)),
-            Self::TriangleRight => triangle_path().transform(&Affine2d::eye().rotate_deg(270.)),
-            Self::TriDown => tri_path().transform(&Affine2d::eye().rotate_deg(180.)),
+            Self::TriangleLeft => triangle_path().rotate_deg(90.),
+            Self::TriangleRight => triangle_path().rotate_deg(270.),
+            Self::TriDown => tri_path().rotate_deg(180.),
             Self::TriUp => tri_path(),
-            Self::TriLeft => tri_path().transform(&Affine2d::eye().rotate_deg(90.)),
-            Self::TriRight => tri_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::TriLeft => tri_path().rotate_deg(90.),
+            Self::TriRight => tri_path().rotate_deg(270.),
             Self::Square => paths::square(),
             Self::Pentagon => paths::polygon(5),
             Self::Hexagon => paths::polygon(6),
-            Self::Hexagon2 => paths::polygon(6).transform(&Affine2d::eye().rotate_deg(30.)),
+            Self::Hexagon2 => paths::polygon(6).rotate_deg(30.),
             Self::Octagon => paths::polygon_alt(8),
             Self::Diamond => paths::polygon(4),
-            Self::ThinDiamond => paths::polygon(4).transform(&Affine2d::eye().scale(0.5, 1.)),
+            Self::ThinDiamond => paths::polygon(4).scale(0.5, 1.),
             Self::Plus => plus_path(),
             Self::PlusFilled => plus_filled_path(),
-            Self::X => plus_path().transform(&Affine2d::eye().rotate_deg(45.)),
-            Self::XFilled => plus_filled_path().transform(&Affine2d::eye().rotate_deg(45.)),
+            Self::X => plus_path().rotate_deg(45.),
+            Self::XFilled => plus_filled_path().rotate_deg(45.),
 
-            Self::TickLeft => tick_path().transform(&Affine2d::eye().rotate_deg(90.)),
-            Self::TickRight => tick_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::VertLine => vert_path(),
+            Self::HorizLine => horiz_path(),
+
+            Self::TickLeft => tick_path().rotate_deg(90.),
+            Self::TickRight => tick_path().rotate_deg(270.),
             Self::TickUp => tick_path(),
-            Self::TickDown => tick_path().transform(&Affine2d::eye().rotate_deg(180.)),
-            Self::CaretLeft => caret_path().transform(&Affine2d::eye().rotate_deg(90.)),
-            Self::CaretRight => caret_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::TickDown => tick_path().rotate_deg(180.),
+            Self::CaretLeft => caret_path().rotate_deg(90.),
+            Self::CaretRight => caret_path().rotate_deg(270.),
             Self::CaretUp => caret_path(),
-            Self::CaretDown => caret_path().transform(&Affine2d::eye().rotate_deg(180.)),
-            Self::CaretLeftBase => caret_base_path().transform(&Affine2d::eye().rotate_deg(90.)),
-            Self::CaretRightBase => caret_base_path().transform(&Affine2d::eye().rotate_deg(270.)),
+            Self::CaretDown => caret_path().rotate_deg(180.),
+            Self::CaretLeftBase => caret_base_path().rotate_deg(90.),
+            Self::CaretRightBase => caret_base_path().rotate_deg(270.),
             Self::CaretUpBase => caret_base_path(),
-            Self::CaretDownBase => caret_base_path().transform(&Affine2d::eye().rotate_deg(180.)),
+            Self::CaretDownBase => caret_base_path().rotate_deg(180.),
 
             Self::Path(path) => path.clone(),
             _ => todo!(),
@@ -164,7 +167,7 @@ impl From<&str> for Markers {
 // filled_markers = '.', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*',
 // 'h', 'H', 'D', 'd', 'P', 'X'
 
-enum FillStyle {
+pub enum FillStyle {
     None,
     Left,
     Right,
@@ -244,6 +247,20 @@ fn tick_path() -> Path<Unit> {
     Path::new(vec![
         PathCode::MoveTo(Point(0., 0.)),
         PathCode::LineTo(Point(0., 1.)),
+    ])
+}
+
+fn vert_path() -> Path<Unit> {
+    Path::new(vec![
+        PathCode::MoveTo(Point(0., -1.)),
+        PathCode::LineTo(Point(0., 1.)),
+    ])
+}
+
+fn horiz_path() -> Path<Unit> {
+    Path::new(vec![
+        PathCode::MoveTo(Point(-1., 0.)),
+        PathCode::LineTo(Point(1., 0.)),
     ])
 }
 
