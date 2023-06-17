@@ -48,6 +48,9 @@ fn build_colormap() -> HashMap<String, Color> {
         map.insert(name.to_string(), Color::from(rgb));
     }
 
+    map.insert("none".to_string(), Color(0x0));
+    map.insert("".to_string(), Color(0x0));
+
     map
 }
 

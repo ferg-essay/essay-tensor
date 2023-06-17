@@ -46,8 +46,8 @@ impl ScatterPlot {
         let collection = Collection::new(path, xy.clone());
         let mut style = Style::new();
 
-        style.linewidth(1.5);
-        style.joinstyle(JoinStyle::Miter);
+        //style.linewidth(1.5);
+        style.joinstyle(JoinStyle::Round);
 
         Self {
             xy,

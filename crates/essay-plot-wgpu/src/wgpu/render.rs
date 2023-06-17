@@ -197,13 +197,29 @@ impl<'a> FigureRenderer {
             return;
         }
 
+        self.join_lines_sign(b0, b1, b2, lw2, join_style, 1.);
+        self.join_lines_sign(b0, b1, b2, lw2, join_style, -1.);
+    }
+
+
+    fn join_lines_sign(
+        &mut self, 
+        b0: Point, 
+        b1: Point, 
+        b2: Point,
+        lw2: f32, 
+        join_style: &JoinStyle,
+        sign: f32,
+    ) {
         let (nx, ny) = line_normal(b0, b1, lw2);
+        let (nx, ny) = (sign * nx, sign * ny);
 
         // outside edge
         let p0 = Point(b0.x() + nx, b0.y() - ny);
         let p1 = Point(b1.x() + nx, b1.y() - ny);
 
         let (nx, ny) = line_normal(b1, b2, lw2);
+        let (nx, ny) = (sign * nx, sign * ny);
 
         // outside edge
         let q1 = Point(b1.x() + nx, b1.y() - ny);
@@ -406,7 +422,15 @@ impl Renderer for FigureRenderer {
                 self.shape2d_render.draw_style(facecolor, &self.to_gpu.matmul(&offset));
                 self.bezier_render.draw_style(facecolor, &self.to_gpu.matmul(&offset));
             }
+
+            if facecolor != edgecolor && ! edgecolor.is_none() {
+                self.draw_lines(&path, style, clip);
+
+                self.shape2d_render.draw_style(edgecolor, &self.to_gpu);
+                self.bezier_render.draw_style(edgecolor, &self.to_gpu);
+            }
         } else if ! edgecolor.is_none() {
+            println!("LineWidth: {:?}", style.get_linewidth());
             self.draw_lines(&path, style, clip);
 
             for xy in xy.iter_slice() {

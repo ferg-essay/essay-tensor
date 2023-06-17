@@ -34,7 +34,9 @@ fn main() {
     graph.xlabel("My X-Label");
     graph.ylabel("Y-Label");
 
-    graph.scatter(&x, &y).color("blue").marker("X").size(2500.).capstyle(CapStyle::Round);
+    graph.scatter(&x, &y).color("blue").marker("X").size(2500.)
+        .edgecolor(0xff8000).facecolor("none")
+        .linewidth(5.);
     //graph.plot(&x, &y).color(0xc08000);
     //bar_y(graph, &y)
     //    .edgecolor(0x400080)
