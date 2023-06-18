@@ -31,7 +31,7 @@ impl Point {
     }
 
     #[inline]
-    pub fn norm(&self, p: &Point) -> f32 {
+    pub fn dist(&self, p: &Point) -> f32 {
         let dx = self.0 - p.0;
         let dy = self.1 - p.1;
 

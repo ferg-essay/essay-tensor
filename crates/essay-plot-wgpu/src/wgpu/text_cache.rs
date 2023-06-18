@@ -1,7 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 
-use wgpu_glyph::ab_glyph::{self, Font};
+use wgpu_glyph::ab_glyph::{self, Font, PxScale};
 
 use super::text_texture::TextTexture;
 
@@ -83,7 +83,8 @@ impl TextCache {
     }
 
     fn add_glyph(&mut self, font: &ab_glyph::FontArc, size: u16, ch: char) -> TextRect {
-        let scale = font.pt_to_px_scale(size as f32).unwrap();
+        //let scale = font.pt_to_px_scale(size as f32).unwrap();
+        let scale = PxScale::from(size as f32);
         let glyph = font.glyph_id(ch).with_scale(scale);
 
         let data = self.data.as_mut_slice();

@@ -217,7 +217,7 @@ fn run_event_loop(
                                     &CanvasEvent::MouseRightRelease(cursor.position),
                                 );
 
-                                if zoom_min <= mouse.right_press_start.norm(&cursor.position) {
+                                if zoom_min <= mouse.right_press_start.dist(&cursor.position) {
                                     figure.event(
                                         &mut figure_renderer,
                                         &CanvasEvent::ZoomBounds(
@@ -242,7 +242,7 @@ fn run_event_loop(
                 cursor.position = Point(position.x as f32, config.height as f32 - position.y as f32);
 
                 if mouse.left == ElementState::Pressed 
-                    && pan_min <= mouse.left_press_start.norm(&cursor.position) {
+                    && pan_min <= mouse.left_press_start.dist(&cursor.position) {
                     figure.event(
                         &mut figure_renderer,
                         &CanvasEvent::Pan(
@@ -255,7 +255,7 @@ fn run_event_loop(
                     mouse.left_press_last = cursor.position;
                 }
                 if mouse.right == ElementState::Pressed
-                    && pan_min <= mouse.left_press_start.norm(&cursor.position) {
+                    && pan_min <= mouse.left_press_start.dist(&cursor.position) {
                         figure.event(
                             &mut figure_renderer,
                             &CanvasEvent::MouseRightDrag(mouse.left_press_start, cursor.position),

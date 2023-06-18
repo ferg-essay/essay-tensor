@@ -119,7 +119,7 @@ impl TextRender {
 
         let start = self.vertex_offset;
 
-        let w_inside = size * 0.15;
+        let w_inside = size * 0.10;
         let w_space = size * 0.3;
 
         let mut x = x0;

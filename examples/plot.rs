@@ -1,5 +1,5 @@
 use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::bar_y};
-use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle};
+use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
 fn main() {
@@ -19,7 +19,7 @@ fn main() {
     println!("z: {:?}", z);
     //let y = x.sin();
 
-    let x = linspace(0., 1., 1);
+    let x = linspace(0., 1., 3);
     let y = x.clone();
     // gui.main_loop().unwrap();
     let mut figure = Figure::new();
@@ -33,13 +33,17 @@ fn main() {
     graph.title("My Title"); // .color(0x008033);
     graph.xlabel("My X-Label");
     graph.ylabel("Y-Label");
-
+/*
     graph.scatter(&x, &y).color("blue").marker("X")
         .line_color(0xff8000)
         .size(2500.)
         .fill_color("none")
         .line_width(5.);
-    //graph.plot(&x, &y).color(0xc08000);
+    */
+    let x = linspace(0., 6.28, 100);
+    let y = x.sin();
+    graph.plot(&x, &y).color(0xc08000).linewidth(4.)
+        .linestyle("--");
     //bar_y(graph, &y)
     //    .edgecolor(0x400080)
     //    .facecolor(0x80c0e0)

@@ -1,7 +1,7 @@
 use essay_plot_base::{
     Canvas, Affine2d, Point, Bounds, Path, PathOpt, Color, PathCode, 
     driver::{RenderErr, Renderer, FigureApi}, 
-    TextStyle, Coord, HorizAlign, VertAlign, JoinStyle, CapStyle
+    TextStyle, Coord, HorizAlign, VertAlign, JoinStyle, CapStyle, LineStyle
 };
 use essay_tensor::Tensor;
 
@@ -125,8 +125,7 @@ impl<'a> FigureRenderer {
         };
         
         let lw2 = self.to_px(0.5 * linewidth); // / self.canvas.width();
-        let test = vec![1, 2, 3];
-        test.iter().zip(0..2);
+        
         self.shape2d_render.start_shape();
         self.bezier_render.start_shape();
 
@@ -360,8 +359,6 @@ impl Renderer for FigureRenderer {
     ) -> Result<(), RenderErr> {
         // let to_unit = self.to_gpu.matmul(to_device);
 
-        let path = transform_path(path);
-
         let facecolor = match style.get_fill_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
@@ -370,6 +367,22 @@ impl Renderer for FigureRenderer {
         let edgecolor = match style.get_line_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
+        };
+
+        let path = match style.get_line_style() {
+            Some(LineStyle::Solid) | None => {
+                transform_solid_path(path)
+            }
+            Some(line_style) => {
+                let lw = match style.get_line_width() {
+                    Some(lw) => self.to_px(*lw),
+                    None => self.to_px(2.),
+                };
+                
+                let pattern = line_style.to_pattern(lw);
+
+                transform_dashed_path(path, pattern)
+            },
         };
 
         if path.is_closed_path() && ! facecolor.is_none() {
@@ -402,7 +415,7 @@ impl Renderer for FigureRenderer {
         style: &dyn PathOpt, 
         clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
-        let path = transform_path(path);
+        let path = transform_solid_path(path);
 
         let facecolor = match style.get_fill_color() {
             Some(color) => *color,
@@ -431,7 +444,6 @@ impl Renderer for FigureRenderer {
                 self.bezier_render.draw_style(edgecolor, &self.to_gpu);
             }
         } else if ! edgecolor.is_none() {
-            println!("LineWidth: {:?}", style.get_line_width());
             self.draw_lines(&path, style, clip);
 
             for xy in xy.iter_slice() {
@@ -535,7 +547,7 @@ impl Renderer for FigureRenderer {
 }
 
 // transform and normalize path
-fn transform_path(path: &Path<Canvas>) -> Path<Canvas> {
+fn transform_solid_path(path: &Path<Canvas>) -> Path<Canvas> {
     let mut codes = Vec::<PathCode>::new();
 
     let mut p0 = Point(0.0f32, 0.0f32);
@@ -601,6 +613,145 @@ fn transform_path(path: &Path<Canvas>) -> Path<Canvas> {
     }
 
     Path::<Canvas>::new(codes)
+}
+
+fn transform_dashed_path(path: &Path<Canvas>, pattern: Vec<f32>) -> Path<Canvas> {
+    let mut codes = Vec::<PathCode>::new();
+
+    let mut p0 = Point(0.0f32, 0.0f32);
+    let mut moveto = p0;
+
+    let mut cursor = Cursor::new(pattern);
+
+    for code in path.codes() {
+        p0 = match code {
+            PathCode::MoveTo(p0) => {
+                //codes.push(PathCode::MoveTo(*p0));
+                cursor.reset();
+                moveto = *p0;
+
+                *p0
+            }
+            PathCode::LineTo(p1) => {
+                // codes.push(PathCode::LineTo(*p1));
+                add_dash_line(&mut codes, &mut cursor, p0, *p1)
+            }
+            PathCode::Bezier2(p1, p2) => {
+                add_dash_line(&mut codes, &mut cursor, p0, *p2)
+            }
+            PathCode::Bezier3(p1, p2, p3) => {
+                add_dash_line(&mut codes, &mut cursor, p0, *p3)
+            }
+            PathCode::ClosePoly(p1) => {
+                //codes.push(PathCode::LineTo(*p1));
+                add_dash_line(&mut codes, &mut cursor, p0, *p1);
+                add_dash_line(&mut codes, &mut cursor, *p1, moveto)
+            }
+        }
+    }
+
+    Path::<Canvas>::new(codes)
+}
+
+fn add_dash_line(
+    codes: &mut Vec::<PathCode>, 
+    cursor: &mut Cursor,
+    p0: Point,
+    p1: Point,
+) -> Point {
+    let dx = p1.x() - p0.x();
+    let dy = p1.y() - p0.y();
+
+    let len = dx.hypot(dy);
+
+    if len < 1. {
+        return p0;
+    }
+
+    if cursor.is_visible() && cursor.is_start() {
+        codes.push(PathCode::MoveTo(p0));
+    }
+
+    let mut offset = 0.;
+    let len_r = len.recip();
+
+    while offset < len {
+        let sublen = cursor.sublen();
+
+        let tail = len - offset;
+        if tail <= sublen {
+            if cursor.is_visible() {
+                codes.push(PathCode::LineTo(p1));
+            }
+            cursor.add(tail);
+            return p1;
+        } else {
+            offset += sublen;
+
+            let p = Point(
+                p0.x() + dx * offset * len_r,
+                p0.y() + dy * offset * len_r,
+            );
+
+            if cursor.is_visible() {
+                codes.push(PathCode::LineTo(p));
+            } else if offset < len {
+                codes.push(PathCode::MoveTo(p));
+            }
+
+            cursor.next();
+        }
+    }
+
+    p1
+}   
+
+struct Cursor {
+    dashes: Vec<f32>,
+    i: usize,
+    t: f32,
+}
+
+impl Cursor {
+    fn new(pattern: Vec<f32>) -> Self {
+        Self {
+            dashes: pattern,
+            i: 0,
+            t: 0.,
+        }
+    }
+
+    #[inline]
+    fn reset(&mut self) {
+        self.i = 0;
+        self.t = 0.;
+    }
+
+    #[inline]
+    fn is_start(&mut self) -> bool {
+        self.t == 0.
+    }
+
+    #[inline]
+    fn sublen(&self) -> f32 {
+        self.dashes[self.i] - self.t
+    }
+
+    #[inline]
+    fn add(&mut self, len: f32) {
+        self.t += len;
+    }
+
+    #[inline]
+    fn is_visible(&self) -> bool {
+        self.i % 2 == 0
+    }
+
+    #[inline]
+    fn next(&mut self) {
+        self.i = (self.i + 1) % self.dashes.len();
+        self.t = 0.;
+    }
 }
 
 struct Gpu {}

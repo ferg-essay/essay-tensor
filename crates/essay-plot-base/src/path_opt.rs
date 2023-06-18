@@ -171,6 +171,29 @@ pub enum LineStyle {
     Dot,
     OnOff(Vec<f32>),
 }
+impl LineStyle {
+    pub fn to_pattern(&self, lw: f32) -> Vec<f32> {
+        match self {
+            Self::Dot => { vec![lw, 2. * lw] }
+            Self::Dashed => { vec![4. * lw, 2. * lw] }
+            Self::DashDot => { vec![4. * lw, 2. * lw, lw, 2. * lw] }
+            _ => panic!("Unexpected linestyle {:?}", self)
+        }
+    }
+}
+
+impl From<&str> for LineStyle {
+    fn from(name: &str) -> Self {
+        match name {
+            "" => Self::Solid,
+            "-" => Self::Solid,
+            ":" => Self::Dot,
+            "--" => Self::Dashed,
+            "-." => Self::DashDot,
+            _ => panic!("'{}' is an unknown line style", name)
+        }
+    }
+}
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum JoinStyle {
