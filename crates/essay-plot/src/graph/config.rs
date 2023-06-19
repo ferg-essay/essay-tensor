@@ -71,12 +71,30 @@ fn read_value(iter: &mut Peekable<Chars>) -> String {
         None => return value,
     };
 
+    if ch == '"' {
+        return read_string_value(iter);
+    }
+
     value.push(ch);
 
     while let Some(ch) = iter.next() {
         match ch {
             '\r' | '\n' => { return value }
             '#' => { skip_comment(iter); return value }
+            _ => { value.push(ch); }
+        }
+    }
+
+    value
+}
+
+fn read_string_value(iter: &mut Peekable<Chars>) -> String {
+    let mut value = String::new();
+
+    while let Some(ch) = iter.next() {
+        match ch {
+            '\r' | '\n' => { panic!("Unexpected end of line") }
+            '"' => { return value }
             _ => { value.push(ch); }
         }
     }
@@ -173,14 +191,22 @@ mod test {
     use super::read_config;
 
     #[test]
-    fn test_read_config() {
+    fn config_basic() {
         let config = read_config();
 
         assert_eq!(config.get("bogus"), None);
         assert_eq!(config.get("grid"), None);
         assert_eq!(config.get("line_width"), None);
-        assert_eq!(config.get("grid.line_width"), Some(&"0.5".to_string()));
-        assert_eq!(config.get("major.grid.line_width"), Some(&"0.5".to_string()));
-        assert_eq!(config.get_with_prefix("major.grid", "line_width"), Some(&"0.5".to_string()));
+        assert_eq!(config.get("grid.line_width"), Some(&"0.8".to_string()));
+        assert_eq!(config.get("major.grid.line_width"), Some(&"0.8".to_string()));
+        assert_eq!(config.get_with_prefix("major.grid", "line_width"), Some(&"0.8".to_string()));
+    }
+
+    #[test]
+    fn config_escaped_value() {
+        let config = read_config();
+
+        // grid.color is a known escaped value because of "#b0b0b0"
+        assert_eq!(config.get("grid.color"), Some(&"#b0b0b0".to_string()));
     }
 }

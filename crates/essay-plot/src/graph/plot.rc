@@ -1,4 +1,5 @@
-grid.line_width: 0.5
-grid.color: grey
+grid.line_width: 0.8
+grid.color: "#b0b0b0"
+# grid.alpha
 ticks.line_width: 1.5
 

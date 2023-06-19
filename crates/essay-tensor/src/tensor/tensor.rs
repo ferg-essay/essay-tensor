@@ -493,6 +493,17 @@ impl<T:Dtype> From<Vec<T>> for Tensor<T> {
 
 impl<T:Dtype, const N:usize> From<[T; N]> for Tensor<T> {
     fn from(value: [T; N]) -> Self {
+        // TODO: avoid copy
+        let vec = Vec::<T>::from(value);
+        let len = vec.len();
+
+        Tensor::from_vec(vec, Shape::from(len))
+    }
+}
+
+impl<T: Dtype> From<&[T]> for Tensor<T> {
+    fn from(value: &[T]) -> Self {
+        // TODO: avoid copy
         let vec = Vec::<T>::from(value);
         let len = vec.len();
 

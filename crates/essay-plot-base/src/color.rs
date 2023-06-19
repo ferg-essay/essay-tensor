@@ -148,7 +148,23 @@ impl FromStr for Color {
             return Ok(color);
         }
 
-        panic!("'{}' is an unknown color name", name);
+        if name.starts_with("#") {
+            let mut value = 0;
+            for ch in name.as_bytes().iter().skip(1) {
+                match ch {
+                    b'0'..=b'9' => { value = 16 * value + *ch as u32; }
+                    b'a'..=b'f' => { value = 16 * value + *ch as u32 - 'a' as u32 + 10; }
+                    b'A'..=b'F' => { value = 16 * value + *ch as u32 - 'A' as u32 + 10; }
+                    _ => {
+                        return Err(ColorErr(format!("Invalid rgb color spec {:?}", name)));
+                    }
+                }
+            }
+
+            return Ok(Color::from(value))
+        }
+
+        return Err(ColorErr(format!("'{}' is an unknown color name", name)));
     }
 }
 

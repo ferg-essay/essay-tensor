@@ -102,9 +102,7 @@ impl MaxNLocator {
             None => 9
         };
         /*
-        let steps = vec![
-            1., 1.5, 2., 2.5, 3., 4., 5., 6., 8., 10.
-        ];
+        // let steps = vec![1., 1.5, 2., 2.5, 3., 4., 5., 6., 8., 10.];
 
         let steps = Tensor::from(steps);
         */
@@ -121,6 +119,30 @@ impl MaxNLocator {
             min_ticks: 2,
             steps,
         }
+    }
+
+    pub fn steps(&mut self, steps: &[f32]) -> &mut Self {
+        assert!(steps.len() > 0);
+
+        let mut vec = Vec::<f32>::new();
+
+        if steps[0] != 1. {
+            vec.push(steps[0]);
+        }
+
+        for step in steps {
+            assert!(1.0 <= *step && *step <= 10.);
+
+            vec.push(*step);
+        }
+
+        if steps[steps.len() - 1] != 10. {
+            vec.push(10.);
+        }
+
+        self.steps = Tensor::from(steps);
+
+        self
     }
 
     fn raw_ticks(&self, vmin: f32, vmax: f32) -> Tensor<f32> {
@@ -142,17 +164,16 @@ impl MaxNLocator {
         for i in (0..=istep).rev() {
             let step = steps[i];
             let best_vmin = (vmin / step).trunc() * step;
-            // TODO: see matplotlib handling of floating point limits
-            //let low = (vmin - best_vmin) / step;
-            let low = best_vmin / step;
-            let high = (vmax - vmin + best_vmin) / step;
+
+            let low = (vmin - best_vmin) / step;
+            let high = (vmax - best_vmin) / step;
             ticks = Tensor::arange(low, high + 1., 1.) * step + best_vmin;
 
             let n_ticks = ticks.iter()
                 .filter(|s| vmin <= **s && **s <= vmax)
                 .count();
 
-            if self.min_ticks <= n_ticks && n_ticks < n_bins {
+            if self.min_ticks <= n_ticks {
                 break;
             }
         }
@@ -173,6 +194,8 @@ impl TickLocator for MaxNLocator {
     fn view_limits(&self, min: f32, max: f32) -> (f32, f32) {
         let (min, max) = if min < max {
             (min, max)
+        } else if min == max {
+            (min - 1., max + 1.)
         } else {
             (max, min)
         };
@@ -182,10 +205,16 @@ impl TickLocator for MaxNLocator {
 }
 
 fn nonsingular(min: f32, max: f32, expander: f32, tiny: f32) -> (f32, f32) {
+    if ! min.is_finite() || ! max.is_finite() {
+        return (-expander, expander);
+    }
+
     if tiny < max - min {
         (min, max)
-    }  else {
-        (min, min + expander)
+    } else if min == 0. && max == 0. {
+        (-expander, expander)
+    } else {
+        (min - min.abs() * expander, max + max.abs() * expander)
     }
 }
 
@@ -209,4 +238,129 @@ fn scale_range(vmin: f32, vmax: f32, n_bins: usize) -> (f32, f32) {
     let scale = 10.0f32.powf((dv / n_bins as f32).log10().floor());
 
     (scale, offset)
+}
+
+#[cfg(test)]
+mod test {
+    use essay_tensor::tf32;
+
+    use crate::frame::tick_locator::TickLocator;
+
+    use super::MaxNLocator;
+
+    #[test]
+    fn max_n_locator_view_limits() {
+        let mut locator = MaxNLocator::new(Some(9));;
+        locator.steps(&vec![1., 2., 2.5, 5., 10.]);
+
+        assert_eq!(locator.view_limits(0., 0.), (-1., 1.));
+        assert_eq!(locator.view_limits(1., 1.), (0., 2.));
+
+        assert_eq!(locator.view_limits(1., 0.), (0., 1.));
+        assert_eq!(locator.view_limits(-1., 0.), (-1., 0.));
+        assert_eq!(locator.view_limits(0., -1.), (-1., 0.));
+
+        assert_eq!(locator.view_limits(0., 1.), (0., 1.));
+        assert_eq!(locator.view_limits(0., 1.0e-6), (0., 1.0e-6));
+
+        assert_eq!(locator.view_limits(1., 1. + 1.0e-6), (1., 1.000001));
+    }
+
+    #[test]
+    fn max_n_locator_tick_values_0_1() {
+        let mut locator = MaxNLocator::new(Some(9));;
+        locator.steps(&vec![1., 2., 2.5, 5., 10.]);
+
+        assert_eq!(
+            locator.tick_values(0., 1.0), 
+            tf32!([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+        );
+
+        assert_eq!(
+            locator.tick_values(0., 10.0), 
+            tf32!([0.0, 2.0, 4.0, 6.0, 8.0, 10.0])
+        );
+
+        assert_eq!(
+            locator.tick_values(0., 0.1), 
+            tf32!([0.0, 0.02, 0.04, 0.06, 0.08, 0.099999994])
+        );
+
+        assert_eq!(
+            locator.tick_values(0., 1e6), 
+            tf32!([0.0, 2e5, 4e5, 6e5, 8e5, 10e5])
+        );
+    }
+
+    #[test]
+    fn max_n_locator_tick_values_offset() {
+        let mut locator = MaxNLocator::new(Some(9));;
+        locator.steps(&vec![1., 2., 2.5, 5., 10.]);
+
+        assert_eq!(
+            locator.tick_values(11., 12.0), 
+            tf32!([11.0, 11.2, 11.4, 11.6, 11.8, 12.0])
+        );
+
+        assert_eq!(
+            locator.tick_values(-1009., -1008.0), 
+            tf32!([-1009.0, -1008.8, -1008.6, -1008.4, -1008.2, -1008.0])
+        );
+    }
+
+    #[test]
+    fn max_n_locator_tick_values_ranges() {
+        let mut locator = MaxNLocator::new(Some(9));;
+        locator.steps(&vec![1., 2., 2.5, 5., 10.]);
+
+        assert_eq!(
+            locator.tick_values(10., 11.0), 
+            tf32!([10.0, 10.2, 10.4, 10.6, 10.8, 11.0])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 12.0), 
+            tf32!([10.0, 10.25, 10.5, 10.75, 11., 11.25, 11.5, 11.75, 12.])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 13.0), 
+            tf32!([10.0, 10.5, 11.0, 11.5, 12., 12.5, 13.0])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 14.0), 
+            tf32!([10.0, 10.5, 11.0, 11.5, 12., 12.5, 13.0, 13.5, 14.])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 15.0), 
+            tf32!([10.0, 11., 12., 13., 14., 15.])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 16.0), 
+            tf32!([10.0, 11., 12., 13., 14., 15., 16.])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 17.0), 
+            tf32!([10.0, 11., 12., 13., 14., 15., 16., 17.])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 18.0), 
+            tf32!([10.0, 11., 12., 13., 14., 15., 16., 17., 18.])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 19.0), 
+            tf32!([10.0, 12., 14., 16., 18., 20.])
+        );
+
+        assert_eq!(
+            locator.tick_values(10., 20.0), 
+            tf32!([10.0, 12., 14., 16., 18., 20.])
+        );
+    }
 }
