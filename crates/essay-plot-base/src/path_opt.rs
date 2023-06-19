@@ -12,7 +12,7 @@ pub trait PathOpt {
     ///
     /// Color to fill a closed path and the default line color.
     /// 
-    fn get_fill_color(&self) -> &Option<Color>;
+    fn get_face_color(&self) -> &Option<Color>;
 
     ///
     /// Color for a path's line when the outline differs from the fill
@@ -107,10 +107,10 @@ impl<'a> Stack<'a> {
 }
 
 impl PathOpt for Stack<'_> {
-    fn get_fill_color(&self) -> &Option<Color> {
-        match self.next.get_fill_color() {
-            Some(_) => self.next.get_fill_color(),
-            None => self.prev.get_fill_color(),
+    fn get_face_color(&self) -> &Option<Color> {
+        match self.next.get_face_color() {
+            Some(_) => self.next.get_face_color(),
+            None => self.prev.get_face_color(),
         }
     }
 

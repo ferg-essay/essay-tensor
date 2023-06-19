@@ -38,7 +38,7 @@ impl PlotOpt {
             .frame_mut(self.frame_id)
             .data_mut()
             .style_mut(self.artist_id)
-            .fill_color(color);
+            .face_color(color);
         
         self
     }

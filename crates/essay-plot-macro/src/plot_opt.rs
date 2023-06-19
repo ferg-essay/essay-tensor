@@ -71,58 +71,6 @@ pub(crate) fn derive_plot_opt(
             }
 
             #field_methods
-            /*
-            pub fn edgecolor(
-                &mut self,
-                color: impl Into<essay_plot_base::Color>
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.edgecolor(color); } );
-                self
-            }
-
-            pub fn facecolor(
-                &mut self,
-                color: impl Into<essay_plot_base::Color>
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.facecolor(color); } );
-                self
-            }
-            */
-
-            /*
-            pub fn color(
-                &mut self,
-                color: impl Into<essay_plot_base::Color>
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.color(color); } );
-                self
-            }
-            */
-            /*
-            pub fn line_width(
-                &mut self,
-                linewidth: f32,
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.line_width(linewidth); } );
-                self
-            }
-
-            pub fn cap_style(
-                &mut self,
-                capstyle: impl Into<essay_plot_base::CapStyle>,
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.cap_style(capstyle); } );
-                self
-            }
-
-            pub fn join_style(
-                &mut self,
-                joinstyle: impl Into<essay_plot_base::JoinStyle>,
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.join_style(joinstyle); } );
-                self
-            }
-            */
         }
     }.into()
 }
@@ -201,11 +149,11 @@ fn path_opt_methods(name: &Option<Ident>) -> TokenStream {
 
         /// Sets the path's fill color, which is used for both filling
         /// and as a default line color.
-        pub fn fill_color(
+        pub fn face_color(
             &mut self, 
             color: impl Into<essay_plot_base::Color>
         ) -> &mut Self {
-            self.plot.write_artist(|a| { a.#name.fill_color(color); });
+            self.plot.write_artist(|a| { a.#name.face_color(color); });
             self
         }
 

@@ -38,7 +38,7 @@ pub fn pie(
 
         let mut artist = ArtistStyle::new(id, patch);
         //artist.color(colors[i]);
-        artist.style_mut().fill_color(colors[i]);
+        artist.style_mut().face_color(colors[i]);
         //artist.style_mut().facecolor(Color(0x0));
         
         container.push(artist);

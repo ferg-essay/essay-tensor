@@ -96,8 +96,8 @@ impl<M: Coord> Artist<M> for ArtistStyle<M> {
 }
 
 impl<M: Coord> PathOpt for ArtistStyle<M> {
-    fn get_fill_color(&self) -> &Option<Color> {
-        self.style.get_fill_color()
+    fn get_face_color(&self) -> &Option<Color> {
+        self.style.get_face_color()
     }
 
     fn get_edge_color(&self) -> &Option<Color> {

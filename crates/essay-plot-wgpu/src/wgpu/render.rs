@@ -359,7 +359,7 @@ impl Renderer for FigureRenderer {
     ) -> Result<(), RenderErr> {
         // let to_unit = self.to_gpu.matmul(to_device);
 
-        let facecolor = match style.get_fill_color() {
+        let facecolor = match style.get_face_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -417,7 +417,7 @@ impl Renderer for FigureRenderer {
     ) -> Result<(), RenderErr> {
         let path = transform_solid_path(path);
 
-        let facecolor = match style.get_fill_color() {
+        let facecolor = match style.get_face_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -467,7 +467,7 @@ impl Renderer for FigureRenderer {
         _clip: &Bounds<Canvas>,
     ) -> Result<(), RenderErr> {
 
-        let color = match style.get_fill_color() {
+        let color = match style.get_face_color() {
             Some(color) => *color,
             None => Color(0x000000ff),
         };

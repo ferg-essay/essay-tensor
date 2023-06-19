@@ -9,7 +9,7 @@ use crate::graph::Config;
 #[derive(Clone)]
 pub struct PathStyle {
     color: Option<Color>,
-    fill_color: Option<Color>,
+    face_color: Option<Color>,
     edge_color: Option<Color>,
 
     line_width: Option<f32>,
@@ -29,7 +29,7 @@ impl PathStyle {
         let mut style = PathStyle::default();
 
         style.color = cfg.get_as_type(prefix, "color");
-        style.fill_color = cfg.get_as_type(prefix, "fill_color");
+        style.face_color = cfg.get_as_type(prefix, "face_color");
         style.edge_color = cfg.get_as_type(prefix, "edge_color");
         style.gap_color = cfg.get_as_type(prefix, "gap_color");
         style.line_width = cfg.get_as_type(prefix, "line_width");
@@ -46,8 +46,8 @@ impl PathStyle {
         self
     }
 
-    pub fn fill_color(&mut self, color: impl Into<Color>) -> &mut Self {
-        self.fill_color = Some(color.into());
+    pub fn face_color(&mut self, color: impl Into<Color>) -> &mut Self {
+        self.face_color = Some(color.into());
 
         self
     }
@@ -102,9 +102,9 @@ where <T as FromStr>::Err : fmt::Debug
 }
 
 impl PathOpt for PathStyle {
-    fn get_fill_color(&self) -> &Option<Color> {
-        match &self.fill_color {
-            Some(_color) => &self.fill_color,
+    fn get_face_color(&self) -> &Option<Color> {
+        match &self.face_color {
+            Some(_color) => &self.face_color,
             None => &self.color,
         }
     }
@@ -145,7 +145,7 @@ impl Default for PathStyle {
     fn default() -> Self {
         Self { 
             color: Default::default(), 
-            fill_color: Default::default(), 
+            face_color: Default::default(), 
             edge_color: Default::default(), 
             line_width: Default::default(), 
             join_style: Default::default(),
@@ -291,11 +291,11 @@ impl<'a> PropCycleChain<'a> {
 }
 
 impl PathOpt for PropCycleChain<'_> {
-    fn get_fill_color(&self) -> &Option<Color> {
+    fn get_face_color(&self) -> &Option<Color> {
         if self.cycle.is_fill_color_set() {
             self.cycle.get_fill_color(self.index)
         } else {
-            self.prev.get_fill_color()
+            self.prev.get_face_color()
         }
     }
 
