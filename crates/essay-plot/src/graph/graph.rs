@@ -8,8 +8,8 @@ use essay_plot_base::{
 
 use crate::{artist::{
     Artist, ArtistStyle,
-    Text, ArtAccessor, ArtHolder,
-}, frame::{Frame, Data, LayoutArc, FrameId}};
+    Text, 
+}, frame::{Frame, Data, LayoutArc, FrameId, FrameArtist, FrameTextOpt, AxisOpt}};
 
 use crate::frame::{Layout};
 
@@ -38,16 +38,37 @@ impl Graph {
         self.id
     }
 
-    pub fn title(&mut self, text: &str) { // -> &mut Text {
-        self.layout.borrow_mut().frame_mut(self.id).title(text);
+    fn text_opt(&self, artist: FrameArtist) -> FrameTextOpt {
+        let layout = self.layout.clone();
+        self.layout.borrow().frame(self.id).text_opt(layout, artist)
     }
 
-    pub fn xlabel(&mut self, text: &str) { // -> &mut Text {
-        self.layout.borrow_mut().frame_mut(self.id).xlabel(text);
+    pub fn title(&mut self, label: &str) -> FrameTextOpt {
+        let mut opt = self.text_opt(FrameArtist::Title);
+        opt.label(label);
+        opt
     }
 
-    pub fn ylabel(&mut self, text: &str) { // -> &mut Text {
-        self.layout.borrow_mut().frame_mut(self.id).ylabel(text);
+    pub fn x(&mut self) -> AxisOpt {
+        let layout = self.layout.clone();
+        AxisOpt::new(layout, self.id(), FrameArtist::X)
+    }
+
+    pub fn y(&mut self) -> AxisOpt {
+        let layout = self.layout.clone();
+        AxisOpt::new(layout, self.id(), FrameArtist::Y)
+    }
+
+    pub fn xlabel(&mut self, label: &str) -> FrameTextOpt {
+        let mut opt = self.text_opt(FrameArtist::XLabel);
+        opt.label(label);
+        opt
+    }
+
+    pub fn ylabel(&mut self, label: &str) -> FrameTextOpt {
+        let mut opt = self.text_opt(FrameArtist::YLabel);
+        opt.label(label);
+        opt
     }
 
     fn default_properties(&mut self) {
@@ -81,27 +102,6 @@ impl Graph {
         //PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
 
         PlotRef::new(self.layout.clone(), frame.id(), artist_id)
-    }
-
-    pub fn add_artist_holder<'a, A>(
-        &'a mut self, 
-        artist: A
-    ) -> ArtAccessor<'a, Data, A> 
-    where
-        A: Artist<Data> + 'static
-    {
-        let mut layout = self.layout.borrow_mut();
-        let frame = layout.frame_mut(self.id);
-
-        let rcart = Rc::new(RefCell::new(artist));
-
-        let accessor = ArtAccessor::new(rcart.clone());
-        let holder = ArtHolder::new(rcart.clone());
-
-        let _artist_id = frame.data_mut().add_artist(holder);
-
-        //PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
-        accessor
     }
 }
 

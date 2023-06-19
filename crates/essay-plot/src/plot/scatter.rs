@@ -48,7 +48,7 @@ impl ScatterPlot {
         let mut style = PathStyle::new();
 
         //style.linewidth(1.5);
-        style.joinstyle(JoinStyle::Round);
+        style.join_style(JoinStyle::Round);
 
         Self {
             xy,

@@ -33,37 +33,37 @@ impl PlotOpt {
         self
     }
 
-    pub fn facecolor(&mut self, color: impl Into<Color>) -> &mut Self {
+    pub fn fill_color(&mut self, color: impl Into<Color>) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
             .data_mut()
             .style_mut(self.artist_id)
-            .facecolor(color);
+            .fill_color(color);
         
         self
     }
 
-    pub fn edgecolor(&mut self, color: impl Into<Color>) -> &mut Self {
+    pub fn edge_color(&mut self, color: impl Into<Color>) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
             .data_mut()
             .style_mut(self.artist_id)
-            .edgecolor(color);
+            .edge_color(color);
         
         self
     }
 
-    pub fn linewidth(&mut self, linewidth: f32) -> &mut Self {
+    pub fn line_width(&mut self, linewidth: f32) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
             .data_mut()
             .style_mut(self.artist_id)
-            .linewidth(linewidth);
+            .line_width(linewidth);
         
         self
     }
 
-    pub fn linestyle(&mut self, linestyle: impl Into<LineStyle>) -> &mut Self {
+    pub fn line_style(&mut self, linestyle: impl Into<LineStyle>) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
             .data_mut()
@@ -73,22 +73,22 @@ impl PlotOpt {
         self
     }
 
-    pub fn joinstyle(&mut self, joinstyle: impl Into<JoinStyle>) -> &mut Self {
+    pub fn join_style(&mut self, joinstyle: impl Into<JoinStyle>) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
             .data_mut()
             .style_mut(self.artist_id)
-            .joinstyle(joinstyle);
+            .join_style(joinstyle);
         
         self
     }
 
-    pub fn capstyle(&mut self, capstyle: impl Into<CapStyle>) -> &mut Self {
+    pub fn cap_style(&mut self, capstyle: impl Into<CapStyle>) -> &mut Self {
         self.layout.borrow_mut()
             .frame_mut(self.frame_id)
             .data_mut()
             .style_mut(self.artist_id)
-            .capstyle(capstyle);
+            .cap_style(capstyle);
         
         self
     }

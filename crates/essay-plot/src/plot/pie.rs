@@ -34,11 +34,11 @@ pub fn pie(
         );
 
         //patch.color(colors[i]);
-        let id = ArtistId::new(0);
+        let id = ArtistId::empty();
 
         let mut artist = ArtistStyle::new(id, patch);
         //artist.color(colors[i]);
-        artist.style_mut().facecolor(colors[i]);
+        artist.style_mut().fill_color(colors[i]);
         //artist.style_mut().facecolor(Color(0x0));
         
         container.push(artist);

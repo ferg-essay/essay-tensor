@@ -18,12 +18,12 @@ impl Parse for OptAttribute {
     }
 }
 
-pub(crate) fn derive_plot_opt(
+pub(crate) fn derive_canvas_opt(
     attr: proc_macro::TokenStream, 
     item: proc_macro::TokenStream
 ) -> proc_macro::TokenStream {
     if attr.is_empty() {
-        panic!("missing required attribute to #[derive_plot_opt(Opt)]")
+        panic!("missing required attribute to #[derive_canvas_opt(Opt)]")
     }
 
     let OptAttribute {
@@ -58,12 +58,14 @@ pub(crate) fn derive_plot_opt(
         #semi_token
 
         #vis struct #opt {
-            plot: essay_plot::graph::PlotRef<essay_plot::frame::Data, #ident>,
+            layout: essay_plot::layout::LayoutArc,
+            id: essay_plot::frame::ArtistId,
         }
 
         impl #opt {
             pub fn new(
-                plot: essay_plot::graph::PlotRef<essay_plot::frame::Data, #ident>,
+                layout: essay_plot::layout::LayoutArc,
+                id: essay_plot::frame::ArtistId,
             ) -> Self {
                 Self {
                     plot
@@ -71,58 +73,6 @@ pub(crate) fn derive_plot_opt(
             }
 
             #field_methods
-            /*
-            pub fn edgecolor(
-                &mut self,
-                color: impl Into<essay_plot_base::Color>
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.edgecolor(color); } );
-                self
-            }
-
-            pub fn facecolor(
-                &mut self,
-                color: impl Into<essay_plot_base::Color>
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.facecolor(color); } );
-                self
-            }
-            */
-
-            /*
-            pub fn color(
-                &mut self,
-                color: impl Into<essay_plot_base::Color>
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.color(color); } );
-                self
-            }
-            */
-            /*
-            pub fn line_width(
-                &mut self,
-                linewidth: f32,
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.line_width(linewidth); } );
-                self
-            }
-
-            pub fn cap_style(
-                &mut self,
-                capstyle: impl Into<essay_plot_base::CapStyle>,
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.cap_style(capstyle); } );
-                self
-            }
-
-            pub fn join_style(
-                &mut self,
-                joinstyle: impl Into<essay_plot_base::JoinStyle>,
-            ) -> &mut Self {
-                self.plot.write_style(|s| { s.join_style(joinstyle); } );
-                self
-            }
-            */
         }
     }.into()
 }
@@ -195,7 +145,7 @@ fn path_opt_methods(name: &Option<Ident>) -> TokenStream {
             &mut self, 
             color: impl Into<essay_plot_base::Color>
         ) -> &mut Self {
-            self.plot.write_artist(|a| { a.#name.color(color); });
+            self.layout.borrow_mut().artist_mut().write_artist(|a| { a.#name.color(color); });
             self
         }
 
@@ -205,16 +155,16 @@ fn path_opt_methods(name: &Option<Ident>) -> TokenStream {
             &mut self, 
             color: impl Into<essay_plot_base::Color>
         ) -> &mut Self {
-            self.plot.write_artist(|a| { a.#name.fill_color(color); });
+            self.plot.write_artist(|a| { a.#name.facecolor(color); });
             self
         }
 
-        /// Sets the path's outline edge color when it's distinct from the fill color.
-        pub fn edge_color(
+        /// Sets the path's line color when it's distinct from the fill color.
+        pub fn line_color(
             &mut self, 
             color: impl Into<essay_plot_base::Color>
         ) -> &mut Self {
-            self.plot.write_artist(|a| { a.#name.edge_color(color); });
+            self.plot.write_artist(|a| { a.#name.edgecolor(color); });
             self
         }
 
@@ -232,7 +182,7 @@ fn path_opt_methods(name: &Option<Ident>) -> TokenStream {
             &mut self, 
             width: f32,
         ) -> &mut Self {
-            self.plot.write_artist(|a| { a.#name.line_width(width); });
+            self.plot.write_artist(|a| { a.#name.linewidth(width); });
             self
         }
 
@@ -242,7 +192,7 @@ fn path_opt_methods(name: &Option<Ident>) -> TokenStream {
             &mut self, 
             style: impl Into<essay_plot_base::JoinStyle>,
         ) -> &mut Self {
-            self.plot.write_artist(|a| { a.#name.join_style(style); });
+            self.plot.write_artist(|a| { a.#name.joinstyle(style); });
             self
         }
 
@@ -252,7 +202,7 @@ fn path_opt_methods(name: &Option<Ident>) -> TokenStream {
             &mut self, 
             style: impl Into<essay_plot_base::CapStyle>,
         ) -> &mut Self {
-            self.plot.write_artist(|a| { a.#name.cap_style(style); });
+            self.plot.write_artist(|a| { a.#name.capstyle(style); });
             self
         }
 

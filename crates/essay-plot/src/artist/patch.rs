@@ -59,7 +59,7 @@ impl Artist<Data> for DataPatch {
     }
 }
 
-pub struct DisplayPatch {
+pub struct CanvasPatch {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
 
@@ -68,7 +68,7 @@ pub struct DisplayPatch {
     style: PathStyle,
 }
 
-impl DisplayPatch {
+impl CanvasPatch {
     pub fn new(patch: impl PatchTrait<Canvas> + 'static) -> Self {
         Self {
             bounds: Bounds::unit(),
@@ -90,7 +90,7 @@ impl DisplayPatch {
     }
 }
 
-impl Artist<Canvas> for DisplayPatch {
+impl Artist<Canvas> for CanvasPatch {
     fn update(&mut self, _canvas: &Canvas) {
     }
     

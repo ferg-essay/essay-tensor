@@ -57,13 +57,13 @@ impl<M: Coord> ArtistStyle<M> {
     }
 
     pub fn linewidth(&mut self, width: f32) -> &mut Self {
-        self.style.linewidth(width);
+        self.style.line_width(width);
 
         self
     }
 
-    pub fn joinstyle(&mut self, joinstyle: impl Into<JoinStyle>) -> &mut Self {
-        self.style.joinstyle(joinstyle);
+    pub fn join_style(&mut self, joinstyle: impl Into<JoinStyle>) -> &mut Self {
+        self.style.join_style(joinstyle);
 
         self
     }
@@ -100,8 +100,8 @@ impl<M: Coord> PathOpt for ArtistStyle<M> {
         self.style.get_fill_color()
     }
 
-    fn get_line_color(&self) -> &Option<Color> {
-        self.style.get_line_color()
+    fn get_edge_color(&self) -> &Option<Color> {
+        self.style.get_edge_color()
     }
 
     fn get_line_width(&self) -> &Option<f32> {

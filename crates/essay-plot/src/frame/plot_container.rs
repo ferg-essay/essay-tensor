@@ -5,16 +5,18 @@ use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt
 
 use crate::artist::{Artist, PathStyle};
 
-use super::ArtistId;
+use super::{ArtistId, FrameId, ArtistEnum};
 
 pub(crate) struct PlotContainer<M: Coord> {
+    frame: FrameId,
     ptrs: Vec<PlotPtr<M>>,
     artists: Vec<Box<dyn PlotArtistTrait<M>>>,
 }
 
 impl<M: Coord> PlotContainer<M> {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(frame: FrameId) -> Self {
         Self {
+            frame,
             ptrs: Vec::new(),
             artists: Vec::new(),
         }
@@ -24,7 +26,7 @@ impl<M: Coord> PlotContainer<M> {
     where
         A: Artist<M> + 'static
     {
-        let id = ArtistId(self.ptrs.len());
+        let id = ArtistId::new_data(self.frame, self.ptrs.len());
 
         let plot = PlotPtr::new(id, plot);
         self.ptrs.push(plot);

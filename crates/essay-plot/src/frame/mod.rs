@@ -1,3 +1,4 @@
+mod artist_id;
 mod plot_container;
 mod tick_formatter;
 mod axis;
@@ -10,12 +11,20 @@ pub use tick_locator::{
     IndexLocator,
 };
 
+pub use axis::{
+    AxisOpt,
+};
+
 pub use data_box::{
-    Data, ArtistId,
+    Data,
 };
 
 pub use frame::{
-    Frame,
+    Frame, FrameArtist, FrameTextOpt,
+};
+
+pub use artist_id::{
+    ArtistId, ArtistEnum,
 };
 
 pub use layout::{

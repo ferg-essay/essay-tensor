@@ -14,7 +14,7 @@ pub struct Text {
 
     text: Option<String>,
 
-    style: PathStyle,
+    path_style: PathStyle,
     text_style: TextStyle,
 
     angle: f32,
@@ -29,7 +29,7 @@ impl Text {
             extent: Bounds::zero(),
             text: None,
 
-            style: PathStyle::new(),
+            path_style: PathStyle::new(),
             text_style: TextStyle::new(),
 
             angle: 0.
@@ -40,7 +40,7 @@ impl Text {
         self.pos = pos.into();
     }
 
-    pub fn text(&mut self, text: &str) -> &mut Self {
+    pub fn label(&mut self, text: &str) -> &mut Self {
         if text.len() > 0 {
             self.text = Some(text.to_string());
         } else {
@@ -54,12 +54,12 @@ impl Text {
         2. * 14.
     }
 
-    pub fn font(&mut self) -> &mut TextStyle {
+    pub fn text_style_mut(&mut self) -> &mut TextStyle {
         &mut self.text_style
     }
 
-    pub fn style(&mut self) -> &mut PathStyle {
-        &mut self.style
+    pub fn path_style_mut(&mut self) -> &mut PathStyle {
+        &mut self.path_style
     }
 
     pub fn angle(&mut self, angle: f32) -> &mut Self {
@@ -105,7 +105,7 @@ impl Artist<Canvas> for Text {
         style: &dyn PathOpt,
     ) {
         if let Some(text) = &self.text {
-            let style = self.style.push(style);
+            let style = self.path_style.push(style);
 
             if ! self.pos.is_none() {
                 let desc = Self::DESC * self.extent.height();

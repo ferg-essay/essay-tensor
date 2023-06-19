@@ -219,28 +219,20 @@ impl TextRender {
         );
 
         for item in self.text_items.drain(..) {
-            /*
-            queue.write_buffer(
-                &mut self.style_buffer, 
-                0,
-                bytemuck::cast_slice(&[item.style])
-            );
-            */
-    
             rpass.set_pipeline(&self.pipeline);
-            let len = item.end - item.start;
+
             let stride = self.vertex_stride;
-            let size = len * self.vertex_stride;
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(
                 (stride * item.start) as u64..(stride * item.end) as u64
             ));
+
             let stride = self.style_stride;
             rpass.set_vertex_buffer(1, self.style_buffer.slice(
                 (stride * item.index) as u64..(stride * (item.index + 1)) as u64
             ));
 
             rpass.set_bind_group(0, self.texture.bind_group(), &[]);
-            //rpass.set_bind_group(1, &self.style_bind_group, &[]);
+
             rpass.draw(
                 0..(item.end - item.start) as u32,
                 0..1,
@@ -310,22 +302,11 @@ impl GpuTextStyle {
         ];
 
     pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
-        /*
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<TextVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRS,
-        }
-        */
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<TextVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRS,
         }
-    }
-
-    fn empty() -> Self {
-        Self::new(&Affine2d::eye(), 0x000000ff)
     }
 
     fn new(affine: &Affine2d, color: u32) -> Self {
@@ -341,17 +322,6 @@ impl GpuTextStyle {
                 ((color) & 0xff) as f32 / 255.,
             ],
         }
-    }
-
-    fn create_buffer(this: Self, device: &wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("text style"),
-                contents: bytemuck::cast_slice(&[this]),
-                // usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            }
-        )
     }
 }
 
@@ -413,36 +383,4 @@ fn create_text_pipeline(
         multisample: wgpu::MultisampleState::default(),
         multiview: None,
     })
-}
-
-fn create_uniform_bind_group(
-    device: &wgpu::Device, 
-    buffer: &wgpu::Buffer
-) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
-    let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-        ],
-        label: None,
-    });
-
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &layout,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: buffer.as_entire_binding(),
-        }],
-        label: None
-    });
-
-    (layout, bind_group)
 }

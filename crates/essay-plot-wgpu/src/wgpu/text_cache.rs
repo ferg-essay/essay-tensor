@@ -90,14 +90,10 @@ impl TextCache {
         let data = self.data.as_mut_slice();
         let w = self.width as u32;
 
-        //println!("Size {:?}", font);
-        //println!("Scale {:?}", font.pt_to_px_scale(12.0));
         let rect = match font.outline_glyph(glyph) {
             Some(og) => {
                 let bounds = og.px_bounds();
 
-                // println!("Ch {},{} @{},{}, desc {} bounds {:?}", ch, size, self.x, self.y, og.glyph().position.y, bounds);
-            
                 let dx = bounds.max.x - bounds.min.x;
                 let dy = bounds.max.y - bounds.min.y;
 

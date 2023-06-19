@@ -63,7 +63,7 @@ impl Artist<Data> for BarPlot {
                     .translate(i as f32 - self.width * 0.5, 0.);
                 let path: Path<Data> = paths::unit_pos().transform(&scale);
             
-                let id = ArtistId::new(0);
+                let id = ArtistId::empty();
                 self.container.push(ArtistStyle::new(id, PathPatch::<Data>::new(path)));
             }
         }

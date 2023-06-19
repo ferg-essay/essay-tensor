@@ -1,4 +1,3 @@
-mod holder;
 mod pcolor;
 mod color;
 mod style;
@@ -40,20 +39,12 @@ pub use markers::{
     Markers,
 };
 
-pub use holder::{
-    ArtHolder, ArtAccessor
-};
-
-//pub use path::{
-//    Path, Angle, PathCode,
-//};
-
 pub use patch::{
     PatchTrait,
 };
 
 pub use style::{
-    PathStyle, // StyleChain,
+    PathStyle, StyleCycle,// StyleChain,
 };
 
 pub use text::{

@@ -7,7 +7,7 @@ use essay_plot_base::{
 
 use crate::artist::{Artist, PathStyle};
 
-use super::plot_container::PlotContainer;
+use super::{plot_container::PlotContainer, ArtistId, FrameId};
 
 pub struct DataBox {
     pos_canvas: Bounds<Canvas>,
@@ -24,14 +24,14 @@ pub struct DataBox {
 }
 
 impl DataBox {
-    pub fn new() -> Self {
+    pub fn new(frame_id: FrameId) -> Self {
         Self {
             pos_canvas: Bounds::none(),
 
             data_bounds: Bounds::<Data>::unit(),
             view_bounds: Bounds::<Data>::unit(),
 
-            artists: PlotContainer::new(),
+            artists: PlotContainer::new(frame_id),
 
             style: PathStyle::default(),
 
@@ -254,20 +254,6 @@ impl fmt::Debug for DataBox {
             self.view_bounds.ymin(),
             self.view_bounds.width(),
             self.view_bounds.height())
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ArtistId(pub(crate) usize);
-
-impl ArtistId {
-    pub fn index(&self) -> usize {
-        self.0
-    }
-
-    // TODO: eliminate need for this function
-    pub(crate) fn new(index: usize) -> ArtistId {
-        ArtistId(index)
     }
 }
 

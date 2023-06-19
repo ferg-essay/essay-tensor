@@ -172,6 +172,10 @@ impl LayoutArc {
 pub struct FrameId(usize);
 
 impl FrameId {
+    pub(crate) fn new(index: usize) -> FrameId {
+        FrameId(index)
+    }
+
     pub fn index(&self) -> usize {
         self.0
     }

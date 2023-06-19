@@ -2,12 +2,15 @@ use std::f32::consts::PI;
 
 use essay_plot_base::{
     PathCode, Path, PathOpt,
-    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, HorizAlign, VertAlign, 
+    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, HorizAlign, VertAlign, TextStyle, Color, 
 };
+use essay_plot_macro::derive_plot_opt;
 
-use crate::artist::{patch::{DisplayPatch, Line, PathPatch}, Text, Artist, ArtistStyle, PathStyle};
+use crate::artist::{patch::{CanvasPatch, Line, PathPatch}, Text, Artist, PathStyle};
 
-use super::{data_box::DataBox, axis::Axis, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, ArtistId, Data};
+use super::{data_box::DataBox, axis::{Axis, AxisTicks}, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, LayoutArc};
+// self as essay_plot needed for #[derive_plot_opt]
+extern crate self as essay_plot;
 
 pub struct Frame {
     id: FrameId,
@@ -15,7 +18,12 @@ pub struct Frame {
     pos: Bounds<Canvas>,
 
     to_canvas: Affine2d,
-    style: PathStyle,
+
+    is_share_x: bool,
+    is_share_y: bool,
+
+    path_style: PathStyle,
+    // prop_cycle
 
     data: DataBox,
 
@@ -26,7 +34,29 @@ pub struct Frame {
     top: TopFrame,
     right: RightFrame,
 
-    is_modified: bool, 
+    is_frame_visible: bool,
+
+    is_stale: bool, 
+    aspect_ratio: Option<f32>,
+    box_aspect_ratio: Option<f32>,
+    // is_visible
+    // axis_locator
+    // is_axis_below
+    // label
+    // adjustable (Box vs Data)
+    // is_snap
+    // transform
+    // xbound (min, max)
+    // xmargin
+    // xscale - linear, log, symlog, logit
+    // xticks - sets ticks and labels
+    // ybound
+    // ylabel
+    // ylim
+    // ymargin
+    // yscale
+    // yticks
+    // zorder
 }
 
 impl Frame {
@@ -36,7 +66,7 @@ impl Frame {
 
             pos: Bounds::none(),
 
-            data: DataBox::new(),
+            data: DataBox::new(id),
 
             title: Text::new(),
 
@@ -45,11 +75,16 @@ impl Frame {
             top: TopFrame::new(),
             right: RightFrame::new(),
 
-            style: PathStyle::default(),
+            path_style: PathStyle::default(),
 
             to_canvas: Affine2d::eye(),
 
-            is_modified: true,
+            is_stale: true,
+            is_share_x: false,
+            is_share_y: false,
+            is_frame_visible: true,
+            aspect_ratio: None,
+            box_aspect_ratio: None,
         }
     }
 
@@ -130,6 +165,46 @@ impl Frame {
         &mut self.data
     }
 
+    pub(crate) fn text_opt(&self, layout: LayoutArc, artist: FrameArtist) -> FrameTextOpt {
+        match artist {
+            FrameArtist::Title => FrameTextOpt::new(layout, self.id, artist),
+            FrameArtist::XLabel => FrameTextOpt::new(layout, self.id, artist),
+            FrameArtist::YLabel => FrameTextOpt::new(layout, self.id, artist),
+
+            _ => panic!("Invalid artist {:?}", artist)
+        }
+    }
+
+    pub(crate) fn get_text_mut(&mut self, artist: FrameArtist) -> &mut Text {
+        match artist {
+            FrameArtist::Title => &mut self.title,
+            FrameArtist::XLabel => &mut self.bottom.label,
+            FrameArtist::YLabel => &mut self.left.label,
+
+            _ => panic!("Invalid text {:?}", artist)
+        }
+    }
+
+    pub(crate) fn get_axis_mut(&mut self, artist: FrameArtist) -> &mut Axis {
+        match artist {
+            FrameArtist::X => &mut self.bottom.axis,
+            FrameArtist::Y => &mut self.left.axis,
+
+            _ => panic!("Invalid axis {:?}", artist)
+        }
+    }
+
+    pub(crate) fn get_ticks_mut(&mut self, artist: FrameArtist) -> &mut AxisTicks {
+        match artist {
+            FrameArtist::XMajor => self.bottom.axis.major_mut(),
+            FrameArtist::XMinor => self.bottom.axis.minor_mut(),
+            FrameArtist::YMajor => self.left.axis.major_mut(),
+            FrameArtist::YMinor => self.left.axis.minor_mut(),
+
+            _ => panic!("Invalid axis-texts {:?}", artist)
+        }
+    }
+
     pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
         if self.data.get_pos().contains(event.point()) {
             if self.data.event(renderer, event) {
@@ -142,20 +217,20 @@ impl Frame {
     }
 
     pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
-        self.title.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+        self.title.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
 
-        self.bottom.draw(renderer, &self.to_canvas, &self.pos, &self.style);
-        self.left.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+        self.bottom.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
+        self.left.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
 
-        self.top.draw(renderer, &self.to_canvas, &self.pos, &self.style);
-        self.right.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+        self.top.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
+        self.right.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
 
         // TODO: grid order
-        self.data.draw(renderer, &self.to_canvas, &self.pos, &self.style);
+        self.data.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
     }
 
     pub fn title(&mut self, text: &str) -> &mut Text {
-        self.title.text(text);
+        self.title.label(text);
 
         &mut self.title
     }
@@ -167,6 +242,19 @@ impl Frame {
     pub fn ylabel(&mut self, text: &str) -> &mut Text {
         self.left.label(text)
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FrameArtist {
+    Title,
+    X,
+    Y,
+    XMajor,
+    XMinor,
+    YMajor,
+    YMinor,
+    XLabel,
+    YLabel,
 }
 
 pub struct FrameSizes {
@@ -198,7 +286,7 @@ impl FrameSizes {
 pub struct TopFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
-    spine: Option<DisplayPatch>,
+    spine: Option<CanvasPatch>,
 }
 
 impl TopFrame {
@@ -206,7 +294,7 @@ impl TopFrame {
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(0., 20.)),
             pos: Bounds::none(),
-            spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
+            spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
         }
     }
 
@@ -254,9 +342,9 @@ pub struct BottomFrame {
 
     sizes: FrameSizes,
 
-    spine: Option<DisplayPatch>,
+    spine: Option<CanvasPatch>,
 
-    axis: Option<Axis>,
+    axis: Axis,
     ticks: Vec<Box<dyn Artist<Canvas>>>,
     is_grid_major: bool,
     style_major: PathStyle,
@@ -270,18 +358,18 @@ pub struct BottomFrame {
 impl BottomFrame {
     pub fn new() -> Self {
         let mut style_major = PathStyle::new();
-        style_major.linewidth(1.);
+        style_major.line_width(1.);
         style_major.color(0xbfbfbf);
         let mut style_minor = PathStyle::new();
-        style_minor.linewidth(1.);
+        style_minor.line_width(1.);
         style_minor.color(0x404040);
 
         let frame = Self {
             extent: Bounds::zero(),
             pos: Bounds::none(),
             sizes: FrameSizes::new(),
-            spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
-            axis: Some(Axis::new()),
+            spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
+            axis: Axis::new(),
             ticks: Vec::new(),
 
             is_grid_major: false,
@@ -318,7 +406,7 @@ impl BottomFrame {
     }
 
     pub fn calculate_axis(&mut self, data: &DataBox) {
-        if let Some(axis) = &mut self.axis {
+        if true {
             let pos = &self.pos;
             let data_pos = data.get_pos();
 
@@ -329,9 +417,9 @@ impl BottomFrame {
 
             let sizes = &self.sizes;
 
-            for (xv, x) in axis.x_ticks(data) {
+            for (xv, x) in self.axis.x_ticks(data) {
                 if 0. <= x && x <= data_pos.width() {
-                    if self.is_grid_major {
+                    if self.axis.get_show_grid().is_show_major() {
                         // grid
                         let grid = PathPatch::new(Path::new(vec![
                             PathCode::MoveTo(Point(x + x0, data_pos.ymin())),
@@ -352,7 +440,7 @@ impl BottomFrame {
                     self.ticks.push(Box::new(tick));
 
                     let mut label = Text::new();
-                    label.text(&Formatter::Plain.format(xv));
+                    label.label(&self.axis.major().format(&self.axis, xv));
                     label.set_pos(Bounds::from((x + x0, y - sizes.tick_text_height)));
                     self.ticks.push(Box::new(label));
                 }
@@ -361,7 +449,7 @@ impl BottomFrame {
     }
 
     fn label(&mut self, text: &str) -> &mut Text {
-        self.label.text(text)
+        self.label.label(text)
     }
 }
 
@@ -404,8 +492,12 @@ impl Artist<Canvas> for BottomFrame {
             tick.draw(renderer, to_canvas, clip, style);
         }
         
-        for grid in &mut self.grid_major {
-            grid.draw(renderer, to_canvas, clip, &self.style_major);
+        if self.axis.get_show_grid().is_show_major() {
+            let style = self.axis.major().grid_style().push(style);
+
+            for grid in &mut self.grid_major {
+                grid.draw(renderer, to_canvas, clip, &style);
+            }
         }
 
         for grid in &mut self.grid_minor {
@@ -424,10 +516,9 @@ pub struct LeftFrame {
 
     sizes: FrameSizes,
 
+    spine: Option<CanvasPatch>,
 
-    spine: Option<DisplayPatch>,
-
-    axis: Option<Axis>,
+    axis: Axis,
     ticks: Vec<Box<dyn Artist<Canvas>>>,
 
     is_grid_major: bool,
@@ -442,10 +533,10 @@ pub struct LeftFrame {
 impl LeftFrame {
     pub fn new() -> Self {
         let mut style_major = PathStyle::new();
-        style_major.linewidth(1.0);
+        style_major.line_width(1.0);
         style_major.color(0xbfbfbf);
         let mut style_minor = PathStyle::new();
-        style_minor.linewidth(1.);
+        style_minor.line_width(1.);
         style_minor.color(0x404040);
 
         let mut label = Text::new();
@@ -457,8 +548,8 @@ impl LeftFrame {
 
             sizes: FrameSizes::new(),
 
-            spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
-            axis: Some(Axis::new()),
+            spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
+            axis: Axis::new(),
             ticks: Vec::new(),
 
             is_grid_major: false,
@@ -489,7 +580,7 @@ impl LeftFrame {
     }
 
     pub fn calculate_axis(&mut self, data: &DataBox) {
-        if let Some(axis) = &mut self.axis {
+        if let axis = &mut self.axis {
             let pos = &self.pos;
             let data_pos = data.get_pos();
 
@@ -500,7 +591,7 @@ impl LeftFrame {
 
             for (_yv, y) in axis.y_ticks(data) {
                 if 0. <= y && y <= data_pos.height() {
-                    if self.is_grid_major {
+                    if self.axis.get_show_grid().is_show_major() {
                         // grid
                         let grid = PathPatch::new(Path::new(vec![
                             PathCode::MoveTo(Point(data_pos.xmin(), y + y0)),
@@ -523,9 +614,9 @@ impl LeftFrame {
                         - self.sizes.tick_label_gap;
 
                     let mut label = Text::new();
-                    label.font().width_align(HorizAlign::Right);
-                    label.font().height_align(VertAlign::Center);
-                    label.text(&Formatter::Plain.format(_yv));
+                    label.text_style_mut().width_align(HorizAlign::Right);
+                    label.text_style_mut().height_align(VertAlign::Center);
+                    label.label(&Formatter::Plain.format(_yv));
                     label.set_pos(Bounds::from((x, y + y0)));
                     self.ticks.push(Box::new(label));
                 }
@@ -534,7 +625,7 @@ impl LeftFrame {
     }
 
     fn label(&mut self, text: &str) -> &mut Text {
-        self.label.text(text)
+        self.label.label(text)
     }
 }
 
@@ -566,12 +657,16 @@ impl Artist<Canvas> for LeftFrame {
     ) {
         self.label.draw(renderer, to_canvas, clip, style);
         
-        for grid in &mut self.grid_major {
-            grid.draw(renderer, to_canvas, clip, &self.style_major);
+        if self.axis.get_show_grid().is_show_major() {
+            for grid in &mut self.grid_major {
+                grid.draw(renderer, to_canvas, clip, &self.style_major);
+            }
         }
 
-        for grid in &mut self.grid_minor {
-            grid.draw(renderer, to_canvas, clip, &self.style_minor);
+        if self.axis.get_show_grid().is_show_minor() {
+            for grid in &mut self.grid_minor {
+                grid.draw(renderer, to_canvas, clip, &self.style_minor);
+            }
         }
         
         for tick in &mut self.ticks {
@@ -591,7 +686,7 @@ impl Artist<Canvas> for LeftFrame {
 pub struct RightFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
-    spine: Option<DisplayPatch>,
+    spine: Option<CanvasPatch>,
 }
 
 impl RightFrame {
@@ -599,7 +694,7 @@ impl RightFrame {
         Self {
             bounds: Bounds::new(Point(0., 0.), Point(20., 0.)),
             pos: Bounds::none(),
-            spine: Some(DisplayPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
+            spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
         }
     }
 
@@ -633,5 +728,40 @@ impl Artist<Canvas> for RightFrame {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
         }
+    }
+}
+
+pub struct FrameTextOpt {
+    layout: LayoutArc,
+    id: FrameId,
+    artist: FrameArtist,
+}
+
+impl FrameTextOpt {
+    fn new(layout: LayoutArc, id: FrameId, artist: FrameArtist) -> Self {
+        Self {
+            layout,
+            id,
+            artist,
+        }
+    }
+
+    fn write(&mut self, fun: impl FnOnce(&mut Text)) {
+        fun(self.layout.borrow_mut().frame_mut(self.id).get_text_mut(self.artist))
+    }
+
+    pub fn label(&mut self, label: &str) -> &mut Self {
+        self.write(|text| { text.label(label); });
+        self
+    }
+
+    pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
+        self.write(|text| { text.path_style_mut().color(color); });
+        self
+    }
+
+    pub fn size(&mut self, size: f32) -> &mut Self {
+        self.write(|text| { text.text_style_mut().size(size); });
+        self
     }
 }

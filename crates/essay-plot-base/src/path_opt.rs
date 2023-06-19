@@ -16,7 +16,7 @@ pub trait PathOpt {
     /// Color for a path's line when the outline differs from the fill
     /// color
     /// 
-    fn get_line_color(&self) -> &Option<Color>;
+    fn get_edge_color(&self) -> &Option<Color>;
 
     ///
     /// Dash pattern for the line, defaults to a LineStyle::Solid.
@@ -112,10 +112,10 @@ impl PathOpt for Stack<'_> {
         }
     }
 
-    fn get_line_color(&self) -> &Option<Color> {
-        match self.next.get_line_color() {
-            Some(_) => self.next.get_line_color(),
-            None => self.prev.get_line_color(),
+    fn get_edge_color(&self) -> &Option<Color> {
+        match self.next.get_edge_color() {
+            Some(_) => self.next.get_edge_color(),
+            None => self.prev.get_edge_color(),
         }
     }
 

@@ -364,7 +364,7 @@ impl Renderer for FigureRenderer {
             None => Color(0x000000ff)
         };
 
-        let edgecolor = match style.get_line_color() {
+        let edgecolor = match style.get_edge_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -422,7 +422,7 @@ impl Renderer for FigureRenderer {
             None => Color(0x000000ff)
         };
 
-        let edgecolor = match style.get_line_color() {
+        let edgecolor = match style.get_edge_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -636,10 +636,10 @@ fn transform_dashed_path(path: &Path<Canvas>, pattern: Vec<f32>) -> Path<Canvas>
                 // codes.push(PathCode::LineTo(*p1));
                 add_dash_line(&mut codes, &mut cursor, p0, *p1)
             }
-            PathCode::Bezier2(p1, p2) => {
+            PathCode::Bezier2(_, p2) => {
                 add_dash_line(&mut codes, &mut cursor, p0, *p2)
             }
-            PathCode::Bezier3(p1, p2, p3) => {
+            PathCode::Bezier3(_, _, p3) => {
                 add_dash_line(&mut codes, &mut cursor, p0, *p3)
             }
             PathCode::ClosePoly(p1) => {
