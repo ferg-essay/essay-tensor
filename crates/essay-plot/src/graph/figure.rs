@@ -9,6 +9,8 @@ use essay_plot_base::{
 
 use crate::{graph::Graph, frame::{Layout, LayoutArc}};
 
+use super::config::read_config;
+
 pub struct Figure {
     // inner: Arc<Mutex<FigureInner>>,
     device: Box<dyn Backend>,
@@ -97,8 +99,9 @@ pub struct FigureInner {
 
 impl FigureInner {
     fn new() -> Self {
+        let config = read_config();
         Self {
-            layout: LayoutArc::new(),
+            layout: LayoutArc::new(config),
             gridspec: Bounds::none(),
             graphs: Default::default(),
         }

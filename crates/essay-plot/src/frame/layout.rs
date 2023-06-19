@@ -2,24 +2,35 @@ use std::{cell::{RefCell, Ref, RefMut}, rc::Rc};
 
 use essay_plot_base::{Bounds, Canvas, Point, Coord, driver::Renderer, CanvasEvent};
 
+use crate::graph::Config;
+
 use super::Frame;
 
 #[derive(Clone)]
 pub struct LayoutArc(Rc<RefCell<Layout>>);
 
 pub struct Layout {
+    config: Config,
+    
     extent: Bounds<Layout>,
 
     frames: Vec<LayoutBox>,
 }
 
 impl Layout {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
+            config,
+
             extent: Bounds::unit(),
 
             frames: Vec::new(),
         }
+    }
+
+    #[inline]
+    pub fn config(&self) -> &Config {
+        &self.config
     }
 
     pub fn add_frame(&mut self, bound: impl Into<Bounds<Layout>>) -> &mut Frame {
@@ -36,7 +47,7 @@ impl Layout {
 
         let id = FrameId(self.frames.len());
 
-        let frame = Frame::new(id);
+        let frame = Frame::new(id, self.config());
 
         self.frames.push(LayoutBox::new(frame, bound));
 
@@ -113,8 +124,8 @@ impl Layout {
 impl Coord for Layout {}
 
 impl LayoutArc {
-    pub(crate) fn new() -> LayoutArc {
-        LayoutArc(Rc::new(RefCell::new(Layout::new())))
+    pub(crate) fn new(config: Config) -> LayoutArc {
+        LayoutArc(Rc::new(RefCell::new(Layout::new(config))))
     }
 }
 

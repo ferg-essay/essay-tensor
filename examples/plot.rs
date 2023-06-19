@@ -30,9 +30,9 @@ fn main() {
     // axes.xlabel("My X-Label").style().color(0x0030ff);
     // axes.ylabel("Y-Label").style().color("r");
 
-    graph.title("My Title").color(0x008033).size(18.);
-    graph.xlabel("My X-Label").color("brown");
-    graph.ylabel("Y-Label").color("teal").size(8.);
+    graph.title("My Title"); // .color(0x008033).size(18.);
+    graph.xlabel("My X-Label"); // .color("brown");
+    graph.ylabel("Y-Label"); // .color("teal").size(8.);
 /*
     graph.scatter(&x, &y).color("blue").marker("X")
         .line_color(0xff8000)
@@ -45,8 +45,8 @@ fn main() {
     graph.plot(&x, &y).color(0xc08000).line_width(4.)
         .line_style("--");
     graph.x().show_grid(true);
-    graph.x().major_grid().color(0xc04040).line_width(1.5);
-    graph.x().major().color(0xc04040).line_width(1.5);
+    //graph.x().major_grid().color(0xc04040).line_width(1.5);
+    //graph.x().major().color(0x2000c0).line_width(1.5);
     graph.y().show_grid(true);
     //bar_y(graph, &y)
     //    .edgecolor(0x400080)

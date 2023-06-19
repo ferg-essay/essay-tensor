@@ -1,3 +1,4 @@
+mod config;
 mod plot;
 mod figure;
 pub mod graph;
@@ -8,6 +9,10 @@ pub use graph::{
 
 pub use figure::{
     Figure, FigureInner, GraphId,
+};
+
+pub use config::{
+    Config,
 };
 
 pub use plot::{

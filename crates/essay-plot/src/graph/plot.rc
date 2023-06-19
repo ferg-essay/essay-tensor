@@ -1,0 +1,4 @@
+grid.line_width: 0.5
+grid.color: grey
+ticks.line_width: 1.5
+

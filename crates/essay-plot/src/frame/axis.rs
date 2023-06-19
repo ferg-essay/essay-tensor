@@ -1,6 +1,6 @@
 use essay_plot_base::{Color, LineStyle};
 
-use crate::artist::PathStyle;
+use crate::{artist::PathStyle, graph::Config};
 
 use super::{
     data_box::DataBox,
@@ -18,12 +18,12 @@ pub struct Axis {
 }
 
 impl Axis {
-    pub fn new() -> Self {
+    pub fn new(cfg: &Config, prefix: &str) -> Self {
         Self {
             //locator: Box::new(LinearLocator::new(None)),
             show_grid: ShowGrid::None,
-            major: AxisTicks::new(),
-            minor: AxisTicks::new(),
+            major: AxisTicks::new(cfg, &cfg.join(prefix, "major")),
+            minor: AxisTicks::new(cfg, &cfg.join(prefix, "minor")),
             locator: Box::new(MaxNLocator::new(None)),
             formatter: Box::new(Formatter::Plain),
         }
@@ -113,10 +113,10 @@ pub struct AxisTicks {
 }
 
 impl AxisTicks {
-    fn new() -> Self {
+    fn new(cfg: &Config, prefix: &str) -> Self {
         Self {
-            grid_style: PathStyle::new(),
-            ticks_style: PathStyle::new(),
+            grid_style: PathStyle::from_config(cfg, &cfg.join(prefix, "grid")),
+            ticks_style: PathStyle::from_config(cfg, &cfg.join(prefix, "ticks")),
             locator: None,
             formatter: None,
         }
@@ -124,6 +124,10 @@ impl AxisTicks {
 
     pub(crate) fn grid_style(&self) -> &PathStyle {
         &self.grid_style
+    }
+
+    pub(crate) fn tick_style(&self) -> &PathStyle {
+        &self.ticks_style
     }
 
     pub(crate) fn grid_style_mut(&mut self) -> &mut PathStyle {

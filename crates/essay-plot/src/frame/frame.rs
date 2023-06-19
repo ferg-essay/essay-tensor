@@ -6,7 +6,7 @@ use essay_plot_base::{
 };
 use essay_plot_macro::derive_plot_opt;
 
-use crate::artist::{patch::{CanvasPatch, Line, PathPatch}, Text, Artist, PathStyle};
+use crate::{artist::{patch::{CanvasPatch, Line, PathPatch}, Text, Artist, PathStyle}, graph::Config};
 
 use super::{data_box::DataBox, axis::{Axis, AxisTicks}, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, LayoutArc};
 // self as essay_plot needed for #[derive_plot_opt]
@@ -60,7 +60,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub(crate) fn new(id: FrameId) -> Self {
+    pub(crate) fn new(id: FrameId, cfg: &Config) -> Self {
         Self {
             id,
 
@@ -70,8 +70,8 @@ impl Frame {
 
             title: Text::new(),
 
-            bottom: BottomFrame::new(),
-            left: LeftFrame::new(),
+            bottom: BottomFrame::new(cfg),
+            left: LeftFrame::new(cfg),
             top: TopFrame::new(),
             right: RightFrame::new(),
 
@@ -347,36 +347,29 @@ pub struct BottomFrame {
     axis: Axis,
     ticks: Vec<Box<dyn Artist<Canvas>>>,
     is_grid_major: bool,
-    style_major: PathStyle,
+    //style_major: PathStyle,
     grid_major: Vec<Box<dyn Artist<Canvas>>>,
-    style_minor: PathStyle,
+    //style_minor: PathStyle,
     grid_minor: Vec<Box<dyn Artist<Canvas>>>,
 
     label: Text,
 }
 
 impl BottomFrame {
-    pub fn new() -> Self {
-        let mut style_major = PathStyle::new();
-        style_major.line_width(1.);
-        style_major.color(0xbfbfbf);
-        let mut style_minor = PathStyle::new();
-        style_minor.line_width(1.);
-        style_minor.color(0x404040);
-
+    pub fn new(cfg: &Config) -> Self {
         let frame = Self {
             extent: Bounds::zero(),
             pos: Bounds::none(),
             sizes: FrameSizes::new(),
             spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
-            axis: Axis::new(),
+            axis: Axis::new(cfg, "xaxis"),
             ticks: Vec::new(),
 
             is_grid_major: false,
             grid_major: Vec::new(),
-            style_major,
+            //style_major,
             grid_minor: Vec::new(),
-            style_minor,
+            //style_minor,
 
             label: Text::new(),
         };
@@ -487,9 +480,11 @@ impl Artist<Canvas> for BottomFrame {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
         }
+
+        let tick_style = self.axis.major().tick_style().push(style);
         
         for tick in &mut self.ticks {
-            tick.draw(renderer, to_canvas, clip, style);
+            tick.draw(renderer, to_canvas, clip, &tick_style);
         }
         
         if self.axis.get_show_grid().is_show_major() {
@@ -500,8 +495,12 @@ impl Artist<Canvas> for BottomFrame {
             }
         }
 
-        for grid in &mut self.grid_minor {
-            grid.draw(renderer, to_canvas, clip, &self.style_minor);
+        if self.axis.get_show_grid().is_show_minor() {
+            let style = self.axis.major().grid_style().push(style);
+
+            for grid in &mut self.grid_minor {
+                grid.draw(renderer, to_canvas, clip, &style);
+            }
         }
     }
 }
@@ -531,7 +530,7 @@ pub struct LeftFrame {
 }
 
 impl LeftFrame {
-    pub fn new() -> Self {
+    pub fn new(cfg: &Config) -> Self {
         let mut style_major = PathStyle::new();
         style_major.line_width(1.0);
         style_major.color(0xbfbfbf);
@@ -549,7 +548,7 @@ impl LeftFrame {
             sizes: FrameSizes::new(),
 
             spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
-            axis: Axis::new(),
+            axis: Axis::new(cfg, "yaxis"),
             ticks: Vec::new(),
 
             is_grid_major: false,
@@ -658,8 +657,10 @@ impl Artist<Canvas> for LeftFrame {
         self.label.draw(renderer, to_canvas, clip, style);
         
         if self.axis.get_show_grid().is_show_major() {
+            let style = self.axis.major().grid_style().push(&self.style_major);
+
             for grid in &mut self.grid_major {
-                grid.draw(renderer, to_canvas, clip, &self.style_major);
+                grid.draw(renderer, to_canvas, clip, &style);
             }
         }
 
@@ -668,9 +669,11 @@ impl Artist<Canvas> for LeftFrame {
                 grid.draw(renderer, to_canvas, clip, &self.style_minor);
             }
         }
+
+        let tick_style = self.axis.major().tick_style().push(style);
         
         for tick in &mut self.ticks {
-            tick.draw(renderer, to_canvas, clip, style);
+            tick.draw(renderer, to_canvas, clip, &tick_style);
         }
 
         if let Some(patch) = &mut self.spine {

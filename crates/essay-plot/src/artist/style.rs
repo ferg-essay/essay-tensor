@@ -1,23 +1,39 @@
+use core::fmt;
+use std::str::FromStr;
+
 use essay_plot_base::{Color, JoinStyle, CapStyle, PathOpt, LineStyle, TextureId};
+
+use crate::graph::Config;
 
 
 #[derive(Clone)]
 pub struct PathStyle {
     color: Option<Color>,
-    facecolor: Option<Color>,
-    edgecolor: Option<Color>,
+    fill_color: Option<Color>,
+    edge_color: Option<Color>,
 
-    linewidth: Option<f32>,
+    line_width: Option<f32>,
     joinstyle: Option<JoinStyle>,
     capstyle: Option<CapStyle>,
 
     linestyle: Option<LineStyle>,
-    gapcolor: Option<Color>,
+    gap_color: Option<Color>,
 }
 
 impl PathStyle {
     pub fn new() -> PathStyle {
         PathStyle::default()
+    }
+
+    pub(crate) fn from_config(cfg: &Config, prefix: &str) -> PathStyle {
+        let mut style = PathStyle::default();
+
+        style.color = color_from_config(cfg, prefix, "color");
+        style.fill_color = color_from_config(cfg, prefix, "fill_color");
+        style.edge_color = color_from_config(cfg, prefix, "edge_color");
+        style.gap_color = color_from_config(cfg, prefix, "gap_color");
+        style.line_width = cfg.get_as_type(prefix, "line_width");
+        style
     }
 
     pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
@@ -28,13 +44,13 @@ impl PathStyle {
     }
 
     pub fn fill_color(&mut self, color: impl Into<Color>) -> &mut Self {
-        self.facecolor = Some(color.into());
+        self.fill_color = Some(color.into());
 
         self
     }
 
     pub fn edge_color(&mut self, color: impl Into<Color>) -> &mut Self {
-        self.edgecolor = Some(color.into());
+        self.edge_color = Some(color.into());
 
         self
     }
@@ -48,7 +64,7 @@ impl PathStyle {
     pub fn line_width(&mut self, linewidth: f32) -> &mut Self {
         assert!(linewidth > 0.);
 
-        self.linewidth = Some(linewidth);
+        self.line_width = Some(linewidth);
 
         self
     }
@@ -66,23 +82,39 @@ impl PathStyle {
     }
 }
 
+fn color_from_config(cfg: &Config, prefix: &str, name: &str) -> Option<Color> {
+    match cfg.get_with_prefix(prefix, name) {
+        Some(value) => Some(Color::from(value.as_str())),
+        None => None,
+    }
+}
+
+fn from_config<T: FromStr>(cfg: &Config, prefix: &str, name: &str) -> Option<T>
+where <T as FromStr>::Err : fmt::Debug
+{
+    match cfg.get_with_prefix(prefix, name) {
+        Some(value) => Some(value.parse::<T>().unwrap()),
+        None => None,
+    }
+}
+
 impl PathOpt for PathStyle {
     fn get_fill_color(&self) -> &Option<Color> {
-        match &self.facecolor {
-            Some(_color) => &self.facecolor,
+        match &self.fill_color {
+            Some(_color) => &self.fill_color,
             None => &self.color,
         }
     }
 
     fn get_edge_color(&self) -> &Option<Color> {
-        match &self.edgecolor {
-            Some(_color) => &self.edgecolor,
+        match &self.edge_color {
+            Some(_color) => &self.edge_color,
             None => &self.color,
         }
     }
 
     fn get_line_width(&self) -> &Option<f32> {
-        &self.linewidth
+        &self.line_width
     }
 
     fn get_join_style(&self) -> &Option<JoinStyle> {
@@ -110,13 +142,13 @@ impl Default for PathStyle {
     fn default() -> Self {
         Self { 
             color: Default::default(), 
-            facecolor: Default::default(), 
-            edgecolor: Default::default(), 
-            linewidth: Default::default(), 
+            fill_color: Default::default(), 
+            edge_color: Default::default(), 
+            line_width: Default::default(), 
             joinstyle: Default::default(),
             capstyle: Default::default(),
             linestyle: Default::default(),
-            gapcolor: Default::default(),
+            gap_color: Default::default(),
         }
     }
 }
