@@ -165,8 +165,8 @@ impl MaxNLocator {
             let step = steps[i];
             let best_vmin = (vmin / step).trunc() * step;
 
-            let low = (vmin - best_vmin) / step;
-            let high = (vmax - best_vmin) / step;
+            let low = best_min(vmin - best_vmin, step, offset);
+            let high = best_max(vmax - best_vmin, step, offset);
             ticks = Tensor::arange(low, high + 1., 1.) * step + best_vmin;
 
             let n_ticks = ticks.iter()
@@ -180,6 +180,16 @@ impl MaxNLocator {
 
         return ticks + offset;
     }
+}
+
+fn best_min(vmin_offset: f32, step: f32, _offset: f32) -> f32 {
+    let low = (vmin_offset / step).round();
+    low
+}
+
+fn best_max(vmin_offset: f32, step: f32, _offset: f32) -> f32 {
+    let high = (vmin_offset / step).round();
+    high
 }
 
 impl TickLocator for MaxNLocator {
@@ -200,7 +210,17 @@ impl TickLocator for MaxNLocator {
             (max, min)
         };
 
-        nonsingular(min, max, 1e-12, 1e-13)
+        let (min, max) = nonsingular(min, max, 1e-12, 1e-13);
+
+        let is_round_numbers = true;
+
+        if is_round_numbers {
+            let ticks = self.raw_ticks(min, max);
+
+            (ticks[0], ticks[ticks.len() - 1])
+        } else {
+            (min, max)
+        }
     }
 }
 
@@ -361,6 +381,22 @@ mod test {
         assert_eq!(
             locator.tick_values(10., 20.0), 
             tf32!([10.0, 12., 14., 16., 18., 20.])
+        );
+    }
+
+    #[test]
+    fn max_n_locator_tick_zero() {
+        let mut locator = MaxNLocator::new(Some(9));;
+        locator.steps(&vec![1., 2., 2.5, 5., 10.]);
+
+        assert_eq!(
+            locator.tick_values(-2., 6.), 
+            tf32!([-2., -1., 0., 1., 2., 3., 4., 5., 6.])
+        );
+
+        assert_eq!(
+            locator.tick_values(-2.4, 6.28), 
+            tf32!([-2., -1., 0., 1., 2., 3., 4., 5., 6.])
         );
     }
 }
