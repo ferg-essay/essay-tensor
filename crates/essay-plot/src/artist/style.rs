@@ -13,10 +13,10 @@ pub struct PathStyle {
     edge_color: Option<Color>,
 
     line_width: Option<f32>,
-    joinstyle: Option<JoinStyle>,
-    capstyle: Option<CapStyle>,
+    join_style: Option<JoinStyle>,
+    cap_style: Option<CapStyle>,
 
-    linestyle: Option<LineStyle>,
+    line_style: Option<LineStyle>,
     gap_color: Option<Color>,
 }
 
@@ -28,11 +28,14 @@ impl PathStyle {
     pub(crate) fn from_config(cfg: &Config, prefix: &str) -> PathStyle {
         let mut style = PathStyle::default();
 
-        style.color = color_from_config(cfg, prefix, "color");
-        style.fill_color = color_from_config(cfg, prefix, "fill_color");
-        style.edge_color = color_from_config(cfg, prefix, "edge_color");
-        style.gap_color = color_from_config(cfg, prefix, "gap_color");
+        style.color = cfg.get_as_type(prefix, "color");
+        style.fill_color = cfg.get_as_type(prefix, "fill_color");
+        style.edge_color = cfg.get_as_type(prefix, "edge_color");
+        style.gap_color = cfg.get_as_type(prefix, "gap_color");
         style.line_width = cfg.get_as_type(prefix, "line_width");
+        style.line_style = cfg.get_as_type(prefix, "line_style");
+        style.join_style = cfg.get_as_type(prefix, "join_style");
+        style.cap_style = cfg.get_as_type(prefix, "cap_style");
         style
     }
 
@@ -56,7 +59,7 @@ impl PathStyle {
     }
 
     pub fn line_style(&mut self, line_style: impl Into<LineStyle>) -> &mut Self {
-        self.linestyle = Some(line_style.into());
+        self.line_style = Some(line_style.into());
 
         self
     }
@@ -70,13 +73,13 @@ impl PathStyle {
     }
 
     pub fn join_style(&mut self, joinstyle: impl Into<JoinStyle>) -> &mut Self {
-        self.joinstyle = Some(joinstyle.into());
+        self.join_style = Some(joinstyle.into());
 
         self
     }
 
     pub fn cap_style(&mut self, capstyle: impl Into<CapStyle>) -> &mut Self {
-        self.capstyle = Some(capstyle.into());
+        self.cap_style = Some(capstyle.into());
 
         self
     }
@@ -118,15 +121,15 @@ impl PathOpt for PathStyle {
     }
 
     fn get_join_style(&self) -> &Option<JoinStyle> {
-        &self.joinstyle
+        &self.join_style
     }
 
     fn get_cap_style(&self) -> &Option<CapStyle> {
-        &self.capstyle
+        &self.cap_style
     }
 
     fn get_line_style(&self) -> &Option<LineStyle> {
-        &self.linestyle
+        &self.line_style
     }
 
     fn get_alpha(&self) -> &Option<f32> {
@@ -145,9 +148,9 @@ impl Default for PathStyle {
             fill_color: Default::default(), 
             edge_color: Default::default(), 
             line_width: Default::default(), 
-            joinstyle: Default::default(),
-            capstyle: Default::default(),
-            linestyle: Default::default(),
+            join_style: Default::default(),
+            cap_style: Default::default(),
+            line_style: Default::default(),
             gap_color: Default::default(),
         }
     }

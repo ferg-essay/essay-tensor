@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use super::Color;
 
 ///
@@ -195,6 +197,30 @@ impl From<&str> for LineStyle {
     }
 }
 
+impl FromStr for LineStyle {
+    type Err = StyleErr;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        match name {
+            "" => Ok(Self::Solid),
+            "-" => Ok(Self::Solid),
+            "solid" => Ok(Self::Solid),
+            ":" => Ok(Self::Dot),
+            "dot" => Ok(Self::Dot),
+            "--" => Ok(Self::Dashed),
+            "dashed" => Ok(Self::Dashed),
+            "-." => Ok(Self::DashDot),
+            "dashdot" => Ok(Self::DashDot),
+            "none" => Ok(Self::None),
+            _ => Err(StyleErr(format!("'{}' is an unknown line_style", name)))
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct StyleErr(String);
+
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum JoinStyle {
     Bevel,
@@ -202,9 +228,35 @@ pub enum JoinStyle {
     Round,
 }
 
+impl FromStr for JoinStyle {
+    type Err = StyleErr;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        match name {
+            "bevel" => Ok(Self::Bevel),
+            "miter" => Ok(Self::Miter),
+            "round" => Ok(Self::Round),
+            _ => Err(StyleErr(format!("'{}' is an unknown join_style", name)))
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum CapStyle {
     Butt,
     Round,
     Projecting,
+}
+
+impl FromStr for CapStyle {
+    type Err = StyleErr;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        match name {
+            "bevel" => Ok(Self::Butt),
+            "miter" => Ok(Self::Round),
+            "round" => Ok(Self::Projecting),
+            _ => Err(StyleErr(format!("'{}' is an unknown cap_style", name)))
+        }
+    }
 }

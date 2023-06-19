@@ -1,4 +1,5 @@
 use core::fmt;
+use std::str::FromStr;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Color(pub u32);
@@ -124,6 +125,9 @@ impl From<(f32, f32, f32, f32)> for Color {
 
 impl From<&str> for Color {
     fn from(name: &str) -> Self {
+        name.parse::<Color>().unwrap()
+
+        /*
         if let Some(color) = super::color_data::lookup_color(name) {
             return color;
         }
@@ -132,5 +136,22 @@ impl From<&str> for Color {
         // TODO: parse '#', 'rgb(...)'
 
         //return Color::black();
+        */
     }
 }
+
+impl FromStr for Color {
+    type Err = ColorErr;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        if let Some(color) = super::color_data::lookup_color(name) {
+            return Ok(color);
+        }
+
+        panic!("'{}' is an unknown color name", name);
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ColorErr(String);
+
