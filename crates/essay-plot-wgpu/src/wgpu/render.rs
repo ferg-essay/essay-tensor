@@ -359,12 +359,12 @@ impl Renderer for FigureRenderer {
     ) -> Result<(), RenderErr> {
         // let to_unit = self.to_gpu.matmul(to_device);
 
-        let facecolor = match style.get_face_color() {
+        let face_color = match style.get_face_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
 
-        let edgecolor = match style.get_edge_color() {
+        let edge_color = match style.get_edge_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
@@ -385,23 +385,23 @@ impl Renderer for FigureRenderer {
             },
         };
 
-        if path.is_closed_path() && ! facecolor.is_none() {
+        if path.is_closed_path() && ! face_color.is_none() {
             self.fill_path(&path, clip);
 
-            self.shape2d_render.draw_style(facecolor, &self.to_gpu);
-            self.bezier_render.draw_style(facecolor, &self.to_gpu);
+            self.shape2d_render.draw_style(face_color, &self.to_gpu);
+            self.bezier_render.draw_style(face_color, &self.to_gpu);
 
-            if facecolor != edgecolor {
+            if face_color != edge_color {
                 self.draw_lines(&path, style, clip);
 
-                self.shape2d_render.draw_style(edgecolor, &self.to_gpu);
-                self.bezier_render.draw_style(edgecolor, &self.to_gpu);
+                self.shape2d_render.draw_style(edge_color, &self.to_gpu);
+                self.bezier_render.draw_style(edge_color, &self.to_gpu);
             }
         } else {
             self.draw_lines(&path, style, clip);
 
-            self.shape2d_render.draw_style(edgecolor, &self.to_gpu);
-            self.bezier_render.draw_style(edgecolor, &self.to_gpu);
+            self.shape2d_render.draw_style(edge_color, &self.to_gpu);
+            self.bezier_render.draw_style(edge_color, &self.to_gpu);
         }
 
 
@@ -474,7 +474,7 @@ impl Renderer for FigureRenderer {
 
         let size = match &text_style.get_size() {
             Some(size) => *size,
-            None => 12.,
+            None => 10.,
         };
 
         let size = self.to_px(size);
@@ -773,7 +773,8 @@ impl FigureRenderer {
         self.clear();
 
         self.set_canvas_bounds(width, height);
-        self.set_scale_factor(scale_factor);
+        let pt_to_px_factor = 4. / 3.;
+        self.set_scale_factor(scale_factor * pt_to_px_factor);
         let draw_bounds = self.canvas.bounds().clone();
 
         figure.draw(self, &draw_bounds);

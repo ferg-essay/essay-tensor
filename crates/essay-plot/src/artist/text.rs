@@ -51,7 +51,11 @@ impl Text {
     }
 
     pub fn height(&self) -> f32 {
-        2. * 14.
+        self.extent.height()
+    }
+
+    pub fn text_style(&self) -> &TextStyle {
+        &self.text_style
     }
 
     pub fn text_style_mut(&mut self) -> &mut TextStyle {
@@ -87,11 +91,11 @@ impl Artist<Canvas> for Text {
                     None => TextStyle::SIZE_DEFAULT,
                 };
 
-                let width = text.len() as f32 * size as f32 * 0.5;
+                let width = text.len() as f32 * size as f32; //  * 0.5;
 
                 Bounds::extent(
-                    width * canvas.scale_factor(), 
-                    size * (1. + Self::DESC) * canvas.scale_factor()
+                    canvas.to_px(width),
+                    canvas.to_px(size)
                 )
             }
         }
@@ -108,10 +112,10 @@ impl Artist<Canvas> for Text {
             let style = self.path_style.push(style);
 
             if ! self.pos.is_none() {
-                let desc = Self::DESC * self.extent.height();
+                //let desc = Self::DESC * self.extent.height();
 
                 renderer.draw_text(
-                    Point(self.pos.xmid(), self.pos.ymin() + desc),
+                    Point(self.pos.xmid(), self.pos.ymin()),
                     text,
                     self.get_angle(),
                     &style,

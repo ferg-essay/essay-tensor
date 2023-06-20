@@ -49,7 +49,7 @@ impl TextStyle {
         &self.vert_align
     }
 
-    pub fn height_align(&mut self, align: VertAlign) {
+    pub fn valign(&mut self, align: VertAlign) {
         self.vert_align = Some(align);
     }
 

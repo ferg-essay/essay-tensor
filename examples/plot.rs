@@ -37,7 +37,7 @@ fn main() {
     graph.scatter(&x, &y).color("blue").marker("X")
         .line_color(0xff8000)
         .size(2500.)
-        .fill_color("none")
+        // .fill_color("none")
         .line_width(5.);
     */
     let x = linspace(0., 6.28, 100);

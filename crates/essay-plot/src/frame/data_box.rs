@@ -135,6 +135,10 @@ impl DataBox {
         &self.view_bounds
     }
 
+    pub(crate) fn get_canvas_transform(&self) -> &Affine2d {
+        &self.to_canvas
+    }
+
     // true if request redraw
     pub fn event(&mut self, _renderer: &mut dyn Renderer, event: &CanvasEvent) -> bool {
         match event {

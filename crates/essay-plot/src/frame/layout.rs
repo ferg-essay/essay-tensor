@@ -11,6 +11,8 @@ pub struct LayoutArc(Rc<RefCell<Layout>>);
 
 pub struct Layout {
     config: Config,
+
+    sizes: LayoutSizes,
     
     extent: Bounds<Layout>,
 
@@ -19,8 +21,12 @@ pub struct Layout {
 
 impl Layout {
     pub fn new(config: Config) -> Self {
+        let sizes = LayoutSizes::new(&config);
+
         Self {
             config,
+
+            sizes,            
 
             extent: Bounds::unit(),
 
@@ -77,17 +83,24 @@ impl Layout {
         assert!(1. <= bounds.width() && bounds.width() <= 11.);
         assert!(1. <= bounds.height() && bounds.height() <= 11.);
         
+        let x_min = canvas.width() * self.sizes.left;
+        let x_max = canvas.width() * self.sizes.right;
+        
+        let y_min = canvas.height() * self.sizes.bottom;
+        let y_max = canvas.height() * self.sizes.top;
+
         // TODO: nonlinear grid sizes
-        let h = canvas.height();
-        let dw = canvas.width() / bounds.width();
-        let dh = canvas.height() / bounds.height();
+        let h = y_max - y_min; // canvas.height();
+        let w = x_max - x_min; // canvas.height();
+        let dw = w / bounds.width();
+        let dh = h / bounds.height();
 
         for item in &mut self.frames {
             let pos_layout = &item.pos_layout;
 
             item.pos_canvas = Bounds::new(
-                Point(dw * pos_layout.xmin(), h - dh * pos_layout.ymax()),
-                Point(dw * pos_layout.xmax(), h - dh * pos_layout.ymin()),
+                Point(x_min + dw * pos_layout.xmin(), y_max - dh * pos_layout.ymax()),
+                Point(x_min + dw * pos_layout.xmax(), y_max - dh * pos_layout.ymin()),
             );
         }
     }
@@ -176,6 +189,44 @@ impl LayoutArc {
 
     pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
         self.0.borrow_mut().event(renderer, event);
+    }
+}
+
+struct LayoutSizes {
+    top: f32,
+    bottom: f32,
+    left: f32,
+    right: f32,
+}
+
+impl LayoutSizes {
+    fn new(cfg: &Config) -> Self {
+        let bottom = match cfg.get_as_type("figure.subplot", "bottom") {
+            Some(value) => value,
+            None => 0.
+        };
+
+        let top = match cfg.get_as_type("figure.subplot", "top") {
+            Some(value) => value,
+            None => 1.
+        };
+
+        let left = match cfg.get_as_type("figure.subplot", "left") {
+            Some(value) => value,
+            None => 0.
+        };
+
+        let right = match cfg.get_as_type("figure.subplot", "right") {
+            Some(value) => value,
+            None => 1.
+        };
+
+        Self {
+            bottom,
+            top, 
+            left,
+            right, 
+        }
     }
 }
 

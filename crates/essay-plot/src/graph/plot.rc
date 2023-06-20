@@ -1,5 +1,122 @@
+lines.linewidth: 1.5
+lines.marker_size: 6
+# lines.dash_joinstyle: round
+# lines.dash_capstyle: butt
+# lines.solid_capstyle: round
+# lines.solid_capstyle: projecting
+# lines.dashed_pattern: 3.7, 1.6
+# lines.dashdot_pattern: 6.4, 1.6, 1., 1.6
+# lines.dotted_pattern: 1, 1.65
+
+patch.line_width: 1.0
+
+font.family: sans-serif
+font.style: normal
+font.variant: normal
+font.weight: normal
+font.stretch: normal
+font.size: 10.0
+
+font.serif:      DejaVu Serif
+font.sans-serif: DejaVu Sans
+font.cursive:    Apple Chancery
+font.fantasy:    Humor Sans, xkcd
+font.monospace:  DejaVu Sand Mono
+
+figure.title_size:   large
+figure.title_weight: normal
+figure.label_size:   large
+figure.label_weight: normal
+figure.face_color:   white
+figure.edge_color:   white
+figure.frameon:      true
+
+figure.subplot.left:  0.125
+figure.subplot.right: 0.9
+figure.subplot.bottom: 0.11
+figure.subplot.top:   0.88
+figure.subplot.wspace: 0.2
+figure.subplot.hspace: 0.2
+
+
+frame.face_color: white
+frame.edge_color: black
+frame.line_width: 0.8
+frame.grid: false
+frame.title_location: center
+frame.title_size: large
+#frame.title_color: auto
+
+frame.title_pad: 6.0
+frame.label_size: medium
+frame.label_pad: 4.0
+
+frame.formatter.limits: -5, 6
+
+frame.spines.left: true
+frame.spines.right: true
+frame.spines.bottom: true
+frame.spines.top: true
+
+#frame.prop_cycle: cycler('color', [...])
+
+frame.x_margin: 0.05
+frame.y_margin: 0.05
+frame.autolimit_mode: data
+
+x_axis.label_location: center
+y_axis.label_location: center
+
+xtick.top:           false
+xtick.bottom:        true
+xtick.label_top:     false
+xtick.label_bottom:  true
+#x_axis.major.size:    3.5
+x_axis.major.size:    3.5
+xtick.minor.size:    2.
+x_axis.major.width:   0.8
+x_axis.minor.width:   0.6
+x_axis.major.pad:     3.5
+x_axis.minor.pad:     3.4
+xtick.color:         black
+xtick.label_color:   inherit
+xtick.label_size:    medium
+xtick.direction:     out
+xtick.minor.visible: false
+xtick.major.top:     true
+xtick.major.bottom:  true
+xtick.minor.top:     true
+xtick.minor.bottom:  true
+xtick.alignment:     center
+
+ytick.top:           false
+ytick.bottom:        true
+ytick.label_top:     false
+ytick.label_bottom:  true
+ytick.major.size:    3.5
+ytick.minor.size:    2.
+ytick.major.width:   0.8
+ytick.minor.width:   0.6
+ytick.major.pad:     3.5
+ytick.minor.pad:     3.4
+ytick.color:         black
+ytick.label_color:   inherit
+ytick.label_size:    medium
+ytick.direction:     out
+ytick.minor.visible: false
+ytick.major.top:     true
+ytick.major.bottom:  true
+ytick.minor.top:     true
+ytick.minor.bottom:  true
+ytick.alignment:     center_baseline
+
+grid.color:      "#b0b0b0"
+grid.line_style: -
 grid.line_width: 0.8
-grid.color: "#b0b0b0"
-# grid.alpha
+grid.alpha:      1.0
+
 ticks.line_width: 1.5
 
+path.simplify: true
+path.simplify_threshold: 0.11111111111
+path.snap: true

@@ -1,6 +1,6 @@
-use essay_plot_base::{Color, LineStyle};
+use essay_plot_base::{Color, LineStyle, TextStyle, Canvas};
 
-use crate::{artist::PathStyle, graph::Config};
+use crate::{artist::{PathStyle, Text, Artist}, graph::Config};
 
 use super::{
     data_box::DataBox,
@@ -103,23 +103,49 @@ impl Axis {
     fn format(&self, value: f32) -> String {
         self.formatter.format(value)
     }
+
+    pub(crate) fn update(&mut self, canvas: &Canvas) {
+        self.major.label_text.update(canvas);
+        self.minor.label_text.update(canvas);
+    }
 }
 
 pub struct AxisTicks {
     grid_style: PathStyle,
     ticks_style: PathStyle,
+    label_text: Text,
+    size: f32,
+    pad: f32,
     locator: Option<Box<dyn TickLocator>>,
     formatter: Option<Box<dyn TickFormatter>>,
 }
 
 impl AxisTicks {
     fn new(cfg: &Config, prefix: &str) -> Self {
-        Self {
+        let mut ticks = Self {
             grid_style: PathStyle::from_config(cfg, &cfg.join(prefix, "grid")),
             ticks_style: PathStyle::from_config(cfg, &cfg.join(prefix, "ticks")),
+            size: match cfg.get_as_type(prefix, "size") {
+                Some(size) => size,
+                None => 0.,
+            },
+            pad: match cfg.get_as_type(prefix, "pad") {
+                Some(size) => size,
+                None => 0.,
+            },
+            label_text: Text::new(),
             locator: None,
             formatter: None,
-        }
+        };
+
+        match cfg.get_as_type::<f32>(prefix, "width") {
+            Some(width) => { ticks.ticks_style.line_width(width); }
+            None => {}
+        };
+
+        ticks.label_text.label("0.0");
+        
+        ticks
     }
 
     pub(crate) fn grid_style(&self) -> &PathStyle {
@@ -128,6 +154,14 @@ impl AxisTicks {
 
     pub(crate) fn tick_style(&self) -> &PathStyle {
         &self.ticks_style
+    }
+
+    pub(crate) fn label_style(&self) -> &TextStyle {
+        self.label_text.text_style()
+    }
+
+    pub(crate) fn label_style_mut(&mut self) -> &mut TextStyle {
+        self.label_text.text_style_mut()
     }
 
     pub(crate) fn grid_style_mut(&mut self) -> &mut PathStyle {
@@ -143,6 +177,26 @@ impl AxisTicks {
                 axis.format(value) 
             }
         }
+    }
+
+    pub(crate) fn get_size(&self) -> f32 {
+        self.size
+    }
+
+    pub(crate) fn get_pad(&self) -> f32 {
+        self.pad
+    }
+
+    pub(crate) fn get_label_height(&self) -> f32 {
+        self.label_text.height()
+    }
+
+    pub(crate) fn update(&mut self, canvas: &Canvas) {
+        self.label_text.update(canvas);
+    }
+
+    pub(crate) fn get_text_height_px(&self) -> f32 {
+        self.label_text.height()
     }
 }
 

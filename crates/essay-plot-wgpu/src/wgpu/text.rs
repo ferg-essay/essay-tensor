@@ -121,12 +121,12 @@ impl TextRender {
 
         let w_inside = size * 0.10;
         let w_space = size * 0.3;
-
+        
         let mut x = x0;
         let y = y0.round();
         for ch in text.chars() {
             let r = self.text_cache.glyph(&font, ch);
-
+            
             x = x.round();
 
             if r.is_none() {
@@ -135,7 +135,7 @@ impl TextRender {
             }
 
             let y_ch = y - r.py_max() as f32;
-            //let x_ch = x + r.px_min() as f32;
+
             let x_ch = x;
 
             let w = r.px_w() as f32;
@@ -158,9 +158,9 @@ impl TextRender {
         };
 
         let dy = match valign {
-            VertAlign::Top => - size,
-            VertAlign::Center => - 0.5 * size,
-            VertAlign::Bottom => 0.,
+            VertAlign::Top => - size - font.descent(),
+            VertAlign::Center => - 0.5 * (size - font.descent()), 
+            VertAlign::Bottom => - font.descent(),
         };
 
         let end = self.vertex_offset;
@@ -244,6 +244,10 @@ impl TextRender {
     }
 
     fn vertex(&mut self, x: f32, y: f32, u: f32, v: f32) {
+        // TODO: if_snap
+        let x = x.round();
+        let y = y.round();
+
         let vertex = TextVertex::new(x, y, u, v);
 
         self.vertex_vec[self.vertex_offset] = vertex;

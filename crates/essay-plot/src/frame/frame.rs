@@ -8,7 +8,7 @@ use essay_plot_macro::derive_plot_opt;
 
 use crate::{artist::{patch::{CanvasPatch, Line, PathPatch}, Text, Artist, PathStyle}, graph::Config};
 
-use super::{data_box::DataBox, axis::{Axis, AxisTicks}, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, LayoutArc};
+use super::{data_box::DataBox, axis::{Axis, AxisTicks}, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, LayoutArc, Data};
 // self as essay_plot needed for #[derive_plot_opt]
 extern crate self as essay_plot;
 
@@ -102,13 +102,21 @@ impl Frame {
 
         self.data.update(canvas);
 
+        self.bottom.update_axis(&self.data);
+        self.left.update_axis(&self.data);
+
         self.bottom.update(canvas);
         self.left.update(canvas);
         self.top.update(canvas);
         self.right.update(canvas);
+
     }
-        ///
+
+    ///
     /// Sets the device bounds and propagates to children
+    /// 
+    /// The position for a frame is the size of the data box. The frame,
+    /// axes and titles are relative to the data box.
     /// 
     pub(crate) fn set_pos(&mut self, pos: &Bounds<Canvas>) -> &mut Self {
         self.pos = pos.clone();
@@ -120,43 +128,47 @@ impl Frame {
         let top = self.top.get_extent();
         let right = self.right.get_extent();
 
-        let ymax = pos.ymax() - title.height();
+        // title exists outside the pos bounds
+        self.title.set_pos([
+            pos.xmin(), pos.ymax(), 
+            pos.xmax(), pos.ymax() + title.height()
+        ]); 
 
-        self.title.set_pos([pos.xmin(), ymax, pos.xmax(), pos.ymax()]); 
+        //let pos_data = Bounds::<Canvas>::new(
+        //    Point(pos.xmin() + left.width(), pos.ymin() + bottom.height()), 
+        //    Point(pos.xmax() - right.width(), ymax - top.height())
+        //);
 
         let pos_data = Bounds::<Canvas>::new(
-            Point(pos.xmin() + left.width(), pos.ymin() + bottom.height()), 
-            Point(pos.xmax() - right.width(), ymax - top.height())
+            Point(pos.xmin(), pos.ymin()), 
+            Point(pos.xmax(), pos.ymax()),
         );
 
         self.data.set_pos(&pos_data);
 
         let pos_bottom = Bounds::<Canvas>::new(
-            Point(pos_data.xmin(), pos.ymin()),
+            Point(pos_data.xmin(), pos_data.ymin()),
             Point(pos_data.xmax(), pos_data.ymin()),
         );
         self.bottom.set_pos(pos_bottom);
 
         let pos_left = Bounds::<Canvas>::new(
-            Point(pos.xmin(), pos_data.ymin()),
+            Point(pos_data.xmin(), pos_data.ymin()),
             Point(pos_data.xmin(), pos_data.ymax()),
         );
         self.left.set_pos(pos_left);
 
         let pos_top = Bounds::<Canvas>::new(
             Point(pos_data.xmin(), pos_data.ymax()),
-            Point(pos_data.xmax(), ymax),
+            Point(pos_data.xmax(), pos_data.ymax()),
         );
         self.top.set_pos(pos_top);
 
         let pos_right = Bounds::<Canvas>::new(
             Point(pos_data.xmax(), pos_data.ymin()),
-            Point(pos.xmax(), pos_data.ymax()),
+            Point(pos_data.xmax(), pos_data.ymax()),
         );
         self.right.set_pos(pos_right);
-
-        self.bottom.calculate_axis(&self.data);
-        self.left.calculate_axis(&self.data);
 
         self
     }
@@ -178,8 +190,8 @@ impl Frame {
     pub(crate) fn get_text_mut(&mut self, artist: FrameArtist) -> &mut Text {
         match artist {
             FrameArtist::Title => &mut self.title,
-            FrameArtist::XLabel => &mut self.bottom.label,
-            FrameArtist::YLabel => &mut self.left.label,
+            FrameArtist::XLabel => &mut self.bottom.title,
+            FrameArtist::YLabel => &mut self.left.title,
 
             _ => panic!("Invalid text {:?}", artist)
         }
@@ -208,8 +220,8 @@ impl Frame {
     pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
         if self.data.get_pos().contains(event.point()) {
             if self.data.event(renderer, event) {
-                self.left.calculate_axis(&self.data);
-                self.bottom.calculate_axis(&self.data);
+                self.left.update_axis(&self.data);
+                self.bottom.update_axis(&self.data);
 
                 renderer.request_redraw(&self.pos);
             };
@@ -219,7 +231,7 @@ impl Frame {
     pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
         self.title.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
 
-        self.bottom.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
+        self.bottom.draw(renderer, &self.to_canvas, &self.pos, &self.path_style, &self.data);
         self.left.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
 
         self.top.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
@@ -236,7 +248,7 @@ impl Frame {
     }
 
     pub fn xlabel(&mut self, text: &str) -> &mut Text {
-        self.bottom.label(text)
+        self.bottom.title(text)
     }
 
     pub fn ylabel(&mut self, text: &str) -> &mut Text {
@@ -258,23 +270,34 @@ pub enum FrameArtist {
 }
 
 pub struct FrameSizes {
-    spine_thickness: f32,
-    tick_length: f32,
-    tick_label_gap: f32,
-    tick_text_height: f32,
-    _label_title_gap: f32,
-    margin: f32,
+    line_width: f32,
+
+    title_pad: f32,
+    label_pad: f32,
 }
 
 impl FrameSizes {
-    fn new() -> Self {
+    fn new(cfg: &Config) -> Self {
+
+        // frame.title_pad: 6.0
+        // frame.label_size: medium
+        // frame.label_pad: 4.0
+        // frame.title_size: large
+        // xaxis.major.size: 3.5
+        // xaxis.major.pad: 3.5
+
         Self {
-            margin: 20.,
-            spine_thickness: 4.,
-            tick_length: 10.,
-            tick_label_gap: 4.,
-            tick_text_height: 28.,
-            _label_title_gap: 10.,
+            line_width: 1.,
+
+            title_pad: match cfg.get_as_type("frame", "title_pad") {
+                Some(pad) => pad,
+                None => 0.,
+            },
+
+            label_pad: match cfg.get_as_type("frame", "label_pad") {
+                Some(pad) => pad,
+                None => 0.,
+            },
         }
     }
 }
@@ -345,34 +368,38 @@ pub struct BottomFrame {
     spine: Option<CanvasPatch>,
 
     axis: Axis,
-    ticks: Vec<Box<dyn Artist<Canvas>>>,
+    major_ticks: Vec<f32>,
+    major_labels: Vec<String>,
+
     is_grid_major: bool,
-    //style_major: PathStyle,
     grid_major: Vec<Box<dyn Artist<Canvas>>>,
-    //style_minor: PathStyle,
     grid_minor: Vec<Box<dyn Artist<Canvas>>>,
 
-    label: Text,
+    title: Text,
 }
 
 impl BottomFrame {
     pub fn new(cfg: &Config) -> Self {
-        let frame = Self {
+        let mut frame = Self {
             extent: Bounds::zero(),
             pos: Bounds::none(),
-            sizes: FrameSizes::new(),
+            sizes: FrameSizes::new(cfg),
             spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(1., 0.)))),
-            axis: Axis::new(cfg, "xaxis"),
-            ticks: Vec::new(),
+            axis: Axis::new(cfg, "x_axis"),
+
+            major_ticks: Vec::new(),
+            major_labels: Vec::new(),
 
             is_grid_major: false,
             grid_major: Vec::new(),
-            //style_major,
             grid_minor: Vec::new(),
-            //style_minor,
 
-            label: Text::new(),
+            title: Text::new(),
         };
+
+        frame.axis.major_mut().label_style_mut().valign(VertAlign::Top);
+        frame.axis.minor_mut().label_style_mut().valign(VertAlign::Top);
+        frame.title.text_style_mut().valign(VertAlign::Top);
 
         frame
     }
@@ -386,25 +413,30 @@ impl BottomFrame {
                 Point(pos.xmax(), pos.ymax()),
             ))
         }
-
-        //self.label.set_pos(Bounds::new(
-        //    Point(pos.xmin(), pos.ymin() + self.sizes.margin),
-        //    Point(pos.xmax(), pos.ymin() + self.sizes.margin + self.label.height()),
-        //));
-
-        self.label.set_pos(Bounds::new(
-            Point(pos.xmin(), pos.ymin()),
-            Point(pos.xmax(), pos.ymin() + self.label.height()),
-        ));
     }
 
-    pub fn calculate_axis(&mut self, data: &DataBox) {
+    pub fn update_axis(&mut self, data: &DataBox) {
+        self.major_ticks = Vec::new();
+        self.major_labels = Vec::new();
+
+        let xmin = data.get_view_bounds().xmin();
+        let xmax = data.get_view_bounds().xmax();
+
+        for (xv, x) in self.axis.x_ticks(data) {
+            if xmin <= xv && xv <= xmax {
+                self.major_ticks.push(xv);
+                self.major_labels.push(self.axis.major().format(&self.axis, xv));
+            };
+        }
+    }
+
+    pub fn x_update_axis(&mut self, data: &DataBox) {
         if true {
             let pos = &self.pos;
             let data_pos = data.get_pos();
 
-            self.ticks = Vec::new();
-            self.grid_major = Vec::new();
+            self.major_ticks = Vec::new();
+            self.major_labels = Vec::new();
 
             let x0 = data_pos.xmin();
 
@@ -421,50 +453,9 @@ impl BottomFrame {
 
                         self.grid_major.push(Box::new(grid));
                     }
-
-                    let mut y = pos.ymax();
-
-                    let tick = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(x + x0, y - sizes.tick_length)),
-                        PathCode::LineTo(Point(x + x0, y)),
-                    ]));
-                    y -= sizes.tick_length;
-
-                    self.ticks.push(Box::new(tick));
-
-                    let mut label = Text::new();
-                    label.label(&self.axis.major().format(&self.axis, xv));
-                    label.set_pos(Bounds::from((x + x0, y - sizes.tick_text_height)));
-                    self.ticks.push(Box::new(label));
                 }
             };
         }
-    }
-
-    fn label(&mut self, text: &str) -> &mut Text {
-        self.label.label(text)
-    }
-}
-
-impl Artist<Canvas> for BottomFrame {
-    fn get_extent(&mut self) -> Bounds<Canvas> {
-        self.extent.clone()
-    }
-
-    fn update(&mut self, canvas: &Canvas) {
-        self.label.update(canvas);
-
-        let sizes = &self.sizes;
-        let mut height = sizes.margin;
-        height += sizes.spine_thickness;
-        height += sizes.tick_length;
-        height += sizes.tick_label_gap;
-        height += sizes.tick_text_height; // font size
-        height += self.label.get_extent().height();
-    
-        // self.bounds = Bounds::from([0., height]);
-    
-        self.extent = Bounds::extent(self.label.get_extent().width(), height)
     }
 
     fn draw(
@@ -473,35 +464,93 @@ impl Artist<Canvas> for BottomFrame {
         to_canvas: &Affine2d,
         clip: &Bounds<Canvas>,
         style: &dyn PathOpt,
+        data: &DataBox,
     ) {
-        //let affine = Affine2d::eye().translate(self.pos.xmin(), self.pos.ymin());
-        self.label.draw(renderer, to_canvas, clip, style);
-
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
         }
 
-        let tick_style = self.axis.major().tick_style().push(style);
-        
-        for tick in &mut self.ticks {
-            tick.draw(renderer, to_canvas, clip, &tick_style);
-        }
-        
-        if self.axis.get_show_grid().is_show_major() {
-            let style = self.axis.major().grid_style().push(style);
+        self.draw_ticks(renderer, to_canvas, clip, style, &data);
 
-            for grid in &mut self.grid_major {
-                grid.draw(renderer, to_canvas, clip, &style);
+        let mut y = data.get_pos().ymin();
+        y -= renderer.to_px(self.axis.major().get_size());
+        y -= renderer.to_px(self.axis.major().get_pad());
+        y -= self.axis.major().get_label_height();
+        y -= self.sizes.label_pad;
+
+        self.title.set_pos(Bounds::new(
+            Point(data.get_pos().xmin(), y),
+            Point(data.get_pos().xmax(), y),
+        ));
+
+        self.title.draw(renderer, to_canvas, clip, style);
+    }
+
+    fn draw_ticks(
+        &mut self, 
+        renderer: &mut dyn Renderer, 
+        to_canvas: &Affine2d, 
+        clip: &Bounds<Canvas>, 
+        style: &dyn PathOpt,
+        data: &DataBox
+    ) {
+        let pos = &data.get_pos();
+
+        let yv = data.get_view_bounds().ymin();
+        let to_canvas = data.get_canvas_transform();
+
+        for (xv, label) in self.major_ticks.iter().zip(self.major_labels.iter()) {
+            let point = to_canvas.transform_point(Point(*xv, yv));
+
+            let x = point.x();
+            let mut y = pos.ymin();
+            let major = self.axis.major();
+
+            if self.axis.get_show_grid().is_show_major() {
+                let style = major.grid_style().push(style);
+                // grid
+                let grid = Path::<Canvas>::new(vec![
+                    PathCode::MoveTo(Point(x, pos.ymin())),
+                    PathCode::LineTo(Point(x, pos.ymax())),
+                ]);
+
+                renderer.draw_path(&style, &grid, to_canvas, clip).unwrap();
             }
-        }
 
-        if self.axis.get_show_grid().is_show_minor() {
-            let style = self.axis.major().grid_style().push(style);
+            {
+                let style = major.tick_style().push(style);
+                let tick_length = renderer.to_px(major.get_size());
+                
+                let tick = Path::<Canvas>::new(vec![
+                    PathCode::MoveTo(Point(x, y)),
+                    PathCode::LineTo(Point(x, y - tick_length)),
+                ]);
 
-            for grid in &mut self.grid_minor {
-                grid.draw(renderer, to_canvas, clip, &style);
+                renderer.draw_path(&style, &tick, to_canvas, clip).unwrap();
+
+                y -= tick_length;
+                y -= renderer.to_px(major.get_pad());
             }
+
+            renderer.draw_text(Point(x, y), label, 0., style, major.label_style(), clip).unwrap();
         }
+    }
+
+    fn title(&mut self, text: &str) -> &mut Text {
+        self.title.label(text)
+    }
+
+    fn get_extent(&mut self) -> Bounds<Canvas> {
+        self.extent.clone()
+    }
+
+    fn update(&mut self, canvas: &Canvas) {
+        self.title.update(canvas);
+        self.axis.update(canvas);
+
+        // TODO: extent isn't meaningful any more for the frames
+        let height = 0.;
+        self.extent = Bounds::extent(self.title.get_extent().width(), height)
     }
 }
 
@@ -526,7 +575,7 @@ pub struct LeftFrame {
     style_minor: PathStyle,
     grid_minor: Vec<Box<dyn Artist<Canvas>>>,
 
-    label: Text,
+    title: Text,
 }
 
 impl LeftFrame {
@@ -545,7 +594,7 @@ impl LeftFrame {
             extent: Bounds::new(Point(0., 0.), Point(20., 0.)),
             pos: Bounds::none(),
 
-            sizes: FrameSizes::new(),
+            sizes: FrameSizes::new(cfg),
 
             spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
             axis: Axis::new(cfg, "yaxis"),
@@ -557,7 +606,7 @@ impl LeftFrame {
             grid_minor: Vec::new(),
             style_minor,
 
-            label,
+            title: label,
         }
     }
 
@@ -571,14 +620,14 @@ impl LeftFrame {
             ))
         }
 
-        let x0 = pos.xmin() + self.sizes.margin;
-        self.label.set_pos(Bounds::new(
-            Point(x0, pos.ymid()),
-            Point(x0 + self.label.height(), pos.ymid())
+        let x0 = pos.xmax();
+        self.title.set_pos(Bounds::new(
+            Point(x0 - self.title.height(), pos.ymid()),
+            Point(x0, pos.ymid())
         ));
     }
 
-    pub fn calculate_axis(&mut self, data: &DataBox) {
+    pub fn update_axis(&mut self, data: &DataBox) {
         if let axis = &mut self.axis {
             let pos = &self.pos;
             let data_pos = data.get_pos();
@@ -608,13 +657,13 @@ impl LeftFrame {
                     self.ticks.push(Box::new(tick));
 
                     let x = pos.xmax()
-                        - self.sizes.spine_thickness
-                        - self.sizes.tick_length
-                        - self.sizes.tick_label_gap;
+                        - self.sizes.line_width;
+                        //- self.sizes.major_size
+                        //- self.sizes.major_gap;
 
                     let mut label = Text::new();
                     label.text_style_mut().width_align(HorizAlign::Right);
-                    label.text_style_mut().height_align(VertAlign::Center);
+                    label.text_style_mut().valign(VertAlign::Center);
                     label.label(&Formatter::Plain.format(_yv));
                     label.set_pos(Bounds::from((x, y + y0)));
                     self.ticks.push(Box::new(label));
@@ -624,21 +673,21 @@ impl LeftFrame {
     }
 
     fn label(&mut self, text: &str) -> &mut Text {
-        self.label.label(text)
+        self.title.label(text)
     }
 }
 
 impl Artist<Canvas> for LeftFrame {
     fn update(&mut self, canvas: &Canvas) {
-        self.label.update(canvas);
+        self.title.update(canvas);
 
-        let mut width = self.sizes.spine_thickness;
-        width += self.sizes.tick_length;
-        width += self.sizes.tick_label_gap;
+        let mut width = self.sizes.line_width;
+        //width += self.sizes.major_size;
+        //width += self.sizes.major_gap;
 
-        self.sizes.tick_text_height = 5. * canvas.scale_factor() * 14.;
-        width += self.sizes.tick_text_height;
-        width += self.sizes.margin;
+        //self.sizes.tick_text_height_px = 5. * canvas.scale_factor() * 14.;
+        //width += self.sizes.tick_text_height_px;
+        //width += self.sizes.margin;
         
         self.extent = Bounds::new(Point(0., 0.), Point(width, 0.))
     }
@@ -654,7 +703,7 @@ impl Artist<Canvas> for LeftFrame {
         clip: &Bounds<Canvas>,
         style: &dyn PathOpt,
     ) {
-        self.label.draw(renderer, to_canvas, clip, style);
+        self.title.draw(renderer, to_canvas, clip, style);
         
         if self.axis.get_show_grid().is_show_major() {
             let style = self.axis.major().grid_style().push(&self.style_major);

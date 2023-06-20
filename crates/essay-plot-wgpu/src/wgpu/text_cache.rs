@@ -54,11 +54,7 @@ impl TextCache {
             }
         );
 
-        ScaledFont {
-            id: entry.id,
-            font: entry.font.clone(),
-            size,
-        }
+        ScaledFont::new(entry.id, entry.font.clone(), size)
     }
 
     pub fn glyph(&mut self, font: &ScaledFont, glyph: char) -> TextRect {
@@ -157,6 +153,33 @@ pub struct ScaledFont {
     id: FontId,
     font: ab_glyph::FontArc,
     size: u16,
+    descent: f32,
+}
+
+impl ScaledFont {
+    fn new(
+        id: FontId,
+        font: ab_glyph::FontArc,
+        size: u16
+    ) -> Self {
+        let height = font.ascent_unscaled() + font.descent_unscaled();
+        let descent = size as f32 * font.descent_unscaled() / height;
+        
+        Self {
+            id,
+            font,
+            size,
+            descent,
+        }
+    }
+
+    pub(crate) fn height(&self) -> f32 {
+        self.size as f32
+    }
+
+    pub(crate) fn descent(&self) -> f32 {
+        self.descent
+    }
 }
 
 impl fmt::Debug for ScaledFont {
