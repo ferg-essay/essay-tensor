@@ -66,7 +66,7 @@ impl Frame {
 
             pos: Bounds::none(),
 
-            data: DataBox::new(id),
+            data: DataBox::new(id, cfg),
 
             title: Text::new(),
 

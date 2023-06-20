@@ -2,7 +2,7 @@ use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{M
 
 use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt};
 
-use crate::artist::{Artist};
+use crate::{artist::{Artist, StyleCycle}, graph::Config};
 
 use super::{ArtistId, FrameId};
 
@@ -10,15 +10,19 @@ pub(crate) struct PlotContainer<M: Coord> {
     frame: FrameId,
     ptrs: Vec<PlotPtr<M>>,
     artists: Vec<Box<dyn PlotArtistTrait<M>>>,
+    cycle: StyleCycle,
 }
 
 impl<M: Coord> PlotContainer<M> {
-    pub(crate) fn new(frame: FrameId) -> Self {
-        Self {
+    pub(crate) fn new(frame: FrameId, cfg: &Config) -> Self {
+        let container = Self {
             frame,
             ptrs: Vec::new(),
             artists: Vec::new(),
-        }
+            cycle: StyleCycle::from_config(cfg, "frame.cycle"),
+        };
+
+        container
     }
 
     pub(crate) fn add_artist<A>(&mut self, artist: A) -> ArtistId
@@ -33,6 +37,14 @@ impl<M: Coord> PlotContainer<M> {
         self.artists.push(Box::new(PlotArtist::<M, A>::new(id)));
 
         id
+    }
+
+    pub(crate) fn cycle(&self) -> &StyleCycle {
+        &self.cycle
+    }
+
+    pub(crate) fn cycle_mut(&mut self) -> &mut StyleCycle {
+        &mut self.cycle
     }
 
     fn _deref<A: Artist<M> + 'static>(&self, id: ArtistId) -> &A {
@@ -95,13 +107,15 @@ impl<M: Coord> Artist<M> for PlotContainer<M> {
 
     fn draw(
         &mut self, 
-        renderer: &mut dyn essay_plot_base::driver::Renderer,
-        to_canvas: &essay_plot_base::Affine2d,
-        clip: &Bounds<essay_plot_base::Canvas>,
-        style: &dyn essay_plot_base::PathOpt,
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
+        clip: &Bounds<Canvas>,
+        style: &dyn PathOpt,
     ) {
-        for artist in &self.artists {
-            artist.draw(self, renderer, to_canvas, clip, style);
+        for (i, artist) in self.artists.iter().enumerate() {
+            let style = self.cycle.push(style, i);
+
+            artist.draw(self, renderer, to_canvas, clip, &style);
         }
     }
 }

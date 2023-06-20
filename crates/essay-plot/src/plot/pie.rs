@@ -38,7 +38,7 @@ pub fn pie(
 
         let mut artist = ArtistStyle::new(id, patch);
         //artist.color(colors[i]);
-        artist.style_mut().face_color(colors[i]);
+        //artist.style_mut().face_color(colors[i]);
         //artist.style_mut().facecolor(Color(0x0));
         
         container.push(artist);
@@ -47,7 +47,7 @@ pub fn pie(
         i += 1;
     }
 
-    graph.add_data_artist(container)
+    graph.add_plot_artist(container)
 
     // todo!()
 }

@@ -41,6 +41,11 @@ figure.subplot.top:   0.88
 figure.subplot.wspace: 0.2
 figure.subplot.hspace: 0.2
 
+#cycle.colors: xkcd:azure, xkcd:red, xkcd:amber, xkcd:blue, xkcd:magenta, xkcd:teal
+#cycle.colors: xkcd:azure, xkcd:red, xkcd:amber, xkcd:orange, xkcd:pink
+cycle.colors: xkcd:azure, xkcd:red, xkcd:amber, xkcd:green, xkcd:purple, xkcd:orange, xkcd:blue, xkcd:pink, tab:gray
+# matlibplot colors
+#cycle.colors: tab:blue, tab:orange, tab:green, tab:red, tab:purple, tab:pink, tab:grey, tab:olive, tab:cyan
 
 frame.face_color: white
 frame.edge_color: black

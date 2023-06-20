@@ -763,7 +763,7 @@ impl FigureRenderer {
         figure: &mut Box<dyn FigureApi>,
         bounds: (u32, u32),
         scale_factor: f32,
-        _device: &wgpu::Device,
+        device: &wgpu::Device,
         queue: &wgpu::Queue,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
@@ -779,7 +779,7 @@ impl FigureRenderer {
 
         figure.draw(self, &draw_bounds);
 
-        self.shape2d_render.flush(queue, view, encoder);
+        self.shape2d_render.flush(device, queue, view, encoder);
         self.bezier_render.flush(queue, view, encoder);
         self.triangle_render.flush(queue, view, encoder);
         self.text_render.flush(queue, view, encoder);

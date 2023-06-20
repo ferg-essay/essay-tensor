@@ -40,13 +40,25 @@ fn main() {
         // .fill_color("none")
         .line_width(5.);
     */
-    let x = linspace(0., 6.28, 100);
+    /*
+    let x = linspace(0., 6.28, 25);
     let y = x.sin();
-    graph.plot(&x, &y).face_color("xkcd:purple");
+    graph.plot(&x, &y); // .face_color("xkcd:purple");
+
+    let y2 = x.cos();
+    graph.plot(&x, &y2); // .face_color("xkcd:purple");
+
+    graph.plot(&x, (2. * &x).sin());
+    graph.plot(&x, (2. * &x).cos());
+
+    graph.plot(&x, 0.5 * (3. * &x).sin());
+    graph.plot(&x, 0.5 * (3. * &x).cos());
+
     graph.x().show_grid(true);
     //graph.x().major_grid().color(0xc04040).line_width(1.5);
     //graph.x().major().color(0x2000c0).line_width(1.5);
     graph.y().show_grid(true);
+    */
     //bar_y(graph, &y)
     //    .edgecolor(0x400080)
     //    .facecolor(0x80c0e0)
@@ -57,7 +69,7 @@ fn main() {
     //let x = tf32!([40., 30.]);
     let x = tf32!([25., 25., 50.]);
     // let axes = figure.new_graph(());
-     //graph.pie(x);
+    graph.pie(tf32!([40., 30., 20., 5., 5., 5., 5.]));
     // let x = linspace(0., 20., 21);
     // let axes = figure.new_graph([1., 1., 2., 2.]);
     // axes.plot(&x, &x.exp(), ());

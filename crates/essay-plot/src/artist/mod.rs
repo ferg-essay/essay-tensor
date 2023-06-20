@@ -1,3 +1,4 @@
+mod cycle;
 mod pcolor;
 mod color;
 mod style;
@@ -26,6 +27,10 @@ pub use color::{
     ColorCycle,
 };
 
+pub use cycle::{
+    StyleCycle,
+};
+
 pub use pcolor::{
     PColor,
 };
@@ -44,7 +49,7 @@ pub use patch::{
 };
 
 pub use style::{
-    PathStyle, StyleCycle,// StyleChain,
+    PathStyle, 
 };
 
 pub use text::{

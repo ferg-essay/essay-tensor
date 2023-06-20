@@ -5,7 +5,7 @@ use essay_plot_base::{
     Bounds, Affine2d, Point, Canvas, Coord, CanvasEvent,
 };
 
-use crate::artist::{Artist, PathStyle};
+use crate::{artist::{Artist, PathStyle}, graph::Config};
 
 use super::{plot_container::PlotContainer, ArtistId, FrameId};
 
@@ -24,14 +24,14 @@ pub struct DataBox {
 }
 
 impl DataBox {
-    pub fn new(frame_id: FrameId) -> Self {
+    pub fn new(frame_id: FrameId, cfg: &Config) -> Self {
         Self {
             pos_canvas: Bounds::none(),
 
             data_bounds: Bounds::<Data>::unit(),
             view_bounds: Bounds::<Data>::unit(),
 
-            artists: PlotContainer::new(frame_id),
+            artists: PlotContainer::new(frame_id, cfg),
 
             style: PathStyle::default(),
 

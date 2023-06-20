@@ -5,11 +5,12 @@ use essay_plot_base::{
 
 use crate::{graph::{ConfigArtist, PlotOpt, Config, PlotId, ConfigArc, PathStyleArtist}, frame::Data};
 
-use super::{ArtistStyle, Artist, PathStyle};
+use super::{ArtistStyle, Artist, PathStyle, StyleCycle};
 
 pub struct Container<M: Coord> {
     artists: Vec<ArtistStyle<M>>,
     style: PathStyle,
+    cycle: StyleCycle,
 }
 
 impl<M: Coord> Container<M> {
@@ -17,6 +18,7 @@ impl<M: Coord> Container<M> {
         Self {
             artists: Vec::new(),
             style: PathStyle::new(),
+            cycle: StyleCycle::new(),
         }
     }
 
@@ -63,9 +65,12 @@ impl<M: Coord> Artist<M> for Container<M> {
     ) {
         //let style_cycle = Style::new();
         //let style = Style::chain(style, &style_cycle);
+        let style = self.style.push(style);
 
-        for artist in &mut self.artists {
-            artist.draw(renderer, to_device, clip, style);
+        for (i, artist) in self.artists.iter_mut().enumerate() {
+            let style = self.cycle.push(&style, i);
+
+            artist.draw(renderer, to_device, clip, &style);
         }
     }
 }
@@ -73,7 +78,9 @@ impl<M: Coord> Artist<M> for Container<M> {
 impl ConfigArtist<Data> for Container<Data> {
     type Opt = PlotOpt;
 
-    fn config(&mut self, _cfg: &ConfigArc, id: PlotId) -> Self::Opt {
+    fn config(&mut self, cfg: &ConfigArc, id: PlotId) -> Self::Opt {
+        self.cycle = StyleCycle::from_config(cfg, "container.cycle");
+
         PlotOpt::new::<Container<Data>>(id)
     }
 }

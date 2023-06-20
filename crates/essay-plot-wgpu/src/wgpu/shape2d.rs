@@ -16,6 +16,8 @@ pub struct Shape2dRender {
 
     shape_items: Vec<Shape2dItem>,
 
+    is_stale: bool,
+
     pipeline: wgpu::RenderPipeline,
 }
 
@@ -68,6 +70,8 @@ impl Shape2dRender {
             style_buffer,
             style_offset: 0,
             // style_bind_group,
+
+            is_stale: false,
 
             shape_items: Vec::new(),
             pipeline,
@@ -138,6 +142,7 @@ impl Shape2dRender {
 
     pub fn flush(
         &mut self, 
+        device: &wgpu::Device,
         queue: &wgpu::Queue, 
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
@@ -158,6 +163,26 @@ impl Shape2dRender {
             })],
             depth_stencil_attachment: None,
         });
+
+        if self.is_stale {
+            self.is_stale = false;
+ 
+            self.vertex_buffer = device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(self.vertex_vec.as_slice()),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                }
+            );
+    
+            self.style_buffer = device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(self.style_vec.as_slice()),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                }
+            );
+        }
 
         queue.write_buffer(
             &mut self.vertex_buffer, 
@@ -198,6 +223,15 @@ impl Shape2dRender {
     fn vertex(&mut self, x: f32, y: f32) {
         let vertex = Shape2dVertex { position: [x, y] };
 
+        let len = self.vertex_vec.len();
+        let offset = self.vertex_offset;
+
+        if offset == len {
+            self.is_stale = true;
+            self.vertex_vec.resize(len + 2048, Shape2dVertex::empty());
+        }
+
+
         self.vertex_vec[self.vertex_offset] = vertex;
         self.vertex_offset += 1;
     }
@@ -226,6 +260,12 @@ impl Shape2dVertex {
             array_stride: std::mem::size_of::<Shape2dVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRS,
+        }
+    }
+
+    fn empty() -> Shape2dVertex {
+        Self {
+            position: [0., 0.],
         }
     }
 }
