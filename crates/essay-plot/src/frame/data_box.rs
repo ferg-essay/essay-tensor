@@ -54,10 +54,10 @@ impl DataBox {
     pub fn add_artist(&mut self, artist: impl Artist<Data> + 'static) -> ArtistId {
         let mut artist = artist;
 
-        let bounds = artist.get_extent();
+        //let bounds = artist.get_extent();
 
-        self.add_data_bounds(&bounds);
-        self.add_view_bounds(&bounds);
+        //self.add_data_bounds(&bounds);
+        //self.add_view_bounds(&bounds);
 
         let id = self.artists.add_artist(artist);
 
@@ -185,9 +185,9 @@ impl DataBox {
         }
     }
 
-    pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut PathStyle {
-        self.artists.style_mut(id)
-    }
+    //pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut PathStyle {
+    //    self.artists.style_mut(id)
+    //}
 
     pub(crate) fn artist<A>(&self, id: ArtistId) -> &A
     where

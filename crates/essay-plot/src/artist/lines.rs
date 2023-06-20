@@ -7,7 +7,7 @@ use essay_plot_base::{
     driver::Renderer
 };
 
-use crate::{frame::Data, artist::PathStyle};
+use crate::{frame::Data, artist::PathStyle, graph::{ConfigArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}};
 
 use super::{Artist};
 
@@ -22,7 +22,7 @@ pub struct Lines2d {
     lines: Tensor, // 2d tensor representing a graph
     path: Path<Data>,
     style: PathStyle,
-    clip_bounds: Bounds<Canvas>,
+    extent: Bounds<Data>,
 }
 
 impl Lines2d {
@@ -40,7 +40,7 @@ impl Lines2d {
             lines,
             path,
             style: PathStyle::new(),
-            clip_bounds: Bounds::<Canvas>::none(),
+            extent: Bounds::<Data>::none(),
         }
     }
 }
@@ -65,9 +65,6 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
 
 impl Artist<Data> for Lines2d {
     fn update(&mut self, _canvas: &Canvas) {
-    }
-    
-    fn get_extent(&mut self) -> Bounds<Data> {
         let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
 
         for point in self.lines.iter_slice() {
@@ -77,7 +74,11 @@ impl Artist<Data> for Lines2d {
             bounds[3] = f32::max(bounds[3], point[1]);
         }
 
-        Bounds::from(bounds)
+        self.extent = Bounds::from(bounds)
+    }
+    
+    fn get_extent(&mut self) -> Bounds<Data> {
+        self.extent.clone()
     }
 
     fn draw(
@@ -88,7 +89,26 @@ impl Artist<Data> for Lines2d {
         style: &dyn PathOpt,
     ) {
         let path = self.path.transform(&to_canvas);
-        renderer.draw_path(style, &path, to_canvas, clip).unwrap();
+
+        let style = self.style.push(style);
+
+        renderer.draw_path(&style, &path, to_canvas, clip).unwrap();
+    }
+}
+
+impl ConfigArtist<Data> for Lines2d {
+    type Opt = PlotOpt;
+
+    fn config(&mut self, cfg: &ConfigArc, id: PlotId) -> Self::Opt {
+        self.style = PathStyle::from_config(cfg, "lines");
+
+        PlotOpt::new::<Self>(id)
+    }
+}
+
+impl PathStyleArtist for Lines2d {
+    fn style_mut(&mut self) -> &mut PathStyle {
+        &mut self.style
     }
 }
 
@@ -113,66 +133,6 @@ impl fmt::Debug for Lines2d {
                     self.lines[(n - 1, 0)], self.lines[(n - 1, 1)])
             }
         }
-    }
-}
-
-pub struct Bezier2(pub Point, pub Point, pub Point);
-
-impl Artist<Data> for Bezier2 {
-    fn update(&mut self, _canvas: &Canvas) {
-    }
-    
-    fn get_extent(&mut self) -> Bounds<Data> {
-        Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
-    }
-
-    fn draw(
-        &mut self, 
-        renderer: &mut dyn Renderer,
-        to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
-        style: &dyn PathOpt,
-    ) {
-        let codes = vec![
-            PathCode::MoveTo(self.0),
-            PathCode::Bezier2(self.1, self.2),
-        ];
-
-        let path = Path::<Data>::new(codes);
-        let path = path.transform(&to_canvas);
-
-        renderer.draw_path(style, &path, &to_canvas, &clip).unwrap();
-
-    }
-}
-
-pub struct Bezier3(pub Point, pub Point, pub Point, pub Point);
-
-impl Artist<Data> for Bezier3 {
-    fn update(&mut self, _canvas: &Canvas) {
-    }
-    
-    fn get_extent(&mut self) -> Bounds<Data> {
-        Bounds::<Data>::new(Point(-1.5, -1.5), Point(1.5, 1.5))
-    }
-
-    fn draw(
-        &mut self, 
-        renderer: &mut dyn Renderer,
-        to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
-        style: &dyn PathOpt,
-    ) {
-        let codes = vec![
-            PathCode::MoveTo(self.0),
-            PathCode::Bezier3(self.1, self.2, self.3),
-        ];
-
-        let path = Path::<Data>::new(codes);
-        let path = path.transform(&to_canvas);
-
-        renderer.draw_path(style, &path, &to_canvas, &clip).unwrap();
-
     }
 }
 

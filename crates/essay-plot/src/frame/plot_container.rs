@@ -1,11 +1,10 @@
-use core::slice;
 use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{ManuallyDrop, self}};
 
 use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt};
 
-use crate::artist::{Artist, PathStyle};
+use crate::artist::{Artist};
 
-use super::{ArtistId, FrameId, ArtistEnum};
+use super::{ArtistId, FrameId};
 
 pub(crate) struct PlotContainer<M: Coord> {
     frame: FrameId,
@@ -22,13 +21,13 @@ impl<M: Coord> PlotContainer<M> {
         }
     }
 
-    pub(crate) fn add_artist<A>(&mut self, plot: A) -> ArtistId
+    pub(crate) fn add_artist<A>(&mut self, artist: A) -> ArtistId
     where
         A: Artist<M> + 'static
     {
         let id = ArtistId::new_data(self.frame, self.ptrs.len());
 
-        let plot = PlotPtr::new(id, plot);
+        let plot = PlotPtr::new(id, artist);
         self.ptrs.push(plot);
 
         self.artists.push(Box::new(PlotArtist::<M, A>::new(id)));
@@ -44,9 +43,9 @@ impl<M: Coord> PlotContainer<M> {
         unsafe { self.ptrs[id.index()].deref_mut() }
     }
 
-    pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut PathStyle {
-        self.artists[id.index()].style_mut()
-    }
+    //pub(crate) fn style_mut(&mut self, id: ArtistId) -> &mut PathStyle {
+    //    self.artists[id.index()].style_mut()
+    //}
 
     pub(crate) fn artist<A>(&self, id: ArtistId) -> &A
     where
@@ -110,7 +109,7 @@ impl<M: Coord> Artist<M> for PlotContainer<M> {
 trait PlotArtistTrait<M: Coord> {
     fn id(&self) -> ArtistId;
 
-    fn style_mut(&mut self) -> &mut PathStyle;
+    //fn style_mut(&mut self) -> &mut PathStyle;
 
     fn update(&self, container: &PlotContainer<M>, canvas: &Canvas);
     fn get_extent(&self, container: &PlotContainer<M>) -> Bounds<M>;
@@ -128,7 +127,7 @@ trait PlotArtistTrait<M: Coord> {
 struct PlotArtist<M: Coord, A: Artist<M>> {
     id: ArtistId,
     marker: PhantomData<(M, A)>,
-    style: PathStyle,
+    //style: PathStyle,
 }
 
 impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
@@ -136,13 +135,13 @@ impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
         Self {
             id,
             marker: PhantomData,
-            style: PathStyle::new(),
+            //style: PathStyle::new(),
         }
     }
 
-    pub(crate) fn style(&self) -> &PathStyle {
-        &self.style
-    }
+    //pub(crate) fn style(&self) -> &PathStyle {
+    //    &self.style
+    //}
 }
 
 impl<M: Coord, A: Artist<M>> PlotArtistTrait<M> for PlotArtist<M, A>
@@ -154,9 +153,9 @@ where
         self.id
     }
 
-    fn style_mut(&mut self) -> &mut PathStyle {
-        &mut self.style
-    }
+    //fn style_mut(&mut self) -> &mut PathStyle {
+    //    &mut self.style
+    //}
 
     fn update(&self, container: &PlotContainer<M>, canvas: &Canvas) {
         container.deref_mut::<A>(self.id).update(canvas);
@@ -169,14 +168,14 @@ where
     fn draw(
         &self, 
         container: &PlotContainer<M>,
-        renderer: &mut dyn essay_plot_base::driver::Renderer,
-        to_canvas: &essay_plot_base::Affine2d,
-        clip: &Bounds<essay_plot_base::Canvas>,
-        style: &dyn essay_plot_base::PathOpt,
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
+        clip: &Bounds<Canvas>,
+        style: &dyn PathOpt,
     ) {
-        let style = self.style.push(style);
+        // let style = self.style.push(style);
 
-        container.deref_mut::<A>(self.id).draw(renderer, to_canvas, clip, &style)
+        container.deref_mut::<A>(self.id).draw(renderer, to_canvas, clip, style)
     }
 }
 

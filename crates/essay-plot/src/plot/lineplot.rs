@@ -10,6 +10,6 @@ pub fn plot(
     let lines = Lines2d::from_xy(x, y);
 
     //self.artist(lines)
-    graph.add_data_artist(lines)
+    graph.add_plot_artist(lines)
 }
 

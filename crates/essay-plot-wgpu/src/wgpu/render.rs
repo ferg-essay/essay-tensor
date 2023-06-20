@@ -366,7 +366,7 @@ impl Renderer for FigureRenderer {
 
         let edge_color = match style.get_edge_color() {
             Some(color) => *color,
-            None => Color(0x000000ff)
+            None => face_color
         };
 
         let path = match style.get_line_style() {

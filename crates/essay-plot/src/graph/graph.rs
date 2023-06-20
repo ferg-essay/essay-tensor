@@ -1,19 +1,10 @@
 use core::fmt;
-use std::{rc::Rc, cell::RefCell};
-
-use essay_plot_base::{
-    driver::{Renderer}, 
-    Bounds, Canvas, CanvasEvent,
-};
 
 use crate::{artist::{
-    Artist, ArtistStyle,
-    Text, 
-}, frame::{Frame, Data, LayoutArc, FrameId, FrameArtist, FrameTextOpt, AxisOpt}};
+    Artist,
+}, frame::{Data, LayoutArc, FrameId, FrameArtist, FrameTextOpt, AxisOpt}};
 
-use crate::frame::{Layout};
-
-use super::plot::{PlotOpt, PlotRef};
+use super::{plot::{PlotRef, PlotId}, ConfigArtist, PlotOpt};
 
 pub struct Graph {
     id: FrameId,
@@ -75,16 +66,55 @@ impl Graph {
         //self.title.font().size(12.);
     }
 
-    pub fn add_data_artist(
+    pub fn add_data_artist<'a, A>(
         &mut self, 
-        artist: impl Artist<Data> + 'static
-    ) -> PlotOpt {
+        artist: A,
+    ) -> PlotOpt
+    where
+        A: Artist<Data> + 'static
+    {
         let mut layout = self.layout.borrow_mut();
         let frame = layout.frame_mut(self.id);
 
         let artist_id = frame.data_mut().add_artist(artist);
 
-        PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
+        let plot_id = PlotId::new(
+            self.layout.clone(),
+            frame.id(), 
+            artist_id
+        );
+
+        //PlotOpt::new(plot_id)
+        todo!()
+    }
+
+    pub fn add_plot_artist<'a, A>(
+        &mut self, 
+        artist: A,
+    ) -> A::Opt 
+    where
+        A: ConfigArtist<Data> + 'static
+    {
+        let id = self.layout.borrow_mut()
+            .frame_mut(self.id)
+            .data_mut()
+            .add_artist(artist);
+
+        let plot_id = PlotId::new(
+            self.layout.clone(),
+            id.frame(),
+            id
+        );
+
+        self.layout.write(move |layout| {
+            let config = layout.config().clone();
+
+            layout
+                .frame_mut(id.frame())
+                .data_mut()
+                .artist_mut::<A>(id)
+                .config(&config, plot_id)
+        })
     }
 
     pub fn add_plot<'a, A>(

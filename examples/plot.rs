@@ -1,4 +1,4 @@
-use essay_plot::{prelude::*, artist::{Bezier3, Bezier2, PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::bar_y};
+use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::bar_y};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
@@ -42,8 +42,7 @@ fn main() {
     */
     let x = linspace(0., 6.28, 100);
     let y = x.sin();
-    graph.plot(&x, &y).color(0xc08000).line_width(4.)
-        .line_style("--");
+    graph.plot(&x, &y).face_color("xkcd:purple");
     graph.x().show_grid(true);
     //graph.x().major_grid().color(0xc04040).line_width(1.5);
     //graph.x().major().color(0x2000c0).line_width(1.5);
@@ -117,7 +116,8 @@ pub fn bezier3(
     p2: impl Into<Point>,
     p3: impl Into<Point>
 ) {
-    graph.add_data_artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
+    //graph.add_data_artist(Bezier3(p0.into(), p1.into(), p2.into(), p3.into()));
+    todo!()
 }
 
 pub fn bezier2(
@@ -126,7 +126,8 @@ pub fn bezier2(
     p1: impl Into<Point>,
     p2: impl Into<Point>,
 ) -> PlotOpt {
-    graph.add_data_artist(Bezier2(p0.into(), p1.into(), p2.into()))
+    //graph.add_data_artist(Bezier2(p0.into(), p1.into(), p2.into()))
+    todo!()
 }
 
 pub fn plot_quad(

@@ -3,7 +3,7 @@ use essay_plot_base::{
     driver::Renderer, JoinStyle, Color, CapStyle, LineStyle,
 };
 
-use crate::frame::ArtistId;
+use crate::{frame::ArtistId, graph::Config};
 
 use super::PathStyle;
 

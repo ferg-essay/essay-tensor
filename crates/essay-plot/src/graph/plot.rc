@@ -1,9 +1,12 @@
-lines.linewidth: 1.5
+lines.line_width: 1.5
 lines.marker_size: 6
 # lines.dash_joinstyle: round
 # lines.dash_capstyle: butt
-# lines.solid_capstyle: round
-# lines.solid_capstyle: projecting
+lines.solid_join_style: round
+lines.solid_cap_style: projecting
+lines.join_style: round
+lines.cap_style: projecting
+
 # lines.dashed_pattern: 3.7, 1.6
 # lines.dashdot_pattern: 6.4, 1.6, 1., 1.6
 # lines.dotted_pattern: 1, 1.65

@@ -3,6 +3,8 @@ use essay_plot_base::{
     driver::{Renderer}
 };
 
+use crate::{graph::{ConfigArtist, PlotOpt, Config, PlotId, ConfigArc, PathStyleArtist}, frame::Data};
+
 use super::{ArtistStyle, Artist, PathStyle};
 
 pub struct Container<M: Coord> {
@@ -65,5 +67,19 @@ impl<M: Coord> Artist<M> for Container<M> {
         for artist in &mut self.artists {
             artist.draw(renderer, to_device, clip, style);
         }
+    }
+}
+
+impl ConfigArtist<Data> for Container<Data> {
+    type Opt = PlotOpt;
+
+    fn config(&mut self, _cfg: &ConfigArc, id: PlotId) -> Self::Opt {
+        PlotOpt::new::<Container<Data>>(id)
+    }
+}
+
+impl PathStyleArtist for Container<Data> {
+    fn style_mut(&mut self) -> &mut PathStyle {
+        &mut self.style
     }
 }

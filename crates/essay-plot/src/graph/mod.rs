@@ -12,9 +12,9 @@ pub use figure::{
 };
 
 pub use config::{
-    Config,
+    Config, ConfigArc,
 };
 
 pub use plot::{
-    PlotOpt, PlotRef,
+    PlotId, PlotOpt, PlotRef, ConfigArtist, PathStyleArtist,
 };

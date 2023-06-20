@@ -11,7 +11,7 @@ mod collection;
 mod lines;
 
 pub use artist::{
-    ArtistStyle, Artist
+    ArtistStyle, Artist,
 };
 
 pub use collection::{
@@ -32,7 +32,7 @@ pub use pcolor::{
 
 pub use lines::{
     Lines2d,
-    Bezier2, Bezier3,
+    // Bezier2, Bezier3,
 };
 
 pub use markers::{

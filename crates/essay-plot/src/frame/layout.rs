@@ -2,15 +2,15 @@ use std::{cell::{RefCell, Ref, RefMut}, rc::Rc};
 
 use essay_plot_base::{Bounds, Canvas, Point, Coord, driver::Renderer, CanvasEvent};
 
-use crate::graph::Config;
+use crate::{graph::{Config, ConfigArc}, artist::Artist};
 
-use super::Frame;
+use super::{Frame, ArtistId, Data};
 
 #[derive(Clone)]
 pub struct LayoutArc(Rc<RefCell<Layout>>);
 
 pub struct Layout {
-    config: Config,
+    config: ConfigArc,
 
     sizes: LayoutSizes,
     
@@ -24,7 +24,7 @@ impl Layout {
         let sizes = LayoutSizes::new(&config);
 
         Self {
-            config,
+            config: config.into_arc(),
 
             sizes,            
 
@@ -35,7 +35,7 @@ impl Layout {
     }
 
     #[inline]
-    pub fn config(&self) -> &Config {
+    pub fn config(&self) -> &ConfigArc {
         &self.config
     }
 
@@ -132,6 +132,24 @@ impl Layout {
             }
         }
     }
+
+    pub(crate) fn write<R>(&mut self, fun: impl FnOnce(&mut Layout) -> R) -> R {
+        fun(self)
+    }
+
+    pub(crate) fn artist<A>(&self, id: ArtistId) -> &A
+    where
+        A: Artist<Data> + 'static
+    {
+        self.frames[id.frame().index()].frame().data().artist(id)
+    }
+
+    pub(crate) fn artist_mut<A>(&mut self, id: ArtistId) -> &mut A
+    where
+        A: Artist<Data> + 'static
+    {
+        self.frames[id.frame().index()].frame_mut().data_mut().artist_mut(id)
+    }
 }
 
 impl Coord for Layout {}
@@ -168,7 +186,15 @@ impl LayoutArc {
     }
 
     pub fn write<R>(&self, fun: impl FnOnce(&mut Layout) -> R) -> R {
-        fun(&mut self.0.borrow_mut())
+        self.0.borrow_mut().write(fun)
+    }
+
+    pub fn write_artist<A, R>(&self, id: ArtistId, fun: impl FnOnce(&Layout, &mut A) -> R) -> R
+    where
+        A: Artist<Data> + 'static,
+    {
+        //self.0.borrow_mut().write_artist(id, fun)
+        todo!()
     }
 
     /*

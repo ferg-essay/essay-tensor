@@ -173,6 +173,7 @@ pub enum LineStyle {
     Dot,
     OnOff(Vec<f32>),
 }
+
 impl LineStyle {
     pub fn to_pattern(&self, lw: f32) -> Vec<f32> {
         match self {
@@ -181,6 +182,12 @@ impl LineStyle {
             Self::DashDot => { vec![4. * lw, 2. * lw, lw, 2. * lw] }
             _ => panic!("Unexpected linestyle {:?}", self)
         }
+    }
+}
+
+impl From<&LineStyle> for LineStyle {
+    fn from(value: &LineStyle) -> Self {
+        value.clone()
     }
 }
 
@@ -221,7 +228,7 @@ impl FromStr for LineStyle {
 pub struct StyleErr(String);
 
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum JoinStyle {
     Bevel,
     Miter,
@@ -241,7 +248,7 @@ impl FromStr for JoinStyle {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum CapStyle {
     Butt,
     Round,
@@ -253,9 +260,9 @@ impl FromStr for CapStyle {
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
         match name {
-            "bevel" => Ok(Self::Butt),
-            "miter" => Ok(Self::Round),
-            "round" => Ok(Self::Projecting),
+            "butt" => Ok(Self::Butt),
+            "round" => Ok(Self::Round),
+            "projecting" => Ok(Self::Projecting),
             _ => Err(StyleErr(format!("'{}' is an unknown cap_style", name)))
         }
     }

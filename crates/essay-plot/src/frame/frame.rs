@@ -165,6 +165,10 @@ impl Frame {
         self
     }
 
+    pub(crate) fn data(&self) -> &DataBox {
+        &self.data
+    }
+
     pub(crate) fn data_mut(&mut self) -> &mut DataBox {
         &mut self.data
     }

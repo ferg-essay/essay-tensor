@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashMap, str::{Chars, FromStr}, iter::Peekable};
+use std::{collections::HashMap, str::{Chars, FromStr}, iter::Peekable, ops::Deref, sync::Arc};
 
 pub(crate) fn read_config() -> Config
 {
@@ -141,6 +141,10 @@ impl Config {
         }
     }
 
+    pub(crate) fn into_arc(self) -> ConfigArc {
+        ConfigArc(Arc::new(self))
+    }
+
     fn add_value(&mut self, name: String, value: String) {
         let value = value.trim(); // TODO: in-place trim
 
@@ -183,6 +187,17 @@ impl Config {
         }
 
         None
+    }
+}
+
+#[derive(Clone)]
+pub struct ConfigArc(Arc<Config>);
+
+impl Deref for ConfigArc {
+    type Target = Config;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
     }
 }
 
