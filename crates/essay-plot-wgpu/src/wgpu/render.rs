@@ -352,9 +352,8 @@ impl Renderer for FigureRenderer {
 
     fn draw_path(
         &mut self, 
-        style: &dyn PathOpt, 
         path: &Path<Canvas>, 
-        _to_canvas: &Affine2d,
+        style: &dyn PathOpt, 
         clip: &Clip,
     ) -> Result<(), RenderErr> {
         // let to_unit = self.to_gpu.matmul(to_device);

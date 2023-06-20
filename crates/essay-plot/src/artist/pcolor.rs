@@ -1,4 +1,4 @@
-use essay_plot_base::{Bounds, Point, Canvas, Clip};
+use essay_plot_base::{Bounds, Point, Canvas, Clip, PathOpt};
 use essay_tensor::{tf32, tensor, Tensor};
 
 use crate::frame::Data;
@@ -21,7 +21,7 @@ impl Artist<Data> for PColor {
         renderer: &mut dyn essay_plot_base::driver::Renderer,
         to_canvas: &essay_plot_base::Affine2d,
         clip: &Clip,
-        style: &dyn essay_plot_base::PathOpt,
+        style: &dyn PathOpt,
     ) {
         let vertices = tf32!([
             [0.0, 0.0], [1.0, 0.0], [0.5, 1.0],

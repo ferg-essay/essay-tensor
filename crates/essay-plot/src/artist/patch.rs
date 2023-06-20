@@ -108,9 +108,8 @@ impl Artist<Canvas> for CanvasPatch {
         let to_canvas = to_canvas.matmul(&self.to_canvas);
         let path = self.patch.get_path().transform(&to_canvas);
         renderer.draw_path(
-            &self.style, 
             &path,
-            &to_canvas, 
+            &self.style, 
             clip
         ).unwrap();
     }
@@ -146,9 +145,8 @@ impl Artist<Canvas> for PathPatch<Canvas> {
         let path = self.path.transform(&to_canvas);
 
         renderer.draw_path(
-            style, 
             &path,
-            &to_canvas, 
+            style, 
             clip
         ).unwrap();
     }
@@ -172,9 +170,8 @@ impl Artist<Data> for PathPatch<Data> {
         let path = self.path.transform(&to_canvas);
 
         renderer.draw_path(
-            style, 
             &path,
-            &to_canvas, 
+            style, 
             clip
         ).unwrap();
     }
@@ -239,7 +236,7 @@ impl Artist<Canvas> for Line {
         if let Some(path) = &self.path {
             let path = path.transform(&to_canvas);
 
-            renderer.draw_path(style, &path, to_canvas, clip).unwrap();
+            renderer.draw_path(&path, style, clip).unwrap();
         }
     }
 }
@@ -316,7 +313,7 @@ impl Artist<Data> for Wedge {
     ) {
         if let Some(path) = &self.path {
             let path = path.transform(to_canvas);
-            renderer.draw_path(style, &path, to_canvas, clip).unwrap();
+            renderer.draw_path(&path, style, clip).unwrap();
         }
     }
 }

@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{Path, PathOpt, TextStyle, Affine2d, Bounds, Point, Canvas, Clip};
+use crate::{Path, PathOpt, TextStyle, Bounds, Point, Canvas, Clip};
 
 pub trait Renderer {
     ///
@@ -14,9 +14,8 @@ pub trait Renderer {
 
     fn draw_path(
         &mut self, 
-        style: &dyn PathOpt, 
         path: &Path<Canvas>, 
-        to_canvas: &Affine2d,
+        style: &dyn PathOpt, 
         clip: &Clip,
     ) -> Result<(), RenderErr>;
 

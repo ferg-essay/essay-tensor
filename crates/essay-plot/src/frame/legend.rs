@@ -1,18 +1,25 @@
-use essay_plot_base::{Bounds, Canvas, Clip};
+use essay_plot_base::{Bounds, Canvas, Clip, PathOpt, Affine2d, driver::Renderer, PathCode, Path, Point};
 
-use crate::artist::Artist;
+use crate::artist::{Artist, PathStyle};
 
 pub struct Legend {
     pos: Bounds<Canvas>,
     extent: Bounds<Canvas>,
+
+    style: PathStyle,
 }
 
 impl Legend {
     pub fn new() -> Self {
-        Self {
+        let mut legend = Self {
             pos: Bounds::zero(),
             extent: Bounds::zero(),
-        }
+            style: PathStyle::new(),
+        };
+
+        legend.style.face_color("w");
+
+        legend
     }
 
     pub fn set_pos(&mut self, pos: Bounds<Canvas>) {
@@ -30,11 +37,20 @@ impl Artist<Canvas> for Legend {
 
     fn draw(
         &mut self, 
-        renderer: &mut dyn essay_plot_base::driver::Renderer,
-        to_canvas: &essay_plot_base::Affine2d,
+        renderer: &mut dyn Renderer,
+        to_canvas: &Affine2d,
         clip: &Clip,
-        style: &dyn essay_plot_base::PathOpt,
+        style: &dyn PathOpt,
     ) {
+        let pos = &self.pos;
+        
+        let path = Path::<Canvas>::new(vec![
+            PathCode::MoveTo(Point(pos.x0(), pos.y0())),
+            PathCode::LineTo(Point(pos.x0(), pos.y1())),
+            PathCode::LineTo(Point(pos.x1(), pos.y1())),
+            PathCode::ClosePoly(Point(pos.x1(), pos.y0())),
+        ]);
 
+        renderer.draw_path(&path, &self.style, clip);
     }
 }

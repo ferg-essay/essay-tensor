@@ -92,7 +92,7 @@ impl Artist<Data> for Lines2d {
 
         let style = self.style.push(style);
 
-        renderer.draw_path(&style, &path, to_canvas, clip).unwrap();
+        renderer.draw_path(&path, &style, clip).unwrap();
     }
 }
 

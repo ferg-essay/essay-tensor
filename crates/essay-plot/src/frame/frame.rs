@@ -480,7 +480,7 @@ impl BottomFrame {
                     PathCode::LineTo(Point(x, pos.ymax())),
                 ]);
 
-                renderer.draw_path(&style, &grid, to_canvas, clip).unwrap();
+                renderer.draw_path(&grid, &style, clip).unwrap();
             }
 
             // Tick
@@ -493,7 +493,7 @@ impl BottomFrame {
                     PathCode::LineTo(Point(x, y - tick_length)),
                 ]);
 
-                renderer.draw_path(&style, &tick, to_canvas, clip).unwrap();
+                renderer.draw_path(&tick, &style, clip).unwrap();
 
                 y -= tick_length;
                 y -= renderer.to_px(major.get_pad());
@@ -679,7 +679,7 @@ impl LeftFrame {
                     PathCode::LineTo(Point(pos.xmax(), y)),
                 ]);
 
-                renderer.draw_path(&style, &grid, to_canvas, clip).unwrap();
+                renderer.draw_path(&grid, &style, clip).unwrap();
             }
 
             // Tick
@@ -692,7 +692,7 @@ impl LeftFrame {
                     PathCode::LineTo(Point(x, y)),
                 ]);
 
-                renderer.draw_path(&style, &tick, to_canvas, clip).unwrap();
+                renderer.draw_path(&tick, &style, clip).unwrap();
 
                 x -= tick_length;
                 x -= renderer.to_px(major.get_pad());
