@@ -198,6 +198,16 @@ impl<M: Coord> Bounds<M> {
             marker: PhantomData,
         }
     }
+
+    #[inline]
+    pub fn p0(&self) -> Point {
+        self.p0
+    }
+
+    #[inline]
+    pub fn p1(&self) -> Point {
+        self.p1
+    }
 }
 
 impl<M: Coord> Clone for Bounds<M> {

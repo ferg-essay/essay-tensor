@@ -4,7 +4,7 @@ use essay_tensor::{Tensor, tensor::Axis};
 
 use essay_plot_base::{
     Affine2d, Bounds, Point, Canvas, Path, PathCode, PathOpt,
-    driver::Renderer
+    driver::Renderer, Clip
 };
 
 use crate::{frame::Data, artist::PathStyle, graph::{ConfigArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}};
@@ -85,7 +85,7 @@ impl Artist<Data> for Lines2d {
         &mut self, 
         renderer: &mut dyn Renderer, 
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         let path = self.path.transform(&to_canvas);

@@ -1,9 +1,9 @@
 use essay_plot_base::{
     Coord, Bounds, Affine2d, Canvas, PathOpt,
-    driver::Renderer, JoinStyle, Color, CapStyle, LineStyle,
+    driver::Renderer, JoinStyle, Color, CapStyle, LineStyle, Clip,
 };
 
-use crate::{frame::ArtistId, graph::Config};
+use crate::{frame::ArtistId};
 
 use super::PathStyle;
 
@@ -16,7 +16,7 @@ pub trait Artist<M: Coord> {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     );
 }
@@ -82,7 +82,7 @@ impl<M: Coord> Artist<M> for ArtistStyle<M> {
         &mut self, 
         renderer: &mut dyn Renderer, 
         to_canvas: &Affine2d, 
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         self.artist.draw(

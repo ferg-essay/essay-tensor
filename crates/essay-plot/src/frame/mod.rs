@@ -1,3 +1,4 @@
+mod legend;
 mod artist_id;
 mod plot_container;
 mod tick_formatter;

@@ -1,4 +1,4 @@
-use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer};
+use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer, Clip};
 use essay_tensor::Tensor;
 use essay_plot_macro::*;
 
@@ -79,7 +79,7 @@ impl Artist<Data> for BarPlot {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         self.container.draw(renderer, to_canvas, clip, style)

@@ -1,3 +1,4 @@
+mod clip;
 mod marker;
 mod point;
 mod coord;
@@ -22,6 +23,10 @@ pub use bounds::{
 
 pub use canvas::{
     Canvas,
+};
+
+pub use clip::{
+    Clip,
 };
 
 pub use color::{

@@ -2,7 +2,7 @@ use core::fmt;
 
 use essay_plot_base::{
     PathOpt, Point, Affine2d, Bounds, Canvas, Path, Angle,
-    driver::Renderer, Coord
+    driver::Renderer, Coord, Clip
 };
 
 use crate::frame::Data;
@@ -52,7 +52,7 @@ impl Artist<Data> for DataPatch {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         todo!()
@@ -102,7 +102,7 @@ impl Artist<Canvas> for CanvasPatch {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         let to_canvas = to_canvas.matmul(&self.to_canvas);
@@ -140,7 +140,7 @@ impl Artist<Canvas> for PathPatch<Canvas> {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         let path = self.path.transform(&to_canvas);
@@ -166,7 +166,7 @@ impl Artist<Data> for PathPatch<Data> {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         let path = self.path.transform(&to_canvas);
@@ -233,7 +233,7 @@ impl Artist<Canvas> for Line {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         if let Some(path) = &self.path {
@@ -311,7 +311,7 @@ impl Artist<Data> for Wedge {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         if let Some(path) = &self.path {

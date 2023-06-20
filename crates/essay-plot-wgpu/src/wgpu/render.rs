@@ -1,7 +1,7 @@
 use essay_plot_base::{
     Canvas, Affine2d, Point, Bounds, Path, PathOpt, Color, PathCode, 
     driver::{RenderErr, Renderer, FigureApi}, 
-    TextStyle, Coord, HorizAlign, VertAlign, JoinStyle, CapStyle, LineStyle
+    TextStyle, Coord, HorizAlign, VertAlign, JoinStyle, CapStyle, LineStyle, Clip
 };
 use essay_tensor::Tensor;
 
@@ -79,7 +79,7 @@ impl<'a> FigureRenderer {
     fn fill_path(
         &mut self, 
         path: &Path<Canvas>, 
-        _clip: &Bounds<Canvas>,
+        _clip: &Clip,
     ) {
         self.shape2d_render.start_shape();
         self.bezier_render.start_shape();
@@ -107,7 +107,7 @@ impl<'a> FigureRenderer {
         &mut self, 
         path: &Path<Canvas>, 
         style: &dyn PathOpt, 
-        _clip: &Bounds<Canvas>,
+        _clip: &Clip,
     ) {
         let linewidth  = match style.get_line_width() {
             Some(linewidth) => *linewidth,
@@ -355,7 +355,7 @@ impl Renderer for FigureRenderer {
         style: &dyn PathOpt, 
         path: &Path<Canvas>, 
         _to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
     ) -> Result<(), RenderErr> {
         // let to_unit = self.to_gpu.matmul(to_device);
 
@@ -413,7 +413,7 @@ impl Renderer for FigureRenderer {
         path: &Path<Canvas>, 
         xy: &Tensor,
         style: &dyn PathOpt, 
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
     ) -> Result<(), RenderErr> {
         let path = transform_solid_path(path);
 
@@ -464,7 +464,7 @@ impl Renderer for FigureRenderer {
         angle: f32,
         style: &dyn PathOpt, 
         text_style: &TextStyle,
-        _clip: &Bounds<Canvas>,
+        _clip: &Clip,
     ) -> Result<(), RenderErr> {
 
         let color = match style.get_face_color() {
@@ -509,6 +509,7 @@ impl Renderer for FigureRenderer {
         vertices: Tensor<f32>,  // Nx2 x,y in canvas coordinates
         rgba: Tensor<u32>,    // N in rgba
         triangles: Tensor<u32>, // Mx3 vertex indices
+        clip: &Clip,
     ) -> Result<(), RenderErr> {
         assert!(vertices.rank() == 2, 
             "vertices must be 2d (rank2) shape={:?}",

@@ -1,6 +1,6 @@
 use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{ManuallyDrop, self}};
 
-use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt};
+use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt, Clip};
 
 use crate::{artist::{Artist, StyleCycle}, graph::Config};
 
@@ -109,7 +109,7 @@ impl<M: Coord> Artist<M> for PlotContainer<M> {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         for (i, artist) in self.artists.iter().enumerate() {
@@ -133,7 +133,7 @@ trait PlotArtistTrait<M: Coord> {
         container: &PlotContainer<M>,
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     );
 }
@@ -184,7 +184,7 @@ where
         container: &PlotContainer<M>,
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         // let style = self.style.push(style);

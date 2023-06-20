@@ -1,4 +1,4 @@
-use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer, JoinStyle, affine};
+use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer, JoinStyle, affine, Clip};
 use essay_tensor::Tensor;
 use essay_plot_macro::*;
 
@@ -99,7 +99,7 @@ impl Artist<Data> for ScatterPlot {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         let style = self.style.push(style);

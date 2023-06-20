@@ -3,7 +3,7 @@ use essay_plot_base::{
     Bounds, Point, Canvas,
     PathOpt,
     driver::Renderer, 
-    TextStyle,
+    TextStyle, Clip,
 };
 
 use super::{Artist, PathStyle};
@@ -105,7 +105,7 @@ impl Artist<Canvas> for Text {
         &mut self, 
         renderer: &mut dyn Renderer,
         _to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         if let Some(text) = &self.text {

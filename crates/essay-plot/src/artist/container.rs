@@ -1,9 +1,9 @@
 use essay_plot_base::{
-    Bounds, Affine2d, Point, Coord, Canvas, PathOpt,
-    driver::{Renderer}
+    Bounds, Affine2d, Coord, Canvas, PathOpt,
+    driver::{Renderer}, Clip
 };
 
-use crate::{graph::{ConfigArtist, PlotOpt, Config, PlotId, ConfigArc, PathStyleArtist}, frame::Data};
+use crate::{graph::{ConfigArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}, frame::Data};
 
 use super::{ArtistStyle, Artist, PathStyle, StyleCycle};
 
@@ -60,7 +60,7 @@ impl<M: Coord> Artist<M> for Container<M> {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_device: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         //let style_cycle = Style::new();

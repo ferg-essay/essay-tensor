@@ -2,7 +2,7 @@ use core::fmt;
 
 use essay_plot_base::{
     driver::{Renderer}, PathOpt,
-    Bounds, Affine2d, Point, Canvas, Coord, CanvasEvent,
+    Bounds, Affine2d, Point, Canvas, Coord, CanvasEvent, Clip,
 };
 
 use crate::{artist::{Artist, PathStyle}, graph::Config};
@@ -234,14 +234,15 @@ impl Artist<Canvas> for DataBox {
         &mut self, 
         renderer: &mut dyn Renderer, 
         _to_canvas: &Affine2d,
-        _clip: &Bounds<Canvas>,
+        _clip: &Clip,
         style: &dyn PathOpt,
     ) {
         //let to_canvas = to_canvas.matmul(&self.to_canvas);
         let to_canvas = &self.to_canvas;
         let style = self.style.push(style);
+        let clip = Clip::Bounds(self.pos_canvas.p0(), self.pos_canvas.p1());
 
-        self.artists.draw(renderer, &to_canvas, &self.pos_canvas, &style);
+        self.artists.draw(renderer, &to_canvas, &clip, &style);
 
         // TODO: intersect clip
         //for artist in &mut self.artists {

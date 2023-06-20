@@ -2,13 +2,13 @@ use std::f32::consts::PI;
 
 use essay_plot_base::{
     PathCode, Path, PathOpt,
-    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, HorizAlign, VertAlign, TextStyle, Color, 
+    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, HorizAlign, VertAlign, TextStyle, Color, Clip, 
 };
 use essay_plot_macro::derive_plot_opt;
 
 use crate::{artist::{patch::{CanvasPatch, Line, PathPatch}, Text, Artist, PathStyle}, graph::Config};
 
-use super::{data_box::DataBox, axis::{Axis, AxisTicks}, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, LayoutArc, Data};
+use super::{data_box::DataBox, axis::{Axis, AxisTicks}, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, LayoutArc, Data, legend::Legend};
 // self as essay_plot needed for #[derive_plot_opt]
 extern crate self as essay_plot;
 
@@ -35,6 +35,8 @@ pub struct Frame {
     right: RightFrame,
 
     is_frame_visible: bool,
+
+    legend: Legend,
 
     is_stale: bool, 
     aspect_ratio: Option<f32>,
@@ -79,6 +81,8 @@ impl Frame {
 
             to_canvas: Affine2d::eye(),
 
+            legend: Legend::new(),
+
             is_stale: true,
             is_share_x: false,
             is_share_y: false,
@@ -110,6 +114,7 @@ impl Frame {
         self.top.update(canvas);
         self.right.update(canvas);
 
+        self.legend.update(canvas);
     }
 
     ///
@@ -161,6 +166,12 @@ impl Frame {
             Point(pos_data.xmax(), pos_data.ymax()),
         );
         self.right.set_pos(pos_right);
+
+        let pos_canvas = Bounds::<Canvas>::new(
+            Point(pos_data.xmin(), pos_data.ymax()),
+            Point(pos_data.xmin(), pos_data.ymax()),
+        );
+        self.legend.set_pos(pos_canvas);
 
         self
     }
@@ -225,16 +236,20 @@ impl Frame {
     }
 
     pub(crate) fn draw(&mut self, renderer: &mut dyn Renderer) {
-        self.title.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
+        let clip = Clip::from(&self.pos);
 
-        self.bottom.draw(renderer, &self.to_canvas, &self.pos, &self.path_style, &self.data);
-        self.left.draw(renderer, &self.to_canvas, &self.pos, &self.path_style, &self.data);
+        self.title.draw(renderer, &self.to_canvas, &clip, &self.path_style);
 
-        self.top.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
-        self.right.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
+        self.bottom.draw(renderer, &self.data, &self.to_canvas, &clip, &self.path_style);
+        self.left.draw(renderer, &self.data, &self.to_canvas, &clip, &self.path_style);
+
+        self.top.draw(renderer, &self.to_canvas, &clip, &self.path_style);
+        self.right.draw(renderer,  &self.to_canvas, &clip, &self.path_style);
 
         // TODO: grid order
-        self.data.draw(renderer, &self.to_canvas, &self.pos, &self.path_style);
+        self.data.draw(renderer, &self.to_canvas, &clip, &self.path_style);
+
+        self.legend.draw(renderer, &self.to_canvas, &clip, &self.path_style);
     }
 
     pub fn title(&mut self, text: &str) -> &mut Text {
@@ -341,7 +356,7 @@ impl Artist<Canvas> for TopFrame {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         if let Some(patch) = &mut self.spine {
@@ -405,10 +420,10 @@ impl BottomFrame {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
-        style: &dyn PathOpt,
         data: &DataBox,
+        to_canvas: &Affine2d,
+        clip: &Clip,
+        style: &dyn PathOpt,
     ) {
         let pos = data.get_pos();
 
@@ -421,7 +436,7 @@ impl BottomFrame {
             patch.draw(renderer, to_canvas, clip, style);
         }
 
-        self.draw_ticks(renderer, clip, style, &data);
+        self.draw_ticks(renderer, &data, clip, style);
 
         let mut y = data.get_pos().ymin();
         y -= renderer.to_px(self.axis.major().get_size());
@@ -440,9 +455,9 @@ impl BottomFrame {
     fn draw_ticks(
         &mut self, 
         renderer: &mut dyn Renderer, 
-        clip: &Bounds<Canvas>, 
+        data: &DataBox,
+        clip: &Clip,
         style: &dyn PathOpt,
-        data: &DataBox
     ) {
         let pos = &data.get_pos();
 
@@ -602,10 +617,10 @@ impl LeftFrame {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
-        style: &dyn PathOpt,
         data: &DataBox,
+        to_canvas: &Affine2d,
+        clip: &Clip,
+        style: &dyn PathOpt,
     ) {
         let pos = data.get_pos();
 
@@ -618,7 +633,7 @@ impl LeftFrame {
             patch.draw(renderer, to_canvas, clip, style);
         }
 
-        self.draw_ticks(renderer, clip, style, &data);
+        self.draw_ticks(renderer, &data, clip, style);
 
         let width = self.major_labels.iter().map(|s| s.len()).max().unwrap();
         
@@ -639,9 +654,9 @@ impl LeftFrame {
     fn draw_ticks(
         &mut self, 
         renderer: &mut dyn Renderer, 
-        clip: &Bounds<Canvas>, 
+        data: &DataBox,
+        clip: &Clip,
         style: &dyn PathOpt,
-        data: &DataBox
     ) {
         let pos = &data.get_pos();
 
@@ -687,52 +702,6 @@ impl LeftFrame {
             renderer.draw_text(Point(x, y), label, 0., style, major.label_style(), clip).unwrap();
         }
     }
-    /*
-    pub fn update_axis(&mut self, data: &DataBox) {
-        if let axis = &mut self.axis {
-            let pos = &self.pos;
-            let data_pos = data.get_pos();
-
-            self.ticks = Vec::new();
-            self.grid_major = Vec::new();
-
-            let y0 = data_pos.ymin();
-
-            for (_yv, y) in axis.y_ticks(data) {
-                if 0. <= y && y <= data_pos.height() {
-                    if self.axis.get_show_grid().is_show_major() {
-                        // grid
-                        let grid = PathPatch::new(Path::new(vec![
-                            PathCode::MoveTo(Point(data_pos.xmin(), y + y0)),
-                            PathCode::LineTo(Point(data_pos.xmax(), y + y0)),
-                        ]));
-
-                        self.grid_major.push(Box::new(grid));
-                    }
-
-                    let tick = PathPatch::new(Path::new(vec![
-                        PathCode::MoveTo(Point(pos.xmax() - 10., y + y0)),
-                        PathCode::LineTo(Point(pos.xmax(), y + y0)),
-                    ]));
-
-                    self.ticks.push(Box::new(tick));
-
-                    let x = pos.xmax()
-                        - self.sizes.line_width;
-                        //- self.sizes.major_size
-                        //- self.sizes.major_gap;
-
-                    let mut label = Text::new();
-                    label.text_style_mut().width_align(HorizAlign::Right);
-                    label.text_style_mut().valign(VertAlign::Center);
-                    label.label(&Formatter::Plain.format(_yv));
-                    label.set_pos(Bounds::from((x, y + y0)));
-                    self.ticks.push(Box::new(label));
-                }
-            };
-        }
-    }
-    */
 
     fn label(&mut self, text: &str) -> &mut Text {
         self.title.label(text)
@@ -763,7 +732,7 @@ impl Artist<Canvas> for LeftFrame {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         self.title.draw(renderer, to_canvas, clip, style);
@@ -837,7 +806,7 @@ impl Artist<Canvas> for RightFrame {
         &mut self, 
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         if let Some(patch) = &mut self.spine {

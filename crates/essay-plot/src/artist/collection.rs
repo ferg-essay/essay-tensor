@@ -1,7 +1,7 @@
 use core::fmt;
 
 use essay_tensor::{Tensor, tensor::{Axis}};
-use essay_plot_base::{Affine2d, Bounds, Path, PathCode, PathOpt, Point, Canvas, driver::{Renderer}};
+use essay_plot_base::{Affine2d, Bounds, Path, PathCode, PathOpt, Point, Canvas, driver::{Renderer}, Clip};
 
 use crate::{frame::Data, artist::PathStyle};
 
@@ -92,7 +92,7 @@ impl Artist<Data> for PathCollection {
         &mut self, 
         renderer: &mut dyn Renderer, 
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
         style: &dyn PathOpt,
     ) {
         //let mut gc = renderer.new_gc();

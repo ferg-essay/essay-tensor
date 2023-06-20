@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{Path, PathOpt, TextStyle, Affine2d, Bounds, Point, Canvas};
+use crate::{Path, PathOpt, TextStyle, Affine2d, Bounds, Point, Canvas, Clip};
 
 pub trait Renderer {
     ///
@@ -17,7 +17,7 @@ pub trait Renderer {
         style: &dyn PathOpt, 
         path: &Path<Canvas>, 
         to_canvas: &Affine2d,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
     ) -> Result<(), RenderErr>;
 
     fn draw_markers(
@@ -25,7 +25,7 @@ pub trait Renderer {
         marker: &Path<Canvas>, 
         xy: &Tensor,
         style: &dyn PathOpt, 
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
     ) -> Result<(), RenderErr>;
 
     fn draw_text(
@@ -35,7 +35,7 @@ pub trait Renderer {
         angle: f32,
         style: &dyn PathOpt, 
         text_style: &TextStyle,
-        clip: &Bounds<Canvas>,
+        clip: &Clip,
     ) -> Result<(), RenderErr>;
 
     fn draw_triangles(
@@ -43,6 +43,7 @@ pub trait Renderer {
         vertices: Tensor<f32>,  // Nx2 x,y in canvas coordinates
         colors: Tensor<u32>,    // N in rgba
         triangles: Tensor<u32>, // Mx3 vertex indices
+        clip: &Clip,
     ) -> Result<(), RenderErr>;
 
     fn request_redraw(
