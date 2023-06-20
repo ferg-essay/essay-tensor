@@ -9,6 +9,7 @@ pub struct TextStyle {
 #[derive(Clone, Copy, Debug)]
 pub enum VertAlign {
     Bottom,
+    BaselineBottom,
     Center,
     Top,
 }
@@ -21,9 +22,9 @@ pub enum HorizAlign {
 }
 
 impl TextStyle {
-    pub const SIZE_DEFAULT : f32 = 12.;
+    pub const SIZE_DEFAULT : f32 = 10.;
     pub const HALIGN_DEFAULT : HorizAlign = HorizAlign::Center;
-    pub const VALIGN_DEFAULT : VertAlign = VertAlign::Bottom;
+    pub const VALIGN_DEFAULT : VertAlign = VertAlign::BaselineBottom;
 
     pub fn new() -> Self {
         Self {
@@ -58,7 +59,7 @@ impl TextStyle {
         &self.horiz_align
     }
 
-    pub fn width_align(&mut self, align: HorizAlign) {
+    pub fn halign(&mut self, align: HorizAlign) {
         self.horiz_align = Some(align);
     }
 

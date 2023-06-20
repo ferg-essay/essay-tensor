@@ -159,7 +159,8 @@ impl TextRender {
 
         let dy = match valign {
             VertAlign::Top => - size - font.descent(),
-            VertAlign::Center => - 0.5 * (size - font.descent()), 
+            VertAlign::Center => - 0.5 * (size + font.descent()),
+            VertAlign::BaselineBottom => 0.,
             VertAlign::Bottom => - font.descent(),
         };
 
