@@ -23,6 +23,8 @@ pub trait Renderer {
         &mut self, 
         marker: &Path<Canvas>, 
         xy: &Tensor,
+        scale: &Tensor,
+        color: &Tensor<u32>,
         style: &dyn PathOpt, 
         clip: &Clip,
     ) -> Result<(), RenderErr>;

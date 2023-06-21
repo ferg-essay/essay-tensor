@@ -4,7 +4,7 @@ use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt
 
 use crate::{artist::{Artist, StyleCycle}, graph::Config};
 
-use super::{ArtistId, FrameId};
+use super::{ArtistId, FrameId, legend::LegendHandler};
 
 pub(crate) struct PlotContainer<M: Coord> {
     frame: FrameId,
@@ -127,6 +127,7 @@ trait PlotArtistTrait<M: Coord> {
 
     fn update(&self, container: &PlotContainer<M>, canvas: &Canvas);
     fn get_extent(&self, container: &PlotContainer<M>) -> Bounds<M>;
+    fn get_legend(&self, container: &PlotContainer<M>) -> Option<Box<dyn LegendHandler>>;
 
     fn draw(
         &self, 
@@ -141,7 +142,6 @@ trait PlotArtistTrait<M: Coord> {
 struct PlotArtist<M: Coord, A: Artist<M>> {
     id: ArtistId,
     marker: PhantomData<(M, A)>,
-    //style: PathStyle,
 }
 
 impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
@@ -149,13 +149,8 @@ impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
         Self {
             id,
             marker: PhantomData,
-            //style: PathStyle::new(),
         }
     }
-
-    //pub(crate) fn style(&self) -> &PathStyle {
-    //    &self.style
-    //}
 }
 
 impl<M: Coord, A: Artist<M>> PlotArtistTrait<M> for PlotArtist<M, A>
@@ -170,6 +165,10 @@ where
     //fn style_mut(&mut self) -> &mut PathStyle {
     //    &mut self.style
     //}
+
+    fn get_legend(&self, container: &PlotContainer<M>) -> Option<Box<dyn LegendHandler>> {
+        None
+    }
 
     fn update(&self, container: &PlotContainer<M>, canvas: &Canvas) {
         container.deref_mut::<A>(self.id).update(canvas);

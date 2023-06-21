@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{marker::PhantomData};
 
 use essay_tensor::{prelude::*};
@@ -138,6 +139,12 @@ impl<M: Coord> Clone for Path<M> {
             codes: self.codes.clone(), 
             marker: self.marker.clone() 
         }
+    }
+}
+
+impl<M: Coord> fmt::Debug for Path<M> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Path").field("codes", &self.codes).finish()
     }
 }
 

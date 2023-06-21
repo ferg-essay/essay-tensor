@@ -28,6 +28,9 @@ macro_rules! tf32 {
     ( $x:expr ) => {
         $crate::Tensor::<f32>::from($x)
     };
+    ( ) => {
+        $crate::Tensor::<f32>::empty()
+    };
 }
 
 #[macro_export]

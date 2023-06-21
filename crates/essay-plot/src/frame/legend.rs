@@ -56,3 +56,7 @@ impl Artist<Canvas> for Legend {
         renderer.draw_path(&path, &self.style, clip).unwrap();
     }
 }
+
+pub trait LegendHandler {
+    
+}

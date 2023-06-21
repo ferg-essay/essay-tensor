@@ -1,6 +1,6 @@
 use essay_plot_base::{Color, LineStyle, TextStyle, Canvas};
 
-use crate::{artist::{PathStyle, Text, Artist}, graph::Config};
+use crate::{artist::{PathStyle, Text, Artist}, graph::Config, frame_option_struct, path_style_options};
 
 use super::{
     data_box::DataBox,
@@ -200,52 +200,7 @@ impl AxisTicks {
     }
 }
 
-macro_rules! opt_struct {
-    ($name: ident, $ty: ident, $getter: ident) => {
-        pub struct $name {
-            layout: LayoutArc,
-            id: FrameId,
-            artist: FrameArtist,
-        }
-        
-        impl $name {
-            pub(crate) fn new(layout: LayoutArc, id: FrameId, artist: FrameArtist) -> Self {
-                Self {
-                    layout,
-                    id,
-                    artist,
-                }
-            }
-        
-            fn write(&mut self, fun: impl FnOnce(&mut $ty)) {
-                // TODO: possibly automatically set is_stale?
-                fun(self.layout.borrow_mut().frame_mut(self.id).$getter(self.artist))
-            }
-        }
-    }
-}
-
-macro_rules! path_style_methods {
-    ($field: ident) => {
-
-        pub fn color(&mut self, color: impl Into<Color>) -> &mut Self {
-            self.write(|ticks| { ticks.$field.color(color); });
-            self
-        }
-    
-        pub fn line_width(&mut self, width: f32) -> &mut Self {
-            self.write(|ticks| { ticks.$field.line_width(width); });
-            self
-        }
-    
-        pub fn line_style(&mut self, style: impl Into<LineStyle>) -> &mut Self {
-            self.write(|ticks| { ticks.$field.line_style(style); });
-            self
-        }
-    }
-}
-
-opt_struct!(AxisOpt, Axis, get_axis_mut);
+frame_option_struct!(AxisOpt, Axis, get_axis_mut);
 
 impl AxisOpt {
     pub fn show_grid(&mut self, show: impl Into<ShowGrid>) -> &mut Self {
@@ -274,11 +229,7 @@ impl AxisOpt {
             _ => panic!("invalid major()")
         };
 
-        AxisTicksOpt {
-            layout: self.layout.clone(),
-            id: self.id,
-            artist,
-        }
+        AxisTicksOpt::new(self.layout.clone(), self.frame_id, artist)
     }
 
     pub fn major_grid(&self) -> AxisGridOpt {
@@ -288,21 +239,17 @@ impl AxisOpt {
             _ => panic!("invalid major()")
         };
 
-        AxisGridOpt {
-            layout: self.layout.clone(),
-            id: self.id,
-            artist,
-        }
+        AxisGridOpt::new(self.layout.clone(), self.frame_id, artist)
     }
 }
 
-opt_struct!(AxisGridOpt, AxisTicks, get_ticks_mut);
+frame_option_struct!(AxisGridOpt, AxisTicks, get_ticks_mut);
 
 impl AxisGridOpt {
-    path_style_methods!(grid_style);
+    path_style_options!(grid_style);
 }
 
-opt_struct!(AxisTicksOpt, AxisTicks, get_ticks_mut);
+frame_option_struct!(AxisTicksOpt, AxisTicks, get_ticks_mut);
 
 impl AxisTicksOpt {
     pub fn locator(&mut self, locator: impl TickLocator + 'static) -> &mut Self {
@@ -319,7 +266,7 @@ impl AxisTicksOpt {
         self
     }
 
-    path_style_methods!(ticks_style);
+    path_style_options!(ticks_style);
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

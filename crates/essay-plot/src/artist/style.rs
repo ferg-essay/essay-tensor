@@ -1,10 +1,15 @@
 use core::fmt;
 use std::str::FromStr;
 
-use essay_plot_base::{Color, JoinStyle, CapStyle, PathOpt, LineStyle, TextureId};
+use essay_plot_base::{Color, JoinStyle, CapStyle, PathOpt, LineStyle, Coord};
 
 use crate::graph::Config;
 
+use super::{Markers, Artist};
+
+pub trait PathStyleOpt : PathOpt {
+    fn get_marker(&self) -> &Option<Markers>;
+}
 
 #[derive(Clone)]
 pub struct PathStyle {
@@ -17,7 +22,12 @@ pub struct PathStyle {
     cap_style: Option<CapStyle>,
 
     line_style: Option<LineStyle>,
+    alpha: Option<f32>,
+
+
     gap_color: Option<Color>,
+
+    marker: Option<Markers>,
 }
 
 impl PathStyle {
@@ -36,6 +46,8 @@ impl PathStyle {
         style.line_style = cfg.get_as_type(prefix, "line_style");
         style.join_style = cfg.get_as_type(prefix, "join_style");
         style.cap_style = cfg.get_as_type(prefix, "cap_style");
+        style.alpha = cfg.get_as_type(prefix, "alpha");
+        style.marker = cfg.get_as_type(prefix, "marker");
         style
     }
 
@@ -82,6 +94,66 @@ impl PathStyle {
         self.cap_style = Some(capstyle.into());
 
         self
+    }
+
+    pub fn alpha(&mut self, alpha: f32) -> &mut Self {
+        self.alpha = Some(alpha);
+
+        self
+    }
+
+    pub fn marker(&mut self, marker: impl Into<Markers>) -> &mut Self {
+        self.marker = Some(marker.into());
+
+        self
+    }
+}
+
+impl fmt::Debug for PathStyle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut fmt = f.debug_struct("PathStyle");
+
+        if let Some(color) = &self.color {
+            fmt.field("color", color);
+        }
+
+        if let Some(face_color) = &self.face_color {
+            fmt.field("face_color", face_color);
+        }
+
+        if let Some(edge_color) = &self.edge_color {
+            fmt.field("edge_color", edge_color);
+        }
+        
+        if let Some(line_width) = &self.line_width {
+            fmt.field("line_width", line_width);
+        }
+        
+        if let Some(join_style) = &self.join_style {
+            fmt.field("join_style", join_style);
+        }
+
+        if let Some(cap_style) = &self.cap_style {
+            fmt.field("cap_style", cap_style);
+        }
+        
+        if let Some(line_style) = &self.line_style {
+            fmt.field("line_style", line_style);
+        }
+        
+        if let Some(alpha) = &self.alpha {
+            fmt.field("alpha", alpha);
+        }
+        
+        if let Some(gap_color) = &self.gap_color {
+            fmt.field("gap_color", gap_color);
+        }
+        
+        if let Some(marker) = &self.marker {
+            fmt.field("marker", marker);
+        }
+        
+        fmt.finish()
     }
 }
 
@@ -133,7 +205,7 @@ impl PathOpt for PathStyle {
     }
 
     fn get_alpha(&self) -> &Option<f32> {
-        todo!()
+        &self.alpha
     }
 
     fn get_texture(&self) -> &Option<essay_plot_base::TextureId> {
@@ -141,17 +213,26 @@ impl PathOpt for PathStyle {
     }
 }
 
+impl PathStyleOpt for PathStyle {
+    fn get_marker(&self) -> &Option<Markers> {
+        &self.marker
+    }
+}
+
 impl Default for PathStyle {
     fn default() -> Self {
         Self { 
-            color: Default::default(), 
-            face_color: Default::default(), 
-            edge_color: Default::default(), 
-            line_width: Default::default(), 
-            join_style: Default::default(),
-            cap_style: Default::default(),
-            line_style: Default::default(),
-            gap_color: Default::default(),
+            color: None,
+            face_color: None,
+            edge_color: None,
+            line_width: None,
+            join_style: None,
+            cap_style: None,
+            line_style: None,
+            gap_color: None,
+            alpha: None,
+            marker: None,
         }
     }
 }
+

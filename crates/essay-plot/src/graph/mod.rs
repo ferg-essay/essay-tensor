@@ -1,3 +1,4 @@
+mod style;
 mod config;
 mod plot;
 mod figure;
@@ -15,6 +16,10 @@ pub use config::{
     Config, ConfigArc,
 };
 
+pub use style::{
+    PlotOpt2,
+};
+
 pub use plot::{
-    PlotId, PlotOpt, PlotRef, ConfigArtist, PathStyleArtist,
+    PlotId, PlotOpt, PlotRef, PlotArtist, PathStyleArtist,
 };

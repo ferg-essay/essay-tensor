@@ -3,7 +3,7 @@ use essay_plot_base::{
     driver::{Renderer}, Clip
 };
 
-use crate::{graph::{ConfigArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}, frame::Data};
+use crate::{graph::{PlotArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}, frame::Data};
 
 use super::{ArtistStyle, Artist, PathStyle, StyleCycle};
 
@@ -75,7 +75,7 @@ impl<M: Coord> Artist<M> for Container<M> {
     }
 }
 
-impl ConfigArtist<Data> for Container<Data> {
+impl PlotArtist<Data> for Container<Data> {
     type Opt = PlotOpt;
 
     fn config(&mut self, cfg: &ConfigArc, id: PlotId) -> Self::Opt {

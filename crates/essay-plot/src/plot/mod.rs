@@ -5,13 +5,13 @@ use crate::{graph::{Graph, PlotOpt}};
 
 mod pie;
 mod scatter;
-mod lineplot;
+mod plot;
 
 pub use bar::{
     bar_y, BarOpt,
 };
 
-pub use lineplot::{
+pub use plot::{
     plot, 
 };
 
@@ -29,7 +29,7 @@ impl Graph {
         x: impl Into<Tensor>,
         y: impl Into<Tensor>,
     ) -> PlotOpt {
-        lineplot::plot(self, x, y)
+        plot::plot(self, x, y)
     }
 
     pub fn scatter(

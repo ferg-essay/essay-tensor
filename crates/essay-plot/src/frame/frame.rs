@@ -2,15 +2,17 @@ use std::f32::consts::PI;
 
 use essay_plot_base::{
     PathCode, Path, PathOpt,
-    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, HorizAlign, VertAlign, TextStyle, Color, Clip, 
+    driver::{Renderer}, Bounds, Canvas, Affine2d, Point, CanvasEvent, HorizAlign, VertAlign, Color, Clip, 
 };
-use essay_plot_macro::derive_plot_opt;
 
-use crate::{artist::{patch::{CanvasPatch, Line, PathPatch}, Text, Artist, PathStyle}, graph::Config};
+use crate::{
+    artist::{
+        patch::{CanvasPatch, Line}, Text, Artist, PathStyle
+    }, 
+    graph::Config
+};
 
-use super::{data_box::DataBox, axis::{Axis, AxisTicks}, tick_formatter::{Formatter, TickFormatter}, layout::FrameId, LayoutArc, Data, legend::Legend};
-// self as essay_plot needed for #[derive_plot_opt]
-extern crate self as essay_plot;
+use super::{data_box::DataBox, axis::{Axis, AxisTicks}, layout::FrameId, LayoutArc, legend::Legend, Data, ArtistId};
 
 pub struct Frame {
     id: FrameId,
@@ -141,14 +143,6 @@ impl Frame {
 
         self.data.set_pos(&pos_data);
 
-        /*
-        let pos_bottom = Bounds::<Canvas>::new(
-            Point(pos_data.xmin(), pos_data.ymin()),
-            Point(pos_data.xmax(), pos_data.ymin()),
-        );
-        self.bottom.set_pos(pos_bottom);
-        */
-
         let pos_left = Bounds::<Canvas>::new(
             Point(pos_data.xmin(), pos_data.ymin()),
             Point(pos_data.xmin(), pos_data.ymax()),
@@ -224,6 +218,13 @@ impl Frame {
         }
     }
 
+    pub(crate) fn get_data_artist_mut<A>(&mut self, id: ArtistId) -> &mut A
+    where
+        A: Artist<Data> + 'static
+    {
+        self.data_mut().artist_mut(id)
+    }
+
     pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
         if self.data.get_pos().contains(event.point()) {
             if self.data.event(renderer, event) {
@@ -289,14 +290,6 @@ pub struct FrameSizes {
 
 impl FrameSizes {
     fn new(cfg: &Config) -> Self {
-
-        // frame.title_pad: 6.0
-        // frame.label_size: medium
-        // frame.label_pad: 4.0
-        // frame.title_size: large
-        // xaxis.major.size: 3.5
-        // xaxis.major.pad: 3.5
-
         Self {
             line_width: 1.,
 

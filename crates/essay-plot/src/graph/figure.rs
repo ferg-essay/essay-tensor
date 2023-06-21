@@ -34,26 +34,11 @@ impl Figure {
         self.inner.graph_mut(id)
     }
 
-    pub fn polyaxes<'a, R: PolyRow<'a>>(&'a mut self, layout: R) -> R::Item {
+    pub fn poly_graphs<'a, R: PolyRow<'a>>(&'a mut self, layout: R) -> R::Item {
         let mut row = 0;
         //R::axes(self, layout, &mut row)
         todo!()
     }
-
-    /*
-    pub fn plot(
-        &mut self, 
-        x: impl Into<Tensor>, 
-        y: impl Into<Tensor>, 
-        opt: impl Into<PlotOpt>
-    ) -> &Graph {
-        let graph = self.new_graph(());
-        
-        graph.plot(x, y, opt);
-
-        graph
-    }
-    */
 
     pub fn show(self) {
         // let mut figure = self;
@@ -319,9 +304,9 @@ mod test {
     fn test_polyaxes() {
         let mut figure = Figure::new();
 
-        let axes = figure.polyaxes([]);
-        let axes = figure.polyaxes(([], [2]));
-        let axes = figure.polyaxes((
+        let axes = figure.poly_graphs([]);
+        let axes = figure.poly_graphs(([], [2]));
+        let axes = figure.poly_graphs((
             ([], []),
             ([2, 2]),
         ));

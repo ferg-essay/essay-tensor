@@ -1,5 +1,5 @@
 mod clip;
-mod marker;
+mod instance;
 mod point;
 mod coord;
 pub mod affine;
@@ -45,7 +45,7 @@ pub use path::{
     Path, PathCode,
 };
 
-pub use marker::{
+pub use instance::{
     Instance,
 };
 

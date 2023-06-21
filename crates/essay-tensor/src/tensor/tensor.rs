@@ -40,6 +40,18 @@ impl<T: 'static> Tensor<T> {
 */
 
 impl<T: Clone + 'static> Tensor<T> {
+    pub fn empty() -> Self {
+        Self {
+            id: TensorId::NONE,
+
+            shape: Shape::from([0]),
+            offset: 0,
+            len: 0,
+
+            data: Arc::new(TensorData::from_slice(&[])),
+        }
+    }
+
     pub fn from_slice(data: &[T]) -> Self {
         assert!(data.len() > 0);
 
@@ -479,7 +491,7 @@ impl<T:Dtype> From<T> for Tensor<T> {
 impl<T: Dtype> From<()> for Tensor<T> {
     // TODO: possible conflict with Tensors
     fn from(_value: ()) -> Self {
-        Tensor::from_vec(vec![], [0])
+        Tensor::empty()
     }
 }
 

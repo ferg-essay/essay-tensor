@@ -411,45 +411,53 @@ impl Renderer for FigureRenderer {
         &mut self, 
         path: &Path<Canvas>, 
         xy: &Tensor,
+        scale: &Tensor,
+        color: &Tensor<u32>,
         style: &dyn PathOpt, 
         clip: &Clip,
     ) -> Result<(), RenderErr> {
         let path = transform_solid_path(path);
 
-        let facecolor = match style.get_face_color() {
+        let face_color = match style.get_face_color() {
             Some(color) => *color,
             None => Color(0x000000ff)
         };
 
-        let edgecolor = match style.get_edge_color() {
+        let edge_color = match style.get_edge_color() {
             Some(color) => *color,
-            None => Color(0x000000ff)
+            None => face_color
         };
 
-        if path.is_closed_path() && ! facecolor.is_none() {
+        if path.is_closed_path() && ! face_color.is_none() {
             self.fill_path(&path, clip);
 
-            for xy in xy.iter_slice() {
-                let offset = Affine2d::eye().translate(xy[0], xy[1]);
+            for (i, xy) in xy.iter_slice().enumerate() {
+                let affine = marker_affine(xy[0], xy[1], i, scale);
+                let color = marker_color(i, color, face_color);
 
-                self.shape2d_render.draw_style(facecolor, &self.to_gpu.matmul(&offset));
-                self.bezier_render.draw_style(facecolor, &self.to_gpu.matmul(&offset));
+                self.shape2d_render.draw_style(color, &self.to_gpu.matmul(&affine));
+                self.bezier_render.draw_style(color, &self.to_gpu.matmul(&affine));
             }
 
-            if facecolor != edgecolor && ! edgecolor.is_none() {
+            if face_color != edge_color && ! edge_color.is_none() {
                 self.draw_lines(&path, style, clip);
 
-                self.shape2d_render.draw_style(edgecolor, &self.to_gpu);
-                self.bezier_render.draw_style(edgecolor, &self.to_gpu);
+                for (i, xy) in xy.iter_slice().enumerate() {
+                    let affine = marker_affine(xy[0], xy[1], i, scale);
+    
+                    self.shape2d_render.draw_style(edge_color, &self.to_gpu.matmul(&affine));
+                    self.bezier_render.draw_style(edge_color, &self.to_gpu.matmul(&affine));
+                }
             }
-        } else if ! edgecolor.is_none() {
+        } else if ! edge_color.is_none() {
             self.draw_lines(&path, style, clip);
 
-            for xy in xy.iter_slice() {
-                let offset = Affine2d::eye().translate(xy[0], xy[1]);
+            for (i, xy) in xy.iter_slice().enumerate() {
+                let affine = marker_affine(xy[0], xy[1], i, scale);
+                let color = marker_color(i, color, edge_color);
 
-                self.shape2d_render.draw_style(edgecolor, &self.to_gpu.matmul(&offset));
-                self.bezier_render.draw_style(edgecolor, &self.to_gpu.matmul(&offset));
+                self.shape2d_render.draw_style(color, &self.to_gpu.matmul(&affine));
+                self.bezier_render.draw_style(color, &self.to_gpu.matmul(&affine));
             }
         }
 
@@ -508,7 +516,7 @@ impl Renderer for FigureRenderer {
         vertices: Tensor<f32>,  // Nx2 x,y in canvas coordinates
         rgba: Tensor<u32>,    // N in rgba
         triangles: Tensor<u32>, // Mx3 vertex indices
-        clip: &Clip,
+        _clip: &Clip,
     ) -> Result<(), RenderErr> {
         assert!(vertices.rank() == 2, 
             "vertices must be 2d (rank2) shape={:?}",
@@ -613,6 +621,37 @@ fn transform_solid_path(path: &Path<Canvas>) -> Path<Canvas> {
     }
 
     Path::<Canvas>::new(codes)
+}
+
+fn marker_affine(x: f32, y: f32, i: usize, scale: &Tensor) -> Affine2d {
+    let mut affine = Affine2d::eye();
+
+    // optional scaling
+    if scale.len() > 1 {
+       affine = match scale.cols() {
+            1 => affine.scale(scale[i], scale[i]),
+            2 => affine.scale(scale[(i, 0)], scale[(i, 1)]),
+            _ => panic!("Marker scale must be 1 or 2 dimensional {:?}", scale.shape().as_slice())
+        }
+    } else if scale.len() == 1 {
+        affine = match scale.cols() {
+            1 => affine.scale(scale[0], scale[0]),
+            2 => affine.scale(scale[(0, 0)], scale[(0, 1)]),
+            _ => panic!("Marker scale must be 1 or 2 dimensional {:?}", scale.shape().as_slice())
+        }
+    }
+
+    affine.translate(x, y)
+}
+
+fn marker_color(i: usize, color: &Tensor<u32>, default: Color) -> Color {
+    if color.len() == 0 {
+        default
+    } else if color.len() == 1 {
+        Color(color[0])
+    } else {
+        Color(color[i])
+    }
 }
 
 fn transform_dashed_path(path: &Path<Canvas>, pattern: Vec<f32>) -> Path<Canvas> {

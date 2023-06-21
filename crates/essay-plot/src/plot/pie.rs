@@ -1,7 +1,7 @@
 use essay_plot_base::{Angle, Point};
 use essay_tensor::Tensor;
 
-use crate::{artist::{patch, ColorCycle, Container, ArtistStyle}, graph::{Graph, PlotOpt}, frame::ArtistId};
+use crate::{artist::{patch, Container, ArtistStyle}, graph::{Graph, PlotOpt}, frame::ArtistId};
 
 pub fn pie(
     graph: &mut Graph, 
@@ -22,8 +22,7 @@ pub fn pie(
     let center = Point(0., 0.);
 
     let mut container = Container::new();
-    let colors = ColorCycle::tableau();
-    let mut i = 0;
+
     for frac in x.iter() {
         let theta2 = (theta1 + frac + 1.) % 1.;
 
@@ -33,21 +32,14 @@ pub fn pie(
             (Angle::Unit(theta1), Angle::Unit(theta2))
         );
 
-        //patch.color(colors[i]);
         let id = ArtistId::empty();
 
-        let mut artist = ArtistStyle::new(id, patch);
-        //artist.color(colors[i]);
-        //artist.style_mut().face_color(colors[i]);
-        //artist.style_mut().facecolor(Color(0x0));
+        let artist = ArtistStyle::new(id, patch);
         
         container.push(artist);
 
         theta1 = theta2;
-        i += 1;
     }
 
     graph.add_plot_artist(container)
-
-    // todo!()
 }

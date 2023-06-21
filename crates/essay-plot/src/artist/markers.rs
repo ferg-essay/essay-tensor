@@ -1,8 +1,11 @@
-use essay_plot_base::{Path, Angle, PathCode, Point, Canvas};
+use std::str::FromStr;
+
+use essay_plot_base::{Path, Angle, PathCode, Point, Canvas, path_opt::StyleErr};
 use essay_tensor::tf32;
 
 use super::paths::{Unit, self};
 
+#[derive(Clone, Debug)]
 pub enum Markers {
     None,
     Point, // '.'
@@ -173,6 +176,60 @@ impl From<&str> for Markers {
 
             _ => { panic!("'{}' is an unknown marker symbol", value); }
         }
+    }
+}
+
+impl FromStr for Markers {
+    type Err = StyleErr;
+    
+    fn from_str(value: &str) -> Result<Markers, Self::Err> {
+        let marker = match value {
+            "o" => Self::Circle,
+            "." => Self::Point,
+            "," => Self::Pixel,
+            "v" => Self::TriangleDown,
+            "^" => Self::TriangleUp,
+            "<" => Self::TriangleLeft,
+            ">" => Self::TriangleRight,
+            "1" => Self::TriDown,
+            "2" => Self::TriUp,
+            "3" => Self::TriLeft,
+            "4" => Self::TriRight,
+            "8" => Self::Octagon,
+            "s" => Self::Square,
+            "h" => Self::Hexagon,
+            "H" => Self::Hexagon2,
+            "p" => Self::Pentagon,
+            "P" => Self::PlusFilled,
+            "+" => Self::Plus,
+            "*" => Self::Star,
+            "x" => Self::X,
+            "X" => Self::XFilled,
+            "d" => Self::ThinDiamond,
+            "D" => Self::Diamond,
+            "|" => Self::VertLine,
+            "_" => Self::HorizLine,
+
+            "#0" => Self::TickLeft,
+            "#1" => Self::TickRight,
+            "#2" => Self::TickUp,
+            "#3" => Self::TickDown,
+            "#4" => Self::CaretLeft,
+            "#5" => Self::CaretRight,
+            "#6" => Self::CaretUp,
+            "#7" => Self::CaretDown,
+            "#8" => Self::CaretLeftBase,
+            "#9" => Self::CaretRightBase,
+            "#10" => Self::CaretUpBase,
+            "#11" => Self::CaretDownBase,
+
+            "" => Self::None,
+            "none" => Self::None,
+
+            _ => { return Err(StyleErr(format!("'{}' is an unknown marker symbol", value))); }
+        };
+
+        Ok(marker)
     }
 }
 // filled_markers = '.', 'o', 'v', '^', '<', '>', '8', 's', 'p', '*',

@@ -225,7 +225,7 @@ impl FromStr for LineStyle {
 }
 
 #[derive(Clone, Debug)]
-pub struct StyleErr(String);
+pub struct StyleErr(pub String);
 
 
 #[derive(Clone, Copy, PartialEq, Debug)]

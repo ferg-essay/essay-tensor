@@ -103,7 +103,7 @@ impl Artist<Canvas> for CanvasPatch {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Clip,
-        style: &dyn PathOpt,
+        _style: &dyn PathOpt,
     ) {
         let to_canvas = to_canvas.matmul(&self.to_canvas);
         let path = self.patch.get_path().transform(&to_canvas);

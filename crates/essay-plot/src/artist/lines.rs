@@ -7,7 +7,7 @@ use essay_plot_base::{
     driver::Renderer, Clip
 };
 
-use crate::{frame::Data, artist::PathStyle, graph::{ConfigArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}};
+use crate::{frame::Data, artist::PathStyle, graph::{PlotArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}};
 
 use super::{Artist};
 
@@ -96,7 +96,7 @@ impl Artist<Data> for Lines2d {
     }
 }
 
-impl ConfigArtist<Data> for Lines2d {
+impl PlotArtist<Data> for Lines2d {
     type Opt = PlotOpt;
 
     fn config(&mut self, cfg: &ConfigArc, id: PlotId) -> Self::Opt {

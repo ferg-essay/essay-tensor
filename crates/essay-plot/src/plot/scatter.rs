@@ -1,11 +1,11 @@
 use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer, JoinStyle, affine, Clip};
 use essay_tensor::Tensor;
-use essay_plot_macro::*;
 
-use crate::{artist::{paths::{self}, Artist, PathCollection, Markers, PathStyle}, graph::{Graph}, frame::{Data}};
-
-// self as essay_plot needed for #[derive_plot_opt]
-extern crate self as essay_plot;
+use crate::{
+    artist::{paths::{self}, Artist, PathCollection, Markers, PathStyle}, 
+    graph::{Graph, PlotArtist, ConfigArc, PlotId}, frame::{Data}, 
+    data_artist_option_struct, path_style_options
+};
 
 pub fn scatter(
     graph: &mut Graph, 
@@ -17,22 +17,18 @@ pub fn scatter(
 
     let plot = ScatterPlot::new(x.stack(&[y], -1));
 
-    ScatterOpt::new(graph.add_plot(plot))
+    graph.add_plot_artist(plot)
 }
 
-#[derive_plot_opt(ScatterOpt)]
 pub struct ScatterPlot {
     xy: Tensor,
     collection: PathCollection,
     is_stale: bool,
 
-    #[option]
     style: PathStyle,
 
-    #[option]
     size: f32,
 
-    #[option(Into)]
     marker: Markers,
 }
 
@@ -60,6 +56,7 @@ impl ScatterPlot {
         }
     }
 
+    /*
     fn size(&mut self, size: f32) -> &mut Self {
         assert!(size >= 0.);
 
@@ -73,6 +70,7 @@ impl ScatterPlot {
 
         self
     }
+    */
 }
 
 impl Artist<Data> for ScatterPlot {
@@ -105,5 +103,31 @@ impl Artist<Data> for ScatterPlot {
         let style = self.style.push(style);
 
         self.collection.draw(renderer, to_canvas, clip, &style)
+    }
+}
+
+impl PlotArtist<Data> for ScatterPlot {
+    type Opt = ScatterOpt;
+
+    fn config(
+        &mut self, 
+        cfg: &ConfigArc, 
+        id: PlotId,
+    ) -> Self::Opt {
+        self.style = PathStyle::from_config(cfg, "scatter");
+
+        ScatterOpt::new(id)
+    }
+}
+
+data_artist_option_struct!(ScatterOpt, ScatterPlot);
+
+impl ScatterOpt {
+    path_style_options!(style);
+
+    pub fn marker(&mut self, marker: impl Into<Markers>) -> &mut Self {
+        self.write(|plot| plot.marker = marker.into());
+
+        self
     }
 }

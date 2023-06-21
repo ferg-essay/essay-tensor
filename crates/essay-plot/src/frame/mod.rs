@@ -31,3 +31,7 @@ pub use artist_id::{
 pub use layout::{
     Layout, LayoutArc, FrameId,
 };
+
+pub use legend::{
+    Legend, LegendHandler,
+};

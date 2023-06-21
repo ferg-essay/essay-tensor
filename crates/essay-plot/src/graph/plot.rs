@@ -76,13 +76,6 @@ impl PlotOpt {
         
         self
     }
-
-    pub(crate) fn from_id<A>(id: PlotId) -> PlotOpt 
-    where
-        A: PathStyleArtist
-    {
-        todo!()
-    }
 }
 
 struct PlotOptHolder<A: PathStyleArtist> {
@@ -138,6 +131,14 @@ impl PlotId {
         }
     }
 
+    pub fn layout(&self) -> &LayoutArc {
+        &self.layout
+    }
+
+    pub fn id(&self) -> &ArtistId {
+        &self.artist_id
+    }
+
     pub(crate) unsafe fn as_ref<M, A>(&self) -> PlotRef<M, A>
     where
         M: Coord,
@@ -167,21 +168,6 @@ impl<M: Coord, A: Artist<M>> PlotRef<M, A> {
             marker: PhantomData,
         }
     }
-    /*
-    pub fn read_style<R>(&self, fun: impl FnOnce(&PathStyle) -> R) -> R {
-        fun(self.layout.borrow_mut()
-                .frame_mut(self.frame_id)
-                .data_mut()
-                .style_mut(self.artist_id))
-    }
-
-    pub fn write_style<R>(&mut self, fun: impl FnOnce(&mut PathStyle) -> R) -> R {
-        fun(self.layout.borrow_mut()
-                .frame_mut(self.frame_id)
-                .data_mut()
-                .style_mut(self.artist_id))
-    }
-    */
 }
 
 impl<A: Artist<Data> + 'static> PlotRef<Data, A> {
@@ -200,10 +186,14 @@ impl<A: Artist<Data> + 'static> PlotRef<Data, A> {
     }
 }
 
-pub trait ConfigArtist<M: Coord> : Artist<M> {
+pub trait PlotArtist<M: Coord> : Artist<M> {
     type Opt;
     
-    fn config(&mut self, cfg: &ConfigArc, id: PlotId) -> Self::Opt;
+    fn config(
+        &mut self, 
+        cfg: &ConfigArc, 
+        id: PlotId,
+    ) -> Self::Opt;
 }
 
 pub trait PathStyleArtist : Artist<Data> {

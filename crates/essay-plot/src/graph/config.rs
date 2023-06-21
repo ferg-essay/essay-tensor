@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::{Chars, FromStr}, iter::Peekable, ops::Dere
 
 pub(crate) fn read_config() -> Config
 {
-    let data = include_bytes!("plot.rc");
+    let data = include_bytes!("essay-plot.rc");
 
     let data = String::from_utf8(data.to_vec()).unwrap();
     // TODO: Cursor with line info

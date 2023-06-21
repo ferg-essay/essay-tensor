@@ -4,7 +4,7 @@ use crate::{artist::{
     Artist,
 }, frame::{Data, LayoutArc, FrameId, FrameArtist, FrameTextOpt, AxisOpt}};
 
-use super::{plot::{PlotRef, PlotId}, ConfigArtist, PlotOpt};
+use super::{plot::{PlotRef, PlotId}, PlotArtist, PlotOpt, style::{PlotStyleArtist, PlotOpt2}};
 
 pub struct Graph {
     id: FrameId,
@@ -66,26 +66,16 @@ impl Graph {
         //self.title.font().size(12.);
     }
 
-    pub fn add_data_artist<'a, A>(
+    // TODO: should there be a plain add_artist that doesn't wrap PlotStyle?
+
+    pub fn add_simple_artist<'a, A>(
         &mut self, 
         artist: A,
-    ) -> PlotOpt
+    ) -> PlotOpt2
     where
         A: Artist<Data> + 'static
     {
-        let mut layout = self.layout.borrow_mut();
-        let frame = layout.frame_mut(self.id);
-
-        let artist_id = frame.data_mut().add_artist(artist);
-
-        let plot_id = PlotId::new(
-            self.layout.clone(),
-            frame.id(), 
-            artist_id
-        );
-
-        //PlotOpt::new(plot_id)
-        todo!()
+        self.add_plot_artist(PlotStyleArtist::new(artist))
     }
 
     pub fn add_plot_artist<'a, A>(
@@ -93,7 +83,7 @@ impl Graph {
         artist: A,
     ) -> A::Opt 
     where
-        A: ConfigArtist<Data> + 'static
+        A: PlotArtist<Data> + 'static
     {
         let id = self.layout.borrow_mut()
             .frame_mut(self.id)
