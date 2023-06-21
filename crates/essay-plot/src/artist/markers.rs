@@ -131,51 +131,7 @@ impl Markers {
 
 impl From<&str> for Markers {
     fn from(value: &str) -> Self {
-        match value {
-            "o" => Self::Circle,
-            "." => Self::Point,
-            "," => Self::Pixel,
-            "v" => Self::TriangleDown,
-            "^" => Self::TriangleUp,
-            "<" => Self::TriangleLeft,
-            ">" => Self::TriangleRight,
-            "1" => Self::TriDown,
-            "2" => Self::TriUp,
-            "3" => Self::TriLeft,
-            "4" => Self::TriRight,
-            "8" => Self::Octagon,
-            "s" => Self::Square,
-            "h" => Self::Hexagon,
-            "H" => Self::Hexagon2,
-            "p" => Self::Pentagon,
-            "P" => Self::PlusFilled,
-            "+" => Self::Plus,
-            "*" => Self::Star,
-            "x" => Self::X,
-            "X" => Self::XFilled,
-            "d" => Self::ThinDiamond,
-            "D" => Self::Diamond,
-            "|" => Self::VertLine,
-            "_" => Self::HorizLine,
-
-            "#0" => Self::TickLeft,
-            "#1" => Self::TickRight,
-            "#2" => Self::TickUp,
-            "#3" => Self::TickDown,
-            "#4" => Self::CaretLeft,
-            "#5" => Self::CaretRight,
-            "#6" => Self::CaretUp,
-            "#7" => Self::CaretDown,
-            "#8" => Self::CaretLeftBase,
-            "#9" => Self::CaretRightBase,
-            "#10" => Self::CaretUpBase,
-            "#11" => Self::CaretDownBase,
-
-            "" => Self::None,
-            "none" => Self::None,
-
-            _ => { panic!("'{}' is an unknown marker symbol", value); }
-        }
+        Self::from_str(value).unwrap()
     }
 }
 

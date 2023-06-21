@@ -116,7 +116,7 @@ impl PlotArtist<Data> for ScatterPlot {
     ) -> Self::Opt {
         self.style = PathStyle::from_config(cfg, "scatter");
 
-        ScatterOpt::new(id)
+        unsafe { ScatterOpt::new(id) }
     }
 }
 

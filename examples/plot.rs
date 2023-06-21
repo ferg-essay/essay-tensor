@@ -1,4 +1,4 @@
-use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt, PlotOpt2}, plot::bar_y};
+use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::bar_y};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle, Angle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
@@ -43,11 +43,11 @@ fn main() {
 
     let x = linspace(0., 6.28, 6);
     let y = x.sin();
-    graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
-    //graph.plot(&x, &y); // .face_color("xkcd:purple");
+    //graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
+    graph.plot(&x, &y).color("xkcd:purple");
     /*
     let y2 = x.cos();
-    graph.plot(&x, &y2); // .face_color("xkcd:purple");
+    graph.plot(&x, &y2).face_color("xkcd:purple");
 
     graph.plot(&x, (2. * &x).sin());
     graph.plot(&x, (2. * &x).cos());
@@ -149,7 +149,7 @@ pub fn plot_quad(
     p1: impl Into<Point>,
     p2: impl Into<Point>,
     p3: impl Into<Point>,
-) -> PlotOpt2 {
+) -> PlotOpt {
     graph.add_simple_artist(PathPatch::new(Path::new(vec![
         PathCode::MoveTo(p0.into()),
         PathCode::LineTo(p1.into()),
@@ -166,7 +166,7 @@ pub fn plot_line(
     p3: impl Into<Point>,
     p4: impl Into<Point>,
     p5: impl Into<Point>,
-) -> PlotOpt2 {
+) -> PlotOpt {
     graph.add_simple_artist(PathPatch::new(Path::new(vec![
         PathCode::MoveTo(p0.into()),
         PathCode::LineTo(p1.into()),

@@ -39,7 +39,7 @@ macro_rules! data_artist_option_struct {
         }
         
         impl $name {
-            pub(crate) fn new(
+            pub(crate) unsafe fn new(
                 plot_id: $crate::graph::PlotId,
             ) -> Self {
                 Self {

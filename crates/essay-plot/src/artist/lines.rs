@@ -7,7 +7,7 @@ use essay_plot_base::{
     driver::Renderer, Clip
 };
 
-use crate::{frame::Data, artist::PathStyle, graph::{PlotArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}};
+use crate::{frame::Data, artist::PathStyle, graph::{PlotArtist, PlotId, ConfigArc, PlotOpt}, data_artist_option_struct, path_style_options};
 
 use super::{Artist};
 
@@ -97,20 +97,26 @@ impl Artist<Data> for Lines2d {
 }
 
 impl PlotArtist<Data> for Lines2d {
-    type Opt = PlotOpt;
+    type Opt = LinesOpt;
 
     fn config(&mut self, cfg: &ConfigArc, id: PlotId) -> Self::Opt {
         self.style = PathStyle::from_config(cfg, "lines");
 
-        PlotOpt::new::<Self>(id)
+        unsafe { LinesOpt::new(id) }
     }
 }
 
-impl PathStyleArtist for Lines2d {
-    fn style_mut(&mut self) -> &mut PathStyle {
-        &mut self.style
-    }
+data_artist_option_struct!(LinesOpt, Lines2d);
+
+impl LinesOpt {
+    path_style_options!(style);
 }
+
+//impl PathStyleArtist for Lines2d {
+//    fn style_mut(&mut self) -> &mut PathStyle {
+//        &mut self.style
+//    }
+//}
 
 impl fmt::Debug for Lines2d {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

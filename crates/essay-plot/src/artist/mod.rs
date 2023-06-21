@@ -20,7 +20,7 @@ pub use collection::{
 };
 
 pub use container::{
-    Container
+    Container, ContainerOpt
 };
 
 pub use color::{
@@ -36,7 +36,7 @@ pub use pcolor::{
 };
 
 pub use lines::{
-    Lines2d,
+    Lines2d, LinesOpt,
     // Bezier2, Bezier3,
 };
 

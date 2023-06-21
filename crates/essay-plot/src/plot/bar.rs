@@ -2,7 +2,7 @@ use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer,
 use essay_tensor::Tensor;
 use essay_plot_macro::*;
 
-use crate::{artist::{Container, paths, patch::{PathPatch}, ArtistStyle, Artist}, graph::{Graph}, frame::{Data, ArtistId}};
+use crate::{artist::{Container, paths, patch::{PathPatch}, ArtistStyle, Artist}, graph::{Graph, PlotOpt}, frame::{Data, ArtistId}, data_artist_option_struct};
 
 // self as essay_plot needed for #[derive_plot_opt]
 extern crate self as essay_plot;
@@ -10,25 +10,28 @@ extern crate self as essay_plot;
 pub fn bar_y(
     graph: &mut Graph, 
     y: impl Into<Tensor>, 
-) -> BarOpt {
+) -> PlotOpt { // BarOpt {
     let y : Tensor = y.into();
 
     let plot = BarPlot::new(y);
 
-    let plot_ref = graph.add_plot(plot);
+    //let plot_ref = graph.add_plot_artist(plot);
 
-    BarOpt::new(plot_ref)
+    //BarOpt::new(plot_ref)
+    graph.add_simple_artist(plot)
 }
 
-#[derive_plot_opt(BarOpt)]
+//#[derive_plot_opt(BarOpt)]
 pub struct BarPlot {
     y: Tensor,
     container: Container<Data>,
     is_modified: bool,
 
-    #[option]
+    // #[option]
     width: f32,
 }
+
+data_artist_option_struct!(BarOpt, BarPlot);
 
 impl BarPlot {
     fn new(y: Tensor) -> Self {

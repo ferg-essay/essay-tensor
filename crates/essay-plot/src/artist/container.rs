@@ -3,7 +3,7 @@ use essay_plot_base::{
     driver::{Renderer}, Clip
 };
 
-use crate::{graph::{PlotArtist, PlotOpt, PlotId, ConfigArc, PathStyleArtist}, frame::Data};
+use crate::{graph::{PlotArtist, PlotId, ConfigArc, PlotOpt}, frame::Data, data_artist_option_struct};
 
 use super::{ArtistStyle, Artist, PathStyle, StyleCycle};
 
@@ -76,17 +76,19 @@ impl<M: Coord> Artist<M> for Container<M> {
 }
 
 impl PlotArtist<Data> for Container<Data> {
-    type Opt = PlotOpt;
+    type Opt = ContainerOpt;
 
     fn config(&mut self, cfg: &ConfigArc, id: PlotId) -> Self::Opt {
         self.cycle = StyleCycle::from_config(cfg, "container.cycle");
 
-        PlotOpt::new::<Container<Data>>(id)
+        unsafe { ContainerOpt::new(id) }
     }
 }
 
-impl PathStyleArtist for Container<Data> {
-    fn style_mut(&mut self) -> &mut PathStyle {
-        &mut self.style
-    }
-}
+data_artist_option_struct!(ContainerOpt, Container<Data>);
+
+//impl PathStyleArtist for Container<Data> {
+//    fn style_mut(&mut self) -> &mut PathStyle {
+//        &mut self.style
+//    }
+//}

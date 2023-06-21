@@ -1,21 +1,25 @@
 use essay_plot_base::{Coord, Canvas, Bounds, driver::Renderer, Affine2d, Clip, PathOpt};
 
-use crate::{artist::{Artist, PathStyle}, data_artist_option_struct, frame::{Data, LayoutArc, ArtistId}, path_style_options};
+use crate::{
+    artist::{Artist, PathStyle},
+    frame::{Data, ArtistId, LayoutArc, FrameId}, 
+    data_artist_option_struct, path_style_options,
+};
 
-use super::{PlotArtist, PlotId};
+use super::ConfigArc;
 
-data_artist_option_struct!(PlotOpt2, PlotStyleArtist<Data>);
+data_artist_option_struct!(PlotOpt, PlotOptArtist<Data>);
 
-impl PlotOpt2 {
+impl PlotOpt {
     path_style_options!(style);
 }
 
-pub struct PlotStyleArtist<M: Coord> {
+pub struct PlotOptArtist<M: Coord> {
     artist: Box<dyn Artist<M>>,
     style: PathStyle,
 }
 
-impl<M: Coord> PlotStyleArtist<M> {
+impl<M: Coord> PlotOptArtist<M> {
     pub fn new<A>(artist: A) -> Self
     where
         A: Artist<M> + 'static
@@ -27,7 +31,7 @@ impl<M: Coord> PlotStyleArtist<M> {
     }
 }
 
-impl<M: Coord> Artist<M> for PlotStyleArtist<M> {
+impl<M: Coord> Artist<M> for PlotOptArtist<M> {
     fn update(&mut self, canvas: &Canvas) {
         self.artist.update(canvas);
     }
@@ -49,8 +53,8 @@ impl<M: Coord> Artist<M> for PlotStyleArtist<M> {
     }
 }
 
-impl<M: Coord> PlotArtist<M> for PlotStyleArtist<M> {
-    type Opt = PlotOpt2;
+impl<M: Coord> PlotArtist<M> for PlotOptArtist<M> {
+    type Opt = PlotOpt;
 
     fn config(
         &mut self, 
@@ -59,6 +63,48 @@ impl<M: Coord> PlotArtist<M> for PlotStyleArtist<M> {
     ) -> Self::Opt {
         self.style = PathStyle::from_config(cfg, "artist");
 
-        PlotOpt2::new(id)
+        unsafe { PlotOpt::new(id) }
     }
 }
+
+pub struct PlotId {
+    layout: LayoutArc,
+    artist_id: ArtistId,
+}
+
+impl PlotId {
+    pub(crate) fn new(
+        layout: LayoutArc, 
+        artist_id: ArtistId
+    ) -> Self {
+        Self {
+            layout,
+            artist_id
+        }
+    }
+
+    pub fn layout(&self) -> &LayoutArc {
+        &self.layout
+    }
+
+    pub fn id(&self) -> &ArtistId {
+        &self.artist_id
+    }
+}
+
+pub trait PlotArtist<M: Coord> : Artist<M> {
+    type Opt;
+    
+    fn config(
+        &mut self, 
+        cfg: &ConfigArc, 
+        id: PlotId,
+    ) -> Self::Opt;
+}
+
+pub trait SimpleArtist<M: Coord> : Artist<M> {
+}
+
+//pub trait PathStyleArtist : Artist<Data> {
+//    fn style_mut(&mut self) -> &mut PathStyle;
+//}

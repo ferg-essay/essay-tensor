@@ -1,7 +1,7 @@
 mod bar;
 use essay_tensor::Tensor;
 
-use crate::{graph::{Graph, PlotOpt}};
+use crate::{graph::{Graph, PlotOpt}, artist::LinesOpt};
 
 mod pie;
 mod scatter;
@@ -28,7 +28,7 @@ impl Graph {
         &mut self, 
         x: impl Into<Tensor>,
         y: impl Into<Tensor>,
-    ) -> PlotOpt {
+    ) -> LinesOpt {
         plot::plot(self, x, y)
     }
 

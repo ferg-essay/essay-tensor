@@ -4,7 +4,7 @@ use crate::{artist::{
     Artist,
 }, frame::{Data, LayoutArc, FrameId, FrameArtist, FrameTextOpt, AxisOpt}};
 
-use super::{plot::{PlotRef, PlotId}, PlotArtist, PlotOpt, style::{PlotStyleArtist, PlotOpt2}};
+use super::{PlotArtist, style::{PlotOptArtist, PlotOpt, SimpleArtist}, PlotId};
 
 pub struct Graph {
     id: FrameId,
@@ -42,12 +42,16 @@ impl Graph {
 
     pub fn x(&mut self) -> AxisOpt {
         let layout = self.layout.clone();
-        AxisOpt::new(layout, self.id(), FrameArtist::X)
+        unsafe {
+            AxisOpt::new(layout, self.id(), FrameArtist::X)
+        }
     }
 
     pub fn y(&mut self) -> AxisOpt {
         let layout = self.layout.clone();
-        AxisOpt::new(layout, self.id(), FrameArtist::Y)
+        unsafe {
+            AxisOpt::new(layout, self.id(), FrameArtist::Y)
+        }
     }
 
     pub fn xlabel(&mut self, label: &str) -> FrameTextOpt {
@@ -71,11 +75,11 @@ impl Graph {
     pub fn add_simple_artist<'a, A>(
         &mut self, 
         artist: A,
-    ) -> PlotOpt2
+    ) -> PlotOpt
     where
         A: Artist<Data> + 'static
     {
-        self.add_plot_artist(PlotStyleArtist::new(artist))
+        self.add_plot_artist(PlotOptArtist::new(artist))
     }
 
     pub fn add_plot_artist<'a, A>(
@@ -92,7 +96,6 @@ impl Graph {
 
         let plot_id = PlotId::new(
             self.layout.clone(),
-            id.frame(),
             id
         );
 
@@ -105,23 +108,6 @@ impl Graph {
                 .artist_mut::<A>(id)
                 .config(&config, plot_id)
         })
-    }
-
-    pub fn add_plot<'a, A>(
-        &'a mut self, 
-        artist: A
-    ) -> PlotRef<Data, A>
-    where
-        A: Artist<Data> + 'static,
-    {
-        let mut layout = self.layout.borrow_mut();
-        let frame = layout.frame_mut(self.id);
-
-        let artist_id = frame.data_mut().add_artist(artist);
-
-        //PlotOpt::new(self.layout.clone(), frame.id(), artist_id)
-
-        PlotRef::new(self.layout.clone(), frame.id(), artist_id)
     }
 }
 

@@ -1,12 +1,12 @@
 use essay_tensor::Tensor;
 
-use crate::{artist::{Lines2d}, graph::{Graph, PlotOpt}};
+use crate::{artist::{Lines2d, LinesOpt}, graph::{Graph, PlotOpt}};
 
 pub fn plot(
     graph: &mut Graph, 
     x: impl Into<Tensor>, 
     y: impl Into<Tensor>, 
-) -> PlotOpt {
+) -> LinesOpt {
     let lines = Lines2d::from_xy(x, y);
 
     //self.artist(lines)
