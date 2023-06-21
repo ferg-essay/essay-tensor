@@ -17,6 +17,6 @@ pub use config::{
 
 pub use style::{
     PlotOpt,
-    PlotId, // PlotOpt, PlotRef, 
-    PlotArtist, //PathStyleArtist,
+    //PlotId, // PlotOpt, PlotRef, 
+    //PlotArtist, //PathStyleArtist,
 };

@@ -28,7 +28,7 @@ impl PathCollection {
 
         Self {
             path,
-            bounds: Bounds::from(xy.clone()), // replace clone with &ref
+            bounds: Bounds::from(&xy),
             xy,
             color: Tensor::empty(),
             scale: Tensor::empty(),
@@ -81,16 +81,7 @@ fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
 
 impl Artist<Data> for PathCollection {
     fn update(&mut self, _canvas: &Canvas) {
-        let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
-
-        for point in self.xy.iter_slice() {
-            bounds[0] = f32::min(bounds[0], point[0]);
-            bounds[1] = f32::min(bounds[1], point[1]);
-            bounds[2] = f32::max(bounds[2], point[0]);
-            bounds[3] = f32::max(bounds[3], point[1]);
-        }
-
-        self.bounds = Bounds::from(bounds);
+        self.bounds = Bounds::from(&self.xy);
     }
     
     fn get_extent(&mut self) -> Bounds<Data> {

@@ -283,10 +283,10 @@ impl<M: Coord> From<[f32; 4]> for Bounds<M> {
     }
 }
 
-impl<M: Coord> From<Tensor> for Bounds<M> {
-    fn from(value: Tensor) -> Self {
-        assert!(value.rank() == 2);
-        assert!(value.cols() == 2);
+impl<M: Coord> From<&Tensor> for Bounds<M> {
+    fn from(value: &Tensor) -> Self {
+        assert!(value.rank() == 2, "Bounds::from Tensor requires a 2d tensor {:?}", value.shape().as_slice());
+        assert!(value.cols() == 2, "Bounds::from Tensor requires a 2d tensor {:?}", value.shape().as_slice());
 
         let mut x0 = f32::MAX;
         let mut y0 = f32::MAX;

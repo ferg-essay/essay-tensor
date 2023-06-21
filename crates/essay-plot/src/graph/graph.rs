@@ -1,10 +1,10 @@
 use core::fmt;
 
 use crate::{artist::{
-    Artist,
+    Artist, PlotArtist, PlotId,
 }, frame::{Data, LayoutArc, FrameId, FrameArtist, FrameTextOpt, AxisOpt}};
 
-use super::{PlotArtist, style::{PlotOptArtist, PlotOpt, SimpleArtist}, PlotId};
+use super::{style::{PlotOptArtist, PlotOpt}};
 
 pub struct Graph {
     id: FrameId,

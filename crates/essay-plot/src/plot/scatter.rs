@@ -2,8 +2,8 @@ use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer,
 use essay_tensor::Tensor;
 
 use crate::{
-    artist::{paths::{self}, Artist, PathCollection, Markers, PathStyle}, 
-    graph::{Graph, PlotArtist, ConfigArc, PlotId}, frame::{Data}, 
+    artist::{paths::{self}, Artist, PathCollection, Markers, PathStyle, PlotId, PlotArtist}, 
+    graph::{Graph, ConfigArc}, frame::{Data, LegendHandler}, 
     data_artist_option_struct, path_style_options
 };
 
@@ -117,6 +117,10 @@ impl PlotArtist<Data> for ScatterPlot {
         self.style = PathStyle::from_config(cfg, "scatter");
 
         unsafe { ScatterOpt::new(id) }
+    }
+
+    fn get_legend(&self) -> Option<LegendHandler> {
+        None
     }
 }
 

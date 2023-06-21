@@ -103,7 +103,7 @@ impl Frame {
         &self.pos
     }
 
-    pub(crate) fn update_extent(&mut self, canvas: &Canvas) {
+    pub(crate) fn update(&mut self, canvas: &Canvas) {
         self.title.update(canvas);
 
         self.data.update(canvas);
@@ -116,6 +116,7 @@ impl Frame {
         self.top.update(canvas);
         self.right.update(canvas);
 
+        self.legend.update_handlers(&self.data);
         self.legend.update(canvas);
     }
 

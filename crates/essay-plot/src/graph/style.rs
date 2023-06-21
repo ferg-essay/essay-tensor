@@ -1,8 +1,8 @@
 use essay_plot_base::{Coord, Canvas, Bounds, driver::Renderer, Affine2d, Clip, PathOpt};
 
 use crate::{
-    artist::{Artist, PathStyle},
-    frame::{Data, ArtistId, LayoutArc, FrameId}, 
+    artist::{Artist, PathStyle, PlotId, PlotArtist},
+    frame::{Data, ArtistId, LayoutArc, FrameId, LegendHandler}, 
     data_artist_option_struct, path_style_options,
 };
 
@@ -65,44 +65,10 @@ impl<M: Coord> PlotArtist<M> for PlotOptArtist<M> {
 
         unsafe { PlotOpt::new(id) }
     }
-}
 
-pub struct PlotId {
-    layout: LayoutArc,
-    artist_id: ArtistId,
-}
-
-impl PlotId {
-    pub(crate) fn new(
-        layout: LayoutArc, 
-        artist_id: ArtistId
-    ) -> Self {
-        Self {
-            layout,
-            artist_id
-        }
+    fn get_legend(&self) -> Option<LegendHandler> {
+        None
     }
-
-    pub fn layout(&self) -> &LayoutArc {
-        &self.layout
-    }
-
-    pub fn id(&self) -> &ArtistId {
-        &self.artist_id
-    }
-}
-
-pub trait PlotArtist<M: Coord> : Artist<M> {
-    type Opt;
-    
-    fn config(
-        &mut self, 
-        cfg: &ConfigArc, 
-        id: PlotId,
-    ) -> Self::Opt;
-}
-
-pub trait SimpleArtist<M: Coord> : Artist<M> {
 }
 
 //pub trait PathStyleArtist : Artist<Data> {

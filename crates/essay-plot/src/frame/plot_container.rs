@@ -2,14 +2,14 @@ use std::{alloc, any::TypeId, marker::PhantomData, ptr::{NonNull, self}, mem::{M
 
 use essay_plot_base::{Coord, Bounds, driver::Renderer, Affine2d, Canvas, PathOpt, Clip};
 
-use crate::{artist::{Artist, StyleCycle}, graph::Config};
+use crate::{artist::{Artist, StyleCycle, PlotArtist}, graph::Config};
 
 use super::{ArtistId, FrameId, legend::LegendHandler};
 
 pub(crate) struct PlotContainer<M: Coord> {
     frame: FrameId,
     ptrs: Vec<PlotPtr<M>>,
-    artists: Vec<Box<dyn PlotArtistTrait<M>>>,
+    artists: Vec<Box<dyn ArtistHandleTrait<M>>>,
     cycle: StyleCycle,
 }
 
@@ -27,14 +27,14 @@ impl<M: Coord> PlotContainer<M> {
 
     pub(crate) fn add_artist<A>(&mut self, artist: A) -> ArtistId
     where
-        A: Artist<M> + 'static
+        A: PlotArtist<M> + 'static
     {
         let id = ArtistId::new_data(self.frame, self.ptrs.len());
 
         let plot = PlotPtr::new(id, artist);
         self.ptrs.push(plot);
 
-        self.artists.push(Box::new(PlotArtist::<M, A>::new(id)));
+        self.artists.push(Box::new(ArtistHandle::<M, A>::new(id)));
 
         id
     }
@@ -73,15 +73,18 @@ impl<M: Coord> PlotContainer<M> {
         unsafe { self.ptrs[id.index()].deref_mut() }
     }
 
-    /*
-    pub(crate) fn iter(&self) -> slice::Iter<ArtistId> {
-        let vec : Vec<ArtistId> = self.artists.iter()
-            .map(|a| a.id())
-            .collect();
+    pub(crate) fn get_handlers(&self) -> Vec<LegendHandler> {
+        let mut vec = Vec::<LegendHandler>::new();
 
-        vec.iter()
+        for artist in &self.artists {
+            match artist.get_legend(self) {
+                Some(handler) => vec.push(handler),
+                None => {},
+            };
+        }
+
+        vec
     }
-    */
 }
 
 impl<M: Coord> Artist<M> for PlotContainer<M> {
@@ -120,14 +123,14 @@ impl<M: Coord> Artist<M> for PlotContainer<M> {
     }
 }
 
-trait PlotArtistTrait<M: Coord> {
+trait ArtistHandleTrait<M: Coord> {
     fn id(&self) -> ArtistId;
 
     //fn style_mut(&mut self) -> &mut PathStyle;
 
     fn update(&self, container: &PlotContainer<M>, canvas: &Canvas);
     fn get_extent(&self, container: &PlotContainer<M>) -> Bounds<M>;
-    fn get_legend(&self, container: &PlotContainer<M>) -> Option<Box<dyn LegendHandler>>;
+    fn get_legend(&self, container: &PlotContainer<M>) -> Option<LegendHandler>;
 
     fn draw(
         &self, 
@@ -139,12 +142,12 @@ trait PlotArtistTrait<M: Coord> {
     );
 }
 
-struct PlotArtist<M: Coord, A: Artist<M>> {
+struct ArtistHandle<M: Coord, A: Artist<M>> {
     id: ArtistId,
     marker: PhantomData<(M, A)>,
 }
 
-impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
+impl<M: Coord, A: Artist<M>> ArtistHandle<M, A> {
     fn new(id: ArtistId) -> Self {
         Self {
             id,
@@ -153,10 +156,10 @@ impl<M: Coord, A: Artist<M>> PlotArtist<M, A> {
     }
 }
 
-impl<M: Coord, A: Artist<M>> PlotArtistTrait<M> for PlotArtist<M, A>
+impl<M: Coord, A: Artist<M>> ArtistHandleTrait<M> for ArtistHandle<M, A>
 where
     M: Coord,
-    A: Artist<M> + 'static,
+    A: PlotArtist<M> + 'static,
 {
     fn id(&self) -> ArtistId {
         self.id
@@ -165,10 +168,6 @@ where
     //fn style_mut(&mut self) -> &mut PathStyle {
     //    &mut self.style
     //}
-
-    fn get_legend(&self, container: &PlotContainer<M>) -> Option<Box<dyn LegendHandler>> {
-        None
-    }
 
     fn update(&self, container: &PlotContainer<M>, canvas: &Canvas) {
         container.deref_mut::<A>(self.id).update(canvas);
@@ -186,9 +185,11 @@ where
         clip: &Clip,
         style: &dyn PathOpt,
     ) {
-        // let style = self.style.push(style);
-
         container.deref_mut::<A>(self.id).draw(renderer, to_canvas, clip, style)
+    }
+
+    fn get_legend(&self, container: &PlotContainer<M>) -> Option<LegendHandler> {
+        container.deref_mut::<A>(self.id).get_legend()
     }
 }
 

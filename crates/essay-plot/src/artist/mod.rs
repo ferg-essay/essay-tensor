@@ -12,7 +12,7 @@ mod collection;
 mod lines;
 
 pub use artist::{
-    Artist,
+    Artist, PlotArtist, PlotId,
 };
 
 pub use collection::{
@@ -36,8 +36,7 @@ pub use pcolor::{
 };
 
 pub use lines::{
-    Lines2d, LinesOpt,
-    // Bezier2, Bezier3,
+    Lines2d, LinesOpt, DrawStyle,
 };
 
 pub use markers::{

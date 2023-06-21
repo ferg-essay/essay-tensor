@@ -5,9 +5,9 @@ use essay_plot_base::{
     Bounds, Affine2d, Point, Canvas, Coord, CanvasEvent, Clip,
 };
 
-use crate::{artist::{Artist, PathStyle}, graph::Config};
+use crate::{artist::{Artist, PathStyle, PlotArtist}, graph::Config};
 
-use super::{plot_container::PlotContainer, ArtistId, FrameId};
+use super::{plot_container::PlotContainer, ArtistId, FrameId, LegendHandler};
 
 pub struct DataBox {
     pos_canvas: Bounds<Canvas>,
@@ -51,8 +51,8 @@ impl DataBox {
         self
     }
 
-    pub fn add_artist(&mut self, artist: impl Artist<Data> + 'static) -> ArtistId {
-        let mut artist = artist;
+    pub fn add_artist(&mut self, artist: impl PlotArtist<Data> + 'static) -> ArtistId {
+        //let mut artist = artist;
 
         //let bounds = artist.get_extent();
 
@@ -62,37 +62,6 @@ impl DataBox {
         let id = self.artists.add_artist(artist);
 
         id
-    }
-
-    fn add_data_bounds(&mut self, bounds: &Bounds<Data>) {
-        if self.data_bounds.is_none() {
-            self.data_bounds = bounds.clone();
-        } else {
-            self.data_bounds = self.data_bounds.union(&bounds);
-        }
-    }
-
-    fn add_view_bounds(&mut self, bounds: &Bounds<Data>) {
-        let x_margin = 0.1;
-        let y_margin = 0.1;
-
-        let (height, width) = (bounds.height(), bounds.width());
-
-        let (mut xmin, mut xmax) = (bounds.xmin(), bounds.xmax());
-        xmin -= x_margin * width;
-        xmax += x_margin * width;
-
-        let (mut ymin, mut ymax) = (bounds.ymin(), bounds.ymax());
-        ymin -= y_margin * height;
-        ymax += y_margin * height;
-
-        let bounds = Bounds::new(Point(xmin, ymin), Point(xmax, ymax));
-
-        if self.view_bounds.is_none() {
-            self.view_bounds = bounds;
-        } else {
-            self.view_bounds = self.view_bounds.union(&bounds);
-        }
     }
 
     fn reset_view(&mut self) {
@@ -201,6 +170,10 @@ impl DataBox {
         A: Artist<Data> + 'static
     {
         self.artists.artist_mut(id)
+    }
+
+    pub(crate) fn get_handlers(&self) -> Vec<LegendHandler> {
+        self.artists.get_handlers()
     }
 }
 

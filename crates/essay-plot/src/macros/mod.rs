@@ -40,7 +40,7 @@ macro_rules! data_artist_option_struct {
         
         impl $name {
             pub(crate) unsafe fn new(
-                plot_id: $crate::graph::PlotId,
+                plot_id: $crate::artist::PlotId,
             ) -> Self {
                 Self {
                     layout: plot_id.layout().clone(),

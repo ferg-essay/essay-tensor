@@ -7,9 +7,14 @@ use essay_plot_base::{
     driver::Renderer, Clip
 };
 
-use crate::{frame::Data, artist::PathStyle, graph::{PlotArtist, PlotId, ConfigArc, PlotOpt}, data_artist_option_struct, path_style_options};
+use crate::{
+    artist::PathStyle, 
+    frame::{Data, LegendHandler}, 
+    graph::{ConfigArc},
+    data_artist_option_struct, path_style_options
+};
 
-use super::{Artist};
+use super::{Artist, PlotArtist, PlotId};
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum DrawStyle {
@@ -19,9 +24,12 @@ pub enum DrawStyle {
 }
 
 pub struct Lines2d {
-    lines: Tensor, // 2d tensor representing a graph
+    xy: Tensor, // 2d tensor representing a graph
     path: Path<Data>,
+
     style: PathStyle,
+    label: Option<String>,
+
     extent: Bounds<Data>,
 }
 
@@ -37,9 +45,12 @@ impl Lines2d {
         let path = build_path(&lines);
 
         Self {
-            lines,
+            xy: lines,
             path,
             style: PathStyle::new(),
+
+            label: None,
+
             extent: Bounds::<Data>::none(),
         }
     }
@@ -65,16 +76,7 @@ fn build_path(line: &Tensor) -> Path<Data> {
 
 impl Artist<Data> for Lines2d {
     fn update(&mut self, _canvas: &Canvas) {
-        let mut bounds = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
-
-        for point in self.lines.iter_slice() {
-            bounds[0] = f32::min(bounds[0], point[0]);
-            bounds[1] = f32::min(bounds[1], point[1]);
-            bounds[2] = f32::max(bounds[2], point[0]);
-            bounds[3] = f32::max(bounds[3], point[1]);
-        }
-
-        self.extent = Bounds::from(bounds)
+        self.extent = Bounds::from(&self.xy);
     }
     
     fn get_extent(&mut self) -> Bounds<Data> {
@@ -104,12 +106,41 @@ impl PlotArtist<Data> for Lines2d {
 
         unsafe { LinesOpt::new(id) }
     }
+
+    fn get_legend(&self) -> Option<LegendHandler> {
+        match &self.label {
+            Some(label) => {
+                let style = self.style.clone();
+                Some(LegendHandler::new(label.clone(), 
+                move |renderer, bounds| {
+                    let line = Path::<Canvas>::from([
+                        [bounds.xmin(), bounds.ymid()],
+                        [bounds.xmax(), bounds.ymid()],
+                    ]);
+                    renderer.draw_path(&line, &style, &Clip::None).unwrap();
+                }))
+            },
+            None => None,
+        }
+    }
 }
 
 data_artist_option_struct!(LinesOpt, Lines2d);
 
 impl LinesOpt {
     path_style_options!(style);
+
+    pub fn label(&mut self, label: &str) -> &mut Self {
+        self.write(|artist| {
+            if label.len() > 0 {
+                artist.label = Some(label.to_string());
+            } else {
+                artist.label = None;
+            }
+        });
+
+        self
+    }
 }
 
 //impl PathStyleArtist for Lines2d {
@@ -120,23 +151,23 @@ impl LinesOpt {
 
 impl fmt::Debug for Lines2d {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.lines.dim(0) {
+        match self.xy.dim(0) {
             0 => {
                 write!(f, "Lines2D[]")
             },
             1 => {
-                write!(f, "Lines2D[({}, {})]", self.lines[(0, 0)], self.lines[(0, 1)])
+                write!(f, "Lines2D[({}, {})]", self.xy[(0, 0)], self.xy[(0, 1)])
             },
             2 => {
                 write!(f, "Lines2D[({}, {}), ({}, {})]", 
-                    self.lines[(0, 0)], self.lines[(0, 1)],
-                    self.lines[(1, 0)], self.lines[(1, 1)])
+                    self.xy[(0, 0)], self.xy[(0, 1)],
+                    self.xy[(1, 0)], self.xy[(1, 1)])
             },
             n => {
                 write!(f, "Lines2D[({}, {}), ({}, {}), ..., ({}, {})]", 
-                    self.lines[(0, 0)], self.lines[(0, 1)],
-                    self.lines[(1, 0)], self.lines[(1, 1)],
-                    self.lines[(n - 1, 0)], self.lines[(n - 1, 1)])
+                    self.xy[(0, 0)], self.xy[(0, 1)],
+                    self.xy[(1, 0)], self.xy[(1, 1)],
+                    self.xy[(n - 1, 0)], self.xy[(n - 1, 1)])
             }
         }
     }

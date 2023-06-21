@@ -20,15 +20,6 @@ impl ArtistId {
     }
 
     // TODO: eliminate need for this function
-    pub(crate) fn new(frame: FrameId, artist: ArtistEnum, index: usize) -> ArtistId {
-        ArtistId {
-            frame,
-            artist,
-            index,
-        }
-    }
-
-    // TODO: eliminate need for this function
     pub(crate) fn new_data(frame: FrameId, index: usize) -> ArtistId {
         ArtistId {
             frame,

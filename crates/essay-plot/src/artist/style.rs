@@ -1,11 +1,10 @@
 use core::fmt;
-use std::str::FromStr;
 
-use essay_plot_base::{Color, JoinStyle, CapStyle, PathOpt, LineStyle, Coord};
+use essay_plot_base::{Color, JoinStyle, CapStyle, PathOpt, LineStyle};
 
 use crate::graph::Config;
 
-use super::{Markers, Artist};
+use super::{Markers};
 
 pub trait PathStyleOpt : PathOpt {
     fn get_marker(&self) -> &Option<Markers>;
@@ -154,22 +153,6 @@ impl fmt::Debug for PathStyle {
         }
         
         fmt.finish()
-    }
-}
-
-fn color_from_config(cfg: &Config, prefix: &str, name: &str) -> Option<Color> {
-    match cfg.get_with_prefix(prefix, name) {
-        Some(value) => Some(Color::from(value.as_str())),
-        None => None,
-    }
-}
-
-fn from_config<T: FromStr>(cfg: &Config, prefix: &str, name: &str) -> Option<T>
-where <T as FromStr>::Err : fmt::Debug
-{
-    match cfg.get_with_prefix(prefix, name) {
-        Some(value) => Some(value.parse::<T>().unwrap()),
-        None => None,
     }
 }
 

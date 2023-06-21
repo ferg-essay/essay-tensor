@@ -41,10 +41,14 @@ fn main() {
         .line_width(5.);
     */
 
-    let x = linspace(0., 6.28, 6);
+    let x = linspace(0., 6.28, 20);
     let y = x.sin();
     //graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
-    graph.plot(&x, &y).color("xkcd:purple");
+    graph.plot(&x, &y).color("xkcd:purple"); // .label("sin");
+
+    let y = x.cos();
+    //graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
+    graph.plot(&x, &y).color("xkcd:amber"); // .label("cos");
     /*
     let y2 = x.cos();
     graph.plot(&x, &y2).face_color("xkcd:purple");

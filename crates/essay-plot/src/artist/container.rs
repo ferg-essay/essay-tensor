@@ -3,9 +3,9 @@ use essay_plot_base::{
     driver::{Renderer}, Clip
 };
 
-use crate::{graph::{PlotArtist, PlotId, ConfigArc, PlotOpt}, frame::Data, data_artist_option_struct};
+use crate::{graph::{ConfigArc}, frame::{Data, LegendHandler}, data_artist_option_struct};
 
-use super::{Artist, PathStyle, StyleCycle};
+use super::{Artist, PathStyle, StyleCycle, PlotArtist, PlotId};
 
 pub struct Container<M: Coord> {
     artists: Vec<Box<dyn Artist<M>>>,
@@ -20,10 +20,6 @@ impl<M: Coord> Container<M> {
             style: PathStyle::new(),
             cycle: StyleCycle::new(),
         }
-    }
-
-    fn style_mut(&mut self) -> &mut PathStyle {
-        &mut self.style
     }
 
     pub fn push(&mut self, artist: impl Artist<M> + 'static) {
@@ -63,8 +59,6 @@ impl<M: Coord> Artist<M> for Container<M> {
         clip: &Clip,
         style: &dyn PathOpt,
     ) {
-        //let style_cycle = Style::new();
-        //let style = Style::chain(style, &style_cycle);
         let style = self.style.push(style);
 
         for (i, artist) in self.artists.iter_mut().enumerate() {
@@ -82,6 +76,10 @@ impl PlotArtist<Data> for Container<Data> {
         self.cycle = StyleCycle::from_config(cfg, "container.cycle");
 
         unsafe { ContainerOpt::new(id) }
+    }
+
+    fn get_legend(&self) -> Option<LegendHandler> {
+        None
     }
 }
 

@@ -314,7 +314,7 @@ impl LayoutBox {
     }
 
     fn draw(&mut self, renderer: &mut dyn Renderer) {
-        self.frame.update_extent(renderer.get_canvas());
+        self.frame.update(renderer.get_canvas());
         let pos_frame = self.pos_canvas.clone();
         self.frame.set_pos(&pos_frame);
 
