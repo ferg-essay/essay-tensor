@@ -1,5 +1,5 @@
 use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::bar_y};
-use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle};
+use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle, Angle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
 
 fn main() {
@@ -40,11 +40,12 @@ fn main() {
         // .fill_color("none")
         .line_width(5.);
     */
-    /*
-    let x = linspace(0., 6.28, 25);
-    let y = x.sin();
-    graph.plot(&x, &y); // .face_color("xkcd:purple");
 
+    let x = linspace(0., 6.28, 6);
+    let y = x.sin();
+    graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))).size(2500.);
+    //graph.plot(&x, &y); // .face_color("xkcd:purple");
+    /*
     let y2 = x.cos();
     graph.plot(&x, &y2); // .face_color("xkcd:purple");
 
@@ -69,7 +70,7 @@ fn main() {
     //let x = tf32!([40., 30.]);
     let x = tf32!([25., 25., 50.]);
     // let axes = figure.new_graph(());
-    graph.pie(tf32!([40., 30., 20., 5., 5., 5., 5.]));
+    //graph.pie(tf32!([40., 30., 20., 5., 5., 5., 5.]));
     // let x = linspace(0., 20., 21);
     // let axes = figure.new_graph([1., 1., 2., 2.]);
     // axes.plot(&x, &x.exp(), ());

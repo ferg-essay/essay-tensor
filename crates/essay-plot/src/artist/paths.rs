@@ -29,7 +29,7 @@ pub fn unit_pos() -> Path<Unit> {
     ])
 }
 
-pub fn polygon(n: usize) -> Path<Unit> {
+pub fn unit_polygon(n: usize) -> Path<Unit> {
     assert!(n > 2);
 
     let mut tensor = TensorVec::<f32>::new();
@@ -45,7 +45,7 @@ pub fn polygon(n: usize) -> Path<Unit> {
     Path::closed_poly(tensor)
 }
 
-pub fn polygon_alt(n: usize) -> Path<Unit> {
+pub fn unit_polygon_alt(n: usize) -> Path<Unit> {
     assert!(n > 2);
 
     let mut tensor = TensorVec::<f32>::new();
@@ -59,6 +59,38 @@ pub fn polygon_alt(n: usize) -> Path<Unit> {
     let tensor = tensor.into_tensor().reshape([n, 2]);
     
     Path::closed_poly(tensor)
+}
+
+pub fn unit_star(n: usize, r_inner: f32) -> Path<Unit> {
+    let mut tensor = TensorVec::<f32>::new();
+
+    for i in 0..n {
+        let theta = (i as f32 * 360. / n as f32 + 90.).to_radians();
+        
+        tensor.push(theta.cos());
+        tensor.push(theta.sin());
+
+        let theta2 = theta + PI / n as f32;
+
+        tensor.push(theta2.cos() * r_inner);
+        tensor.push(theta2.sin() * r_inner);
+    }
+    let tensor = tensor.into_tensor().reshape([2 * n, 2]);
+
+    Path::closed_poly(tensor)
+}
+
+pub fn unit_asterisk(n: usize) -> Path<Unit> {
+    let mut codes = Vec::<PathCode>::new();
+
+    for i in 0..n {
+        let theta = (i as f32 * 360. / n as f32 + 90.).to_radians();
+        
+        codes.push(PathCode::MoveTo(Point(0., 0.)));
+        codes.push(PathCode::LineTo(Point(theta.cos(), theta.sin())));
+    }
+
+    Path::new(codes)
 }
 
 pub fn wedge(angle: (Angle, Angle)) -> Path<Unit> {

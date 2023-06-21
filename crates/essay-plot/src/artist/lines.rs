@@ -34,7 +34,7 @@ impl Lines2d {
 
         let lines = x.stack(&[y], Axis::axis(-1));
 
-        let path = build_path(&lines, f32::MIN, f32::MAX);
+        let path = build_path(&lines);
 
         Self {
             lines,
@@ -45,7 +45,7 @@ impl Lines2d {
     }
 }
 
-fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
+fn build_path(line: &Tensor) -> Path<Data> {
     let mut codes = Vec::<PathCode>::new();
     
     let mut is_active = false;

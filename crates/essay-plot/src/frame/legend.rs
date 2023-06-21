@@ -17,7 +17,7 @@ impl Legend {
             style: PathStyle::new(),
         };
 
-        legend.style.face_color("w");
+        legend.style.face_color("teal");
 
         legend
     }
@@ -43,14 +43,16 @@ impl Artist<Canvas> for Legend {
         style: &dyn PathOpt,
     ) {
         let pos = &self.pos;
+        let w = 300.;
+        let h = 150.;
         
         let path = Path::<Canvas>::new(vec![
             PathCode::MoveTo(Point(pos.x0(), pos.y0())),
-            PathCode::LineTo(Point(pos.x0(), pos.y1())),
-            PathCode::LineTo(Point(pos.x1(), pos.y1())),
-            PathCode::ClosePoly(Point(pos.x1(), pos.y0())),
+            PathCode::LineTo(Point(pos.x0(), pos.y0() - h)),
+            PathCode::LineTo(Point(pos.x0() + w, pos.y0() - h)),
+            PathCode::ClosePoly(Point(pos.x0() + w, pos.y0())),
         ]);
 
-        renderer.draw_path(&path, &self.style, clip);
+        renderer.draw_path(&path, &self.style, clip).unwrap();
     }
 }

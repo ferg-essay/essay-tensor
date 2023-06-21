@@ -83,12 +83,13 @@ impl Markers {
             Self::TriLeft => tri_path().rotate_deg(90.),
             Self::TriRight => tri_path().rotate_deg(270.),
             Self::Square => paths::square(),
-            Self::Pentagon => paths::polygon(5),
-            Self::Hexagon => paths::polygon(6),
-            Self::Hexagon2 => paths::polygon(6).rotate_deg(30.),
-            Self::Octagon => paths::polygon_alt(8),
-            Self::Diamond => paths::polygon(4),
-            Self::ThinDiamond => paths::polygon(4).scale(0.5, 1.),
+            Self::Pentagon => paths::unit_polygon(5),
+            Self::Hexagon => paths::unit_polygon(6),
+            Self::Hexagon2 => paths::unit_polygon(6).rotate_deg(30.),
+            Self::Octagon => paths::unit_polygon_alt(8),
+            Self::Diamond => paths::unit_polygon(4),
+            Self::ThinDiamond => paths::unit_polygon(4).scale(0.5, 1.),
+            Self::Star => paths::unit_star(5, 0.381966),
             Self::Plus => plus_path(),
             Self::PlusFilled => plus_filled_path(),
             Self::X => plus_path().rotate_deg(45.),
@@ -111,6 +112,15 @@ impl Markers {
             Self::CaretDownBase => caret_base_path().rotate_deg(180.),
 
             Self::Path(path) => path.clone(),
+            Self::Polygon(n, angle) => {
+                paths::unit_polygon(*n).rotate(angle.to_radians())
+            }
+            Self::PolyStar(n, angle) => {
+                paths::unit_star(*n, 0.5).rotate(angle.to_radians())
+            }
+            Self::Asterisk(n, angle) => {
+                paths::unit_asterisk(*n).rotate(angle.to_radians())
+            }
             _ => todo!(),
         }
     }
@@ -137,6 +147,7 @@ impl From<&str> for Markers {
             "p" => Self::Pentagon,
             "P" => Self::PlusFilled,
             "+" => Self::Plus,
+            "*" => Self::Star,
             "x" => Self::X,
             "X" => Self::XFilled,
             "d" => Self::ThinDiamond,

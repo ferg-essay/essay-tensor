@@ -86,3 +86,9 @@ impl Angle {
         }
     }
 }
+
+impl From<f32> for Angle {
+    fn from(value: f32) -> Self {
+        Angle::Rad(value)
+    }
+}
