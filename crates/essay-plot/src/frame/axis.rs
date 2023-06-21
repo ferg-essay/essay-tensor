@@ -1,10 +1,10 @@
-use essay_plot_base::{Color, LineStyle, TextStyle, Canvas};
+use essay_plot_base::{TextStyle, Canvas};
 
 use crate::{artist::{PathStyle, Text, Artist}, graph::Config, frame_option_struct, path_style_options};
 
 use super::{
     data_box::DataBox,
-    tick_locator::{MaxNLocator, TickLocator}, LayoutArc, FrameId, FrameArtist, tick_formatter::{TickFormatter, Formatter},
+    tick_locator::{MaxNLocator, TickLocator}, FrameArtist, tick_formatter::{TickFormatter, Formatter},
 };
 
 pub struct Axis {

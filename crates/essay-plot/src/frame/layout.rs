@@ -141,7 +141,7 @@ impl Layout {
     where
         A: Artist<Data> + 'static
     {
-        self.frames[id.frame().index()].frame().data().artist(id)
+        self.frames[id.frame().index()].frame().data()._artist(id)
     }
 
     pub(crate) fn artist_mut<A>(&mut self, id: ArtistId) -> &mut A

@@ -27,14 +27,6 @@ impl ArtistId {
             index,
         }
     }
-
-    pub(crate) fn empty() -> ArtistId {
-        Self {
-            frame: FrameId::new(0),
-            artist: ArtistEnum::None,
-            index: 0,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -35,48 +35,6 @@ impl PathCollection {
             style: PathStyle::new(), // needs to be loop
         }
     }
-
-    pub fn from_xy(x: impl Into<Tensor>, y: impl Into<Tensor>) -> Self {
-        let x = x.into();
-        let y = y.into();
-
-        assert_eq!(x.len(), y.len());
-
-        let lines = x.stack(&[y], Axis::axis(-1));
-
-        let path = build_path(&lines, f32::MIN, f32::MAX);
-        /*
-        Self {
-            offsets: lines,
-            path,
-            style: Style::new(),
-            clip_bounds: Bounds::<Canvas>::none(),
-        }
-        */
-        todo!()
-    }
-
-    fn style_mut(&mut self) -> &mut PathStyle {
-        &mut self.style
-    }
-}
-
-fn build_path(line: &Tensor, xmin: f32, xmax: f32) -> Path<Data> {
-    let mut codes = Vec::<PathCode>::new();
-    
-    let mut is_active = false;
-    for xy in line.iter_slice() {
-        if ! is_active {
-            codes.push(PathCode::MoveTo(Point(xy[0], xy[1])));
-            is_active = true;
-        } else {
-            codes.push(PathCode::LineTo(Point(xy[0], xy[1])));
-        }
-
-        // TODO: build new tensor
-    }
-
-    Path::new(codes)
 }
 
 impl Artist<Data> for PathCollection {
@@ -97,7 +55,9 @@ impl Artist<Data> for PathCollection {
     ) {
         let xy = to_canvas.transform(&self.xy);
 
-        renderer.draw_markers(&self.path, &xy, &self.scale, &self.color, style, clip).unwrap();
+        let style = self.style.push(style);
+
+        renderer.draw_markers(&self.path, &xy, &self.scale, &self.color, &style, clip).unwrap();
     }
 }
 

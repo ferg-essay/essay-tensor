@@ -158,7 +158,7 @@ impl DataBox {
     //    self.artists.style_mut(id)
     //}
 
-    pub(crate) fn artist<A>(&self, id: ArtistId) -> &A
+    pub(crate) fn _artist<A>(&self, id: ArtistId) -> &A
     where
         A: Artist<Data> + 'static
     {

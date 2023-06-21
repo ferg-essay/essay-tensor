@@ -14,7 +14,6 @@ pub struct Legend {
     text_style: TextStyle,
 
     glyph_size: f32,
-    glyph_width: f32,
 }
 
 impl Legend {
@@ -29,7 +28,6 @@ impl Legend {
             handlers: Vec::new(),
 
             glyph_size: 0.,
-            glyph_width: 0.,
         };
 
         legend.path_style.face_color("white").edge_color("#b0b0b0").line_width(1.);
@@ -66,7 +64,7 @@ impl Artist<Canvas> for Legend {
     fn draw(
         &mut self, 
         renderer: &mut dyn Renderer,
-        to_canvas: &Affine2d,
+        _to_canvas: &Affine2d,
         clip: &Clip,
         style: &dyn PathOpt,
     ) {

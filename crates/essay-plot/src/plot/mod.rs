@@ -1,7 +1,7 @@
 mod bar;
 use essay_tensor::Tensor;
 
-use crate::{graph::{Graph, PlotOpt}, artist::{LinesOpt, ContainerOpt}};
+use crate::{graph::{Graph}, artist::{LinesOpt, ContainerOpt}};
 
 mod pie;
 mod scatter;

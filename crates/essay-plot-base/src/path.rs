@@ -144,7 +144,21 @@ impl<M: Coord> Clone for Path<M> {
 
 impl<M: Coord> fmt::Debug for Path<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Path").field("codes", &self.codes).finish()
+        match self.codes.len() {
+            0 => {
+                write!(f, "Path[]")
+            },
+            1 => {
+                write!(f, "Path[{:?}]", self.codes[0])
+            },
+            2 => {
+                write!(f, "Path[{:?}, {:?}]", self.codes[0], self.codes[1])
+            },
+            n => {
+                write!(f, "Path[{:?}, {:?}, ..., {:?}]",
+                    self.codes[0], self.codes[1], self.codes[n - 1])
+            }
+        }
     }
 }
 

@@ -1,8 +1,12 @@
 use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer, Clip};
 use essay_tensor::Tensor;
-use essay_plot_macro::*;
 
-use crate::{artist::{Container, paths, patch::{PathPatch}, Artist}, graph::{Graph, PlotOpt}, frame::{Data, ArtistId}, data_artist_option_struct};
+use crate::{
+    artist::{Container, paths, patch::{PathPatch}, Artist}, 
+    graph::{Graph, PlotOpt}, 
+    frame::{Data}, 
+    data_artist_option_struct
+};
 
 // self as essay_plot needed for #[derive_plot_opt]
 extern crate self as essay_plot;
@@ -21,7 +25,6 @@ pub fn bar_y(
     graph.add_simple_artist(plot)
 }
 
-//#[derive_plot_opt(BarOpt)]
 pub struct BarPlot {
     y: Tensor,
     container: Container<Data>,
@@ -30,8 +33,6 @@ pub struct BarPlot {
     // #[option]
     width: f32,
 }
-
-data_artist_option_struct!(BarOpt, BarPlot);
 
 impl BarPlot {
     fn new(y: Tensor) -> Self {
@@ -44,12 +45,6 @@ impl BarPlot {
             container,
             is_modified: true,
         }
-    }
-
-    fn width(&mut self, width: f32) -> &mut Self {
-        self.width = width;
-
-        self
     }
 }
 
@@ -66,7 +61,6 @@ impl Artist<Data> for BarPlot {
                     .translate(i as f32 - self.width * 0.5, 0.);
                 let path: Path<Data> = paths::unit_pos().transform(&scale);
             
-                let id = ArtistId::empty();
                 self.container.push(PathPatch::<Data>::new(path));
             }
         }
@@ -88,3 +82,14 @@ impl Artist<Data> for BarPlot {
         self.container.draw(renderer, to_canvas, clip, style)
     }
 }
+
+data_artist_option_struct!(BarOpt, BarPlot);
+
+impl BarOpt {
+    pub fn width(&mut self, width: f32) -> &mut Self {
+        self.write(|bar| bar.width = width);
+
+        self
+    }
+}
+

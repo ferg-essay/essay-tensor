@@ -173,7 +173,7 @@ impl ScaledFont {
         }
     }
 
-    pub(crate) fn height(&self) -> f32 {
+    pub(crate) fn _height(&self) -> f32 {
         self.size as f32
     }
 
@@ -219,7 +219,7 @@ pub struct TextRect {
     px_max: i16,
     py_max: i16,
 
-    desc: i16,
+    _desc: i16,
 
     tx_min: f32,
     ty_min: f32,
@@ -247,7 +247,7 @@ impl TextRect {
             px_max,
             py_max,
 
-            desc,
+            _desc: desc,
     
             tx_min,
             ty_min,
@@ -263,7 +263,7 @@ impl TextRect {
             px_max: 0,
             py_max: 0,
 
-            desc: 0,
+            _desc: 0,
     
             tx_min: 0.,
             ty_min: 0.,
@@ -278,17 +278,17 @@ impl TextRect {
     }
 
     #[inline]
-    pub(crate) fn px_min(&self) -> i16 {
+    pub(crate) fn _px_min(&self) -> i16 {
         self.px_min
     }
 
     #[inline]
-    pub(crate) fn py_min(&self) -> i16 {
+    pub(crate) fn _py_min(&self) -> i16 {
         self.py_min
     }
 
     #[inline]
-    pub(crate) fn px_max(&self) -> i16 {
+    pub(crate) fn _px_max(&self) -> i16 {
         self.px_max
     }
 
@@ -308,8 +308,8 @@ impl TextRect {
     }
 
     #[inline]
-    pub(crate) fn desc(&self) -> u16 {
-        self.desc as u16
+    pub(crate) fn _desc(&self) -> u16 {
+        self._desc as u16
     }
 
     #[inline]

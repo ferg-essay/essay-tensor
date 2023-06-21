@@ -2,11 +2,9 @@ use essay_plot_base::{Coord, Canvas, Bounds, driver::Renderer, Affine2d, Clip, P
 
 use crate::{
     artist::{Artist, PathStyle, PlotId, PlotArtist},
-    frame::{Data, ArtistId, LayoutArc, FrameId, LegendHandler}, 
+    frame::{Data, LegendHandler}, 
     data_artist_option_struct, path_style_options,
 };
-
-use super::ConfigArc;
 
 data_artist_option_struct!(PlotOpt, PlotOptArtist<Data>);
 

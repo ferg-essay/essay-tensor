@@ -42,16 +42,14 @@ impl Graph {
 
     pub fn x(&mut self) -> AxisOpt {
         let layout = self.layout.clone();
-        unsafe {
-            AxisOpt::new(layout, self.id(), FrameArtist::X)
-        }
+
+        AxisOpt::new(layout, self.id(), FrameArtist::X)
     }
 
     pub fn y(&mut self) -> AxisOpt {
         let layout = self.layout.clone();
-        unsafe {
-            AxisOpt::new(layout, self.id(), FrameArtist::Y)
-        }
+
+        AxisOpt::new(layout, self.id(), FrameArtist::Y)
     }
 
     pub fn xlabel(&mut self, label: &str) -> FrameTextOpt {
