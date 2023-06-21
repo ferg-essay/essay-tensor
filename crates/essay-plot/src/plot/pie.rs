@@ -1,12 +1,12 @@
 use essay_plot_base::{Angle, Point};
 use essay_tensor::Tensor;
 
-use crate::{artist::{patch, Container, ArtistStyle}, graph::{Graph, PlotOpt}, frame::ArtistId};
+use crate::{artist::{patch, Container, ContainerOpt}, graph::{Graph, PlotOpt}, frame::ArtistId};
 
 pub fn pie(
     graph: &mut Graph, 
     x: impl Into<Tensor>, 
-) -> PlotOpt {
+) -> ContainerOpt {
     let x = x.into();
     
     assert!(x.rank() == 1, "pie chart must have rank 1 data");
@@ -32,14 +32,10 @@ pub fn pie(
             (Angle::Unit(theta1), Angle::Unit(theta2))
         );
 
-        let id = ArtistId::empty();
-
-        let artist = ArtistStyle::new(id, patch);
-        
-        container.push(artist);
+        container.push(patch);
 
         theta1 = theta2;
     }
 
-    graph.add_simple_artist(container)
+    graph.add_plot_artist(container)
 }

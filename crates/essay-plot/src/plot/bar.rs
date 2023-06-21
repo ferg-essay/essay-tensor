@@ -2,7 +2,7 @@ use essay_plot_base::{Affine2d, Path, Bounds, Canvas, PathOpt, driver::Renderer,
 use essay_tensor::Tensor;
 use essay_plot_macro::*;
 
-use crate::{artist::{Container, paths, patch::{PathPatch}, ArtistStyle, Artist}, graph::{Graph, PlotOpt}, frame::{Data, ArtistId}, data_artist_option_struct};
+use crate::{artist::{Container, paths, patch::{PathPatch}, Artist}, graph::{Graph, PlotOpt}, frame::{Data, ArtistId}, data_artist_option_struct};
 
 // self as essay_plot needed for #[derive_plot_opt]
 extern crate self as essay_plot;
@@ -67,7 +67,7 @@ impl Artist<Data> for BarPlot {
                 let path: Path<Data> = paths::unit_pos().transform(&scale);
             
                 let id = ArtistId::empty();
-                self.container.push(ArtistStyle::new(id, PathPatch::<Data>::new(path)));
+                self.container.push(PathPatch::<Data>::new(path));
             }
         }
 

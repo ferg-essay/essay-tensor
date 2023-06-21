@@ -5,10 +5,10 @@ use essay_plot_base::{
 
 use crate::{graph::{PlotArtist, PlotId, ConfigArc, PlotOpt}, frame::Data, data_artist_option_struct};
 
-use super::{ArtistStyle, Artist, PathStyle, StyleCycle};
+use super::{Artist, PathStyle, StyleCycle};
 
 pub struct Container<M: Coord> {
-    artists: Vec<ArtistStyle<M>>,
+    artists: Vec<Box<dyn Artist<M>>>,
     style: PathStyle,
     cycle: StyleCycle,
 }
@@ -26,8 +26,8 @@ impl<M: Coord> Container<M> {
         &mut self.style
     }
 
-    pub fn push(&mut self, artist: ArtistStyle<M>) {
-        self.artists.push(artist);
+    pub fn push(&mut self, artist: impl Artist<M> + 'static) {
+        self.artists.push(Box::new(artist));
     }
 
     pub(crate) fn clear(&mut self) {

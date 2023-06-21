@@ -12,7 +12,7 @@ mod collection;
 mod lines;
 
 pub use artist::{
-    ArtistStyle, Artist,
+    Artist,
 };
 
 pub use collection::{

@@ -1,7 +1,7 @@
 mod bar;
 use essay_tensor::Tensor;
 
-use crate::{graph::{Graph, PlotOpt}, artist::LinesOpt};
+use crate::{graph::{Graph, PlotOpt}, artist::{LinesOpt, ContainerOpt}};
 
 mod pie;
 mod scatter;
@@ -43,7 +43,7 @@ impl Graph {
     pub fn pie(
         &mut self,
         x: impl Into<Tensor>, 
-    ) -> PlotOpt {
+    ) -> ContainerOpt {
         pie::pie(self, x)
     }
     /*
