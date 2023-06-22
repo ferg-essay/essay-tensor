@@ -75,7 +75,7 @@ impl Artist<Data> for PColorMesh {
         let c = Color::from(0xf9e300).closest_name();
         
         //let colormap = ColorMap::from(["red", "white", "blue"]);
-        let colormap = ColorMap::from(["#ff0000", "white", "#0000ff"]);
+        let colormap = ColorMap::from([(0., "#ff0000"), (0.2, "white"), (1., "#0000ff")]);
         //let colormap = ColorMap::from(["red", "green", "pink", "yellow"]);
 
         let mut colors = TensorVec::<u32>::new();

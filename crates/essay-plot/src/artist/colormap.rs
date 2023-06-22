@@ -6,20 +6,28 @@ pub struct ColorMap {
 }
 
 impl ColorMap {
-    fn from_colors(colors: &[Color]) -> Self {
-        let colors = if colors.len() > 0 {
-            colors
-        } else {
-            &[Color(0xff)]
+    fn from_colors(colors: &[(f32, Color)]) -> Self {
+        let mut colors = Vec::from(colors);
+
+        if colors.len() == 0 {
+            colors.push((0., Color(0xff)));
         };
 
+        if colors[0].0 > 0. {
+            colors.insert(0, (0., colors[0].1.clone()));
+        }
+
+        if colors[colors.len() - 1].0 < 1. {
+            colors.push((1., colors[colors.len() - 1].1.clone()));
+        }
 
         let mut full_colors = Vec::<[f32; 4]>::new();
         //for color in raw_colors {
         //    full_colors.push([color.red(), color.green(), color.blue(), 1.])
         //}
+
         for i in 0..256 {
-            full_colors.push(raw_to_full(i as f32 / 255., colors));
+            full_colors.push(raw_to_full(i as f32 / 255., colors.as_slice()));
         }
 
         let factor = (full_colors.len() as f32 - 1.).max(1.);
@@ -54,18 +62,25 @@ impl ColorMap {
     }
 }
 
-pub fn raw_to_full(v: f32, raw_colors: &[Color]) -> [f32; 4] {
-    let len = raw_colors.len();
+pub fn raw_to_full(v: f32, raw_colors: &[(f32, Color)]) -> [f32; 4] {
+    let i = match raw_colors.iter().position(|c| v <= c.0) {
+        Some(pos) => pos.max(1) - 1,
+        None => panic!(),
+    };
 
-    let v = v * (len - 1) as f32;
-    let i = v as usize;
-    let offset = v - i as f32;
+    let (f0, c0) = raw_colors[i];
+    let (f1, c1) = raw_colors[i + 1];
 
-    if len - 1 <= i {
-        let last = raw_colors[raw_colors.len() - 1];
+    // let v = v * (len - 1) as f32;
+    //let i = v as usize;
+    //let offset = v - i as f32;
+    let offset = (v - f0) / (f1 - f0).max(f32::EPSILON);
+
+    //if len - 1 <= i {
+    //    let last = raw_colors[raw_colors.len() - 1];
         
-        return [last.red(), last.green(), last.blue(), 1.];
-    }
+    //    return [last.red(), last.green(), last.blue(), 1.];
+    //}
 
     // TODO: attempting to interpolate in msh space or lab space produced odd
     // effects. Check to see if this is a bug in conversion or a problem 
@@ -73,8 +88,8 @@ pub fn raw_to_full(v: f32, raw_colors: &[Color]) -> [f32; 4] {
     //let c0 = raw_colors[i].to_lab();
     //let c1 = raw_colors[i + 1].to_lab();
 
-    let c0 = [raw_colors[i].red(), raw_colors[i].green(), raw_colors[i].blue()];
-    let c1 = [raw_colors[i + 1].red(), raw_colors[i + 1].green(), raw_colors[i + 1].blue()];
+    let c0 = [c0.red(), c0.green(), c0.blue()];
+    let c1 = [c1.red(), c1.green(), c1.blue()];
 
     let x = (1. - offset) * c0[0] + offset * c1[0];
     let y = (1. - offset) * c0[1] + offset * c1[1];
@@ -89,24 +104,75 @@ pub fn raw_to_full(v: f32, raw_colors: &[Color]) -> [f32; 4] {
     [x, y, z, 1.]
 }
 
+impl From<&[(f32, Color)]> for ColorMap {
+    fn from(value: &[(f32, Color)]) -> Self {
+        ColorMap::from_colors(value)
+    }
+}
+
+impl<const N: usize> From<[(f32, Color); N]> for ColorMap {
+    fn from(value: [(f32, Color); N]) -> Self {
+        ColorMap::from_colors(Vec::from(value).as_slice())
+    }
+}
+
 impl From<&[Color]> for ColorMap {
     fn from(value: &[Color]) -> Self {
-        ColorMap::from_colors(value)
+        let mut colors = Vec::<(f32, Color)>::new();
+
+        let factor = 1. / (value.len().max(2) - 1) as f32;
+        for (i, name) in value.iter().enumerate() {
+            colors.push((i as f32 * factor, Color::from(*name)));
+        }
+
+        ColorMap::from_colors(colors.as_slice())
     }
 }
 
 impl<const N: usize> From<[Color; N]> for ColorMap {
     fn from(value: [Color; N]) -> Self {
-        ColorMap::from_colors(Vec::from(value).as_slice())
+        let mut colors = Vec::<(f32, Color)>::new();
+
+        let factor = 1. / (value.len().max(2) - 1) as f32;
+        for (i, name) in value.iter().enumerate() {
+            colors.push((i as f32 * factor, Color::from(*name)));
+        }
+
+        ColorMap::from_colors(colors.as_slice())
+    }
+}
+
+impl From<&[(f32, &str)]> for ColorMap {
+    fn from(value: &[(f32, &str)]) -> Self {
+        let mut colors = Vec::<(f32, Color)>::new();
+
+        for (v, name) in value.iter() {
+            colors.push((*v, Color::from(*name)));
+        }
+
+        ColorMap::from_colors(colors.as_slice())
+    }
+}
+
+impl<const N: usize> From<[(f32, &str); N]> for ColorMap {
+    fn from(value: [(f32, &str); N]) -> Self {
+        let mut colors = Vec::<(f32, Color)>::new();
+
+        for (v, name) in value.iter() {
+            colors.push((*v, Color::from(*name)));
+        }
+
+        ColorMap::from_colors(colors.as_slice())
     }
 }
 
 impl From<&[&str]> for ColorMap {
     fn from(value: &[&str]) -> Self {
-        let mut colors = Vec::<Color>::new();
+        let mut colors = Vec::<(f32, Color)>::new();
 
-        for name in value {
-            colors.push(Color::from(*name));
+        let factor = 1. / (value.len().max(2) - 1) as f32;
+        for (i, name) in value.iter().enumerate() {
+            colors.push((i as f32 * factor, Color::from(*name)));
         }
 
         ColorMap::from_colors(colors.as_slice())
@@ -115,10 +181,11 @@ impl From<&[&str]> for ColorMap {
 
 impl<const N: usize> From<[&str; N]> for ColorMap {
     fn from(value: [&str; N]) -> Self {
-        let mut colors = Vec::<Color>::new();
+        let mut colors = Vec::<(f32, Color)>::new();
 
-        for name in value {
-            colors.push(Color::from(name));
+        let factor = 1. / (value.len().max(2) - 1) as f32;
+        for (i, name) in value.iter().enumerate() {
+            colors.push((i as f32 * factor, Color::from(*name)));
         }
 
         ColorMap::from_colors(colors.as_slice())

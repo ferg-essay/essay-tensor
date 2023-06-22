@@ -63,7 +63,7 @@ impl Artist<Data> for PColor {
 
         let norm = normalize_unit(&self.data);
 
-        let colormap = ColorMap::from([Color(0xffff00ff), Color(0x000080ff)]);
+        let colormap = ColorMap::from([(0., Color(0xffff00ff)), (1., Color(0x000080ff))]);
 
         let mut colors = TensorVec::<u32>::new();
         for v in norm.iter() {
