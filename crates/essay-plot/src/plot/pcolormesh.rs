@@ -1,16 +1,26 @@
+use essay_tensor::Tensor;
+
+use crate::{graph::Graph, artist::{Artist, PathStyle, ColorMap}};
 use essay_plot_base::{Bounds, Point, Canvas, Clip, PathOpt, Path, Color};
-use essay_tensor::{tf32, tensor::{self, TensorVec}, Tensor, math::normalize_unit};
+use essay_tensor::{tf32, tensor::{self, TensorVec}, math::normalize_unit};
 
 use crate::frame::Data;
 
-use super::{Artist, PathStyle, colormap::ColorMap};
+pub fn pcolormesh(
+    graph: &mut Graph, 
+    data: impl Into<Tensor>,
+) {
+    let pcolor = PColorMesh::new(data);
+    
+    graph.add_simple_artist(pcolor);
+}
 
-pub struct PColor {
+pub struct PColorMesh {
     data: Tensor,
     xy: Tensor,
 }
 
-impl PColor {
+impl PColorMesh {
     pub fn new(data: impl Into<Tensor>) -> Self {
         let data : Tensor = data.into();
 
@@ -23,7 +33,7 @@ impl PColor {
     }
 }
 
-impl Artist<Data> for PColor {
+impl Artist<Data> for PColorMesh {
     fn update(&mut self, _canvas: &Canvas) {
         let mut xy = TensorVec::<f32>::new();
         for j in 0..self.data.rows() {
@@ -62,8 +72,11 @@ impl Artist<Data> for PColor {
         let xy = to_canvas.transform(&self.xy);
 
         let norm = normalize_unit(&self.data);
-
-        let colormap = ColorMap::from([Color(0xffff00ff), Color(0x000080ff)]);
+        let c = Color::from(0xf9e300).closest_name();
+        
+        //let colormap = ColorMap::from(["red", "white", "blue"]);
+        let colormap = ColorMap::from(["#ff0000", "white", "#0000ff"]);
+        //let colormap = ColorMap::from(["red", "green", "pink", "yellow"]);
 
         let mut colors = TensorVec::<u32>::new();
         for v in norm.iter() {

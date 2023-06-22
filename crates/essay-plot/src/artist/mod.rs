@@ -1,3 +1,4 @@
+mod colormap;
 mod cycle;
 mod pcolor;
 mod color;
@@ -25,6 +26,10 @@ pub use container::{
 
 pub use color::{
     ColorCycle,
+};
+
+pub use colormap::{
+    ColorMap,
 };
 
 pub use cycle::{

@@ -1,7 +1,7 @@
 use core::fmt;
 
-use essay_tensor::{Tensor, tensor::{Axis}, tf32};
-use essay_plot_base::{Affine2d, Bounds, Path, PathCode, PathOpt, Point, Canvas, driver::{Renderer}, Clip};
+use essay_tensor::{Tensor};
+use essay_plot_base::{Affine2d, Bounds, Path, PathOpt, Canvas, driver::{Renderer}, Clip};
 
 use crate::{frame::Data, artist::PathStyle};
 

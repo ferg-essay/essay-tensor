@@ -33,7 +33,7 @@ impl ReduceKernel<f32> for ReduceMin {
     }
 
     #[inline]
-    fn df_dx(&self, a: f32) -> f32 {
+    fn df_dx(&self, _x: f32) -> f32 {
         todo!()
     }
 }

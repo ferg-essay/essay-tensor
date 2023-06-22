@@ -137,6 +137,16 @@ impl Affine2d {
             x * mat[3] + y * mat[4] + mat[5],
         )
     }
+
+    #[inline]
+    pub fn strip_translation(&self) -> Self {
+        let mat = self.mat.as_slice();
+
+        Self::new(
+            mat[0], mat[1], 0.,
+            mat[3], mat[4], 0.,
+        )
+    }
 }
 
 impl fmt::Debug for Affine2d {

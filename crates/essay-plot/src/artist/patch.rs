@@ -24,7 +24,6 @@ impl DataPatch {
     pub fn new(patch: impl PatchTrait<Data> + 'static) -> Self {
         let mut patch = Box::new(patch);
 
-        let bounds = patch.get_path().get_bounds();
         // TODO:
         let bounds = Bounds::none();
         Self {
@@ -33,10 +32,6 @@ impl DataPatch {
             affine: Affine2d::eye(),
             style: PathStyle::new(),
         }
-    }
-
-    fn style_mut(&mut self) -> &mut PathStyle {
-        &mut self.style
     }
 }
 
@@ -84,10 +79,6 @@ impl CanvasPatch {
         self.pos = pos.clone();
         self.to_canvas = self.bounds.affine_to(&pos);
     }
-
-    fn style_mut(&mut self) -> &mut PathStyle {
-        &mut self.style
-    }
 }
 
 impl Artist<Canvas> for CanvasPatch {
@@ -103,13 +94,15 @@ impl Artist<Canvas> for CanvasPatch {
         renderer: &mut dyn Renderer,
         to_canvas: &Affine2d,
         clip: &Clip,
-        _style: &dyn PathOpt,
+        style: &dyn PathOpt,
     ) {
         let to_canvas = to_canvas.matmul(&self.to_canvas);
         let path = self.patch.get_path().transform(&to_canvas);
+        let style = self.style.push(style);
+
         renderer.draw_path(
             &path,
-            &self.style, 
+            &style, 
             clip
         ).unwrap();
     }

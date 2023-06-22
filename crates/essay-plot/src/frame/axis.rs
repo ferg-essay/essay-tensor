@@ -105,8 +105,8 @@ impl Axis {
     }
 
     pub(crate) fn update(&mut self, canvas: &Canvas) {
-        self.major.label_text.update(canvas);
-        self.minor.label_text.update(canvas);
+        self.major.update(canvas);
+        self.minor.update(canvas);
     }
 }
 
@@ -193,10 +193,6 @@ impl AxisTicks {
 
     pub(crate) fn update(&mut self, canvas: &Canvas) {
         self.label_text.update(canvas);
-    }
-
-    pub(crate) fn get_text_height_px(&self) -> f32 {
-        self.label_text.height()
     }
 }
 

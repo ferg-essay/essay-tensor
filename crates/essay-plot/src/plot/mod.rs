@@ -1,14 +1,18 @@
-mod bar;
 use essay_tensor::Tensor;
-
 use crate::{graph::{Graph}, artist::{LinesOpt, ContainerOpt}};
 
+mod pcolormesh;
+mod bar;
 mod pie;
 mod scatter;
 mod plot;
 
 pub use bar::{
     bar_y, BarOpt,
+};
+
+pub use pcolormesh::{
+    pcolormesh, 
 };
 
 pub use plot::{

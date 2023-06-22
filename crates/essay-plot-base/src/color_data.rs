@@ -8,17 +8,17 @@ pub(crate) fn lookup_color(name: &str) -> Option<Color> {
     COLORMAP.lock().unwrap().color(name)
 }
 
+pub(crate) fn lookup_color_name(color: &Color) -> String {
+    COLORMAP.lock().unwrap().best_name(color)
+}
+
 struct ColorMap {
     map: Option<HashMap<String, Color>>,
 }
 
 impl ColorMap {
     fn color(&mut self, name: &str) -> Option<Color> {
-        if self.map.is_none() {
-            self.map = Some(build_colormap());
-        }
-
-        match &self.map {
+        match self.get_map() {
             Some(map) => match map.get(name) {
                 Some(color) => Some(color.clone()),
                 None => None,
@@ -26,6 +26,38 @@ impl ColorMap {
             None => None,
         }
     }
+
+    fn best_name(&mut self, color: &Color) -> String {
+        let mut best_color = Color(0x000000ff);
+        let mut best_name = "black";
+
+        if let Some(map) = self.get_map() {
+            for (name, map_color) in map.iter()  {
+                if color_dist(color, map_color) < color_dist(color, &best_color) {
+                    best_color = map_color.clone();
+                    best_name = name;
+                }
+            }
+        }
+
+        best_name.to_string()
+    }
+
+    fn get_map(&mut self) -> &Option<HashMap<String, Color>> {
+        if self.map.is_none() {
+            self.map = Some(build_colormap());
+        }
+
+        &self.map
+    }
+}
+
+fn color_dist(x: &Color, y: &Color) -> f32 {
+    (
+        (x.red() - y.red()).powi(2)
+        + (x.green() - y.green()).powi(2)
+        + (x.blue() - y.blue()).powi(2)
+    ).sqrt()
 }
 
 fn build_colormap() -> HashMap<String, Color> {
@@ -33,10 +65,6 @@ fn build_colormap() -> HashMap<String, Color> {
 
     for (name, rgb) in css_color_data() {
         map.insert(format!("css:{}", name), Color::from(rgb));
-    }
-
-    for (name, rgb) in tableau_color_data() {
-        map.insert(format!("tab:{}", name), Color::from(rgb));
     }
 
     for (name, rgb) in xkcd_color_data() {
@@ -76,7 +104,7 @@ fn digit_color_data() -> Vec<(&'static str, u32)> {
 ///
 /// Tableau colors
 ///
-fn tableau_color_data() -> Vec<(&'static str, u32)> {
+fn _tableau_color_data() -> Vec<(&'static str, u32)> {
     return vec![
         ("blue", 0x1f77b4),
         ("orange", 0xff7f0e),

@@ -10,6 +10,7 @@ mod powf;
 mod min;
 mod max;
 mod log;
+mod normalize_unit;
 mod reduce_mean;
 mod reduce_min;
 mod reduce_sum;
@@ -50,6 +51,8 @@ pub use reduce_mean::{reduce_mean};
 pub use reduce_min::{reduce_min};
 pub use reduce_variance::{reduce_variance};
 pub use reduce_std::{reduce_std};
+
+pub use normalize_unit::{normalize_unit};
 
 //
 // overloaded operations: Add, Sub, Mul

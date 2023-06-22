@@ -451,9 +451,9 @@ impl BezierStyle {
             affine_0: [mat[0], mat[1], 0., mat[2]],
             affine_1: [mat[3], mat[4], 0., mat[5]],
             color: [
-                Color::to_srgb(color.red()),
-                Color::to_srgb(color.green()),
-                Color::to_srgb(color.blue()),
+                Color::srgb_to_lrgb(color.red()),
+                Color::srgb_to_lrgb(color.green()),
+                Color::srgb_to_lrgb(color.blue()),
                 color.alpha(),
             ],
         }

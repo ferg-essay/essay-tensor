@@ -4,6 +4,7 @@ mod fold_2;
 mod init_op;
 mod unary_op;
 pub mod reduce;
+mod normalize;
 
 pub use unary_op::{
     unary_op, UnaryKernel,
@@ -19,6 +20,10 @@ pub use binary_op::{
 
 pub use reduce::{
     reduce_op, ReduceKernel, ReduceOpt,
+};
+
+pub use normalize::{
+    normalize_op, NormalizeKernel, NormalizeOpt,
 };
 
 pub use fold_2::{

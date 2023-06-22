@@ -18,7 +18,7 @@ pub use arange::{
 };
 
 pub use meshgrid::{
-    meshgrid, Meshgrid,
+    meshgrid, meshgrid_ij, Meshgrid,
 };
 
 pub use zeros::{

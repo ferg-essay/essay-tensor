@@ -1,6 +1,8 @@
-use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::bar_y};
+use std::f32::consts::TAU;
+
+use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh}};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle, Angle};
-use essay_tensor::{prelude::*, init::{linspace, meshgrid}};
+use essay_tensor::{prelude::*, init::{linspace, meshgrid, meshgrid_ij}};
 
 fn main() {
     //let mut gui = WgpuBackend::new();
@@ -9,14 +11,15 @@ fn main() {
     //let x = linspace(0., 2. * PI, 30);
     //let y = x.sin();
 
-    let x = linspace(-1., 1., 5);
-    let y = linspace(-1., 1., 5);
+    let x = linspace(0., 1., 40);
+    let y = linspace(0., 6.28, 2);
     let [x, y] = meshgrid([x, y]);
 
-    let z = 1. - &x * &x + 1. - &y * &y;
-    println!("X: {:?}", x);
-    println!("Y: {:?}", y);
-    println!("z: {:?}", z);
+    let z = x;//&x.sin() + &y.cos();
+    //println!("X: {:?}", x);
+    //println!("Y: {:?}", y);
+    //println!("z: {:?}", z);
+    println!("Z: {:?}", z.shape().as_slice());
     //let y = x.sin();
 
     let x = linspace(0., 1., 3);
@@ -44,11 +47,14 @@ fn main() {
     let x = linspace(0., 6.28, 20);
     let y = x.sin();
     //graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
-    graph.plot(&x, &y).color("xkcd:purple"); // .label("sin");
+    //graph.plot(&x, &y).color("xkcd:purple"); // .label("sin");
 
     let y = x.cos();
     //graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
-    graph.plot(&x, &y).color("xkcd:amber"); // .label("cos");
+    //graph.plot(&x, &y).color("xkcd:amber"); // .label("cos");
+
+
+    pcolormesh(graph, z);
     /*
     let y2 = x.cos();
     graph.plot(&x, &y2).face_color("xkcd:purple");
@@ -179,10 +185,4 @@ pub fn plot_line(
         PathCode::MoveTo(p4.into()),
         PathCode::LineTo(p5.into()),
     ])))
-}
-
-pub fn pcolor(
-    graph: &mut Graph, 
-) {
-    graph.add_simple_artist(PColor {});
 }
