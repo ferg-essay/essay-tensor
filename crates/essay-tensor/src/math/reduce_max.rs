@@ -1,7 +1,7 @@
 use crate::{Tensor, ops::{reduce_op, ReduceKernel, ReduceOpt}};
 
 #[derive(Debug, Copy, Clone)]
-pub struct ReduceMin;
+pub struct ReduceMax;
 
 pub fn reduce_max(a: &Tensor) -> Tensor {
     reduce_op(a, ReduceMax, ())
@@ -17,7 +17,7 @@ impl Tensor {
     }
 
     pub fn reduce_max_opt(&self, opt: impl ReduceOpt) -> Tensor {
-        reduce_max(self, opt)
+        reduce_max_opt(self, opt)
     }
 }
 

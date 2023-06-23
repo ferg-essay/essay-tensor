@@ -1,6 +1,6 @@
 use std::f32::consts::{PI, TAU};
 
-use essay_plot_base::{Angle, Coord, Path, PathCode, Point};
+use essay_plot_base::{Angle, Coord, Path, PathCode, Point, Canvas, Bounds};
 use essay_tensor::{init::linspace, tensor::TensorVec};
 
 ///
@@ -189,5 +189,14 @@ pub fn circle() -> Path<Unit> {
             Point(0., -1.),
         ),
         PathCode::ClosePoly(Point(0., -1.)),
+    ])
+}
+
+pub(crate) fn bounds(pos: &Bounds<Canvas>) -> Path<Canvas> {
+    Path::new(vec![
+        PathCode::MoveTo(Point(pos.xmin(), pos.ymin())),
+        PathCode::LineTo(Point(pos.xmax(), pos.ymin())),
+        PathCode::LineTo(Point(pos.xmax(), pos.ymax())),
+        PathCode::ClosePoly(Point(pos.xmin(), pos.ymax())),
     ])
 }

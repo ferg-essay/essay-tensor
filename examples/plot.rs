@@ -11,11 +11,12 @@ fn main() {
     //let x = linspace(0., 2. * PI, 30);
     //let y = x.sin();
 
-    let x = linspace(0., 1., 40);
-    let y = linspace(0., 6.28, 2);
+    let x = linspace(0., 6.28 * 2., 40);
+    let y = linspace(0., 6.28, 20);
     let [x, y] = meshgrid([x, y]);
 
-    let z = x;//&x.sin() + &y.cos();
+    //let z = x;//&x.sin() + &y.cos();
+    let z = &x.sin() + &y.cos();
     //println!("X: {:?}", x);
     //println!("Y: {:?}", y);
     //println!("z: {:?}", z);
@@ -34,8 +35,8 @@ fn main() {
     // axes.ylabel("Y-Label").style().color("r");
 
     graph.title("My Title"); // .color(0x008033).size(18.);
-    graph.xlabel("My X-Label"); // .color("brown");
-    graph.ylabel("Y-Label"); // .color("teal").size(8.);
+    graph.x_label("My X-Label"); // .color("brown");
+    graph.y_label("Y-Label"); // .color("teal").size(8.);
 /*
     graph.scatter(&x, &y).color("blue").marker("X")
         .line_color(0xff8000)
@@ -55,6 +56,7 @@ fn main() {
 
 
     pcolormesh(graph, z);
+    graph.colorbar();
     /*
     let y2 = x.cos();
     graph.plot(&x, &y2).face_color("xkcd:purple");

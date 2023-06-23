@@ -52,16 +52,24 @@ impl Graph {
         AxisOpt::new(layout, self.id(), FrameArtist::Y)
     }
 
-    pub fn xlabel(&mut self, label: &str) -> FrameTextOpt {
+    pub fn x_label(&mut self, label: &str) -> FrameTextOpt {
         let mut opt = self.text_opt(FrameArtist::XLabel);
         opt.label(label);
         opt
     }
 
-    pub fn ylabel(&mut self, label: &str) -> FrameTextOpt {
+    pub fn y_label(&mut self, label: &str) -> FrameTextOpt {
         let mut opt = self.text_opt(FrameArtist::YLabel);
         opt.label(label);
         opt
+    }
+
+    pub fn colorbar(&mut self) -> &mut Self {
+        let id = self.layout.borrow_mut()
+            .frame_mut(self.id)
+            .colorbar();
+
+        self
     }
 
     fn default_properties(&mut self) {

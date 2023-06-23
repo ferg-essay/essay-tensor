@@ -1,3 +1,6 @@
+mod colormesh;
+mod colorbar;
+mod colormaps;
 mod colormap;
 mod cycle;
 mod pcolor;
@@ -28,8 +31,16 @@ pub use color::{
     ColorCycle,
 };
 
+pub use colorbar::{
+    Colorbar,
+};
+
 pub use colormap::{
     ColorMap,
+};
+
+pub use colormaps::{
+    ColorMaps,
 };
 
 pub use cycle::{

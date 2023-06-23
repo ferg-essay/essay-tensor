@@ -7,7 +7,7 @@ use essay_plot_base::{
 
 use crate::{
     artist::{
-        patch::{CanvasPatch, Line}, Text, Artist, PathStyle
+        patch::{CanvasPatch, Line}, Text, Artist, PathStyle, Colorbar
     }, 
     graph::Config
 };
@@ -224,6 +224,10 @@ impl Frame {
         A: Artist<Data> + 'static
     {
         self.data_mut().artist_mut(id)
+    }
+
+    pub(crate) fn colorbar(&mut self) {
+        self.right.colorbar();
     }
 
     pub(crate) fn event(&mut self, renderer: &mut dyn Renderer, event: &CanvasEvent) {
@@ -765,6 +769,7 @@ pub struct RightFrame {
     bounds: Bounds<Canvas>,
     pos: Bounds<Canvas>,
     spine: Option<CanvasPatch>,
+    colorbar: Option<Colorbar>,
 }
 
 impl RightFrame {
@@ -773,6 +778,7 @@ impl RightFrame {
             bounds: Bounds::new(Point(0., 0.), Point(20., 0.)),
             pos: Bounds::none(),
             spine: Some(CanvasPatch::new(Line::new(Point(0., 0.), Point(0., 1.)))),
+            colorbar: None,
         }
     }
 
@@ -785,11 +791,25 @@ impl RightFrame {
                 Point(pos.xmin() + 1., pos.ymax()),
             ))
         }
+
+        if let Some(colorbar) = &mut self.colorbar {
+            colorbar.set_pos(Bounds::new(
+                Point(pos.xmin() + 40., pos.ymin()),
+                Point(pos.xmin() + 80., pos.ymax()),
+            ))
+        }
+    }
+
+    pub fn colorbar(&mut self) {
+        self.colorbar = Some(Colorbar::new());
     }
 }
 
 impl Artist<Canvas> for RightFrame {
-    fn update(&mut self, _canvas: &Canvas) {
+    fn update(&mut self, canvas: &Canvas) {
+        if let Some(colorbar) = &mut self.colorbar {
+            colorbar.update(canvas);
+        }
     }
     
     fn get_extent(&mut self) -> Bounds<Canvas> {
@@ -805,6 +825,10 @@ impl Artist<Canvas> for RightFrame {
     ) {
         if let Some(patch) = &mut self.spine {
             patch.draw(renderer, to_canvas, clip, style);
+        }
+
+        if let Some(colorbar) = &mut self.colorbar {
+            colorbar.draw(renderer, to_canvas, clip, style);
         }
     }
 }
