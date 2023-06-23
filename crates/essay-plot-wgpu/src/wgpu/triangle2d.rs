@@ -20,6 +20,8 @@ pub struct GridMesh2dRender {
     mesh_items: Vec<GridMesh2dItem>,
 
     pipeline: wgpu::RenderPipeline,
+
+    is_stale: bool,
 }
 
 impl GridMesh2dRender {
@@ -92,6 +94,8 @@ impl GridMesh2dRender {
 
             mesh_items: Vec::new(),
             pipeline,
+
+            is_stale: false,
         }
     }
 
@@ -100,6 +104,7 @@ impl GridMesh2dRender {
         self.index_offset = 0;
         self.style_offset = 0;
         self.mesh_items.drain(..);
+        self.is_stale = false;
     }
 
     pub fn start_triangles(&mut self) {
@@ -118,8 +123,13 @@ impl GridMesh2dRender {
             position: [x, y],
             color: rgba,
         };
+
+        let len = self.vertex_vec.len();
+        if len <= self.vertex_offset {
+            self.vertex_vec.resize(len + 2048, GridMesh2dVertex::empty());
+            self.is_stale = true;
+        }
         
-        // TODO: autoextend on overflow
         self.vertex_vec[self.vertex_offset] = vertex;
         self.vertex_offset += 1;
     }
@@ -130,7 +140,12 @@ impl GridMesh2dRender {
         let v_start = item.v_start;
         let offset = self.index_offset;
 
-        // TODO: autoextend on overflow
+        let len = self.index_vec.len();
+        if len <= self.index_offset + 2 {
+            self.index_vec.resize(len + 2048, 0);
+            self.is_stale = true;
+        }
+
         assert!((v_start + v0 as usize) < self.vertex_offset);
         self.index_vec[offset] = v0;
         assert!((v_start + v1 as usize) < self.vertex_offset);
@@ -162,6 +177,7 @@ impl GridMesh2dRender {
 
     pub fn flush(
         &mut self, 
+        device: &wgpu::Device,
         queue: &wgpu::Queue, 
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
@@ -182,6 +198,34 @@ impl GridMesh2dRender {
             })],
             depth_stencil_attachment: None,
         });
+
+        if self.is_stale {
+            self.is_stale = false;
+ 
+            self.vertex_buffer = device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(self.vertex_vec.as_slice()),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                }
+            );
+    
+            self.index_buffer = device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(self.index_vec.as_slice()),
+                    usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                }
+            );
+    
+            self.style_buffer = device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: None,
+                    contents: bytemuck::cast_slice(self.style_vec.as_slice()),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                }
+            );
+        }
 
         queue.write_buffer(
             &mut self.vertex_buffer, 
@@ -204,21 +248,21 @@ impl GridMesh2dRender {
         rpass.set_pipeline(&self.pipeline);
 
         for item in self.mesh_items.drain(..) {
-            let stride = self.vertex_stride;
-            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(
-                (stride * item.v_start) as u64..(stride * item.v_end) as u64
-            ));
-            let stride = self.style_stride;
-            rpass.set_vertex_buffer(1, self.style_buffer.slice(
-                (stride * item.s_start) as u64..(stride * item.s_end) as u64
-            ));
-            let stride = self.index_stride;
-            rpass.set_index_buffer(self.index_buffer.slice(
-                (stride * item.i_start) as u64..(stride * item.i_end) as u64
-            ), wgpu::IndexFormat::Uint32
-            );
+            if item.v_start < item.v_end && item.i_start < item.i_end {
+                let stride = self.vertex_stride;
+                rpass.set_vertex_buffer(0, self.vertex_buffer.slice(
+                    (stride * item.v_start) as u64..(stride * item.v_end) as u64
+                ));
+                let stride = self.style_stride;
+                rpass.set_vertex_buffer(1, self.style_buffer.slice(
+                    (stride * item.s_start) as u64..(stride * item.s_end) as u64
+                ));
+                let stride = self.index_stride;
+                rpass.set_index_buffer(self.index_buffer.slice(
+                    (stride * item.i_start) as u64..(stride * item.i_end) as u64
+                ), wgpu::IndexFormat::Uint32
+                );
 
-            if item.v_start < item.v_end {
                 rpass.draw_indexed(
                     0..(item.i_end - item.i_start) as u32,
                     0,
@@ -250,6 +294,13 @@ pub struct GridMesh2dVertex {
 impl GridMesh2dVertex {
     const ATTRS: [wgpu::VertexAttribute; 2] =
         wgpu::vertex_attr_array![0 => Float32x2, 1 => Uint32 ];
+
+    fn empty() -> Self {
+        Self {
+            position: [0., 0.],
+            color: 0,
+        }
+    }
 
     pub(crate) fn desc() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -288,6 +339,13 @@ impl GridMesh2dStyle {
         Self {
             affine_0: [mat[0], mat[1], 0., mat[2]],
             affine_1: [mat[3], mat[4], 0., mat[5]],
+        }
+    }
+
+    fn empty() -> Self {
+        Self {
+            affine_0: [0., 0., 0., 0.],
+            affine_1: [0., 0., 0., 0.],
         }
     }
 }

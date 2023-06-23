@@ -11,12 +11,12 @@ fn main() {
     //let x = linspace(0., 2. * PI, 30);
     //let y = x.sin();
 
-    let x = linspace(0., 6.28 * 2., 40);
-    let y = linspace(0., 6.28, 20);
+    let x = linspace(0., 6.28, 49);
+    let y = linspace(0., 6.28, 8);
     let [x, y] = meshgrid([x, y]);
 
     //let z = x;//&x.sin() + &y.cos();
-    let z = &x.sin() + &y.cos();
+    let z = &x.sin(); // + &y.cos();
     //println!("X: {:?}", x);
     //println!("Y: {:?}", y);
     //println!("z: {:?}", z);
@@ -45,7 +45,7 @@ fn main() {
         .line_width(5.);
     */
 
-    let x = linspace(0., 6.28, 20);
+    let x = linspace(0., 6.28, 3);
     let y = x.sin();
     //graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
     //graph.plot(&x, &y).color("xkcd:purple"); // .label("sin");

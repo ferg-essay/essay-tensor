@@ -820,7 +820,7 @@ impl FigureRenderer {
 
         self.shape2d_render.flush(device, queue, view, encoder);
         self.bezier_render.flush(queue, view, encoder);
-        self.triangle_render.flush(queue, view, encoder);
+        self.triangle_render.flush(device, queue, view, encoder);
         self.text_render.flush(queue, view, encoder);
     }
 }

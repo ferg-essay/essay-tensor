@@ -29,8 +29,14 @@ impl Colorbar {
 
 impl Artist<Data> for Colorbar {
     fn update(&mut self, canvas: &Canvas) {
-        self.bounds = Bounds::new(Point(0., 0.), Point(1., 256.));
-        self.data = linspace(0., 1., 256).reshape([256, 1]);
+        let is_triangle = true;
+        if is_triangle {
+            self.bounds = Bounds::new(Point(0., 0.), Point(1., 100.));
+        } else {
+            self.bounds = Bounds::new(Point(0., 0.), Point(1., 101.));
+        }
+        let x = linspace(0., 1., 101);//.reshape([101, 1]);
+        self.data = x.stack(&[x.clone()], -1);
         self.mesh.set_data(self.data.clone());
         self.mesh.update(canvas);
     }
@@ -53,8 +59,8 @@ impl Artist<Data> for Colorbar {
         let mut pstyle = PathStyle::new();
         pstyle.face_color(Color(0x0));
         pstyle.edge_color(Color(0xff));
-        //pstyle.line_width(2.);
-        renderer.draw_path(&path, &pstyle, clip);
+        pstyle.line_width(1.);
+        renderer.draw_path(&path, &pstyle, clip).unwrap();
 
         self.mesh.draw(renderer, &to_canvas, clip, style);
     }

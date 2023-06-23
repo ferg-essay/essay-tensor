@@ -43,6 +43,10 @@ pub use colormaps::{
     ColorMaps,
 };
 
+pub use colormesh::{
+    ColorMesh,
+};
+
 pub use cycle::{
     StyleCycle,
 };
