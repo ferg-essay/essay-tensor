@@ -82,7 +82,6 @@ impl ColorMesh {
         clip: &Clip,
         _style: &dyn PathOpt,
     ) {
-        // let scale_canvas = to_canvas.strip_translation();
         let xy = to_canvas.transform(&self.xy);
 
         let norm = normalize_unit(&self.data);
@@ -100,22 +99,9 @@ impl ColorMesh {
             for i in 0..cols {
                 let x0 = xy[(j * j_stride + i, 0)];
                 let y0 = xy[(j * j_stride + i, 1)];
-                //let (x0, y0) = (i as f32, j as f32);
-                //let (x1, y1) = ((i + 1) as f32, (j + 1) as f32);
                 
                 vertices.push([x0, y0]);
                 colors.push(cmap.map(norm[(j, i)]).to_rgba());
-
-                /*
-                vertices.push([x1, y0]);
-                colors.push(cmap.map(norm[(j, i + 1)]).to_rgba());
-
-                vertices.push([x1, y1]);
-                colors.push(cmap.map(norm[(j + 1, i + 1)]).to_rgba());
-
-                vertices.push([x0, y1]);
-                colors.push(cmap.map(norm[(j + 1, i)]).to_rgba());
-                */
 
                 if i + 1 < cols && j + 1 < rows {
                     triangles.push([
@@ -131,21 +117,7 @@ impl ColorMesh {
                     ]);
                 }
             }
-
-            //let x0 = xy[(j * j_stride + cols, 0)];
-            //let y0 = xy[(j * j_stride + cols, 1)];
-                
-            //vertices.push([x0, y0]);
-            //colors.push(cmap.map(norm[(j, cols - 1)]).to_rgba());
         }
-
-        //for i in 0..=cols {
-        //    let x0 = xy[(rows * j_stride + i, 0)];
-        //    let y0 = xy[(rows * j_stride + i, 1)];
-        //        
-        //    vertices.push([x0, y0]);
-        //    colors.push(cmap.map(norm[(rows - 1, i.min(cols - 1))]).to_rgba());
-        //}
 
         let vertices = vertices.into_tensor();
         let colors = colors.into_tensor();
@@ -158,15 +130,6 @@ impl ColorMesh {
 impl Artist<Data> for ColorMesh {
     fn update(&mut self, _canvas: &Canvas) {
         let mut xy = TensorVec::<[f32; 2]>::new();
-
-        /*
-        let is_triangle = true;
-        let (rows, cols) = if is_triangle {
-            (self.data.rows() + 1, self.data.cols() + 1)
-        } else {
-            (self.data.rows(), self.data.cols())
-        };
-        */
         let (rows, cols) = (self.data.rows(), self.data.cols());
 
         for j in 0..rows {
@@ -174,8 +137,8 @@ impl Artist<Data> for ColorMesh {
                 xy.push([i as f32, j as f32]);
             }
         }
-        // let len = xy.len();
-        self.xy = xy.into_tensor(); // .reshape([len / 2, 2]);
+
+        self.xy = xy.into_tensor();
     }
     
     fn get_extent(&mut self) -> Bounds<Data> {

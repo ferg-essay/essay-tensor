@@ -24,6 +24,21 @@ impl<T> TensorVec<T> {
     pub fn push(&mut self, value: T) {
         self.vec.push(value);
     }
+
+    #[inline]
+    pub fn reverse(&mut self) {
+        self.vec.reverse();
+    }
+
+    #[inline]
+    pub fn pop(&mut self) {
+        self.vec.pop();
+    }
+
+    #[inline]
+    pub fn append(&mut self, tail: &mut TensorVec<T>) {
+        self.vec.append(&mut tail.vec);
+    }
 }
 
 impl<T: Dtype> TensorVec<T> {

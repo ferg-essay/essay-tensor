@@ -1,3 +1,4 @@
+pub mod contour;
 pub mod macros;
 pub mod graph;
 pub mod artist;

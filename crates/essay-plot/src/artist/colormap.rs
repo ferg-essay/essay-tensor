@@ -85,11 +85,11 @@ pub fn raw_to_full(v: f32, raw_colors: &[(f32, Color)]) -> [f32; 4] {
     // TODO: attempting to interpolate in msh space or lab space produced odd
     // effects. Check to see if this is a bug in conversion or a problem 
     // specific to saturation to low saturation interpolation.
-    //let c0 = raw_colors[i].to_lab();
-    //let c1 = raw_colors[i + 1].to_lab();
+    let c0 = raw_colors[i].1.to_xyz();
+    let c1 = raw_colors[i + 1].1.to_xyz();
 
-    let c0 = [c0.red(), c0.green(), c0.blue()];
-    let c1 = [c1.red(), c1.green(), c1.blue()];
+    //let c0 = [c0.red(), c0.green(), c0.blue()];
+    //let c1 = [c1.red(), c1.green(), c1.blue()];
 
     let x = (1. - offset) * c0[0] + offset * c1[0];
     let y = (1. - offset) * c0[1] + offset * c1[1];
@@ -97,11 +97,10 @@ pub fn raw_to_full(v: f32, raw_colors: &[(f32, Color)]) -> [f32; 4] {
     //let s0 = c0[1] / (c0[1] + c1[1]);
     //let s1 = c1[1] / (c0[1] + c1[1]);
     //let z = (1. - offset) * c0[2] * s0 + offset * c1[2] * s1;
+    //[x, y, z, 1.]
 
-    //let c = Color::from_lab(x, y, z);
-    //[c.red(), c.green(), c.blue(), 1.]
-
-    [x, y, z, 1.]
+    let c = Color::from_xyz(x, y, z);
+    [c.red(), c.green(), c.blue(), 1.]
 }
 
 impl From<&[(f32, Color)]> for ColorMap {
