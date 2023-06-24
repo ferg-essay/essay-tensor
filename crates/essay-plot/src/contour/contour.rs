@@ -38,7 +38,7 @@ impl ContourGenerator {
     }
 
     pub(crate) fn get_tile(&mut self, x: usize, y: usize) -> &Tile {
-        &self.tiles[(y, x)]
+        &self.tiles[(x, y)]
     }
 
     /// For each tile, annotate each edge as crossing the threshold or not.
@@ -57,11 +57,11 @@ impl ContourGenerator {
                     let (vert_edge, mp) = CrossEdge::from_z(threshold, z0, z1);
 
                     if i > 0 {
-                        self.tiles[(j, i - 1)].right(vert_edge, mp);
+                        self.tiles[(i - 1, j)].right(vert_edge, mp);
                     }
 
                     if i + 1 < cols {
-                        self.tiles[(j, i)].left(vert_edge, mp);
+                        self.tiles[(i, j)].left(vert_edge, mp);
                     }
                 }
 
@@ -71,11 +71,11 @@ impl ContourGenerator {
                     let (horiz_edge, mp) = CrossEdge::from_z(threshold, z0, z2);
 
                     if j + 1 < rows {
-                        self.tiles[(j, i)].bottom(horiz_edge, mp);
+                        self.tiles[(i, j)].bottom(horiz_edge, mp);
                     }
 
                     if j > 0 {
-                        self.tiles[(j - 1, i)].top(horiz_edge, mp);
+                        self.tiles[(i, j - 1)].top(horiz_edge, mp);
                     }
                 }
             }
@@ -204,19 +204,19 @@ impl Cursor {
 
         match source {
             Dir::T => {
-                let t = 0.5;
+                let t = gc.tiles[(i, j)].top_t;
                 vec.push([i as f32 + t, (j + 1) as f32])
             }
             Dir::B => {
-                let t = 0.5;
+                let t = gc.tiles[(i, j)].bottom_t;
                 vec.push([i as f32 + t, j as f32])
             },
             Dir::R => {
-                let t = 0.5;
+                let t = gc.tiles[(i, j)].right_t;
                 vec.push([(i + 1) as f32, j as f32 + t])
             },
             Dir::L => {
-                let t = 0.5;
+                let t = gc.tiles[(i, j)].left_t;
                 vec.push([i as f32, j as f32 + t])
             },
         }
@@ -243,7 +243,7 @@ impl Cursor {
             return false;
         }
 
-        let tile = &mut cg.tiles[(j, i)];
+        let tile = &mut cg.tiles[(i, j)];
 
         match self.source {
             Dir::T => {

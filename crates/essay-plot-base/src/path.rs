@@ -20,6 +20,25 @@ impl<M: Coord> Path<M> {
         }
     }
 
+    pub fn lines(points: impl Into<Tensor>) -> Self {
+        let points = points.into();
+
+        assert_eq!(points.rank(), 2);
+        assert_eq!(points.cols(), 2);
+
+        let mut codes = Vec::<PathCode>::new();
+
+        codes.push(PathCode::MoveTo(Point(points[0], points[1])));
+
+        let len = points.rows();
+
+        for i in 1..len {
+            codes.push(PathCode::LineTo(Point(points[(i, 0)], points[(i, 1)])));
+        }
+
+        Self::new(codes)
+    }
+
     pub fn closed_poly(points: impl Into<Tensor>) -> Self {
         let points = points.into();
 

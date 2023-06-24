@@ -2,6 +2,7 @@ mod colormesh;
 mod colorbar;
 mod colormaps;
 mod colormap;
+mod contour;
 mod cycle;
 mod pcolor;
 mod color;
@@ -45,6 +46,10 @@ pub use colormaps::{
 
 pub use colormesh::{
     ColorMesh,
+};
+
+pub use contour::{
+    Contour,
 };
 
 pub use cycle::{

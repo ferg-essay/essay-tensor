@@ -2,6 +2,7 @@ use essay_tensor::Tensor;
 use crate::{graph::{Graph}, artist::{LinesOpt, ContainerOpt}};
 
 mod pcolormesh;
+mod contour;
 mod bar;
 mod pie;
 mod scatter;
@@ -13,6 +14,10 @@ pub use bar::{
 
 pub use pcolormesh::{
     pcolormesh, 
+};
+
+pub use contour::{
+    contour, 
 };
 
 pub use plot::{

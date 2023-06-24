@@ -36,7 +36,7 @@ impl Index<(usize, usize)> for TileGrid {
     type Output = Tile;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
-        let (y, x) = index;
+        let (x, y) = index;
 
         &self.tiles[y * self.x + x]
     }
@@ -44,24 +44,24 @@ impl Index<(usize, usize)> for TileGrid {
 
 impl IndexMut<(usize, usize)> for TileGrid {
     fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
-        let (y, x) = index;
+        let (x, y) = index;
 
         &mut self.tiles[y * self.x + x]
     }
 }
 
 pub struct Tile {
-    left: CrossEdge,
-    left_t: f32,
+    pub(crate) left: CrossEdge,
+    pub(crate) left_t: f32,
 
-    top: CrossEdge,
-    top_t: f32,
+    pub(crate) top: CrossEdge,
+    pub(crate) top_t: f32,
 
-    bottom: CrossEdge,
-    bottom_t: f32,
+    pub(crate) bottom: CrossEdge,
+    pub(crate) bottom_t: f32,
 
-    right: CrossEdge,
-    right_t: f32,
+    pub(crate) right: CrossEdge,
+    pub(crate) right_t: f32,
 }
 
 impl Tile {
@@ -210,23 +210,23 @@ impl CrossEdge {
             if threshold < z1 {
                 (CrossEdge::Above, 0.)
             } else if z1 < threshold {
-                (CrossEdge::Down, 0.5)
+                (CrossEdge::Down, 1. - interpolate(threshold, z1, z0))
             } else {
                 (CrossEdge::Above, 0.) // equal represented by Above
             }
         } else if z0 < threshold {
             if threshold < z1 {
-                (CrossEdge::Up, 0.5)
+                (CrossEdge::Up, interpolate(threshold, z0, z1))
             } else if z1 < threshold {
                 (CrossEdge::Below, 0.)
             } else {
-                (CrossEdge::Up, 0.5) // equal represented by above
+                (CrossEdge::Up, 1.0) // equal represented by above
             }
         } else { // equal represented by above
             if threshold < z1 {
                 (CrossEdge::Above, 0.)
             } else if z1 < threshold {
-                (CrossEdge::Down, 0.5)
+                (CrossEdge::Down, 0.)
             } else {
                 (CrossEdge::Above, 0.)
             }
@@ -241,6 +241,10 @@ impl CrossEdge {
             _ => false,
         }
     }
+}
+
+fn interpolate(threshold: f32, low: f32, high: f32) -> f32 {
+    (threshold - low) / (high - low).max(f32::EPSILON)
 }
 
 #[cfg(test)]
@@ -264,5 +268,16 @@ mod test {
         assert_eq!(CrossEdge::from_z(0., 1., 0.), (CrossEdge::Above, 0.));
         assert_eq!(CrossEdge::from_z(0.5, 1., 0.), (CrossEdge::Down, 0.5));
         assert_eq!(CrossEdge::from_z(1., 1., 0.), (CrossEdge::Down, 0.));
+    }
+
+    #[test]
+    fn edge_interpolate() {
+        assert_eq!(CrossEdge::from_z(0.5, 0., 1.), (CrossEdge::Up, 0.5));
+
+        assert_eq!(CrossEdge::from_z(0.25, 0., 1.), (CrossEdge::Up, 0.25));
+        assert_eq!(CrossEdge::from_z(0.75, 0., 1.), (CrossEdge::Up, 0.75));
+
+        assert_eq!(CrossEdge::from_z(0.25, 1., 0.), (CrossEdge::Down, 0.75));
+        assert_eq!(CrossEdge::from_z(0.75, 1., 0.), (CrossEdge::Down, 0.25));
     }
 }

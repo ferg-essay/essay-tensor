@@ -1,6 +1,6 @@
 use std::f32::consts::TAU;
 
-use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh}};
+use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh, contour}};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle, Angle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid, meshgrid_ij}};
 
@@ -11,16 +11,16 @@ fn main() {
     //let x = linspace(0., 2. * PI, 30);
     //let y = x.sin();
 
-    let x = linspace(0., 6.28, 49);
-    let y = linspace(0., 6.28, 8);
+    let x = linspace(0., 6.28, 11);
+    let y = linspace(0., 6.28, 11);
     let [x, y] = meshgrid([x, y]);
 
     //let z = x;//&x.sin() + &y.cos();
-    let z = &x.sin(); // + &y.cos();
+    let z = &x.sin() + &y.cos();
     //println!("X: {:?}", x);
     //println!("Y: {:?}", y);
     //println!("z: {:?}", z);
-    println!("Z: {:?}", z.shape().as_slice());
+    //println!("Z: {:?}", z.shape().as_slice());
     //let y = x.sin();
 
     let x = linspace(0., 1., 3);
@@ -55,7 +55,8 @@ fn main() {
     //graph.plot(&x, &y).color("xkcd:amber"); // .label("cos");
 
 
-    pcolormesh(graph, z);
+    //pcolormesh(graph, &z);
+    contour(graph, &z);
     graph.colorbar();
     /*
     let y2 = x.cos();
