@@ -34,13 +34,14 @@ impl ContourGenerator {
         self.tiles.clear();
         self.build_edges(threshold);
 
-        self.build_paths()
+        self.find_contours()
     }
 
     pub(crate) fn get_tile(&mut self, x: usize, y: usize) -> &Tile {
         &self.tiles[(y, x)]
     }
 
+    /// For each tile, annotate each edge as crossing the threshold or not.
     fn build_edges(&mut self, threshold: f32) {
         let z = &self.z;
 
@@ -81,22 +82,22 @@ impl ContourGenerator {
         }
     }
 
-    fn build_paths(&mut self) -> Vec<Tensor> {
+    fn find_contours(&mut self) -> Vec<Tensor> {
         let mut paths = Vec::<Tensor>::new();
 
         for i in 0..self.tile_cols {
-            if let Some(path) = self.initial_bottom(i) {
+            if let Some(path) = self.start_bottom(i) {
                 paths.push(path);
             }
         }
 
         for j in 0..self.tile_rows {
-            if let Some(path) = self.initial_left(j) {
+            if let Some(path) = self.start_left(j) {
                 paths.push(path);
             }
 
             for i in 0..self.tile_cols {
-                if let Some(path) = self.path_start(i, j) {
+                if let Some(path) = self.start_center(i, j) {
                     paths.push(path);
                 }
             }
@@ -105,83 +106,89 @@ impl ContourGenerator {
         paths
     }
 
-    fn initial_bottom(&mut self, i: usize) -> Option<Tensor> {
+    /// Contour that starts on the bottom edge: (i, 0).
+    fn start_bottom(&mut self, i: usize) -> Option<Tensor> {
         let tile = self.get_tile(i, 0);
 
-        if tile.get_bottom().is_cross() {
-            let mut cursor = PathCursor::new(self, i, 0, Dir::B);
+        let bottom = tile.get_bottom();
+        if bottom.is_cross() {
+            let mut path = self.path(i, 0, Dir::B);
 
-            while cursor.next(self) {
+            if bottom == CrossEdge::Up { // ccw around higher values
+                path.reverse();
             }
 
-            Some(cursor.to_path())
+            Some(path.into_tensor())
         } else {
             None
         }
     }
 
-    fn initial_left(&mut self, j: usize) -> Option<Tensor> {
+    /// Contour that starts on the left edge: (0, j)
+    fn start_left(&mut self, j: usize) -> Option<Tensor> {
         let tile = self.get_tile(0, j);
 
-        if tile.get_left().is_cross() {
-            let mut cursor = PathCursor::new(self, 0, j, Dir::L);
+        let left = tile.get_left();
+        if left.is_cross() {
+            let mut path = self.path(0, j, Dir::L);
 
-            while cursor.next(self) {
+            if left == CrossEdge::Down { // ccw around higher values
+                path.reverse();
             }
 
-            Some(cursor.to_path())
+            Some(path.into_tensor())
         } else {
             None
         }
     }
 
     ///
-    /// Start detection for each cell. The only possibility should be top-right
-    /// because of the search order. All other directions should already be
-    /// discovered
+    /// Contour that starts in the middle: (i, j).
     /// 
-    fn path_start(&mut self, i: usize, j: usize) -> Option<Tensor> {
-        if self.get_tile(i, j).get_top().is_cross() {
+    /// Because of the search order, the only remaining possibility should 
+    /// be top-right. All other directions should already be discovered
+    /// 
+    fn start_center(&mut self, i: usize, j: usize) -> Option<Tensor> {
+        let top = self.get_tile(i, j).get_top();
+        if top.is_cross() {
             let cols = self.tile_cols;
-            if j + 1 == cols {
-                let mut cursor = PathCursor::new(self, i, j, Dir::T);
-
-                while cursor.next(self) {
-                }
-    
-                Some(cursor.to_path())
-            } else {
-                let mut cursor = PathCursor::new(self, i, j, Dir::T);
-
-                while cursor.next(self) {
-                }
+            let mut path = if j + 1 == cols { // right side, so follow from edge
+                self.path(i, j, Dir::T)
+            } else { // crossing top-right
+                let mut path = self.path(i, j, Dir::T);
 
                 if self.get_tile(i, j + 1).get_bottom().is_cross() {
-                    let mut right_path = cursor.to_vec();
-
-                    let mut cursor = PathCursor::new(self, j, j + 1, Dir::B);
-
-                    while cursor.next(self) {
-                    }
-
-                    let mut top_path = cursor.to_vec();
+                    // non-loop, so must follow other side and stitch together
+                    let mut top_path = self.path(i, j + 1, Dir::B);
 
                     top_path.reverse();
                     top_path.pop();
-                    top_path.append(&mut right_path);
+                    top_path.append(&mut path);
     
-                    Some(top_path.into_tensor())
-                } else { // loop
-                    Some(cursor.to_path())
+                    top_path
+                } else {
+                    path
                 }
+            };
+
+            if top == CrossEdge::Down { // ccw around higher values
+                path.reverse();
             }
-        } else {
+
+            Some(path.into_tensor())
+    } else {
             None
         }
     }
+
+    fn path(&mut self, i: usize, j: usize, source: Dir) -> TensorVec<[f32; 2]> {
+        let cursor = Cursor::path(self, i, j, source);
+
+        cursor.to_vec()
+    }
 }
 
-pub struct PathCursor {
+pub struct Cursor {
     vec: TensorVec<[f32; 2]>,
     init_i: usize,
     init_j: usize,
@@ -191,8 +198,8 @@ pub struct PathCursor {
     source: Dir,
 }
 
-impl PathCursor {
-    fn new(gc: &ContourGenerator, i: usize, j: usize, source: Dir) -> Self {
+impl Cursor {
+    fn path(gc: &mut ContourGenerator, i: usize, j: usize, source: Dir) -> Self {
         let mut vec = TensorVec::<[f32; 2]>::new();
 
         match source {
@@ -214,14 +221,19 @@ impl PathCursor {
             },
         }
 
-        Self {
+        let mut cursor = Self {
             vec,
             init_i: i,
             init_j: j,
             i,
             j,
             source,
+        };
+
+        while cursor.next(gc) {
         }
+
+        cursor
     }
 
     fn next(&mut self, cg: &mut ContourGenerator) -> bool {
@@ -485,9 +497,9 @@ mod test {
         assert_eq!(cg.get_tile(0, 0).get_right(), CrossEdge::Up);
     }
 
-    /// bottom initial logic for the (0, 0) corner
+    /// contour starting from bottom for the (0, 0) corner
     #[test]
-    fn contour_init_bottom_bl() {
+    fn contour_start_bottom_bl() {
         // SW
         let mut cg = ContourGenerator::new(tf32!([
             [1., 0.], [0., 0.]
@@ -498,9 +510,19 @@ mod test {
             tf32!([[0.5, 0.0], [0.0, 0.5]])
         ]);
 
+        // reversed direction - ccw around higher
+        let mut cg = ContourGenerator::new(tf32!([
+            [0., 1.], [1., 1.]
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[0.0, 0.5], [0.5, 0.0]])
+        ]);
+
         // SN
         let mut cg = ContourGenerator::new(tf32!([
-            [0., 1.], [0., 1.]
+            [1., 0.], [1., 0.]
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -508,14 +530,34 @@ mod test {
             tf32!([[0.5, 0.0], [0.5, 1.0]])
         ]);
 
+        // reversed direction
+        let mut cg = ContourGenerator::new(tf32!([
+            [0., 1.], [0., 1.]
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[0.5, 1.0], [0.5, 0.0]])
+        ]);
+
         // SE
+        let mut cg = ContourGenerator::new(tf32!([
+            [1., 0.], [1., 1.]
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[0.5, 0.0], [1.0, 0.5]])
+        ]);
+
+        // reverse
         let mut cg = ContourGenerator::new(tf32!([
             [0., 1.], [0., 0.]
         ]));
 
         let lines = cg.contour_lines(0.5);
         assert_eq!(lines, vec![
-            tf32!([[0.5, 0.0], [1.0, 0.5]])
+            tf32!([[1.0, 0.5], [0.5, 0.0]])
         ]);
 
         // None
@@ -527,9 +569,9 @@ mod test {
         assert_eq!(lines, vec![]);
     }
 
-    /// bottom initial logic for (n, 0)
+    /// contour starting from bottom for (n, 0)
     #[test]
-    fn contour_init_bottom() {
+    fn contour_start_bottom() {
         // SE
         let mut cg = ContourGenerator::new(tf32!([
             [1., 1., 0.], [1., 1., 1.]
@@ -538,6 +580,16 @@ mod test {
         let lines = cg.contour_lines(0.5);
         assert_eq!(lines, vec![
             tf32!([[1.5, 0.0], [2.0, 0.5]])
+        ]);
+
+        // reverse
+        let mut cg = ContourGenerator::new(tf32!([
+            [0., 0., 1.], [0., 0., 0.]
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[2.0, 0.5], [1.5, 0.0]])
         ]);
 
         // SN
@@ -551,9 +603,9 @@ mod test {
         ]);
     }
 
-    // initial left path logic for (0, 0)
+    // contour starting from left for (0, 0)
     #[test]
-    fn contour_init_left_bl() {
+    fn contour_start_left_bl() {
         // EW
         let mut cg = ContourGenerator::new(tf32!([
             [0., 0.], [1., 1.]
@@ -562,6 +614,16 @@ mod test {
         let lines = cg.contour_lines(0.5);
         assert_eq!(lines, vec![
             tf32!([[0.0, 0.5], [1.0, 0.5]])
+        ]);
+
+        // reverse - ccw around higher
+        let mut cg = ContourGenerator::new(tf32!([
+            [1., 1.], [0., 0.]
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[1.0, 0.5], [0.0, 0.5]])
         ]);
 
         // EN
@@ -573,6 +635,16 @@ mod test {
         assert_eq!(lines, vec![
             tf32!([[0.0, 0.5], [0.5, 1.0]])
         ]);
+
+        // reverse
+        let mut cg = ContourGenerator::new(tf32!([
+            [1., 1.], [0., 1.]
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[0.5, 1.0], [0.0, 0.5]])
+        ]);
     }
 
     // initial left path logic for (0, j)
@@ -580,7 +652,7 @@ mod test {
     fn contour_init_left() {
         // EN
         let mut cg = ContourGenerator::new(tf32!([
-            [1., 1.], [1., 1.], [0., 1.]
+            [0., 0.], [0., 0.], [1., 0.]
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -588,9 +660,19 @@ mod test {
             tf32!([[0.0, 1.5], [0.5, 2.0]])
         ]);
 
+        // reverse
+        let mut cg = ContourGenerator::new(tf32!([
+            [1., 1.], [1., 1.], [0., 1.]
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[0.5, 2.0], [0.0, 1.5]])
+        ]);
+
         // EW
         let mut cg = ContourGenerator::new(tf32!([
-            [1., 1.], [1., 1.], [0., 0.]
+            [0., 0.], [0., 0.], [1., 1.]
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -603,7 +685,17 @@ mod test {
     fn contour_standard_bl() {
         // NE
         let mut cg = ContourGenerator::new(tf32!([
-            [0., 1.], [0., 0.]
+            [0., 0.], [0., 1.]
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[0.5, 1.0], [1.0, 0.5]])
+        ]);
+
+        // reverse
+        let mut cg = ContourGenerator::new(tf32!([
+            [1., 1.], [1., 0.]
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -616,7 +708,7 @@ mod test {
     fn next_from_left() {
         // EN
         let mut cg = ContourGenerator::new(tf32!([
-            [1., 1.], [0., 1.], [0., 1.]
+            [0., 0.], [1., 0.], [1., 0.]
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -626,7 +718,7 @@ mod test {
 
         // EW
         let mut cg = ContourGenerator::new(tf32!([
-            [1., 1., 1.], [0., 0., 0.],
+            [0., 0., 0.], [1., 1., 1.],
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -636,12 +728,12 @@ mod test {
 
         // ES
         let mut cg = ContourGenerator::new(tf32!([
-            [0., 1., 0.], [0., 0., 0.],
+            [0., 0., 1.], [1., 1., 1.],
         ]));
 
         let lines = cg.contour_lines(0.5);
         assert_eq!(lines, vec![
-            tf32!([[0.5, 0.0], [1.0, 0.5], [1.5, 0.0]])
+            tf32!([[0.0, 0.5], [1.0, 0.5], [1.5, 0.0]])
         ]);
     }
 
@@ -649,7 +741,7 @@ mod test {
     fn next_from_bottom() {
         // SW
         let mut cg = ContourGenerator::new(tf32!([
-            [0., 1.], [0., 1.], [1., 1.]
+            [1., 0.], [1., 0.], [0., 0.]
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -659,7 +751,7 @@ mod test {
 
         // SN
         let mut cg = ContourGenerator::new(tf32!([
-            [0., 1.], [0., 1.],
+            [1., 0.], [1., 0.],
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -669,7 +761,7 @@ mod test {
 
         // SE
         let mut cg = ContourGenerator::new(tf32!([
-            [0., 1.], [0., 0.],
+            [1., 0.], [1., 1.],
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -682,7 +774,7 @@ mod test {
     fn next_from_top() {
         // NE
         let mut cg = ContourGenerator::new(tf32!([
-            [0., 1., 1.], [0., 1., 0.], [0., 0., 0.],
+            [1., 0., 0.], [1., 0., 1.], [1., 1., 1.],
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -692,7 +784,7 @@ mod test {
 
         // NS
         let mut cg = ContourGenerator::new(tf32!([
-            [0., 1., 0.], [0., 1., 0.], [0., 0., 0.],
+            [1., 0., 1.], [1., 0., 1.], [1., 1., 1.],
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -721,7 +813,7 @@ mod test {
     #[test]
     fn test_loop() {
         let mut cg = ContourGenerator::new(tf32!([
-            [1., 1., 1.], [1., 0., 1.], [1., 1., 1.],
+            [0., 0., 0.], [0., 1., 0.], [0., 0., 0.],
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -734,22 +826,38 @@ mod test {
                 [0.5, 1.0],
                 ])
         ]);
+
+        // reverse
+        let mut cg = ContourGenerator::new(tf32!([
+            [1., 1., 1.], [1., 0., 1.], [1., 1., 1.],
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([
+                [0.5, 1.0],
+                [1.0, 1.5],
+                [1.5, 1.0],
+                [1.0, 0.5],
+                [0.5, 1.0],
+                ])
+        ]);
     }
 
     /// notch in bottom to test bottom-left of second loop
     #[test]
     fn test_loop_notch() {
         let mut cg = ContourGenerator::new(tf32!([
-            [1., 1., 1., 1., 1.], 
-            [1., 0., 1., 0., 1.], 
-            [1., 0., 0., 0., 1.],
-            [1., 1., 1., 1., 1.], 
+            [0., 0., 0., 0., 0.], 
+            [0., 1., 0., 1., 0.], 
+            [0., 1., 1., 1., 0.],
+            [0., 0., 0., 0., 0.], 
         ]));
 
         let lines = cg.contour_lines(0.5);
         assert_eq!(lines, vec![
             tf32!([
-                [[0.5, 1.0],
+                [0.5, 1.0],
                 [1.0, 0.5],
                 [1.5, 1.0],
                 [2.0, 1.5],
@@ -761,7 +869,7 @@ mod test {
                 [2.0, 2.5],
                 [1.0, 2.5],
                 [0.5, 2.0],
-                [0.5, 1.0]]
+                [0.5, 1.0]
                 ])
         ]);
     }
@@ -770,13 +878,25 @@ mod test {
     #[test]
     fn two_paths() {
         let mut cg = ContourGenerator::new(tf32!([
+            [1., 0., 1.], 
+            [0., 0., 0.], 
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([[0.5, 0.0], [0.0, 0.5]]),
+            tf32!([[2.0, 0.5], [1.5, 0.0]]),
+        ]);
+
+        // reverse
+        let mut cg = ContourGenerator::new(tf32!([
             [0., 1., 0.], 
             [1., 1., 1.], 
         ]));
 
         let lines = cg.contour_lines(0.5);
         assert_eq!(lines, vec![
-            tf32!([[0.5, 0.0], [0.0, 0.5]]),
+            tf32!([[0.0, 0.5], [0.5, 0.0]]),
             tf32!([[1.5, 0.0], [2.0, 0.5]]),
         ]);
     }
@@ -786,9 +906,9 @@ mod test {
     #[test]
     fn right_top_arc() {
         let mut cg = ContourGenerator::new(tf32!([
-            [1., 1., 1.], 
-            [1., 0., 0.], 
-            [1., 0., 0.],
+            [0., 0., 0.], 
+            [0., 1., 1.], 
+            [0., 1., 1.],
         ]));
 
         let lines = cg.contour_lines(0.5);
@@ -798,6 +918,23 @@ mod test {
                 [0.5, 1.0],
                 [1.0, 0.5],
                 [2.0, 0.5],
+            ]),
+        ]);
+
+        // reverse
+        let mut cg = ContourGenerator::new(tf32!([
+            [1., 1., 1.], 
+            [1., 0., 0.], 
+            [1., 0., 0.],
+        ]));
+
+        let lines = cg.contour_lines(0.5);
+        assert_eq!(lines, vec![
+            tf32!([
+                [2.0, 0.5],
+                [1.0, 0.5],
+                [0.5, 1.0],
+                [0.5, 2.0],
             ]),
         ]);
     }
