@@ -1,3 +1,4 @@
+mod tri;
 pub mod contour;
 pub mod macros;
 pub mod graph;

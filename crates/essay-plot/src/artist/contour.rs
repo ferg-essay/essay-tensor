@@ -135,7 +135,7 @@ impl Artist<Data> for Contour {
         style.edge_color("k");
         style.line_width(1.);
 
-        renderer.draw_markers(&path, &xy, &tf32!(), &colors, &style, clip).unwrap();
+        //renderer.draw_markers(&path, &xy, &tf32!(), &colors, &style, clip).unwrap();
 
         for level in &self.levels {
             for path in &level.paths {

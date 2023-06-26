@@ -2,7 +2,7 @@ use std::f32::consts::TAU;
 
 use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh, contour}};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle, Angle};
-use essay_tensor::{prelude::*, init::{linspace, meshgrid, meshgrid_ij}};
+use essay_tensor::{prelude::*, init::{linspace, meshgrid_ij, meshgrid_ij}};
 
 fn main() {
     //let mut gui = WgpuBackend::new();
@@ -13,7 +13,7 @@ fn main() {
 
     let x = linspace(0., 6.28, 11);
     let y = linspace(0., 6.28, 11);
-    let [x, y] = meshgrid([x, y]);
+    let [x, y] = meshgrid_ij([x, y]);
 
     //let z = x;//&x.sin() + &y.cos();
     let z = &x.sin() + &y.cos();
@@ -55,7 +55,7 @@ fn main() {
     //graph.plot(&x, &y).color("xkcd:amber"); // .label("cos");
 
 
-    //pcolormesh(graph, &z);
+    pcolormesh(graph, &z);
     contour(graph, &z);
     graph.colorbar();
     /*
