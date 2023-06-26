@@ -2,7 +2,7 @@ use std::f32::consts::TAU;
 
 use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh, contour}};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle, Angle};
-use essay_tensor::{prelude::*, init::{linspace, meshgrid_ij, meshgrid_ij}};
+use essay_tensor::{prelude::*, init::{linspace, meshgrid, meshgrid_ij}};
 
 fn main() {
     //let mut gui = WgpuBackend::new();

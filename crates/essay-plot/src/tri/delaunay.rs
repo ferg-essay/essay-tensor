@@ -3,30 +3,7 @@ use core::fmt;
 use essay_plot_base::Point;
 use essay_tensor::{Tensor, tensor::TensorVec};
 
-struct Triangulation {
-}
-
-#[derive(Clone, Copy, Debug)]
-struct Vert(f32, f32);
-
-impl Vert {
-    const GHOST : f32 = f32::MAX;
-
-    #[inline]
-    fn x(&self) -> f32 {
-        self.0
-    }
-
-    #[inline]
-    fn y(&self) -> f32 {
-        self.1
-    }
-
-    #[inline]
-    fn is_ghost(&self) -> bool {
-        self.0 == Self::GHOST && self.1 == Self::GHOST
-    }
-}
+use super::triangulate::Triangulation;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct VertId(usize);
@@ -42,31 +19,10 @@ impl VertId {
         VertId(usize::MAX)
     }
 
+    #[cfg(test)]
     #[inline]
     fn is_none(&self) -> bool {
         self.0 == usize::MAX
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
-pub struct TriangleId(usize);
-
-impl TriangleId {
-    const NONE : usize = usize::MAX;
-
-    #[inline]
-    fn none(&self) -> Self {
-        Self(Self::NONE)
-    }
-
-    #[inline]
-    fn index(&self) -> usize {
-        self.0
-    }
-
-    #[inline]
-    fn is_none(&self) -> bool {
-        self.0 == Self::NONE
     }
 }
 
@@ -110,24 +66,14 @@ impl fmt::Debug for Edge {
     }
 }
 
-struct Triangle {
-    id: TriangleId,
-
-    edges: [EdgeId; 3],
-}
-
-struct Tri {
+struct TriDelaunay {
     vertices: Vec<Point>, // [n, 2]
     edges: Vec<Edge>,
     free_edges: Vec<EdgeId>,
-
-    v0: VertId, // enclosing points
-    v1: VertId,
-    v2: VertId,
 }
 
-impl Tri {
-    fn new(points: &Tensor) -> Tri {
+impl TriDelaunay {
+    fn new(points: &Tensor) -> TriDelaunay {
         assert!(points.rank() == 2);
         assert!(points.cols() == 2);
     
@@ -141,15 +87,12 @@ impl Tri {
         // edge 0 is outside marker
         let mut edges = Vec::new();
         edges.push(Edge::new(VertId::none(), VertId::none()));
-        let e_nil = EdgeId(0);
 
+        // TODO: add field for valid vs super triangle cutoff
         let mut tri = Self {
             vertices,
             edges,
             free_edges: Vec::new(),
-            v0,
-            v1,
-            v2,
         };
 
         // ghost edges first to make them easily identifiable
@@ -181,6 +124,19 @@ impl Tri {
         }
     }
 
+    fn to_triangulation(&self) -> Triangulation {
+        let mut xy_vec = TensorVec::<[f32; 2]>::new();
+
+        let orig_xy = self.vertices.len() - 3;
+        for i in 0..orig_xy {
+            let point = self.vertices[i];
+
+            xy_vec.push([point.0, point.1]);
+        }
+
+        Triangulation::new(xy_vec.into_tensor(), self.triangles())
+    }
+
     fn add_vertex(&mut self, p: VertId, start_edge: EdgeId) -> EdgeId {
         let edge = self.find_enclosing_triangle(p, start_edge);
 
@@ -207,14 +163,6 @@ impl Tri {
             let p = self.vertices[v.index()];
 
             let [a, b, c] = self.triangle_points(edge_id);
-
-            println!("Walk {:?}", edge_id);
-            let side_0 = edge_sign(p, a, b);
-            println!("  Side {} P={:?} ({:?}, {:?})", side_0, p, a, b);
-            let side_1 = edge_sign(p, b, c);
-            println!("  Side {} P={:?} ({:?}, {:?})", side_1, p, b, c);
-            let side_2 = edge_sign(p, c, a);
-            println!("  Side {} P={:?} ({:?}, {:?})", side_2, p, c, a);
 
             if edge_sign(p, a, b) < 0. {
                 edge_id = self.edges[edge_id.index()].dual;
@@ -345,10 +293,10 @@ impl Tri {
             let v2 = self.edges[edge.forward.index()].verts[1];
 
             if i < edge.forward.index()
-            && i < edge.reverse.index()
-            && v0.index() < tail_vert
-            && v1.index() < tail_vert
-            && v2.index() < tail_vert {
+                && i < edge.reverse.index()
+                && v0.index() < tail_vert
+                && v1.index() < tail_vert
+                && v2.index() < tail_vert {
                 let verts = [
                     v0.index(),
                     v1.index(),
@@ -434,8 +382,10 @@ impl Tri {
     }
 }
 
-fn triangulate(points: &Tensor) -> Tri {
-    Tri::new(points)
+pub fn triangulate(points: &Tensor) -> Triangulation {
+    let mut tri = TriDelaunay::new(points);
+    tri.build();
+    tri.to_triangulation()
 }
 
 fn initial_points(points: &Tensor) -> Vec<Point> {
@@ -453,7 +403,9 @@ fn initial_points(points: &Tensor) -> Vec<Point> {
         (y_min, y_max) = (y_min.min(y), y_max.max(y));
     }
 
-    vec_points.sort_by(|a, b| a.0.total_cmp(&b.0));
+    // TODO: either need more sophisticated sorting (Hilbert curve) and
+    // retaining original order, or no sorting at all.
+    // vec_points.sort_by(|a, b| a.0.total_cmp(&b.0));
 
     let x_mid= 0.5 * (x_min + x_max);
     let (w, h) = (x_max - x_min, y_max - y_min);
@@ -489,15 +441,6 @@ fn edge_sign(p: Point, a: Point, b: Point) -> f32 {
     (p.0 - b.0) * (a.1 - b.1) - (a.0 - b.0) * (p.1 - b.1)
 }
 
-fn in_triangle(p: Point, a: Point, b: Point, c: Point) -> bool {
-    let d1 = edge_sign(p, a, b);
-    let d2 = edge_sign(p, b, c);
-    let d3 = edge_sign(p, c, a);
-
-    (d1 < 0.) && (d2 < 0.) && (d3 < 0.)
-    || (d1 > 0.) && (d2 > 0.) && (d3 > 0.)
-}
-
 #[inline]
 fn det(r0: [f32; 3], r1: [f32; 3], r2: [f32; 3]) -> f32 {
     r0[0] * (r1[1] * r2[2] - r2[1] * r1[2])
@@ -510,9 +453,9 @@ mod test {
     use essay_plot_base::Point;
     use essay_tensor::{tf32, Tensor};
 
-    use crate::tri::delaunay::{in_triangle, Tri, VertId, EdgeId};
+    use crate::tri::{delaunay::{TriDelaunay, VertId, EdgeId}, triangulate::Triangulation};
 
-    use super::initial_points;
+    use super::{initial_points, edge_sign};
 
     #[test]
     fn init_triangle_points() {
@@ -535,7 +478,7 @@ mod test {
     #[test]
     fn init_edges() {
         let t = tf32!([[0., 0.], [1., 1.]]);
-        let tri = Tri::new(&t);
+        let tri = TriDelaunay::new(&t);
         let edges = &tri.edges;
 
         assert_eq!(edges.len(), 7);
@@ -554,7 +497,7 @@ mod test {
     #[test]
     fn insert_point() {
         let t = tf32!([[0., 0.], [1., 1.]]);
-        let mut tri = Tri::new(&t);
+        let mut tri = TriDelaunay::new(&t);
 
         tri.add_edges(VertId(0), EdgeId(4));
 
@@ -582,22 +525,22 @@ mod test {
     #[test]
     fn in_triangle_circle() {
         let t = tf32!([[0., 0.], [1., 1.]]);
-        let tri = Tri::new(&t);
+        let tri = TriDelaunay::new(&t);
 
         // p0 inside bounding triangle
-        assert!(tri.in_triangle_circle(VertId(0), EdgeId(4)) < 0.);
-        assert!(tri.in_triangle_circle(VertId(0), EdgeId(5)) < 0.);
-        assert!(tri.in_triangle_circle(VertId(0), EdgeId(6)) < 0.);
+        assert!(tri.in_triangle_circle(VertId(0), EdgeId(4)) > 0.);
+        assert!(tri.in_triangle_circle(VertId(0), EdgeId(5)) > 0.);
+        assert!(tri.in_triangle_circle(VertId(0), EdgeId(6)) > 0.);
 
         // p1 inside bounding triangle
-        assert!(tri.in_triangle_circle(VertId(1), EdgeId(4)) < 0.);
-        assert!(tri.in_triangle_circle(VertId(1), EdgeId(5)) < 0.);
-        assert!(tri.in_triangle_circle(VertId(1), EdgeId(6)) < 0.);
+        assert!(tri.in_triangle_circle(VertId(1), EdgeId(4)) > 0.);
+        assert!(tri.in_triangle_circle(VertId(1), EdgeId(5)) > 0.);
+        assert!(tri.in_triangle_circle(VertId(1), EdgeId(6)) > 0.);
 
         // outside ghost outer triangle
-        assert!(tri.in_triangle_circle(VertId(0), EdgeId(1)) > 0.);
-        assert!(tri.in_triangle_circle(VertId(0), EdgeId(2)) > 0.);
-        assert!(tri.in_triangle_circle(VertId(0), EdgeId(3)) > 0.);
+        assert!(tri.in_triangle_circle(VertId(0), EdgeId(1)) < 0.);
+        assert!(tri.in_triangle_circle(VertId(0), EdgeId(2)) < 0.);
+        assert!(tri.in_triangle_circle(VertId(0), EdgeId(3)) < 0.);
 
     }
 
@@ -605,7 +548,7 @@ mod test {
     #[test]
     fn find_enclosing_triangle_initial() {
         let t = tf32!([[0., 0.], [1., 1.]]);
-        let tri = Tri::new(&t);
+        let tri = TriDelaunay::new(&t);
 
         // p0 inside bounding triangle
         assert_eq!(tri.find_enclosing_triangle(VertId(0), EdgeId(4)), EdgeId(4));
@@ -618,7 +561,7 @@ mod test {
     #[test]
     fn create_enclosing_polygon_initial() {
         let t = tf32!([[0., 0.], [1., 1.]]);
-        let mut tri = Tri::new(&t);
+        let mut tri = TriDelaunay::new(&t);
 
         // p0 inside bounding triangle
         assert_eq!(tri.create_enclosing_polygon(VertId(0), EdgeId(4)), EdgeId(4));
@@ -628,7 +571,7 @@ mod test {
     #[test]
     fn add_point_initial() {
         let t = tf32!([[0., 0.], [1., 1.]]);
-        let mut tri = Tri::new(&t);
+        let mut tri = TriDelaunay::new(&t);
 
         tri.add_vertex(VertId(0), EdgeId(4));
 
@@ -656,7 +599,7 @@ mod test {
     #[test]
     fn two_points() {
         let t = tf32!([[0., 1.], [2., 1.]]);
-        let mut tri = Tri::new(&t);
+        let mut tri = TriDelaunay::new(&t);
 
         tri.build();
         validate_edges(&tri);
@@ -670,21 +613,38 @@ mod test {
     #[test]
     fn three_points() {
         let t = tf32!([[0., 1.], [2., 1.], [1., 2.]]);
-        let mut tri = Tri::new(&t);
+        let mut tri_build = TriDelaunay::new(&t);
 
-        tri.build();
-        validate_edges(&tri);
+        tri_build.build();
+        validate_edges(&tri_build);
+
+        let tri = tri_build.to_triangulation();
 
         let triangles = tri.triangles();
+        assert_eq!(triangles.rows(), 1);
 
-        println!("Tri: {:?}", triangles);
+        assert_eq!(
+            tri_str(&tri, triangles.slice(0).as_slice()),
+            "[(0, 1), (2, 1), (1, 2)]"
+        );
 
-        for index in 0..tri.edges.len() {
-            println!("{}: {}", index, edge_str(&tri, index));
-        }
+        assert_eq!(
+            format!("{:?}", triangles.slice(0).as_slice()),
+            "[0, 1, 2]"
+        );
     }
 
-    fn validate_edges(tri: &Tri) {
+    fn tri_str(tri: &Triangulation, triangle: &[usize]) -> String {
+        let xy = tri.vertices();
+
+        let (x0, y0) = (xy[(triangle[0], 0)], xy[(triangle[0], 1)]);
+        let (x1, y1) = (xy[(triangle[1], 0)], xy[(triangle[1], 1)]);
+        let (x2, y2) = (xy[(triangle[2], 0)], xy[(triangle[2], 1)]);
+
+        format!("[({}, {}), ({}, {}), ({}, {})]", x0, y0, x1, y1, x2, y2)
+    }
+
+    fn validate_edges(tri: &TriDelaunay) {
         for i in 0..tri.edges.len() {
             let edge = tri.edges[i].clone();
 
@@ -715,7 +675,16 @@ mod test {
         }
     }
 
-    fn edge_str(tri: &Tri, index: usize) -> String {
+    fn in_triangle(p: Point, a: Point, b: Point, c: Point) -> bool {
+        let d1 = edge_sign(p, a, b);
+        let d2 = edge_sign(p, b, c);
+        let d3 = edge_sign(p, c, a);
+    
+        (d1 < 0.) && (d2 < 0.) && (d3 < 0.)
+        || (d1 > 0.) && (d2 > 0.) && (d3 > 0.)
+    }
+    
+    fn edge_str(tri: &TriDelaunay, index: usize) -> String {
         let edge = tri.edges[index].clone();
 
         let v0 = edge.verts[0];
