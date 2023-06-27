@@ -1,8 +1,0 @@
-0001: It is sixteen years since John Berkston died.
-0002: His wife now lies beside him, and the white shaft that marks the graves
-  gleams across the wheat fields.
-0003: A brisk wind had come up and was now driving puffy white clouds across
-  the sky
-0004: From the graveyard gate, one can count a dozen gaily painted farmhouses
-  the gilded weatherwaves on the big red barns wink at each other across the
-  green and brown and yellow fields.

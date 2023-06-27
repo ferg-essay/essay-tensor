@@ -1,5 +1,5 @@
 [package]
-name = "essay-ml"
+name = "essay-tensor"
 version = "0.1.0"
 edition = "2021"
 publish=false
@@ -10,19 +10,17 @@ path = "src/lib.rs"
 [dependencies]
 env_logger = { version = "0.10.0" }
 log = { version = "0.4.17" }
-essay-tensor = { path = "crates/essay-tensor" }
-essay-plot-base = { path = "crates/essay-plot-base" }
-essay-plot = { path = "crates/essay-plot" }
-essay-plot-wgpu = { path = "crates/essay-plot-wgpu" }
-#essay-opencl = { path = "crates/essay-opencl" }
-#essay-nn = { path = "crates/essay-nn" }
-dfdx = {version ="0.11"}
-ndarray = "0.15"
-ocl = "0.19"
-wgpu = "0.16"
-winit = "0.28"
-wgpu_glyph = "0.20"
+essay-opt = { path = "crates/essay-opt" }
+rand = "0.8"
+rand_chacha = "0.3"
+glob = "0.3"
+num-traits = "0.2"
+rustfft = "6.1"
+matrixmultiply = "*"
 futures = "0.3"
+#tokio = { version="1.28", features = ["full"] }
+crossbeam = "0.8"
+concurrent-queue = "2.2"
 
 [workspace]
 members = [
@@ -34,16 +32,4 @@ members = [
 
 [[bench]]
 name = "tensor-add"
-harness = false
-
-[[bench]]
-name = "open-cl"
-harness = false
-
-[[bench]]
-name = "dfdx"
-harness = false
-
-[[bench]]
-name = "ndarray"
 harness = false
