@@ -10,6 +10,7 @@ mod triplot;
 pub mod paths;
 mod text;
 mod container;
+mod tricontour;
 mod markers;
 pub mod patch;
 mod artist;
@@ -50,6 +51,10 @@ pub use colormesh::{
 
 pub use contour::{
     Contour,
+};
+
+pub use tricontour::{
+    TriContour,
 };
 
 pub use cycle::{

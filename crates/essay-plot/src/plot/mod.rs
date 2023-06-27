@@ -8,6 +8,7 @@ mod pie;
 mod scatter;
 mod plot;
 mod triplot;
+mod tricontour;
 
 pub use bar::{
     bar_y, BarOpt,
@@ -19,6 +20,10 @@ pub use pcolormesh::{
 
 pub use contour::{
     contour, 
+};
+
+pub use tricontour::{
+    tricontour, 
 };
 
 pub use plot::{

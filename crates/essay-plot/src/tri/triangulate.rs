@@ -1,5 +1,7 @@
 use essay_tensor::{Tensor, tensor::TensorVec};
 
+use super::triangulate;
+
 pub struct Triangulation {
     xy: Tensor,
     triangles: Tensor<usize>,
@@ -53,5 +55,17 @@ impl Triangulation {
         }
 
         edges.into_tensor()
+    }
+}
+
+impl From<Tensor> for Triangulation {
+    fn from(value: Tensor) -> Self {
+        triangulate(&value)
+    }
+}
+
+impl From<&Tensor> for Triangulation {
+    fn from(value: &Tensor) -> Self {
+        triangulate(value)
     }
 }

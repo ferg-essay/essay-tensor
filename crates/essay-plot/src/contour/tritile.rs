@@ -53,8 +53,6 @@ impl Tile {
             _ => panic!("cross_ab with unexpected edge {:?}", self.ab)
         };
 
-        println!("CrossAB {:?}", v);
-
         v
     }
 

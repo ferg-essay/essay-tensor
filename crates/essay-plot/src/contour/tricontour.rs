@@ -13,7 +13,8 @@ pub struct TriContourGenerator {
 impl TriContourGenerator {
     pub fn new(tri: &Triangulation, z: Tensor) -> Self {
         assert!(z.rank() == 1, "contour z data must be 1D (rank 1) {:?}", z.shape().as_slice());
-        assert_eq!(tri.vertices().rows(), z.len(), "contour z length must match vertices {:?}", z.shape().as_slice());
+        assert_eq!(tri.vertices().rows(), z.len(), "contour z length must match vertices (vertices {:?}, z {:?})", 
+            tri.vertices().shape().as_slice(), z.shape().as_slice());
 
         //let tile_cols = z.cols() - 1;
         //let tile_rows = z.rows() - 1;
@@ -252,11 +253,23 @@ impl Cursor {
         let tile = &tiles[id];
 
         if tile.verts[0] == v0 && tile.verts[1] == v1 {
-            Some(Self::path_ab(tiles, id, v0, v1))
+            if tile.ab.is_cross() {
+                Some(Self::path_ab(tiles, id, v0, v1))
+            } else {
+                None
+            }
         } else if tile.verts[1] == v0 && tile.verts[2] == v1 {
-            Some(Self::path_bc(tiles, id, v0, v1))
+            if tile.bc.is_cross() {
+                Some(Self::path_bc(tiles, id, v0, v1))
+            } else {
+                None
+            }
         } else if tile.verts[2] == v0 && tile.verts[0] == v1 {
-            Some(Self::path_ca(tiles, id, v0, v1))
+            if tile.ca.is_cross() {
+                Some(Self::path_ca(tiles, id, v0, v1))
+            } else {
+                None
+            }
         } else {
             todo!()
         }

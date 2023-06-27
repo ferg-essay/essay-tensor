@@ -1,6 +1,6 @@
 use std::f32::consts::TAU;
 
-use essay_plot::{prelude::*, artist::{patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh, contour, triplot}};
+use essay_plot::{prelude::*, artist::{patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh, contour, triplot, tricontour}};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle, Angle};
 use essay_tensor::{prelude::*, init::{linspace, meshgrid, meshgrid_ij}, tensor::TensorVec};
 
@@ -54,13 +54,13 @@ fn main() {
     //graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
     //graph.plot(&x, &y).color("xkcd:amber"); // .label("cos");
 
-    let x = linspace(0., 2., 6);
-    let y = linspace(0., 3., 6);
+    let x = linspace(0., 6.28, 11);
+    let y = linspace(0., 6.28, 11);
     let [grid_x, grid_y] = meshgrid([&x, &y]);
     let grid_x = grid_x.flatten();
     let grid_y = grid_y.flatten();
 
-    let xy = grid_x.stack(&[grid_y], -1);
+    let xy = grid_x.stack(&[grid_y.clone()], -1);
     let mut vec = TensorVec::<[f32; 2]>::new();
     vec.push([0., 0.]);
     vec.push([4., 0.]);
@@ -70,8 +70,10 @@ fn main() {
     vec.push([2.5, 2.]);
     vec.push([2., 1.]);
 
+    let z = &grid_x.sin() + &grid_y.cos();
+
     // triplot(graph, vec.into_tensor());
-    triplot(graph, xy);
+    tricontour(graph, xy, z);
 
 
     //pcolormesh(graph, &z);
