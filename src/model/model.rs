@@ -1,4 +1,4 @@
-use crate::{model::{Function}, layer::{LayerBuilder}};
+use crate::{model::{Function}}; // , layer::{LayerBuilder}};
 
 use super::{Tensors};
 
@@ -151,6 +151,7 @@ impl ModelContext {
         CallMode::Eval
     }
 
+    /*
     pub fn with_layer<I, O, L>(
         &mut self, 
         _layer: &L, 
@@ -164,6 +165,7 @@ impl ModelContext {
     {
         fun(input, self)
     }
+    */
 }
 
 #[cfg(test)]

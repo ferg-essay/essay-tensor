@@ -1,13 +1,9 @@
 pub mod signal;
 pub mod io;
-mod optimizer;
 pub mod flow;
 pub mod dataset;
-pub mod layer;
-pub mod activation;
 pub mod init;
 pub mod linalg;
-pub mod loss;
 pub mod nn;
 pub mod model;
 pub mod math;

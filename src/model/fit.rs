@@ -2,8 +2,8 @@ use essay_opt::derive_opt;
 
 use crate::{
     prelude::Dataset, 
-    dataset::{DatasetIter, rebatch}, Tensor, loss::l2_loss,
-    model::Trainer,
+    dataset::{DatasetIter, rebatch}, Tensor,
+    model::Trainer, nn::l2_loss,
 };
 
 //use super::layer::Model;

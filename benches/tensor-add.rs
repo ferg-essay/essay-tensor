@@ -112,11 +112,11 @@ fn main() {
 
         let a = Tensor::zeros([1024]);
 
-        let start = Instant::now();
-        let _c = &a.softmax();
-        let softmax_matvec = start.elapsed();
+        //let start = Instant::now();
+        //let _c = &a.softmax();
+        //let softmax_matvec = start.elapsed();
 
         //println!("null={time_null:?} zeros={time_zeros:?} sum={time_sum:?}, tsum={t_sum:?}");
-        println!("null={time_null:?} sum={time_sum:?}, mul={time_mul:?}, matmul={time_matmul:?} matvec={time_matvec:?} softmax={softmax_matvec:?}");
+        println!("null={time_null:?} sum={time_sum:?}, mul={time_mul:?}, matmul={time_matmul:?} matvec={time_matvec:?}");
     }
 }
