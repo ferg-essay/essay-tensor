@@ -4,7 +4,6 @@ mod colormaps;
 mod colormap;
 mod contour;
 mod cycle;
-mod pcolor;
 mod color;
 mod style;
 mod triplot;
@@ -55,10 +54,6 @@ pub use contour::{
 
 pub use cycle::{
     StyleCycle,
-};
-
-pub use pcolor::{
-    PColor,
 };
 
 pub use triplot::{

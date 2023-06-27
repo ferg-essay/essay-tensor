@@ -267,25 +267,6 @@ impl TriDelaunay {
         vec.into_tensor()
     }
 
-    fn remove_ext_triangle(&mut self) {
-        let len = self.edges.len();
-
-        let tail_vert = self.vertices.len() - 3;
-        let ext_edges = 0; // 6;
-
-        for i in ext_edges + 1..len {
-            let v0 = self.edges[i].verts[0];
-            let v1 = self.edges[i].verts[1];
-
-            let mut count = if tail_vert <= v0.index() { 1 } else { 0 };
-            count += if tail_vert <= v1.index() { 1 } else { 0 };
-
-            if count == 1 {
-                self.remove_edge(EdgeId(i));
-            }
-        }
-    }
-
     fn in_triangle_circle(&self, v: VertId, edge_id: EdgeId) -> f32 {
         let p = self.vertices[v.index()];
 
@@ -521,7 +502,7 @@ mod test {
 
     use crate::tri::{delaunay::{TriDelaunay, VertId, EdgeId, in_triangle}, triangulate::Triangulation};
 
-    use super::{initial_points, edge_sign};
+    use super::{initial_points};
 
     #[test]
     fn init_triangle_points() {

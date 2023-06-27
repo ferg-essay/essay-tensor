@@ -1,6 +1,6 @@
 use essay_tensor::Tensor;
 
-use crate::{graph::Graph, artist::{ColorMesh, Contour}};
+use crate::{graph::Graph, artist::{Contour}};
 
 pub fn contour(
     graph: &mut Graph, 

@@ -3,7 +3,7 @@ use std::ops::{Index, IndexMut};
 pub struct TileGrid {
     tiles: Vec<Tile>,
     x: usize,
-    y: usize
+    _y: usize
 }
 
 impl TileGrid {
@@ -20,7 +20,7 @@ impl TileGrid {
 
         Self {
             x,
-            y,
+            _y: y,
             tiles,
         }
     }
@@ -157,6 +157,7 @@ impl Tile {
         self.right_t = t;
     }
 
+    #[cfg(test)]
     pub(crate) fn get_right(&self) -> CrossEdge {
         self.right
     }
