@@ -7,6 +7,7 @@ mod cycle;
 mod pcolor;
 mod color;
 mod style;
+mod triplot;
 pub mod paths;
 mod text;
 mod container;
@@ -58,6 +59,10 @@ pub use cycle::{
 
 pub use pcolor::{
     PColor,
+};
+
+pub use triplot::{
+    TriPlot,
 };
 
 pub use lines::{

@@ -1,8 +1,8 @@
 use std::f32::consts::TAU;
 
-use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh, contour}};
+use essay_plot::{prelude::*, artist::{PColor, patch::PathPatch, Markers}, graph::{Graph, PlotOpt}, plot::{bar_y, pcolormesh, contour, triplot}};
 use essay_plot_base::{Point, Color, PathCode, Path, JoinStyle, CapStyle, LineStyle, Angle};
-use essay_tensor::{prelude::*, init::{linspace, meshgrid, meshgrid_ij}};
+use essay_tensor::{prelude::*, init::{linspace, meshgrid, meshgrid_ij}, tensor::TensorVec};
 
 fn main() {
     //let mut gui = WgpuBackend::new();
@@ -54,10 +54,29 @@ fn main() {
     //graph.scatter(&x, &y).color("blue").marker(Markers::Asterisk(5, Angle::Deg(0.))); // .size(2500.);
     //graph.plot(&x, &y).color("xkcd:amber"); // .label("cos");
 
+    let x = linspace(0., 2., 6);
+    let y = linspace(0., 3., 6);
+    let [grid_x, grid_y] = meshgrid([&x, &y]);
+    let grid_x = grid_x.flatten();
+    let grid_y = grid_y.flatten();
 
-    pcolormesh(graph, &z);
-    contour(graph, &z);
-    graph.colorbar();
+    let xy = grid_x.stack(&[grid_y], -1);
+    let mut vec = TensorVec::<[f32; 2]>::new();
+    vec.push([0., 0.]);
+    vec.push([4., 0.]);
+    vec.push([2., 4.]);
+
+    vec.push([1.5, 2.]);
+    vec.push([2.5, 2.]);
+    vec.push([2., 1.]);
+
+    // triplot(graph, vec.into_tensor());
+    triplot(graph, xy);
+
+
+    //pcolormesh(graph, &z);
+    //contour(graph, &z);
+    //graph.colorbar();
     /*
     let y2 = x.cos();
     graph.plot(&x, &y2).face_color("xkcd:purple");

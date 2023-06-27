@@ -2,7 +2,7 @@ use std::{slice::SliceIndex, cmp, ops::Index};
 
 use crate::{model::{Operation, Expr, NodeOp, Tape}, Tensor};
 
-use super::{TensorId};
+use super::{TensorId, Dtype};
 
 
 #[derive(Debug, Clone, PartialEq)]
@@ -236,6 +236,24 @@ impl Index<usize> for Shape {
         &self.dims[index]
     }
 }
+
+//
+// flatten
+// TODO: turn into real operation
+//
+
+pub fn flatten<D: Dtype>(x: &Tensor<D>) -> Tensor<D> {
+    let size = x.shape().size();
+
+    x.reshape([size])
+}
+
+impl<D: Dtype> Tensor<D> {
+    pub fn flatten(&self) -> Tensor<D> {
+        flatten(&self)
+    }
+}
+
 
 //
 // squeeze operation

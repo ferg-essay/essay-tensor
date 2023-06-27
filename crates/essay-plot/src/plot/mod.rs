@@ -7,6 +7,7 @@ mod bar;
 mod pie;
 mod scatter;
 mod plot;
+mod triplot;
 
 pub use bar::{
     bar_y, BarOpt,
@@ -30,6 +31,10 @@ pub use pie::{
 
 pub use scatter::{
     scatter, ScatterOpt,
+};
+
+pub use triplot::{
+    triplot,
 };
 
 impl Graph {

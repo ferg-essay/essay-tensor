@@ -5,69 +5,10 @@ use essay_tensor::{Tensor, tensor::TensorVec};
 
 use super::triangulate::Triangulation;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct VertId(usize);
-
-impl VertId {
-    #[inline]
-    fn index(&self) -> usize {
-        self.0
-    }
-
-    #[inline]
-    fn none() -> VertId {
-        VertId(usize::MAX)
-    }
-
-    #[cfg(test)]
-    #[inline]
-    fn is_none(&self) -> bool {
-        self.0 == usize::MAX
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
-pub struct EdgeId(usize);
-
-impl EdgeId {
-    #[inline]
-    fn index(&self) -> usize {
-        self.0
-    }
-}
-
-#[derive(Clone)]
-pub struct Edge {
-    verts: [VertId; 2],
-
-    dual: EdgeId,
-    forward: EdgeId,
-    reverse: EdgeId,
-}
-
-impl Edge {
-    fn new(v0: VertId, v1: VertId) -> Self {
-        Self {
-            verts: [v0, v1],
-            dual: EdgeId(0),
-            forward: EdgeId(0),
-            reverse: EdgeId(0),
-        }
-    }
-}
-
-impl fmt::Debug for Edge {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Edge[{}, {}](fwd: {}, rev: {}, dual: {})",
-            self.verts[0].index(), self.verts[1].index(),
-            self.forward.index(),
-            self.reverse.index(),
-            self.dual.index())
-    }
-}
-
 struct TriDelaunay {
     vertices: Vec<Point>, // [n, 2]
+    valid_len: usize,
+
     edges: Vec<Edge>,
     free_edges: Vec<EdgeId>,
 }
@@ -91,6 +32,7 @@ impl TriDelaunay {
         // TODO: add field for valid vs super triangle cutoff
         let mut tri = Self {
             vertices,
+            valid_len: len - 3,
             edges,
             free_edges: Vec::new(),
         };
@@ -128,6 +70,7 @@ impl TriDelaunay {
         let mut xy_vec = TensorVec::<[f32; 2]>::new();
 
         let orig_xy = self.vertices.len() - 3;
+        // let orig_xy = self.vertices.len();
         for i in 0..orig_xy {
             let point = self.vertices[i];
 
@@ -154,8 +97,7 @@ impl TriDelaunay {
     fn find_enclosing_triangle(&self, v: VertId, start_edge: EdgeId) -> EdgeId {
         let mut edge_id = start_edge;
         loop {
-            // TODO: is there any value of finding specific enclosing triangle?
-            if self.in_triangle_circle(v, edge_id) >= 0. {
+            if self.in_triangle(v, edge_id) {
                 return edge_id;
             }
 
@@ -185,11 +127,13 @@ impl TriDelaunay {
     /// The starting edge's triangle is known to contains the new point.
     /// 
     fn create_enclosing_polygon(&mut self, p: VertId, edge_id: EdgeId) -> EdgeId {
+        let is_internal = self.is_internal(edge_id);
+
         let edge = self.edges[edge_id.index()].clone();
 
-        self.check_dual(p, edge.forward);
-        self.check_dual(p, edge.reverse);
-        self.check_dual(p, edge_id)
+        self.check_dual(p, edge.forward, is_internal);
+        self.check_dual(p, edge.reverse, is_internal);
+        self.check_dual(p, edge_id, is_internal)
     }
 
     ///
@@ -197,7 +141,7 @@ impl TriDelaunay {
     /// triangle circle is known to contain the point, the edge will be 
     /// removed if the dual's circle also contains the point.
     ///
-    fn check_dual(&mut self, v: VertId, edge_id: EdgeId) -> EdgeId {
+    fn check_dual(&mut self, v: VertId, edge_id: EdgeId, is_internal: bool) -> EdgeId {
         let dual_id = self.edges[edge_id.index()].dual;
 
         // if point is not in dual circle, return original edge
@@ -205,8 +149,24 @@ impl TriDelaunay {
             return edge_id;
         }
 
+        // don't remove an external edge
+        if is_internal && ! self.is_internal(dual_id) {
+            return edge_id;
+        }
+
+        let dual = self.edges[dual_id.index()].clone();
+
+        self.remove_edge(edge_id);
+
+        // recursively check new triangle's duals
+        self.check_dual(v, dual.reverse, is_internal);
+        self.check_dual(v, dual.forward, is_internal)
+    }
+
+    fn remove_edge(&mut self, edge_id: EdgeId) {
         // remove edge
         let edge = self.edges[edge_id.index()].clone();
+        let dual_id = edge.dual;
         let dual = self.edges[dual_id.index()].clone();
 
         self.edges[edge_id.index()].verts[0] = VertId::none();
@@ -218,12 +178,10 @@ impl TriDelaunay {
         self.edges[dual.forward.index()].reverse = edge.reverse;
         self.edges[dual.reverse.index()].forward = edge.forward;
 
+        // TODO: check degenerate cases where the triangle collapses to a line
+
         self.free_edge(dual_id);
         self.free_edge(edge_id);
-
-        // recursively check new triangle's duals
-        self.check_dual(v, dual.reverse);
-        self.check_dual(v, dual.forward)
     }
 
     ///
@@ -292,8 +250,7 @@ impl TriDelaunay {
             let v1 = edge.verts[1];
             let v2 = self.edges[edge.forward.index()].verts[1];
 
-            if i < edge.forward.index()
-                && i < edge.reverse.index()
+            if i < edge.forward.index() && i < edge.reverse.index()
                 && v0.index() < tail_vert
                 && v1.index() < tail_vert
                 && v2.index() < tail_vert {
@@ -310,12 +267,49 @@ impl TriDelaunay {
         vec.into_tensor()
     }
 
+    fn remove_ext_triangle(&mut self) {
+        let len = self.edges.len();
+
+        let tail_vert = self.vertices.len() - 3;
+        let ext_edges = 0; // 6;
+
+        for i in ext_edges + 1..len {
+            let v0 = self.edges[i].verts[0];
+            let v1 = self.edges[i].verts[1];
+
+            let mut count = if tail_vert <= v0.index() { 1 } else { 0 };
+            count += if tail_vert <= v1.index() { 1 } else { 0 };
+
+            if count == 1 {
+                self.remove_edge(EdgeId(i));
+            }
+        }
+    }
+
     fn in_triangle_circle(&self, v: VertId, edge_id: EdgeId) -> f32 {
         let p = self.vertices[v.index()];
 
         let [a, b, c] = self.triangle_points(edge_id);
 
         in_circle(p, a, b, c)
+    }
+
+    fn in_triangle(&self, v: VertId, edge_id: EdgeId) -> bool {
+        let p = self.vertices[v.index()];
+
+        let [a, b, c] = self.triangle_points(edge_id);
+
+        in_triangle(p, a, b, c)
+    }
+
+    fn is_internal(&self, edge_id: EdgeId) -> bool {
+        let edge = &self.edges[edge_id.index()];
+        let fwd = &self.edges[edge.forward.index()];
+        let valid_len = self.valid_len;
+
+        edge.verts[0].index() < valid_len
+        && edge.verts[1].index() < valid_len
+        && fwd.verts[1].index() < valid_len
     }
 
     fn triangle_points(&self, edge_id: EdgeId) -> [Point; 3] {
@@ -385,6 +379,7 @@ impl TriDelaunay {
 pub fn triangulate(points: &Tensor) -> Triangulation {
     let mut tri = TriDelaunay::new(points);
     tri.build();
+    // tri.remove_ext_triangle();
     tri.to_triangulation()
 }
 
@@ -418,6 +413,67 @@ fn initial_points(points: &Tensor) -> Vec<Point> {
     vec_points
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct VertId(usize);
+
+impl VertId {
+    #[inline]
+    fn index(&self) -> usize {
+        self.0
+    }
+
+    #[inline]
+    fn none() -> VertId {
+        VertId(usize::MAX)
+    }
+
+    #[cfg(test)]
+    #[inline]
+    fn is_none(&self) -> bool {
+        self.0 == usize::MAX
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
+pub struct EdgeId(usize);
+
+impl EdgeId {
+    #[inline]
+    fn index(&self) -> usize {
+        self.0
+    }
+}
+
+#[derive(Clone)]
+pub struct Edge {
+    verts: [VertId; 2],
+
+    dual: EdgeId,
+    forward: EdgeId,
+    reverse: EdgeId,
+}
+
+impl Edge {
+    fn new(v0: VertId, v1: VertId) -> Self {
+        Self {
+            verts: [v0, v1],
+            dual: EdgeId(0),
+            forward: EdgeId(0),
+            reverse: EdgeId(0),
+        }
+    }
+}
+
+impl fmt::Debug for Edge {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Edge[{}, {}](fwd: {}, rev: {}, dual: {})",
+            self.verts[0].index(), self.verts[1].index(),
+            self.forward.index(),
+            self.reverse.index(),
+            self.dual.index())
+    }
+}
+
 /// d in tri-circle(a, b, c) if result > 0
 #[inline]
 fn in_circle(p: Point, a: Point, b: Point, c: Point) -> f32 {
@@ -433,6 +489,16 @@ fn in_circle(p: Point, a: Point, b: Point, c: Point) -> f32 {
         [b.0 - d.0, b.1 - d.1, bd_sq],
         [c.0 - d.0, c.1 - d.1, cd_sq]
     )
+}
+
+#[inline]
+fn in_triangle(p: Point, a: Point, b: Point, c: Point) -> bool {
+    let d1 = edge_sign(p, a, b);
+    let d2 = edge_sign(p, b, c);
+    let d3 = edge_sign(p, c, a);
+
+    (d1 < 0.) && (d2 < 0.) && (d3 < 0.)
+    || (d1 > 0.) && (d2 > 0.) && (d3 > 0.)
 }
 
 /// sign of the half-plane for p in a, b
@@ -453,7 +519,7 @@ mod test {
     use essay_plot_base::Point;
     use essay_tensor::{tf32, Tensor};
 
-    use crate::tri::{delaunay::{TriDelaunay, VertId, EdgeId}, triangulate::Triangulation};
+    use crate::tri::{delaunay::{TriDelaunay, VertId, EdgeId, in_triangle}, triangulate::Triangulation};
 
     use super::{initial_points, edge_sign};
 
@@ -634,6 +700,36 @@ mod test {
         );
     }
 
+    // full build with two points
+    #[test]
+    fn quad() {
+        let t = tf32!([[0., 0.], [4., 0.], [2., 4.], [1.5, 2.]]);
+        let mut tri_build = TriDelaunay::new(&t);
+
+        tri_build.build();
+        validate_edges(&tri_build);
+
+        let tri = tri_build.to_triangulation();
+
+        let triangles = tri.triangles();
+        assert_eq!(triangles.rows(), 2);
+
+        assert_eq!(
+            format!("{:?}", triangles.slice(0).as_slice()),
+            "[0, 1, 3]"
+        );
+
+        assert_eq!(
+            format!("{:?}", triangles.slice(0).as_slice()),
+            "[2, 0, 3]"
+        );
+
+        assert_eq!(
+            format!("{:?}", triangles.slice(0).as_slice()),
+            "[1, 2, 3]"
+        );
+    }
+
     fn tri_str(tri: &Triangulation, triangle: &[usize]) -> String {
         let xy = tri.vertices();
 
@@ -673,15 +769,6 @@ mod test {
         for xy in tensor.iter_slice() {
             assert!(in_triangle(Point(xy[0], xy[1]), a, b, c))
         }
-    }
-
-    fn in_triangle(p: Point, a: Point, b: Point, c: Point) -> bool {
-        let d1 = edge_sign(p, a, b);
-        let d2 = edge_sign(p, b, c);
-        let d3 = edge_sign(p, c, a);
-    
-        (d1 < 0.) && (d2 < 0.) && (d3 < 0.)
-        || (d1 > 0.) && (d2 > 0.) && (d3 > 0.)
     }
     
     fn edge_str(tri: &TriDelaunay, index: usize) -> String {
