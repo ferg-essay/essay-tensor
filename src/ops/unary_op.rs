@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{model::{IntoForward, NodeOp, Tape, Operation, Expr, expr::GradientOp}, Tensor, 
+use crate::{model::{IntoForward, NodeOp, Tape, Operation, Expr, expr::{GradientOp, GradOperation}}, Tensor, 
     tensor::{Dtype, TensorUninit, TensorId}
 };
 
@@ -21,14 +21,14 @@ where
 {
     let uop = UopCpu(op.clone());
 
-    let node = NodeOp::new(&[a], uop.to_op());
+    let node = NodeOp::new(&[a], Box::new(uop.clone()));
 
     let tensor = uop.f(&[&a], node);
 
     Tape::set_tensor(tensor)
 }
 
-impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
+impl<Op: UnaryKernel<f32>> Operation<f32> for UopCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -52,10 +52,12 @@ impl<Op:UnaryKernel<f32>> Operation for UopCpu<Op> {
                 *o_ptr.add(i) = op.f(*a_ptr.add(i));
             }
     
-            Tensor::from_uninit_with_id(out, a.shape(), id)
+            out.into_tensor_with_id(a.shape(), id)
         }
     }
+}
 
+impl<Op: UnaryKernel<f32>> GradOperation<f32> for UopCpu<Op> {
     fn df(
         &self,
         _forward: &Expr,

@@ -5,7 +5,7 @@ pub struct Rem;
 
 impl BinaryKernel for Rem {
     #[inline]
-    fn f(&self, x: f32, y: f32) -> f32 {
+    fn f(&self, x: &f32, y: &f32) -> f32 {
         x % y
     }
 

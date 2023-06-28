@@ -12,26 +12,26 @@ pub fn uniform(
     let len : usize = shape.size();
 
     unsafe {
-        let mut data = TensorUninit::new(len);
+        let mut uninit = TensorUninit::new(len);
 
         match seed {
             Some(seed) => {
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
 
-                for i in 0..len {
-                    data[i] = rng.gen_range(min..max);
+                for value in uninit.as_mut_slice() {
+                    *value = rng.gen_range(min..max);
                 }
             }
             None => { 
                 let mut rng = thread_rng() ;
 
-                for i in 0..len {
-                    data[i] = rng.gen_range(min..max);
+                for value in uninit.as_mut_slice() {
+                    *value = rng.gen_range(min..max);
                 }
             }
         };
 
-        Tensor::from_uninit(data, shape.clone())
+        uninit.into_tensor(shape)
     }
 }
 

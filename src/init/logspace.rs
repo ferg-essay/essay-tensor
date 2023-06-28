@@ -7,41 +7,56 @@ use crate::{
 };
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct LinspaceCpu(usize);
+pub struct LogspaceCpu {
+    len: usize,
+    base: f32,
+}
 
-pub fn linspace(start: impl Into<Tensor>, end: impl Into<Tensor>, len: usize) -> Tensor {
+pub fn logspace(
+    start: impl Into<Tensor>, 
+    end: impl Into<Tensor>, 
+    len: usize,
+) -> Tensor {
+    logspace_opt(start, end, len, ())
+}
+
+pub fn logspace_opt(
+    start: impl Into<Tensor>, 
+    end: impl Into<Tensor>, 
+    len: usize,
+    opt: impl Into<Opt>
+) -> Tensor {
     let start = start.into();
     let end = end.into();
 
     assert_eq!(start.shape(), end.shape(), 
-        "linspace shapes must agree start={:?} end={:?}",
+        "logspace shapes must agree start={:?} end={:?}",
         start.shape(), end.shape());
 
-    let linspace_op = LinspaceCpu(len);
+    let opt : Opt = opt.into();
+    let base = match opt.base {
+        Some(base) => base,
+        None => 10.
+    };
+
+    let logspace_op = LogspaceCpu { base, len };
 
     //let id = NodeOp::new(&[&start, &end], Box::new(linspace_op));
     let id = TensorId::unset();
 
-    let tensor = linspace_op.f(&[&start, &end], id);
+    let tensor = logspace_op.f(&[&start, &end], id);
 
     //Tape::set_tensor(tensor)
     tensor
 }
 
 impl Tensor {
-    pub fn linspace(&self, end: &Tensor, len: usize) -> Tensor {
-        linspace(self, end, len)
+    pub fn logspace(&self, end: &Tensor, len: usize) -> Tensor {
+        logspace(self, end, len)
     }
 }
 
-impl LinspaceCpu {
-    #[inline]
-    fn len(&self) -> usize {
-        self.0
-    }
-}
-
-impl Operation<f32> for LinspaceCpu {
+impl Operation<f32> for LogspaceCpu {
     fn f(
         &self,
         args: &[&Tensor],
@@ -55,7 +70,8 @@ impl Operation<f32> for LinspaceCpu {
         assert_eq!(start.shape(), end.shape());
 
         let batch = cmp::max(1, start.len());
-        let len = self.len();
+        let len = self.len;
+        let base = self.base;
         let size = batch * len;
 
         let mut o_shape_vec = Vec::from(start.shape().as_slice());
@@ -79,7 +95,8 @@ impl Operation<f32> for LinspaceCpu {
                 };
 
                 for k in 0..len {
-                    *o.add(k * batch + n) = start + step * k as f32;
+                    let v = start + step * k as f32;
+                    *o.add(k * batch + n) = base.powf(v);
                 }
             }
 
@@ -88,7 +105,7 @@ impl Operation<f32> for LinspaceCpu {
     }
 }
 
-impl GradOperation<f32> for LinspaceCpu {
+impl GradOperation<f32> for LogspaceCpu {
         fn df(
         &self,
         _forward: &Expr,
@@ -101,38 +118,40 @@ impl GradOperation<f32> for LinspaceCpu {
     }
 }
 
+pub struct Opt {
+    base: Option<f32>,
+}
+
+impl Default for Opt {
+    fn default() -> Self {
+        Self { base: Default::default() }
+    }
+}
+
+impl From<()> for Opt {
+    fn from(_value: ()) -> Self {
+        Opt::default()
+    }
+}
+
+impl From<f32> for Opt {
+    fn from(base: f32) -> Self {
+        Opt { base: Some(base) }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
-    use crate::{init::linspace::linspace, tf32};
+    use crate::init::logspace_opt;
+    use crate::{init::logspace::logspace, tf32};
 
     #[test]
-    fn linspace_0_4_5() {
-        assert_eq!(linspace(0., 1., 2), tf32!([0., 1.]));
-        assert_eq!(linspace(0., 4., 5), tf32!([0., 1., 2., 3., 4.]));
-
-        assert_eq!(linspace(0., 4., 0), Tensor::<f32>::from(Vec::<f32>::new()));
+    fn logspace_0_2_3() {
+        assert_eq!(logspace(0., 2., 3), tf32!([1., 10., 100.]));
     }
 
     #[test]
-    fn linspace_vector_n() {
-        assert_eq!(linspace([0.], [1.], 2), tf32!([[0.], [1.]]));
-        assert_eq!(
-            linspace([0., 0., 0.], [1., 2., 3.], 2), 
-            tf32!([[0., 0., 0.], [1., 2., 3.]])
-        );
-    }
-
-    #[test]
-    fn linspace_tensor() {
-        assert_eq!(linspace([[0.]], [[1.]], 2), tf32!([[[0.]], [[1.]]]));
-        assert_eq!(
-            linspace([[0., 0., 0.], [0., 0., 0.]], [[1., 2., 3.], [10., 20., 30.]], 3), 
-            tf32!([
-                [[0.0, 0.0, 0.0], [0., 0., 0.,]],
-                [[0.5, 1.0, 1.5], [5., 10., 15.,]],
-                [[1.0, 2.0, 3.0], [10., 20., 30.]]
-            ])
-        );
+    fn logspace_opt_0_2_3() {
+        assert_eq!(logspace_opt(0., 2., 3, 2.), tf32!([1., 2., 4.]));
     }
 }

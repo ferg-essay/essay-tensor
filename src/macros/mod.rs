@@ -34,6 +34,29 @@ macro_rules! tf32 {
 }
 
 #[macro_export]
+macro_rules! tc32 {
+    ([ $([ $( ($re:expr, $im:expr) ),* $(,)?]), * $(,)?]) => {
+        $crate::Tensor::<$crate::tensor::C32>::from([
+            $([
+                $( $crate::tensor::C32 { re: $re, im: $im } ),*
+            ]),*
+        ])
+    };
+
+    ([ $( ($re:expr, $im:expr) ),* $(,)?]) => {
+        $crate::Tensor::<$crate::tensor::C32>::from([$( $crate::tensor::C32 { re: $re, im: $im } ),*])
+    };
+
+    ( $re:expr, $im:expr  ) => {
+        $crate::Tensor::<$crate::tensor::C32>::from($crate::tensor::C32 { re: $re, im: $im })
+    };
+
+    ( ) => {
+        $crate::Tensor::<$crate::tensor::C32>::empty()
+    };
+}
+
+#[macro_export]
 macro_rules! tensor_uop {
     ($fun:ident, $op:expr) => {
         pub fn $fun(a: &Tensor) -> Tensor {

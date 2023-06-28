@@ -5,7 +5,7 @@ pub struct Div;
 
 impl BinaryKernel for Div {
     #[inline]
-    fn f(&self, x: f32, y: f32) -> f32 {
+    fn f(&self, x: &f32, y: &f32) -> f32 {
         x / y
     }
 

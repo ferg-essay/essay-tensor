@@ -1,4 +1,4 @@
-use super::{Var, Expr, TensorCache, Tensors, Operation, model::ModelContext};
+use super::{Var, Expr, TensorCache, Tensors, Operation, model::ModelContext, expr::GradOperation};
 use crate::{tensor::{TensorId}, Tensor};
 use std::{cell::RefCell, sync::atomic::{AtomicU32, Ordering}};
 
@@ -155,7 +155,10 @@ impl Tape {
         })
     }
 
-    pub(crate) fn op(op: Box<dyn Operation>, node_args: Vec<TensorId>) -> TensorId {
+    pub(crate) fn op(
+        op: Box<dyn GradOperation<f32>>, 
+        node_args: Vec<TensorId>
+    ) -> TensorId {
         TAPE.with(|f| {
             if let Some(tape) = f.borrow_mut().as_mut() {
                 tape.expr.op(op, node_args)

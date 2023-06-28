@@ -1,11 +1,15 @@
-mod meshgrid;
+mod eye;
 mod arange;
+mod fill;
+mod geomspace;
 mod initializer;
+mod linspace;
+mod logspace;
+mod meshgrid;
+mod ones;
 mod random_normal;
 mod random_uniform;
-mod linspace;
-mod fill;
-mod ones;
+mod tri;
 mod zeros;
 
 pub use initializer::Initializer;
@@ -17,12 +21,12 @@ pub use arange::{
     arange,
 };
 
-pub use meshgrid::{
-    meshgrid, meshgrid_ij, Meshgrid,
+pub use eye::{
+    eye, identity,
 };
 
-pub use zeros::{
-    zeros, zeros_initializer,
+pub use meshgrid::{
+    meshgrid, meshgrid_ij, Meshgrid, mgrid,
 };
 
 pub use random_uniform::{
@@ -34,3 +38,17 @@ pub use random_normal::{
 };
 
 pub use linspace::linspace;
+pub use logspace::{
+    logspace, logspace_opt
+};
+pub use geomspace::{
+    geomspace,
+};
+
+pub use tri::{
+    tri, tril, triu
+};
+
+pub use zeros::{
+    zeros, zeros_initializer,
+};

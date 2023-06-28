@@ -3,7 +3,7 @@ use std::{collections::HashSet, any::type_name};
 use crate::{Tensor, tensor::{TensorId}, model::ModelId};
 
 use super::{Expr, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
-    expr::{IntoBack, GradientOp, BoxBackOp}
+    expr::{IntoBack, GradientOp, BoxBackOp, GradOperation}
 };
 
 
@@ -140,7 +140,7 @@ fn build_backtrace_rec(
     }
 }
 
-impl<Op:EvalOp> Operation for Op {
+impl<Op: EvalOp> Operation<f32> for Op {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -152,7 +152,9 @@ impl<Op:EvalOp> Operation for Op {
     ) -> Tensor {
         (self as &dyn EvalOp).eval(args)
     }
+}
 
+impl<Op: EvalOp> GradOperation<f32> for Op {
     fn df(
         &self,
         _forward: &Expr,
@@ -164,16 +166,16 @@ impl<Op:EvalOp> Operation for Op {
         panic!("{} does not implement backprop", type_name::<Op>())
     }
 }
-
+/*
 impl<Op> IntoForward for Op
 where
-    Op: Clone + Operation
+    Op: Clone + Operation<f32>
 {
     fn to_op(&self) -> BoxForwardOp {
         Box::new(self.clone())
     }
 }
-
+*/
 impl<Op> IntoBack for Op
 where
     Op: Clone + GradientOp

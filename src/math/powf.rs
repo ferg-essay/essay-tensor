@@ -5,8 +5,8 @@ pub struct Powf;
 
 impl BinaryKernel for Powf {
     #[inline]
-    fn f(&self, x: f32, y: f32) -> f32 {
-        x.powf(y)
+    fn f(&self, x: &f32, y: &f32) -> f32 {
+        x.powf(*y)
     }
 
     #[inline]

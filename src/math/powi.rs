@@ -5,8 +5,8 @@ pub struct Powi;
 
 impl BinaryKernel for Powi {
     #[inline]
-    fn f(&self, x: f32, y: f32) -> f32 {
-        x.powi(y as i32)
+    fn f(&self, x: &f32, y: &f32) -> f32 {
+        x.powi(*y as i32)
     }
 
     #[inline]

@@ -263,11 +263,13 @@ pub fn squeeze(x: &Tensor, axis: impl Into<AxisOpt>) -> Tensor {
     let axis = axis.into();
     let op = SqueezeOp(axis.axis);
 
-    let node = NodeOp::new(&[x], Box::new(op.clone()));
+    //let node = NodeOp::new(&[x], Box::new(op.clone()));
+    let id = TensorId::unset();
 
-    let tensor = op.f(&[&x], node);
+    let tensor = op.f(&[&x], id);
 
-    Tape::set_tensor(tensor)
+    //Tape::set_tensor(tensor)
+    tensor
 }
 
 impl Tensor {
@@ -285,7 +287,7 @@ impl SqueezeOp {
     }
 }
 
-impl Operation for SqueezeOp {
+impl Operation<f32> for SqueezeOp {
     fn f(
         &self,
         args: &[&Tensor],
@@ -317,17 +319,6 @@ impl Operation for SqueezeOp {
         };
 
         tensor.clone_with_shape(vec, id)
-    }
-
-    fn df(
-        &self,
-        _forward: &Expr,
-        _back: &mut Expr,
-        _i: usize,
-        _args: &[TensorId],
-        _prev: TensorId,
-    ) -> TensorId {
-        todo!()
     }
 }
 

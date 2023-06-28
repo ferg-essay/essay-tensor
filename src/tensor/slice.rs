@@ -35,8 +35,6 @@ impl TensorSlice for (usize, usize) {
 mod test {
     use crate::prelude::*;
 
-    use super::{Tensor};
-
     #[test]
     fn slice_usize() {
         let t = tf32!([[1., 2.], [3., 4.], [5., 6.]]);

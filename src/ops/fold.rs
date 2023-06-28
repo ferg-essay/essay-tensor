@@ -3,7 +3,7 @@ use std::any::type_name;
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, 
-    model::{NodeOp, Tape, Operation, IntoForward, Expr, expr::GradientOp}, prelude::Shape
+    model::{NodeOp, Tape, Operation, IntoForward, Expr, expr::{GradientOp, GradOperation}}, prelude::Shape
 };
 
 pub trait Fold<D:Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -21,7 +21,7 @@ where
 {
     let fold_op = FoldCpu(op.clone(), init);
 
-    let node = NodeOp::new(&[a], fold_op.to_op());
+    let node = NodeOp::new(&[a], Box::new(fold_op));
 
     let tensor = fold_op.f(&[&a], node);
 
@@ -40,7 +40,7 @@ impl<Op:Fold> FoldCpu<Op> {
     }
 }
 
-impl<Op:Fold> Operation for FoldCpu<Op> {
+impl<Op: Fold> Operation<f32> for FoldCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -62,7 +62,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         };
 
         let len = o_shape.size();
-        let inner_len = a.dim_tail();
+        let inner_len = a.cols();
     
         unsafe {
             let mut o_data = TensorUninit::<f32>::new(len);
@@ -89,7 +89,9 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
         }
     
     }
+}
 
+impl<Op: Fold> GradOperation<f32> for FoldCpu<Op> {
     fn df(
         &self,
         _forward: &Expr,
@@ -104,7 +106,7 @@ impl<Op:Fold> Operation for FoldCpu<Op> {
     }
 }
 
-impl<Op:Fold> GradientOp for FoldCpu<Op> {
+impl<Op: Fold> GradientOp for FoldCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }

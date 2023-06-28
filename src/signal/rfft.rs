@@ -61,15 +61,17 @@ fn hann_window(len: usize) -> Tensor {
     unsafe {
         let mut uninit = TensorUninit::<f32>::new(len);
 
+        let o = uninit.as_mut_slice();
+
         let step : f32 = PI / len as f32;
 
         for i in 0..len {
             let tmp = (step * i as f32).sin();
 
-            uninit[i] = tmp * tmp;
+            o[i] = tmp * tmp;
         }
 
-        Tensor::from_uninit(uninit, [len])
+        uninit.into_tensor([len])
     }
 }
 

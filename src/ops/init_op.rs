@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{any::type_name};
 
-use crate::{model::{IntoForward, NodeOp, Tape, Operation, Expr, expr::GradientOp}, Tensor, 
+use crate::{model::{IntoForward, NodeOp, Tape, Operation, Expr, expr::{GradientOp, GradOperation}}, Tensor, 
     tensor::{Dtype, TensorUninit, TensorId}, prelude::Shape
 };
 
@@ -13,7 +13,7 @@ where
 
     let uop = InitCpu(op.clone(), shape);
 
-    let id = NodeOp::new(&[], uop.to_op());
+    let id = NodeOp::new(&[], Box::new(uop.clone()));
 
     let tensor = uop.f(&[], id);
 
@@ -32,7 +32,7 @@ pub trait InitKernel<D:Dtype> : fmt::Debug + Clone + PartialEq + Sync + Send + '
 #[derive(Clone, PartialEq)]
 pub struct InitCpu<Op:InitKernel<f32>>(Op, Shape);
 
-impl<Op: InitKernel<f32>> Operation for InitCpu<Op> {
+impl<Op: InitKernel<f32>> Operation<f32> for InitCpu<Op> {
     fn name(&self) -> &str {
         type_name::<Op>()
     }
@@ -60,8 +60,10 @@ impl<Op: InitKernel<f32>> Operation for InitCpu<Op> {
             Tensor::from_uninit_with_id(out, shape, id)
         }
     }
+}
 
-    fn df(
+impl<Op: InitKernel<f32>> GradOperation<f32> for InitCpu<Op> {
+        fn df(
         &self,
         _forward: &Expr,
         graph: &mut Expr,

@@ -4,7 +4,7 @@ use std::{any::type_name, marker::PhantomData};
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, 
-    model::{NodeOp, Tape, Operation, IntoForward, Expr, expr::GradientOp}, prelude::Shape
+    model::{NodeOp, Tape, Operation, IntoForward, Expr, expr::{GradientOp, GradOperation}}, prelude::Shape
 };
 
 pub trait NormalizeKernel<D: Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -34,7 +34,7 @@ where
         options: opt.into(),
     };
 
-    let node = NodeOp::new(&[&x], normalize_op.to_op());
+    let node = NodeOp::new(&[&x], Box::new(normalize_op.clone()));
 
     let tensor = normalize_op.f(&[&x], node);
 
@@ -94,7 +94,7 @@ impl<Op: NormalizeKernel> NormalizeCpu<Op> {
     }
 }
 
-impl<Op> Operation for NormalizeCpu<Op> 
+impl<Op> Operation<f32> for NormalizeCpu<Op> 
 where
     Op: NormalizeKernel,
 {
@@ -141,7 +141,13 @@ where
             Tensor::from_uninit_with_id(o_data, x_arg.shape(), node)
         }
     }
+}
 
+
+impl<Op> GradOperation<f32> for NormalizeCpu<Op> 
+where
+    Op: NormalizeKernel,
+{
     fn df(
         &self,
         _forward: &Expr,

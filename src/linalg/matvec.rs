@@ -2,7 +2,7 @@ use std::{any::type_name, cmp};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit}, 
-    model::{Operation, Expr, expr::GradientOp, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
+    model::{Operation, Expr, expr::{GradientOp, GradOperation}, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
 };
 
 use super::matmul::Transpose;
@@ -27,7 +27,7 @@ impl Tensor<f32> {
 }
 
 pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
-    let node = NodeOp::new(&[a, b], Matvec.to_op());
+    let node = NodeOp::new(&[a, b], Box::new(Matvec));
 
     let value = matvec_t_op(a, b, Transpose::None, node);
 
@@ -39,7 +39,7 @@ pub fn matvec_t(
     x: &Tensor<f32>,
     _transpose: impl TransposeMatvec,
 ) -> Tensor<f32> {
-    let node = NodeOp::new(&[a, x], Matvec.to_op());
+    let node = NodeOp::new(&[a, x], Box::new(Matvec));
 
     let value = matvec_t_op(a, x, _transpose, node);
 
@@ -169,7 +169,7 @@ impl TransposeMatvec for Transpose {
     }
 }
 
-impl Operation for Matvec {
+impl Operation<f32> for Matvec {
     fn name(&self) -> &str {
         type_name::<Self>()
     }
@@ -183,7 +183,9 @@ impl Operation for Matvec {
 
         value
     }
+}
 
+impl GradOperation<f32> for Matvec {
     fn df(
         &self,
         _forward: &Expr,

@@ -1,13 +1,17 @@
+use std::{marker::PhantomData, ops};
+
 use crate::{
-    ops::{BinaryKernel, UnaryKernel}
+    ops::{BinaryKernel, UnaryKernel, binary_op}, tensor::Dtype, Tensor
 };
+
+use num_traits::{Float, MulAdd};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Add;
 
-impl BinaryKernel for Add {
+impl BinaryKernel<f32> for Add {
     #[inline]
-    fn f(&self, x: f32, y: f32) -> f32 {
+    fn f(&self, x: &f32, y: &f32) -> f32 {
         x + y
     }
 
@@ -20,14 +24,6 @@ impl BinaryKernel for Add {
     fn df_dy(&self, _x: f32, _y: f32) -> f32 {
         1.
     }
-
-    /*
-    unsafe fn batch_f(&self, n: usize, a: *const f32, b: *const f32, o: *mut f32) {
-        for k in 0..n {
-            *o.add(k) = self.f(*a.add(k), *b.add(k));
-        }
-    }
-    */
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -51,9 +47,41 @@ impl AddScalar {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Add2<D: ops::Add> {
+    marker: PhantomData<D>,
+}
+
+impl<D: ops::Add> Add2<D> {
+    pub(crate) fn new() -> Self {
+        Self {
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<D: Dtype + ops::Add<Output=D> + Copy> BinaryKernel<D> for Add2<D> {
+    #[inline]
+    fn f(&self, x: &D, y: &D) -> D {
+        *x + *y
+    }
+
+    #[inline]
+    fn df_dx(&self, _x: D, _y: D) -> D {
+        todo!() // D::one()
+    }
+
+    #[inline]
+    fn df_dy(&self, _x: D, _y: D) -> D {
+        todo!() // D::one()
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, model::{Var, Trainer}};
+    use num_complex::Complex;
+
+    use crate::{prelude::*, model::{Var, Trainer}, tc32, tensor::C32, math::add};
 
     #[test]
     fn test_add() {
@@ -94,5 +122,17 @@ mod test {
 
         assert_eq!(&tf32!(2.) + 3., tf32!(5.));
         assert_eq!(3. + &tf32!(2.), tf32!(5.));
+    }
+
+    #[test]
+    fn add_c32() {
+        assert_eq!(
+            add(tc32!([(1., 10.)]), tc32!([(2., 20.)])),
+            tc32!([(3., 30.)]),
+        );
+        assert_eq!(
+            tc32!([(1., 10.)]) + tc32!([(2., 20.)]),
+            tc32!([(3., 30.)]),
+        );
     }
 }

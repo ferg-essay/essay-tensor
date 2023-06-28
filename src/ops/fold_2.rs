@@ -14,7 +14,7 @@ impl<D:Dtype + Copy> Tensor<D> {
         b: &Self
     ) -> Tensor<D> {
         let len = self.broadcast_min(1, b, 1);
-        let inner_size = self.dim_tail();
+        let inner_size = self.cols();
         let batch = len / inner_size;
 
         let shape = self.shape();

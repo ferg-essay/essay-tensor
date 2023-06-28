@@ -27,7 +27,7 @@ mod square;
 use std::{ops};
 
 use crate::{
-    tensor::{Tensor}, 
+    tensor::{Tensor, Dtype, C32}, 
     tensor_uop, ops::unary_op,
     tensor_binop, ops::binary_op,
 };
@@ -139,11 +139,112 @@ macro_rules! tensor_ops {
     }
 }
 
-tensor_ops!(f32, Add, add, add::Add, add::AddScalar, add::AddScalar);
+macro_rules! tensor_ops2 {
+    ($ty:ty, $op:ident, $fun:ident, $binop:expr, $uop_st:ty, $uop_ts:ty) => {
+        pub fn $fun<D>(
+            a: impl Into<Tensor<D>>, 
+            b: impl Into<Tensor<D>>
+        ) -> Tensor<D> 
+        where
+            D: Dtype + ops::$op<Output=D> + Copy
+        {
+            let a = a.into();
+            let b = b.into();
+
+            binary_op(&a, &b, $binop)
+        }
+
+        impl<D> ops::$op<Tensor<D>> for Tensor<D>
+        where
+            D: Dtype + ops::$op<Output=D> + Copy
+        {
+            type Output = Tensor<D>;
+        
+            fn $fun(self, rhs: Tensor<D>) -> Self::Output {
+                binary_op(&self, &rhs, $binop)
+            }
+        }
+
+        impl<D> ops::$op<Tensor<D>> for &Tensor<D> 
+        where
+            D: Dtype + ops::$op<Output=D> + Copy
+        {
+            type Output = Tensor<D>;
+        
+            fn $fun(self, rhs: Tensor<D>) -> Self::Output {
+                binary_op(self, &rhs, $binop)
+            }
+        }
+
+        impl<D> ops::$op<&Tensor<D>> for Tensor<D>
+        where
+            D: Dtype + ops::$op<Output=D> + Copy
+        {
+            type Output = Tensor<D>;
+        
+            fn $fun(self, rhs: &Tensor<D>) -> Self::Output {
+                binary_op(&self, rhs, $binop)
+            }
+        }
+
+        impl<D> ops::$op<&Tensor<D>> for &Tensor<D> 
+        where
+            D: Dtype + ops::$op<Output=D> + Copy
+        {
+            type Output = Tensor<D>;
+        
+            fn $fun(self, rhs: &Tensor<D>) -> Self::Output {
+                binary_op(self, rhs, $binop)
+            }
+        }
+
+        impl ops::$op<Tensor<$ty>> for $ty
+        {
+            type Output = Tensor<$ty>;
+        
+            fn $fun(self, rhs: Tensor<$ty>) -> Self::Output {
+                //binary_op(&Tensor::<$ty>::from(self), &rhs, $binop)
+                unary_op(&rhs, <$uop_st>::new(self))
+            }
+        }
+
+        impl ops::$op<&Tensor<$ty>> for $ty {
+            type Output = Tensor<$ty>;
+        
+            fn $fun(self, rhs: &Tensor<$ty>) -> Self::Output {
+                // binary_op(&Tensor::<$ty>::from(self), &rhs, $binop)
+                unary_op(&rhs, <$uop_st>::new(self))
+            }
+        }
+
+        impl ops::$op<$ty> for Tensor<$ty> {
+            type Output = Tensor<$ty>;
+        
+            fn $fun(self, rhs: $ty) -> Self::Output {
+                // binary_op(&self, &Tensor::from(rhs), $binop)
+                unary_op(&self, <$uop_ts>::new(rhs))
+            }
+        }
+
+        impl ops::$op<$ty> for &Tensor<$ty> {
+            type Output = Tensor<$ty>;
+        
+            fn $fun(self, rhs: $ty) -> Self::Output {
+                // binary_op(&self, &Tensor::from(rhs), $binop)
+                unary_op(&self, <$uop_ts>::new(rhs))
+            }
+        }
+    }
+}
+
+//tensor_ops!(f32, Add, add, add::Add, add::AddScalar, add::AddScalar);
+tensor_ops2!(f32, Add, add, add::Add2::new(), add::AddScalar, add::AddScalar);
 tensor_ops!(f32, Div, div, div::Div, div::DivST, div::DivTS);
 tensor_ops!(f32, Mul, mul, mul::Mul, mul::MulScalar, mul::MulScalar);
 tensor_ops!(f32, Rem, rem, rem::Rem, rem::RemST, rem::RemTS);
 tensor_ops!(f32, Sub, sub, sub::Sub, sub::SubST, sub::SubTS);
+
+//tensor_ops!(C32, Add, add, add::Add::new(), add::AddScalar, add::AddScalar);
 
 impl ops::Mul<Option<Tensor>> for Tensor {
     type Output = Tensor;

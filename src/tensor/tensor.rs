@@ -1,9 +1,11 @@
 use core::fmt;
 use std::{any::type_name, sync::Arc, ops::{Deref}, slice};
 
-use super::{data::TensorData, TensorUninit, slice::TensorSlice, Shape};
+use num_complex::Complex;
 
-pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {}
+use crate::model::{Operation, NodeOp, BoxForwardOp, Tape, expr::GradOperation};
+
+use super::{data::TensorData, TensorUninit, slice::TensorSlice, Shape};
 
 pub struct Tensor<T=f32> {
     id: TensorId,
@@ -13,31 +15,31 @@ pub struct Tensor<T=f32> {
 
     data: Arc<TensorData<T>>,
 }
-/*
-impl<T: 'static> Tensor<T> {
-    pub(crate) unsafe fn from_data(
-        data: TensorData<T>, 
-        shape: impl Into<Shape>, 
-        id: TensorId,
-    ) -> Self {
-        let shape = shape.into();
-        let len: usize = shape.size();
-        
-        assert_eq!(len, data.len());
-        // data.checkcast::<T>(len);
 
+impl<T> Tensor<T> {
+    pub(crate) fn from_data(data: TensorData<T>, shape: impl Into<Shape>) -> Self {
         Self {
-            id,
+            id: TensorId::NONE,
 
-            shape,
+            shape: shape.into(),
             offset: 0,
-            len,
+            len: data.len(),
 
-            data: Arc::new(data),
+            data: Arc::new(data)
+        }
+    }
+    pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
+        Self {
+            id: TensorId::NONE,
+
+            shape: shape.into(),
+            offset: 0,
+            len: vec.len(),
+
+            data: Arc::new(TensorData::from_vec(vec)),
         }
     }
 }
-*/
 
 impl<T: Clone + 'static> Tensor<T> {
     pub fn empty() -> Self {
@@ -66,20 +68,6 @@ impl<T: Clone + 'static> Tensor<T> {
         }
     }
 
-    pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
-        //assert!(vec.len() > 0);
-
-        Self {
-            id: TensorId::NONE,
-
-            shape: shape.into(),
-            offset: 0,
-            len: vec.len(),
-
-            data: Arc::new(TensorData::from_vec(vec)),
-        }
-    }
-
     pub fn append(&self, tensor: impl Into<Tensor<T>>) -> Tensor<T> {
         let tensor = tensor.into();
 
@@ -90,14 +78,12 @@ impl<T: Clone + 'static> Tensor<T> {
 
         Tensor::from_merge(vec![self.clone(), tensor], vec, TensorId::NONE)
     }
-}
 
-impl<T: Clone + 'static> Tensor<T> {
-    pub fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
+    pub unsafe fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
         Self::from_uninit_with_id(data, shape, TensorId::NONE)
     }
 
-    pub fn from_uninit_with_id(
+    pub unsafe fn from_uninit_with_id(
         data: TensorUninit<T>, 
         shape: impl Into<Shape>,
         id: TensorId,
@@ -212,13 +198,8 @@ impl<T> Tensor<T> {
     }
 
     #[inline]
-    pub fn dim_tail(&self) -> usize {
-        self.shape.dim_tail()
-    }
-
-    #[inline]
     pub fn cols(&self) -> usize {
-        self.shape.cols()
+        self.shape.dim_tail()
     }
 
     #[inline]
@@ -351,8 +332,8 @@ impl<T> Tensor<T> {
     }
 
     #[inline]
-    pub fn iter_slice(&self) -> slice::ChunksExact<T> {
-        let dim = self.dim_tail();
+    pub fn iter_row(&self) -> slice::ChunksExact<T> {
+        let dim = self.cols();
 
         if self.rank() > 1 {
             self.as_slice().chunks_exact(dim).into_iter()
@@ -419,7 +400,7 @@ impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
     }
 }
 
-fn fmt_tensor_rec<T:fmt::Debug>(
+fn fmt_tensor_rec<T: fmt::Debug>(
     tensor: &Tensor<T>, 
     f: &mut fmt::Formatter<'_>, 
     rank: usize,
@@ -476,6 +457,13 @@ fn fmt_tensor_rec<T:fmt::Debug>(
     }
 }
 
+impl<T: Dtype> From<()> for Tensor<T> {
+    // TODO: possible conflict with Tensors
+    fn from(_value: ()) -> Self {
+        Tensor::empty()
+    }
+}
+
 impl<T: Dtype> From<&Tensor<T>> for Tensor<T> {
     fn from(value: &Tensor<T>) -> Self {
         value.clone()
@@ -488,14 +476,9 @@ impl<T:Dtype> From<T> for Tensor<T> {
     }
 }
 
-impl<T: Dtype> From<()> for Tensor<T> {
-    // TODO: possible conflict with Tensors
-    fn from(_value: ()) -> Self {
-        Tensor::empty()
-    }
-}
+// vec conversions
 
-impl<T:Dtype> From<Vec<T>> for Tensor<T> {
+impl<T: Dtype> From<Vec<T>> for Tensor<T> {
     fn from(value: Vec<T>) -> Self {
         let len = value.len();
 
@@ -503,9 +486,57 @@ impl<T:Dtype> From<Vec<T>> for Tensor<T> {
     }
 }
 
-impl<T:Dtype, const N:usize> From<[T; N]> for Tensor<T> {
+impl<T: Dtype> From<&Vec<T>> for Tensor<T> {
+    fn from(value: &Vec<T>) -> Self {
+        let len = value.len();
+
+        unsafe {
+            let mut uninit = TensorUninit::<T>::new(value.len());
+
+            let o = uninit.as_mut_slice();
+            for (i, item) in value.iter().enumerate() {
+                o[i] = item.clone();
+            }
+
+            uninit.into_tensor(len)
+        }
+    }
+}
+
+impl<T: Dtype, const N: usize> From<Vec<[T; N]>> for Tensor<T> {
+    fn from(value: Vec<[T; N]>) -> Self {
+        let len = value.len();
+
+        let data = TensorData::<T>::from_vec_rows(value);
+        
+        Tensor::from_data(data, [len, N])
+    }
+}
+
+impl<T: Dtype, const N: usize> From<&Vec<[T; N]>> for Tensor<T> {
+    fn from(value: &Vec<[T; N]>) -> Self {
+        let len = value.len();
+        let size = len * N;
+
+        unsafe {
+            let mut uninit = TensorUninit::<T>::new(size);
+
+            let o = uninit.as_mut_slice();
+            for (j, row) in value.iter().enumerate() {
+                for (i,  item) in row.iter().enumerate() {
+                    o[j * N + i] = item.clone();
+                }
+            }
+
+            uninit.into_tensor([len, N])
+        }
+    }
+}
+
+// array conversions
+
+impl<T: Dtype, const N: usize> From<[T; N]> for Tensor<T> {
     fn from(value: [T; N]) -> Self {
-        // TODO: avoid copy
         let vec = Vec::<T>::from(value);
         let len = vec.len();
 
@@ -515,11 +546,39 @@ impl<T:Dtype, const N:usize> From<[T; N]> for Tensor<T> {
 
 impl<T: Dtype> From<&[T]> for Tensor<T> {
     fn from(value: &[T]) -> Self {
-        // TODO: avoid copy
-        let vec = Vec::<T>::from(value);
-        let len = vec.len();
+        let len = value.len();
+        let size = len;
 
-        Tensor::from_vec(vec, Shape::from(len))
+        unsafe {
+            let mut uninit = TensorUninit::<T>::new(size);
+
+            let o = uninit.as_mut_slice();
+            for (i, item) in value.iter().enumerate() {
+                o[i] = item.clone();
+            }
+
+            uninit.into_tensor([len])
+        }
+    }
+}
+
+impl<T: Dtype, const N: usize> From<&[[T; N]]> for Tensor<T> {
+    fn from(value: &[[T; N]]) -> Self {
+        let len = value.len();
+        let size = len * N;
+
+        unsafe {
+            let mut uninit = TensorUninit::<T>::new(size);
+
+            let o = uninit.as_mut_slice();
+            for (j, row) in value.iter().enumerate() {
+                for (i,  item) in row.iter().enumerate() {
+                    o[j * N + i] = item.clone();
+                }
+            }
+
+            uninit.into_tensor([len, N])
+        }
     }
 }
 
@@ -607,7 +666,7 @@ where
     }
 }
 
-impl<T:Dtype> FromIterator<T> for Tensor<T> {
+impl<T: Dtype> FromIterator<T> for Tensor<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let vec : Vec<T> = Vec::from_iter(iter);
         let len = vec.len();
@@ -616,13 +675,13 @@ impl<T:Dtype> FromIterator<T> for Tensor<T> {
     }
 }
 
-impl<T:Dtype + Copy + 'static> From<&Vec<Tensor<T>>> for Tensor<T> {
+impl<T: Dtype + Copy + 'static> From<&Vec<Tensor<T>>> for Tensor<T> {
     fn from(values: &Vec<Tensor<T>>) -> Self {
         Tensor::<T>::from(values.as_slice())
     }
 }
 
-impl<T:Dtype + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
+impl<T: Dtype + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
     fn from(values: &[Tensor<T>]) -> Self {
         let n = values.len();
         assert!(n > 0);
@@ -639,11 +698,12 @@ impl<T:Dtype + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
         unsafe {
             let mut data = TensorUninit::<T>::new(sublen * n);
 
+            let o = data.as_mut_slice();
             for j in 0..n {
                 let tensor = &values[j];
 
                 for (i, value) in tensor.as_slice().iter().enumerate() {
-                    data[j * sublen + i] = value.clone();
+                    o[j * sublen + i] = value.clone();
                 }
             }
 
@@ -652,7 +712,7 @@ impl<T:Dtype + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
     }
 }
 
-impl<T:Dtype + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<T> {
+impl<T: Dtype + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<T> {
     fn from(values: [Tensor<T>; N]) -> Self {
         let vec = Vec::from(values);
 
@@ -706,20 +766,64 @@ impl fmt::Debug for TensorId {
     }
 }
 
+pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {
+    #[inline]
+    fn node_op<Op>(args: &[&Tensor<Self>], op: &Op) -> TensorId
+    where
+        Op: GradOperation<Self> + Clone
+    {
+        TensorId::unset()
+        
+        // let node = NodeOp::new(&[&a, &b], binop.to_op());
+    }
+
+    fn set_tape(tensor: Tensor<Self>) -> Tensor<Self> {
+        tensor // Tape::set_tensor(tensor)
+    }
+
+}
+
 //trait Dtype : Copy {}
 impl Dtype for bool {}
+
 impl Dtype for u8 {}
-impl Dtype for i32 {}
+impl Dtype for u16 {}
 impl Dtype for u32 {}
+impl Dtype for u64 {}
 impl Dtype for usize {}
-impl Dtype for f32 {}
+
+impl Dtype for i8 {}
+impl Dtype for i16 {}
+impl Dtype for i32 {}
+impl Dtype for i64 {}
+impl Dtype for isize {}
+
 impl Dtype for String {}
+
+pub type C32 = Complex<f32>;
+pub type C64 = Complex<f64>;
+
+impl Dtype for C32 {}
+impl Dtype for C64 {}
+
+impl Dtype for f32 {
+    fn node_op<Op>(args: &[&Tensor<Self>], op: &Op) -> TensorId
+    where
+        Op: GradOperation<Self> + Clone
+    {
+        NodeOp::new(args, Box::new(op.clone()))
+    }
+
+    fn set_tape(tensor: Tensor<Self>) -> Tensor<Self> {
+        Tape::set_tensor(tensor)
+    }
+}
 
 #[cfg(test)]
 mod test {
     use tensor::Shape;
 
-    use crate::{tensor};
+    use crate::{tensor::{C32}, tc32, tensor};
 
     use super::{Tensor};
 
@@ -833,6 +937,138 @@ mod test {
         }
     }
 
+    //
+    // from vec 
+    //
+
+    #[test]
+    fn tensor_from_vec() {
+        let t0 = Tensor::from(vec![10, 11, 12]);
+        assert_eq!(t0.len(), 3);
+        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.as_slice(), &[10, 11, 12]);
+    }
+
+    #[test]
+    fn tensor_from_vec_ref() {
+        let t0 = Tensor::from(&vec![10, 11, 12]);
+        assert_eq!(t0.len(), 3);
+        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.as_slice(), &[10, 11, 12]);
+    }
+
+    #[test]
+    fn tensor_from_vec_rows() {
+        let t0 = Tensor::from(vec![[10, 20, 30], [11, 21, 31]]);
+
+        assert_eq!(t0.len(), 6);
+        assert_eq!(t0.cols(), 3);
+        assert_eq!(t0.rows(), 2);
+        assert_eq!(t0.shape().as_slice(), &[2, 3]);
+        assert_eq!(t0.as_slice(), &[10, 20, 30, 11, 21, 31]);
+    }
+
+    #[test]
+    fn tensor_from_vec_rows_ref() {
+        let t0 = Tensor::from(&vec![[10, 20, 30], [11, 21, 31]]);
+
+        assert_eq!(t0.len(), 6);
+        assert_eq!(t0.cols(), 3);
+        assert_eq!(t0.rows(), 2);
+        assert_eq!(t0.shape().as_slice(), &[2, 3]);
+        assert_eq!(t0.as_slice(), &[10, 20, 30, 11, 21, 31]);
+    }
+
+    //
+    // slices (arrays)
+    //
+
+    // Array: [Dtype]
+    #[test]
+    fn tensor_from_array_1d() {
+        let t0 = Tensor::from([10, 11, 12]);
+        assert_eq!(t0.len(), 3);
+        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.as_slice(), &[10, 11, 12]);
+    }
+
+    // Array: &[Dtype]
+    #[test]
+    fn tensor_from_array_1d_ref() {
+        let t0 = Tensor::from(vec![10, 11, 12].as_slice());
+        assert_eq!(t0.len(), 3);
+        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.as_slice(), &[10, 11, 12]);
+    }
+
+    // Array: [[Dtype; N]]
+    #[test]
+    fn tensor_from_array_2d() {
+        let t0 = Tensor::from([[10, 11], [110, 111], [210, 211]]);
+        assert_eq!(t0.len(), 6);
+        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.as_slice(), &[10, 11, 110, 111, 210, 211]);
+    }
+
+    // Array: &[[Dtype; N]]
+    #[test]
+    fn tensor_from_array_2d_ref() {
+        let vec = vec![
+            [10, 11], [110, 111], [210, 211]
+        ];
+
+        let t0 = Tensor::from(vec.as_slice());
+
+        assert_eq!(t0.len(), 6);
+        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.as_slice(), &[10, 11, 110, 111, 210, 211]);
+    }
+
+    // complex
+
+    #[test]
+    fn c32_from_macro_scalar() {
+        let t0 = tc32!(1., 10.);
+        
+        assert_eq!(t0.len(), 1);
+        assert_eq!(t0.shape().as_slice(), &[]);
+        assert_eq!(t0.as_slice(), &[C32 { re: 1., im: 10. }]);
+    }
+
+    #[test]
+    fn c32_from_macro_vec() {
+        let t0 = tc32!([(100., 10.), (101., 11.), (102., 12.)]);
+        
+        assert_eq!(t0.len(), 3);
+        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.as_slice(), &[
+            C32 { re: 100., im: 10. },
+            C32 { re: 101., im: 11. },
+            C32 { re: 102., im: 12. },
+        ]);
+    }
+
+    #[test]
+    fn c32_from_macro_mat() {
+        let t0 = tc32!([
+            [(100., 10.), (101., 11.)],
+            [(200., 20.), (201., 21.)],
+            [(300., 30.), (301., 31.)],
+        ]);
+        
+        assert_eq!(t0.len(), 6);
+        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.as_slice(), &[
+            C32 { re: 100., im: 10. },  C32 { re: 101., im: 11. },
+            C32 { re: 200., im: 20. },  C32 { re: 201., im: 21. },
+            C32 { re: 300., im: 30. },  C32 { re: 301., im: 31. }
+        ]);
+    }
+
+    //
+    // concatenating tensors
+    //
+
     #[test]
     fn tensor_from_tensor_slice() {
         let t0 = Tensor::from([tensor!(2.), tensor!(1.), tensor!(3.)]);
@@ -937,11 +1173,11 @@ mod test {
 
     #[test]
     fn tensor_iter_slice() {
-        let vec : Vec<Vec<u32>> = tensor!([1, 2, 3, 4]).iter_slice().map(|v| Vec::from(v)).collect();
+        let vec : Vec<Vec<u32>> = tensor!([1, 2, 3, 4]).iter_row().map(|v| Vec::from(v)).collect();
         let vec2 : Vec<Vec<u32>> = vec!(vec!(1), vec!(2), vec!(3), vec!(4));
         assert_eq!(vec, vec2);
 
-        let vec : Vec<Vec<u32>> = tensor!([[1, 2], [3, 4]]).iter_slice().map(|v| Vec::from(v)).collect();
+        let vec : Vec<Vec<u32>> = tensor!([[1, 2], [3, 4]]).iter_row().map(|v| Vec::from(v)).collect();
         let vec2 : Vec<Vec<u32>> = vec!(vec![1, 2], vec![3, 4]);
         assert_eq!(vec, vec2);
     }

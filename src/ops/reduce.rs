@@ -4,7 +4,7 @@ use std::{any::type_name, marker::PhantomData};
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, 
-    model::{NodeOp, Tape, Operation, IntoForward, Expr, expr::GradientOp}, prelude::Shape
+    model::{NodeOp, Tape, Operation, IntoForward, Expr, expr::{GradientOp, GradOperation}}, prelude::Shape
 };
 
 pub trait ReduceKernel<S: State, D: Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -28,7 +28,7 @@ where
         marker: PhantomData,
     };
 
-    let node = NodeOp::new(&[&a], reduce_op.to_op());
+    let node = NodeOp::new(&[&a], Box::new(reduce_op.clone()));
 
     let tensor = reduce_op.f(&[&a], node);
 
@@ -87,7 +87,7 @@ impl<Op: ReduceKernel<S>, S: State> ReduceCpu<Op, S> {
     }
 }
 
-impl<Op, S> Operation for ReduceCpu<Op, S> 
+impl<Op, S> Operation<f32> for ReduceCpu<Op, S> 
 where
     Op: ReduceKernel<S>,
     S: State<Value=f32>
@@ -132,7 +132,13 @@ where
             Tensor::from_uninit_with_id(o_data, o_shape, node)
         }
     }
+}
 
+impl<Op, S> GradOperation<f32> for ReduceCpu<Op, S> 
+where
+    Op: ReduceKernel<S>,
+    S: State<Value=f32>
+{
     fn df(
         &self,
         _forward: &Expr,

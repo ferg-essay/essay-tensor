@@ -31,11 +31,13 @@ pub fn stack(x: &[Tensor], axis: impl Into<AxisOpt>) -> Tensor {
 
     let x_ptr : Vec<&Tensor> = x.iter().collect();
 
-    let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
+    //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
+    let id = TensorId::unset();
 
-    let tensor = op.f(x_ptr.as_slice(), node);
+    let tensor = op.f(x_ptr.as_slice(), id);
 
-    Tape::set_tensor(tensor)
+    // Tape::set_tensor(tensor)
+    tensor
 }
 
 impl Tensor {
@@ -59,7 +61,7 @@ impl StackOp {
     }
 }
 
-impl Operation for StackOp {
+impl Operation<f32> for StackOp {
     fn f(
         &self,
         args: &[&Tensor],
@@ -98,17 +100,6 @@ impl Operation for StackOp {
     
             Tensor::from_uninit_with_id(out, vec, id)
         }
-    }
-
-    fn df(
-        &self,
-        _forward: &Expr,
-        _back: &mut Expr,
-        _i: usize,
-        _args: &[TensorId],
-        _prev: TensorId,
-    ) -> TensorId {
-        todo!()
     }
 }
 

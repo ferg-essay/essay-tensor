@@ -9,11 +9,11 @@ pub fn fill<D:Dtype + Copy>(fill: D, shape: impl Into<Shape>) -> Tensor<D> {
     unsafe {
         let mut data = TensorUninit::<D>::new(len);
 
-        for i in 0..len {
-            data[i] = fill;
+        for value in data.as_mut_slice() {
+            *value = fill;
         }
 
-        Tensor::from_uninit(data, shape)
+        data.into_tensor(shape)
     }
 }
 

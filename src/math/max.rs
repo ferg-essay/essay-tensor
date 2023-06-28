@@ -5,8 +5,8 @@ pub struct Max;
 
 impl BinaryKernel for Max {
     #[inline]
-    fn f(&self, x: f32, y: f32) -> f32 {
-        x.max(y)
+    fn f(&self, x: &f32, y: &f32) -> f32 {
+        x.max(*y)
     }
 
     #[inline]

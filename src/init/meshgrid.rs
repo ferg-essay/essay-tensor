@@ -1,5 +1,7 @@
 use crate::{Tensor, tensor::TensorUninit, prelude::Shape};
 
+use super::linspace;
+
 #[derive(Debug, PartialEq)]
 pub enum Order {
     XY,
@@ -19,6 +21,13 @@ pub fn meshgrid_ij<M: Meshgrid>(axes: M) -> M::Item {
     let vec = axes.build_meshgrid(Order::IJ);
 
     M::to_output(&vec)
+}
+
+pub fn mgrid<const M: usize, const N: usize>() -> [Tensor; 2] {
+    meshgrid([
+        linspace(0., M as f32 - 1., M), 
+        linspace(0., N as f32 - 1., N)
+    ])
 }
 
 fn build_meshgrid(axes: &[&Tensor], order: Order) -> Vec<Tensor> {
@@ -129,7 +138,7 @@ macro_rules! mesh_array {
     }
 }
 
-mesh_array!(0, );
+// mesh_array!(0, );
 mesh_array!(1, 0);
 mesh_array!(2, 0, 1);
 mesh_array!(3, 0, 1, 2);

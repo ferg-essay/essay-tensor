@@ -5,8 +5,8 @@ pub struct Log;
 
 impl BinaryKernel for Log {
     #[inline]
-    fn f(&self, x: f32, y: f32) -> f32 {
-        x.log(y)
+    fn f(&self, x: &f32, y: &f32) -> f32 {
+        x.log(*y)
     }
 
     #[inline]

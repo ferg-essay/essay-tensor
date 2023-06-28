@@ -2,7 +2,7 @@ mod data;
 mod index;
 mod slice;
 mod shape;
-mod stack;
+mod concat;
 mod tensor;
 mod tensor_vec;
 
@@ -15,12 +15,12 @@ pub use shape::{
     squeeze,
 };
 
-pub use stack::{
+pub use concat::{
     stack,
 };
 
 pub use tensor::{
-    Dtype, Tensor, TensorId, 
+    Dtype, Tensor, TensorId, C32, C64
 };
 
 pub use tensor_vec::{

@@ -82,7 +82,11 @@ impl Expr {
         tensor
     }
 
-    pub(crate) fn op(&mut self, op: Box<dyn Operation>, node_args: Vec<TensorId>) -> TensorId {
+    pub(crate) fn op(
+        &mut self, 
+        op: Box<dyn GradOperation<f32>>, 
+        node_args: Vec<TensorId>
+    ) -> TensorId {
         let id = self.alloc_id();
         self.set_node(id, NodeOp::Op(id, op, node_args));
         id
@@ -232,17 +236,30 @@ impl fmt::Debug for NodeOp {
     }
 }
 
-pub trait Operation : Send + Sync + 'static {
+pub trait Operation<D> : Send + Sync + 'static {
     fn name(&self) -> &str {
         type_name::<Self>()
     }
 
     fn f(
         &self,
-        args: &[&Tensor],
+        args: &[&Tensor<D>],
         id: TensorId,
-    ) -> Tensor;
+    ) -> Tensor<D>;
 
+    /*
+    fn df(
+        &self,
+        forward: &Expr,
+        back: &mut Expr,
+        i: usize,
+        args: &[TensorId],
+        prev: TensorId,
+    ) -> TensorId;
+    */
+}
+
+pub trait GradOperation<D> : Operation<D> {
     fn df(
         &self,
         forward: &Expr,
@@ -264,7 +281,7 @@ pub trait EvalOp : Send + Sync + 'static {
     ) -> Tensor;
 }
 
-pub type BoxForwardOp = Box<dyn Operation>;
+pub type BoxForwardOp = Box<dyn GradOperation<f32>>;
 
 pub trait GradientOp : Send + Sync + 'static {
     fn name(&self) -> &str;
