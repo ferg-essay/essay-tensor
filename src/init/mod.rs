@@ -1,5 +1,6 @@
-mod eye;
 mod arange;
+mod diag;
+mod eye;
 mod fill;
 mod geomspace;
 mod initializer;
@@ -19,6 +20,10 @@ pub use fill::fill;
 
 pub use arange::{
     arange,
+};
+
+pub use diag::{
+    diagflat,
 };
 
 pub use eye::{
