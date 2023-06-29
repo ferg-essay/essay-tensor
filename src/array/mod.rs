@@ -1,4 +1,5 @@
 mod axis;
+mod expand_dims;
 mod flatten;
 mod reshape;
 mod stack;
@@ -7,6 +8,10 @@ mod transpose;
 
 pub use axis::{
     Axis, AxisOpt,
+};
+
+pub use expand_dims::{
+    expand_dims
 };
 
 pub use flatten::{

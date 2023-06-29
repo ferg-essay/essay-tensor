@@ -156,7 +156,9 @@ impl<T> Tensor<T> {
 
     pub(crate) fn clone_with_shape(&self, shape: impl Into<Shape>, id: TensorId) -> Tensor<T> {
         let shape = shape.into();
-        assert_eq!(shape.size(), self.len());
+        assert_eq!(shape.size(), self.len(), "shape size must match {:?} new={:?}", 
+            self.shape().as_slice(), shape.as_slice()
+        );
 
         Self { 
             id, 
