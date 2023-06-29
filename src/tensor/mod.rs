@@ -14,7 +14,7 @@ pub use shape::{
 };
 
 pub use tensor::{
-    Dtype, Tensor, TensorId, C32, C64
+    Dtype, Tensor, TensorId, IntoTensorList, C32, C64
 };
 
 pub use tensor_vec::{

@@ -6,6 +6,7 @@ mod reshape;
 mod stack;
 mod squeeze;
 mod transpose;
+mod vstack;
 
 pub use axis::{
     Axis, AxisOpt,
@@ -37,4 +38,8 @@ pub use squeeze::{
 
 pub use transpose::{
     transpose,
+};
+
+pub use vstack::{
+    vstack,
 };

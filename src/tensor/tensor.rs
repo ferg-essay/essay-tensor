@@ -718,6 +718,62 @@ impl<T: Dtype + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<
     }
 }
 
+pub trait IntoTensorList<D: Dtype> {
+    fn into_list(self, vec: &mut Vec<Tensor<D>>);
+}
+
+impl<D: Dtype> IntoTensorList<D> for Vec<Tensor<D>> {
+    fn into_list(self, vec: &mut Vec<Tensor<D>>) {
+        let mut this = self;
+
+        vec.append(&mut this)
+    }
+}
+
+impl<D: Dtype> IntoTensorList<D> for &[Tensor<D>] {
+    fn into_list(self, vec: &mut Vec<Tensor<D>>) {
+        let mut vec2 = Vec::from(self);
+        vec.append(&mut vec2);
+    }
+}
+
+impl<D: Dtype, const N: usize> IntoTensorList<D> for [Tensor<D>; N] {
+    fn into_list(self, vec: &mut Vec<Tensor<D>>) {
+        let mut vec2 = Vec::from(self);
+        vec.append(&mut vec2);
+    }
+}
+
+macro_rules! tensor_list {
+    ($($id:ident),*) => {
+        #[allow(non_snake_case)]
+        impl<D: Dtype, $($id),*> IntoTensorList<D> for ($($id,)*) 
+        where $(
+            $id: Into<Tensor<D>>
+        ),*
+        {
+            fn into_list(self, vec: &mut Vec<Tensor<D>>) {
+                let ($($id,)*) = self;
+
+                $(
+                    vec.push($id.into())
+                );*
+            }
+        }
+    }
+}
+
+tensor_list!(P0);
+tensor_list!(P0, P1);
+tensor_list!(P0, P1, P2);
+tensor_list!(P0, P1, P2, P3);
+tensor_list!(P0, P1, P2, P3, P4);
+tensor_list!(P0, P1, P2, P3, P4, P5);
+tensor_list!(P0, P1, P2, P3, P4, P5, P6);
+tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7);
+tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8);
+tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TensorId(u32, u32);
 
