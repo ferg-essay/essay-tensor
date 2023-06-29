@@ -3,6 +3,7 @@ mod concat;
 mod expand_dims;
 mod flatten;
 mod reshape;
+mod hstack;
 mod stack;
 mod squeeze;
 mod transpose;
@@ -42,4 +43,8 @@ pub use transpose::{
 
 pub use vstack::{
     vstack,
+};
+
+pub use hstack::{
+    hstack,
 };
