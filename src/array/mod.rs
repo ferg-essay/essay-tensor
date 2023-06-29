@@ -3,6 +3,7 @@ mod flatten;
 mod reshape;
 mod stack;
 mod squeeze;
+mod transpose;
 
 pub use axis::{
     Axis, AxisOpt,
@@ -22,4 +23,8 @@ pub use stack::{
 
 pub use squeeze::{
     squeeze,
+};
+
+pub use transpose::{
+    transpose,
 };
