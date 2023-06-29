@@ -1,5 +1,7 @@
 use crate::{model::{Operation}, Tensor, prelude::{AxisOpt, Shape}, tensor::{TensorId, TensorUninit}};
 
+use super::axis::axis_from_rank;
+
 //
 // stack operation
 //
@@ -95,13 +97,6 @@ impl Operation<f32> for StackOp {
     
             Tensor::from_uninit_with_id(out, vec, id)
         }
-    }
-}
-
-fn axis_from_rank(axis: &Option<isize>, rank: usize) -> usize {
-    match axis {
-        Some(axis) => (axis + rank as isize) as usize % rank,
-        None => 0,
     }
 }
 

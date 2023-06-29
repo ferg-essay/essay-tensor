@@ -145,20 +145,6 @@ impl Shape {
         }
     }
 
-    pub fn insert(&self, dim: usize) -> Self {
-        let mut dims = self.dims.clone();
-
-        dims.insert(0, dim);
-
-        Self {
-            dims
-        }
-    }
-
-    pub(crate) fn extend_dims(&self, units: usize) -> Shape {
-        self.insert(units)
-    }
-
     #[inline]
     pub fn sublen<I>(&self, range: I) -> usize
     where
@@ -183,6 +169,63 @@ impl Shape {
         Self {
             dims: Vec::from(&self.dims[range])
         }
+    }
+
+    #[inline]
+    pub fn expand_dims(&self, axis: isize) -> Self {
+        let mut vec = Vec::from(self.as_slice());
+
+        let index = if axis >= 0  { axis } else { vec.len() as isize + axis + 1 } as usize;
+        assert!(index <= vec.len(), "expand_dims axis is invalid {} in {:?}", axis, self.as_slice());
+
+        vec.insert(index, 1);
+
+        Self::from(vec)
+    }
+
+    pub fn squeeze(&self, axis: &Option<isize>) -> Self {
+        let mut vec = Vec::<usize>::new();
+        match axis {
+            None => {
+                for dim in self.as_slice() {
+                    if *dim != 1 {
+                        vec.push(*dim)
+                    }
+                }
+            },
+            Some(axis) => {
+                let len = self.as_slice().len();
+                let axis = (axis + len as isize) % len as isize;
+                let axis = axis as usize;
+                
+                let mut vec = Vec::<usize>::new();
+                for (i, dim) in self.as_slice().iter().enumerate() {
+                    if i != axis || *dim != 1 {
+                        vec.push(*dim)
+                    }
+                }
+            }
+        };
+
+        Self::from(vec)
+    }
+
+    pub fn pop(&self) -> Shape {
+        let mut vec = self.dims.clone();
+        vec.pop();
+        Self::from(vec)
+    }
+
+    pub fn remove(&self, axis: usize) -> Shape {
+        let mut vec = self.dims.clone();
+        vec.remove(axis);
+        Self::from(vec)
+    }
+
+    pub fn insert(&self, axis: usize, len: usize) -> Shape {
+        let mut vec = self.dims.clone();
+        vec.insert(axis, len);
+        Self::from(vec)
     }
 }
 

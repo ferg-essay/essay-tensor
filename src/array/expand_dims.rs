@@ -41,15 +41,11 @@ impl<D: Dtype> Operation<D> for ExpandDims {
     ) -> Tensor<D> {
         let tensor = args[0];
 
-        let mut vec = Vec::from(tensor.shape().as_slice());
         let axis = self.axis();
 
-        let index = if axis >= 0  { axis } else { vec.len() as isize + axis + 1 } as usize;
-        assert!(index <= vec.len(), "expand_dims axis is invalid {} in {:?}", axis, tensor.shape().as_slice());
+        let shape = tensor.shape().expand_dims(axis);
 
-        vec.insert(index, 1);
-
-        tensor.clone_with_shape(vec, id)
+        tensor.clone_with_shape(shape, id)
     }
 }
 

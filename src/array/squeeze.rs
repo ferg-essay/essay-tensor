@@ -41,30 +41,9 @@ impl<D: Dtype> Operation<D> for SqueezeOp {
     ) -> Tensor<D> {
         let tensor = args[0];
 
-        let shape_slice = tensor.shape().as_slice();
-        let mut vec = Vec::<usize>::new();
-        match self.axis() {
-            None => {
-                for dim in shape_slice {
-                    if *dim != 1 {
-                        vec.push(*dim)
-                    }
-                }
-            },
-            Some(axis) => {
-                let axis = (axis + shape_slice.len() as isize) % shape_slice.len() as isize;
-                let axis = axis as usize;
-                
-                let mut vec = Vec::<usize>::new();
-                for (i, dim) in shape_slice.iter().enumerate() {
-                    if i != axis || *dim != 1 {
-                        vec.push(*dim)
-                    }
-                }
-            }
-        };
+        let shape = tensor.shape().squeeze(self.axis());
 
-        tensor.clone_with_shape(vec, id)
+        tensor.clone_with_shape(shape, id)
     }
 }
 
