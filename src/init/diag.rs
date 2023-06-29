@@ -32,7 +32,7 @@ impl Tensor {
 
 #[cfg(test)]
 mod test {
-    use crate::{init::diagflat, tf32, Tensor};
+    use crate::{init::diagflat, tf32};
 
     #[test]
     fn test_diagflat() {

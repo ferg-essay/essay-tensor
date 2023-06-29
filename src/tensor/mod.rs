@@ -2,7 +2,6 @@ mod data;
 mod index;
 mod slice;
 mod shape;
-mod concat;
 mod tensor;
 mod tensor_vec;
 
@@ -11,12 +10,7 @@ pub use data::{
 };
 
 pub use shape::{
-    Shape, AxisOpt, Axis,
-    squeeze,
-};
-
-pub use concat::{
-    stack,
+    Shape, 
 };
 
 pub use tensor::{

@@ -3,7 +3,7 @@ use std::{any::type_name, sync::Arc, ops::{Deref}, slice};
 
 use num_complex::Complex;
 
-use crate::model::{Operation, NodeOp, BoxForwardOp, Tape, expr::GradOperation};
+use crate::model::{NodeOp, Tape, expr::GradOperation};
 
 use super::{data::TensorData, TensorUninit, slice::TensorSlice, Shape};
 
@@ -227,15 +227,17 @@ impl<T> Tensor<T> {
         self.shape.broadcast_min(a_min, b.shape(), b_min)
     }
 
-    pub fn reshape(&self, shape: impl Into<Shape>) -> Tensor<T> {
+    pub(crate) fn reshape_impl(
+        &self, 
+        shape: impl Into<Shape>,
+        id: TensorId,
+    ) -> Self {
         let shape = shape.into();
 
         assert_eq!(self.len(), shape.size());
 
-        // TODO: reshape should probably have Op
-
         Tensor {
-            id: self.id,
+            id,
 
             shape,
             offset: self.offset,
@@ -244,12 +246,6 @@ impl<T> Tensor<T> {
             data: self.data.clone(),
         }
     }
-    /*
-    #[inline]
-    pub fn data(&self) -> &Arc<TensorData> {
-        &self.data
-    }
-    */
 
     #[inline]
     pub fn get(&self, offset: usize) -> Option<&T> {
@@ -768,7 +764,7 @@ impl fmt::Debug for TensorId {
 
 pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {
     #[inline]
-    fn node_op<Op>(args: &[&Tensor<Self>], op: &Op) -> TensorId
+    fn node_op<Op>(_args: &[&Tensor<Self>], _op: &Op) -> TensorId
     where
         Op: GradOperation<Self> + Clone
     {

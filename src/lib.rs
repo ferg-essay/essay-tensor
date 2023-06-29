@@ -1,3 +1,4 @@
+pub mod array;
 pub mod signal;
 pub mod io;
 pub mod flow;
@@ -19,7 +20,10 @@ pub use tensor::Tensor;
 pub mod prelude {
     pub use crate::{tensor, tf32};
     pub use crate::tensor::{
-        Shape, AxisOpt
+        Shape, 
+    };
+    pub use crate::array::{
+        AxisOpt, 
     };
     pub use crate::Tensor;
     pub use crate::model::{

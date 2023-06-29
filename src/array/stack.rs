@@ -1,9 +1,4 @@
-use std::{slice::SliceIndex, cmp, ops::Index};
-
-use crate::{model::{Operation, Expr, NodeOp, Tape}, Tensor};
-
-use super::{TensorId, TensorUninit, AxisOpt, Shape};
-
+use crate::{model::{Operation}, Tensor, prelude::{AxisOpt, Shape}, tensor::{TensorId, TensorUninit}};
 
 //
 // stack operation
@@ -69,7 +64,7 @@ impl Operation<f32> for StackOp {
     ) -> Tensor {
         let shape = args[0].shape();
 
-        let axis = axis_from_rank(self.0, shape.rank() + 1);
+        let axis = axis_from_rank(self.axis(), shape.rank() + 1);
 
         let n_args = args.len();
         let x_len = shape.size();
@@ -103,7 +98,7 @@ impl Operation<f32> for StackOp {
     }
 }
 
-fn axis_from_rank(axis: Option<isize>, rank: usize) -> usize {
+fn axis_from_rank(axis: &Option<isize>, rank: usize) -> usize {
     match axis {
         Some(axis) => (axis + rank as isize) as usize % rank,
         None => 0,
@@ -112,7 +107,7 @@ fn axis_from_rank(axis: Option<isize>, rank: usize) -> usize {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, tensor::{stack, shape::Axis}};
+    use crate::{prelude::*, array::{stack, Axis}};
     
     #[test]
     fn test_stack() {
