@@ -4,6 +4,7 @@ mod expand_dims;
 mod flatten;
 mod reshape;
 mod hstack;
+mod dstack;
 mod stack;
 mod squeeze;
 mod transpose;
@@ -47,4 +48,8 @@ pub use vstack::{
 
 pub use hstack::{
     hstack,
+};
+
+pub use dstack::{
+    dstack,
 };

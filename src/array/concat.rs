@@ -85,14 +85,31 @@ pub(crate) fn concat_impl<D: Dtype + Clone>(
 
         let mut o = out.as_mut_ptr();
 
-        for x in args.iter() {
-            let x = x.as_slice();
+        let n_outer = shape_inner.sublen(0..axis);
+        let n_inner = if axis < shape_inner.rank() {
+            shape_inner.sublen(axis..)
+        } else {
+            1
+        };
 
-            for i in 0..x.len() {
-                *o.add(i) = x[i].clone();
+        let j_stride = n_inner * axis_len;
+        let mut t = 0;
+
+        for tensor in args.iter() {
+            let n_axis = tensor.shape().dim(axis);
+
+            let x = tensor.as_slice();
+
+            for j in 0..n_outer {
+                for k in 0..n_axis {
+                    for i in 0..n_inner {
+                        *o.add(j * j_stride + t + k * n_inner + i)
+                            = x[j * n_axis * n_inner + k * n_inner + i].clone();
+                    }
+                }
             }
 
-            o = o.add(x.len());
+            t += n_axis * n_inner;
         }
 
         let shape = shape_inner.insert(axis, axis_len);
@@ -168,6 +185,13 @@ mod test {
         ), ()), tf32!([
             [1., 2.], [10., 20.], [30., 40.],
         ]));
+
+        assert_eq!(concatenate((
+            tf32!([[[1., 2.]]]),
+            tf32!([[[10., 20.]], [[30., 40.]]])
+        ), ()), tf32!([
+            [[1., 2.]], [[10., 20.]], [[30., 40.]],
+        ]));
     }
     
     #[test]
@@ -198,6 +222,13 @@ mod test {
             tf32!([[10., 20.]])
         ), Axis::axis(1)), tf32!([
             [1., 2., 10., 20.],
+        ]));
+
+        assert_eq!(concatenate((
+            tf32!([[1., 2.], [3., 4.]]),
+            tf32!([[10.], [20.]])
+        ), Axis::axis(1)), tf32!([
+            [1., 2., 10.], [3., 4., 20.],
         ]));
     }
 }

@@ -1,16 +1,26 @@
-use crate::{model::{Operation}, Tensor, prelude::{AxisOpt, Shape}, tensor::{TensorId, TensorUninit}};
+use crate::{model::{Operation}, Tensor, prelude::{AxisOpt, Shape}, tensor::{TensorId, TensorUninit, Dtype, IntoTensorList}};
 
 use super::axis::axis_from_rank;
 
-//
-// stack operation
-//
+pub fn stack<D>(x: impl IntoTensorList<D>, axis: impl Into<AxisOpt>) -> Tensor<D>
+where
+    D: Dtype + Clone
+{
+    let mut vec = Vec::<Tensor<D>>::new();
 
-pub fn stack(x: &[Tensor], axis: impl Into<AxisOpt>) -> Tensor {
+    x.into_list(&mut vec);
+
+    stack_vec(vec, axis)
+}
+
+pub fn stack_vec<D>(x: Vec<Tensor<D>>, axis: impl Into<AxisOpt>) -> Tensor<D>
+where
+    D: Dtype + Clone
+{
     let axis: AxisOpt = axis.into();
 
     let mut shape : Option<Shape> = None;
-    for x in x {
+    for x in &x {
         shape = match shape {
             None => Some(x.shape().clone()),
             Some(shape) => { 
@@ -19,14 +29,12 @@ pub fn stack(x: &[Tensor], axis: impl Into<AxisOpt>) -> Tensor {
             }
         }
     }
-    let shape = shape.unwrap();
-
     // TODO: issues with batch and initial size not matching
     let axis = axis.get_axis();
 
     let op = StackOp(axis);
 
-    let x_ptr : Vec<&Tensor> = x.iter().collect();
+    let x_ptr : Vec<&Tensor<D>> = x.iter().collect();
 
     //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
     let id = TensorId::unset();
@@ -37,15 +45,14 @@ pub fn stack(x: &[Tensor], axis: impl Into<AxisOpt>) -> Tensor {
     tensor
 }
 
-impl Tensor {
-    pub fn stack(&self, others: &[Tensor], axis: impl Into<AxisOpt>) -> Tensor {
-        let mut vec = Vec::<Tensor>::new();
+impl<D: Dtype + Clone> Tensor<D> {
+    pub fn stack(&self, others: impl IntoTensorList<D>, axis: impl Into<AxisOpt>) -> Tensor<D> {
+        let mut vec = Vec::<Tensor<D>>::new();
         vec.push(self.clone());
-        for x in others {
-            vec.push(x.clone());
-        }
 
-        stack(&vec, axis)
+        others.into_list(&mut vec);
+
+        stack_vec(vec, axis)
     }
 }
 
@@ -58,12 +65,12 @@ impl StackOp {
     }
 }
 
-impl Operation<f32> for StackOp {
+impl<D: Dtype + Clone> Operation<D> for StackOp {
     fn f(
         &self,
-        args: &[&Tensor],
+        args: &[&Tensor<D>],
         id: TensorId,
-    ) -> Tensor {
+    ) -> Tensor<D> {
         let shape = args[0].shape();
 
         let axis = axis_from_rank(self.axis(), shape.rank() + 1);
@@ -76,7 +83,7 @@ impl Operation<f32> for StackOp {
         let o_len = args.iter().map(|t| t.len()).sum();
 
         unsafe {
-            let mut out = TensorUninit::<f32>::new(o_len);
+            let mut out = TensorUninit::<D>::new(o_len);
 
             let o = out.as_mut_slice();
 
@@ -87,7 +94,7 @@ impl Operation<f32> for StackOp {
 
                 for k in 0..n_outer {
                     for i in 0..n_inner {
-                        o[(k * n_args + j) * n_inner + i] = x[k * n_inner + i];
+                        o[(k * n_args + j) * n_inner + i] = x[k * n_inner + i].clone();
                     }
                 }
             }
@@ -95,7 +102,7 @@ impl Operation<f32> for StackOp {
             let mut vec = Vec::from(args[0].shape().as_slice());
             vec.insert(axis, args.len());
     
-            Tensor::from_uninit_with_id(out, vec, id)
+            out.into_tensor_with_id(vec, id)
         }
     }
 }
@@ -106,7 +113,7 @@ mod test {
     
     #[test]
     fn test_stack() {
-        assert_eq!(stack(&vec![
+        assert_eq!(stack(vec![
             tf32!([1.]),
             tf32!([10.])
         ], ()), tf32!([
@@ -114,7 +121,7 @@ mod test {
             [10.]
         ]));
 
-        assert_eq!(stack(&vec![
+        assert_eq!(stack(vec![
             tf32!([1., 2., 3., 4.]),
             tf32!([10., 20., 30., 40.])
         ], ()), tf32!([
@@ -125,14 +132,14 @@ mod test {
     
     #[test]
     fn test_stack_axis() {
-        assert_eq!(stack(&vec![
+        assert_eq!(stack(vec![
             tf32!([1.]),
             tf32!([10.])
         ], Axis::axis(-1)), tf32!([
             [1., 10.], 
         ]));
 
-        assert_eq!(stack(&vec![
+        assert_eq!(stack(vec![
             tf32!([1., 2., 3., 4.]),
             tf32!([10., 20., 30., 40.])
         ], Axis::axis(-1)), tf32!([
