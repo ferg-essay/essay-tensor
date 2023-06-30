@@ -40,7 +40,7 @@ pub use reshape::{
 };
 
 pub use split::{
-    split,
+    split, vsplit, hsplit, dsplit,
 };
 
 pub use stack::{
