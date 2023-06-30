@@ -8,6 +8,7 @@ mod dstack;
 mod split;
 mod stack;
 mod squeeze;
+mod tile;
 mod transpose;
 mod vstack;
 
@@ -49,6 +50,10 @@ pub use stack::{
 
 pub use squeeze::{
     squeeze,
+};
+
+pub use tile::{
+    tile,
 };
 
 pub use transpose::{

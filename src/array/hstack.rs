@@ -57,7 +57,6 @@ impl<D: Dtype + Clone> Operation<D> for HstackOp {
             concat_impl(args, 0, id)
         } else {
             concat_impl(args, 1, id)
-
         }
     }
 }
