@@ -5,6 +5,7 @@ mod flatten;
 mod reshape;
 mod hstack;
 mod dstack;
+mod split;
 mod stack;
 mod squeeze;
 mod transpose;
@@ -18,6 +19,10 @@ pub use concat::{
     concatenate,
 };
 
+pub use dstack::{
+    dstack,
+};
+
 pub use expand_dims::{
     expand_dims
 };
@@ -26,8 +31,16 @@ pub use flatten::{
     flatten
 };
 
+pub use hstack::{
+    hstack,
+};
+
 pub use reshape::{
     reshape,
+};
+
+pub use split::{
+    split,
 };
 
 pub use stack::{
@@ -44,12 +57,4 @@ pub use transpose::{
 
 pub use vstack::{
     vstack,
-};
-
-pub use hstack::{
-    hstack,
-};
-
-pub use dstack::{
-    dstack,
 };

@@ -1,4 +1,4 @@
-use crate::{model::{Operation}, Tensor, prelude::{AxisOpt, Shape}, tensor::{TensorId, TensorUninit, Dtype, IntoTensorList}};
+use crate::{model::{Operation}, Tensor, prelude::{AxisOpt}, tensor::{TensorId, TensorUninit, Dtype, IntoTensorList}};
 
 pub fn concatenate<D>(x: impl IntoTensorList<D>, axis: impl Into<AxisOpt>) -> Tensor<D>
 where
@@ -83,7 +83,7 @@ pub(crate) fn concat_impl<D: Dtype + Clone>(
     unsafe {
         let mut out = TensorUninit::<D>::new(o_len);
 
-        let mut o = out.as_mut_ptr();
+        let o = out.as_mut_ptr();
 
         let n_outer = shape_inner.sublen(0..axis);
         let n_inner = if axis < shape_inner.rank() {
@@ -156,7 +156,7 @@ fn axis_from_rank(axis: &Option<isize>, rank: usize) -> usize {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{stack, Axis, concatenate}};
+    use crate::{prelude::*, array::{Axis, concatenate}};
     
     #[test]
     fn test_concat() {

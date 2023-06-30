@@ -51,7 +51,7 @@ impl<D: Dtype> Operation<D> for ExpandDims {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{squeeze, Axis, expand_dims}};
+    use crate::{prelude::*, array::{expand_dims}};
     
     #[test]
     fn test_expand_dims() {

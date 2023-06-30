@@ -14,8 +14,8 @@ pub fn flatten<D: Dtype>(x: &Tensor<D>) -> Tensor<D> {
 
 impl<D: Dtype> Tensor<D> {
     #[inline]
-    pub fn flatten(x: &Tensor<D>) -> Tensor<D> {
-        flatten(x)
+    pub fn flatten(&self) -> Tensor<D> {
+        flatten(self)
     }
 }
 

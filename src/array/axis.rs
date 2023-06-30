@@ -16,7 +16,7 @@ impl AxisOpt {
         self.axis
     }
 
-    pub(crate) fn axis_with_shape(&self, shape: &Shape) -> usize {
+    pub(crate) fn _axis_with_shape(&self, shape: &Shape) -> usize {
         match self.axis {
             Some(axis) => {
                 (axis + shape.rank() as isize) as usize % shape.rank()
