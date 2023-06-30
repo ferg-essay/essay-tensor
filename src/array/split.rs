@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{TensorId, Dtype, TensorUninit}, model::Operation};
+use crate::{Tensor, tensor::{Dtype, TensorUninit}};
 
 use super::{AxisOpt, axis::axis_from_rank};
 
@@ -26,6 +26,11 @@ pub fn split<D: Dtype>(
                 cuts.push(i);
             }
         }
+
+        Sections::SplitCuts(split_cuts) => {
+            cuts.append(&mut split_cuts.clone());
+            cuts.push(len);
+        }
     }
 
     if axis == 0 {
@@ -33,7 +38,9 @@ pub fn split<D: Dtype>(
 
         let mut prev = 0;
         for i in cuts {
-            slices.push(tensor.subslice(prev, i - prev));
+            if i != prev {
+                slices.push(tensor.subslice(prev, i - prev));
+            }
             prev = i;
         }
     
@@ -63,6 +70,10 @@ fn split_by_axis<D: Dtype>(
     let mut slices = Vec::<Tensor<D>>::new();
 
     for cut in cuts {
+        if cut == prev {
+            continue;
+        }
+
         unsafe {
             let mut uninit = TensorUninit::<D>::new(n_outer * n_inner * (cut - prev));
             let o = uninit.as_mut_slice();
@@ -113,20 +124,50 @@ impl IntoSections for usize {
     }
 }
 
+impl<const N: usize> IntoSections for [usize; N] {
+    fn into_sections(self) -> Sections {
+        Sections::SplitCuts(Vec::from(self))
+    }
+}
+
+impl IntoSections for &[usize] {
+    fn into_sections(self) -> Sections {
+        Sections::SplitCuts(Vec::from(self))
+    }
+}
+
+impl IntoSections for Vec<usize> {
+    fn into_sections(self) -> Sections {
+        Sections::SplitCuts(self)
+    }
+}
+
+impl IntoSections for &Vec<usize> {
+    fn into_sections(self) -> Sections {
+        Sections::SplitCuts(self.clone())
+    }
+}
+
 #[derive(Clone)]
 pub enum Sections {
     SplitEqual(usize),
+    SplitCuts(Vec<usize>),
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{flatten, split}};
+    use crate::{prelude::*, array::{split}};
     
     #[test]
     fn test_split() {
         assert_eq!(
             split(&tf32!([[1., 2.], [3., 4.]]), 2, ()), 
             vec![tf32!([[1., 2.]]), tf32!([[3., 4.]])],
+        );
+
+        assert_eq!(
+            split(&tf32!([1., 2., 3., 4.]), [1, 3], ()), 
+            vec![tf32!([1.]), tf32!([2., 3.]), tf32!([4.])],
         );
     }
     
