@@ -1,4 +1,4 @@
-use crate::{model::{Operation}, Tensor, prelude::{AxisOpt}, tensor::{TensorId, TensorUninit, Dtype, IntoTensorList}};
+use crate::{model::{Operation}, Tensor, tensor::{TensorId, TensorUninit, Dtype}};
 
 pub fn tile<D>(tensor: impl Into<Tensor<D>>, multiples: impl Into<Tensor<usize>>) -> Tensor<D>
 where
@@ -38,7 +38,7 @@ impl<D: Dtype + Clone> Operation<D> for TileOp {
     fn f(
         &self,
         args: &[&Tensor<D>],
-        id: TensorId,
+        _id: TensorId,
     ) -> Tensor<D> {
         let tensor = args[0];
         let shape = tensor.shape();
@@ -125,7 +125,7 @@ unsafe fn tile_rec<D: Dtype + Clone>(
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{Axis, concatenate, tile}};
+    use crate::{prelude::*, array::{tile}};
     
     #[test]
     fn test_tile() {
