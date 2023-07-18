@@ -1,6 +1,6 @@
 use crate::{
     Tensor, 
-    tensor::{TensorVec}, 
+    tensor::TensorVec, 
 };
 
 pub fn arange(start: f32, end: f32, step: f32) -> Tensor {

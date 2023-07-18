@@ -1,3 +1,4 @@
+mod one_hot;
 mod arange;
 mod diag;
 mod eye;
@@ -18,13 +19,11 @@ pub use initializer::Initializer;
 pub use ones::ones;
 pub use fill::fill;
 
-pub use arange::{
-    arange,
-};
+pub use arange::arange;
 
-pub use diag::{
-    diagflat,
-};
+pub use diag::diagflat;
+
+pub use one_hot::one_hot;
 
 pub use eye::{
     eye, identity,
