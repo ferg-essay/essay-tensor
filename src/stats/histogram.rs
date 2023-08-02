@@ -1,6 +1,6 @@
-use crate::Tensor;
+use crate::{Tensor, init::linspace};
 
-pub fn histogram(data: impl Into<Tensor>, args: impl Into<HistArgs>) -> Tensor {
+pub fn histogram(data: impl Into<Tensor>, args: impl Into<HistArgs>) -> (Tensor, Tensor) {
     let data : Tensor = data.into();
     assert!(data.rank() == 1, "histogram requires a rank 1 tensor {:?}", data.shape().as_slice());
 
@@ -12,6 +12,8 @@ pub fn histogram(data: impl Into<Tensor>, args: impl Into<HistArgs>) -> Tensor {
     } else { 
         (max - min) / args.n_bins as f32 
     };
+
+    let bins = linspace(min, max, args.n_bins + 1);
 
     let mut values = Vec::<f32>::new();
     values.resize(args.n_bins, 0.);
@@ -26,7 +28,7 @@ pub fn histogram(data: impl Into<Tensor>, args: impl Into<HistArgs>) -> Tensor {
         }
     }
 
-    Tensor::from(values)
+    (Tensor::from(values), bins)
 }
 
 pub struct HistArgs {
@@ -76,21 +78,31 @@ mod test {
     #[test]
     fn histogram_default() {
         assert_eq!(
-            histogram(tf32!([0., 1., 2., 1., 3., 9.]), ()),
-            tf32!([1., 2., 1., 1., 0., 0., 0., 0., 0., 1.])
+            histogram(tf32!([0., 1., 2., 1., 3., 10.]), ()), (
+                tf32!([1., 2., 1., 1., 0., 0., 0., 0., 0., 1.]),
+                tf32!([0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10.])
+            )
         );
 
         assert_eq!(
-            histogram(tf32!([0., 10., 1., 1.9, 1.5]), ()),
-            tf32!([1., 3., 0., 0., 0., 0., 0., 0., 0., 1.])
-        );
+            histogram(tf32!([0., 10., 1., 1.9, 1.5]), ()), (
+                tf32!([1., 3., 0., 0., 0., 0., 0., 0., 0., 1.]),
+                tf32!([0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10.])
+        ));
+
+        assert_eq!(
+            histogram(tf32!([0., 1., 0.1, 0.19, 0.15]), ()), (
+                tf32!([1., 3., 0., 0., 0., 0., 0., 0., 0., 1.]),
+                tf32!([0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.90000004, 1.0])
+        ));
     }
 
     #[test]
     fn histogram_bins() {
         assert_eq!(
-            histogram(tf32!([0., 1., 2., 1., 3.]), 4),
-            tf32!([1., 2., 1., 1.])
-        );
+            histogram(tf32!([0., 1., 2., 1., 4.]), 4), (
+                tf32!([1., 2., 1., 1.]),
+                tf32!([0., 1., 2., 3., 4.]),
+        ));
     }
 }
