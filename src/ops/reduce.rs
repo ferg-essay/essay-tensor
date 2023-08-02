@@ -238,6 +238,16 @@ impl ReduceOpt for () {
     }
 }
 
+impl ReduceOpt for i32 {
+    fn axis(self, axis: Option<i32>) -> ReduceArg {
+        ReduceArg::default().axis(axis)
+    }
+
+    fn into(self) -> ReduceArg {
+        ReduceArg::default().axis(Some(self))
+    }
+}
+
 pub trait State : Default + Send + Sync + 'static {
     type Value;
 
