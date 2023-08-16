@@ -5,12 +5,14 @@ mod ln;
 mod exp;
 mod cos;
 mod abs;
-mod powi;
-mod powf;
+mod hypot;
+mod log;
 mod min;
 mod max;
-mod log;
 mod normalize_unit;
+mod powi;
+mod powf;
+mod reduce_hypot;
 mod reduce_mean;
 mod reduce_min;
 mod reduce_max;
@@ -24,7 +26,7 @@ mod div;
 mod atan2;
 pub(crate) mod add;
 mod square;
-use std::{ops};
+use std::ops;
 
 use crate::{
     tensor::{Tensor, Dtype, C32}, 
@@ -41,20 +43,22 @@ tensor_uop!(sin, sin::Sin);
 tensor_uop!(square, square::SquareOp);
 
 tensor_binop!(atan2, atan2::Atan2);
+tensor_binop!(hypot, hypot::Hypot);
 tensor_binop!(log, log::Log);
 tensor_binop!(max, max::Max);
 tensor_binop!(min, min::Min);
 tensor_binop!(powf, powf::Powf);
 tensor_binop!(powi, powi::Powi);
 
+pub use reduce_hypot::reduce_hypot;
+pub use reduce_mean::reduce_mean;
+pub use reduce_min::reduce_min;
+pub use reduce_max::reduce_max;
 pub use reduce_sum::{reduce_sum, reduce_sum_opt};
-pub use reduce_mean::{reduce_mean};
-pub use reduce_min::{reduce_min};
-pub use reduce_max::{reduce_max};
-pub use reduce_variance::{reduce_variance};
-pub use reduce_std::{reduce_std};
+pub use reduce_std::reduce_std;
+pub use reduce_variance::reduce_variance;
 
-pub use normalize_unit::{normalize_unit};
+pub use normalize_unit::normalize_unit;
 
 //
 // overloaded operations: Add, Sub, Mul
