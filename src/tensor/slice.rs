@@ -1,4 +1,4 @@
-use crate::{Tensor};
+use crate::Tensor;
 
 
 pub trait TensorSlice {
