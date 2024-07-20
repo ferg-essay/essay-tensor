@@ -29,7 +29,7 @@ mod square;
 use std::ops;
 
 use crate::{
-    tensor::{Tensor, Dtype, C32}, 
+    tensor::{Tensor, Dtype}, 
     tensor_uop, ops::unary_op,
     tensor_binop, ops::binary_op,
 };

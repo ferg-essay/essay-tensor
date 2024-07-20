@@ -113,10 +113,10 @@ where
     fn df(
         &self,
         _forward: &Expr,
-        graph: &mut Expr,
+        _graph: &mut Expr,
         i: usize,
-        args: &[TensorId],
-        prev: TensorId,
+        _args: &[TensorId],
+        _prev: TensorId,
     ) -> TensorId {
         match i {
             0 => todo!(), // graph.add_grad_op(BinopDx(self.op.clone()), &[args[0], args[1]], prev),
@@ -246,7 +246,7 @@ where F: Fn(D, D) -> D + Send + Sync + 'static + Clone + Copy {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::{*}, ops::binary_op, model::Var};
+    use crate::{prelude::{*}, model::Var};
 
     /*
     #[test]

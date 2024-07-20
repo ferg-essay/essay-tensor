@@ -1,10 +1,8 @@
 use std::{marker::PhantomData, ops};
 
 use crate::{
-    ops::{BinaryKernel, UnaryKernel, binary_op}, tensor::Dtype, Tensor
+    ops::{BinaryKernel, UnaryKernel}, tensor::Dtype,
 };
-
-use num_traits::{Float, MulAdd};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Add;
@@ -79,9 +77,7 @@ impl<D: Dtype + ops::Add<Output=D> + Copy> BinaryKernel<D> for Add2<D> {
 
 #[cfg(test)]
 mod test {
-    use num_complex::Complex;
-
-    use crate::{prelude::*, model::{Var, Trainer}, tc32, tensor::C32, math::add};
+    use crate::{prelude::*, model::{Var, Trainer}, tc32, math::add};
 
     #[test]
     fn test_add() {

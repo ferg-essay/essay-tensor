@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, model::{EvalOp}, linalg::blas::sgemm};
+use crate::{tensor::{Tensor, TensorUninit}, linalg::blas::sgemm};
 
 #[derive(Clone, Debug)]
 pub enum Transpose {
@@ -24,8 +24,8 @@ pub trait TransposeMatmul {
     );
 }
 
-#[derive(Debug, Clone)]
-struct Matmul;
+//#[derive(Debug, Clone)]
+//struct Matmul;
 
 impl Tensor {
     pub fn matmul(&self, b: &Tensor) -> Tensor {
@@ -162,18 +162,18 @@ impl TransposeMatmul for Transpose {
     }
 }
 
-impl EvalOp for Matmul {
-    fn eval(
-        &self,
-        _args: &[&Tensor],
-    ) -> Tensor {
-        todo!()
-    }
-}
+//impl EvalOp for Matmul {
+//    fn eval(
+//        &self,
+//        _args: &[&Tensor],
+//    ) -> Tensor {
+//        todo!()
+//    }
+//}
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, linalg::matmul::Transpose};
+    use crate::{tensor, linalg::matmul::Transpose};
 
     #[test]
     fn test_matmul_1() {

@@ -1,10 +1,10 @@
 use core::fmt;
-use std::{any::type_name, marker::PhantomData};
+use std::any::type_name;
 
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, 
-    model::{NodeOp, Tape, Operation, IntoForward, Expr, expr::{GradientOp, GradOperation}}, prelude::Shape
+    model::{NodeOp, Tape, Operation, Expr, expr::{GradientOp, GradOperation}}, prelude::Shape
 };
 
 pub trait NormalizeKernel<D: Dtype=f32> : Clone + Copy + Send + Sync + 'static {
@@ -54,7 +54,7 @@ impl<Op: NormalizeKernel> NormalizeCpu<Op> {
     }
 
     #[inline]
-    fn axis(&self) -> Option<i32> {
+    fn _axis(&self) -> Option<i32> {
         self.options.axis
     }
 
@@ -169,8 +169,8 @@ impl<Op: NormalizeKernel> GradientOp for NormalizeCpu<Op> {
 
     fn df(
         &self,
-        args: &[&Tensor],
-        prev: &Tensor,
+        _args: &[&Tensor],
+        _prev: &Tensor,
     ) -> Tensor {
         todo!()
     }
@@ -218,20 +218,20 @@ impl NormalizeOpt for () {
 pub trait State : Default + Send + Sync + 'static {
     type Value;
 
-    fn value(&self) -> Self::Value;
+    fn _value(&self) -> Self::Value;
 }
 
 impl<T: Dtype + Clone + Default + fmt::Debug> State for T {
     type Value = Self;
 
-    fn value(&self) -> Self::Value {
+    fn _value(&self) -> Self::Value {
         self.clone()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, model::Var};
+    // use crate::{prelude::*, model::Var};
 /*
     #[test]
     fn reduce_sum_n() {

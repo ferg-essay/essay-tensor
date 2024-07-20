@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use crate::tensor::Dtype;
 
 use super::{
-    flow_pool::{InMeta}, 
-    dispatch::{InnerWaker}, 
+    flow_pool::InMeta, 
+    dispatch::InnerWaker, 
     pipe::{In, PipeIn}, source::NodeId, SourceId, Out, SourceFactory
 };
 

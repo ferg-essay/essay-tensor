@@ -1,4 +1,4 @@
-use core::{slice};
+use core::slice;
 use std::{
     ptr::{NonNull, self}, 
     alloc::Layout, alloc, 
@@ -65,7 +65,7 @@ impl<T> TensorData<T> {
     }
 
     #[inline]
-    pub(crate) fn from_boxed_matrices<const M: usize, const N: usize>(
+    pub(crate) fn _from_boxed_matrices<const M: usize, const N: usize>(
         slice: Box<[[[T; N]; M]]>
     ) -> TensorData<T>
     {
@@ -84,10 +84,11 @@ impl<T> TensorData<T> {
     }
 
     #[inline]
+    #[cfg(test)]
     pub(crate) fn from_vec_matrices<const M: usize, const N: usize>(
         vec: Vec<[[T; N]; M]>
     ) -> TensorData<T> {
-        Self::from_boxed_matrices(Vec::into_boxed_slice(vec))
+        Self::_from_boxed_matrices(Vec::into_boxed_slice(vec))
     }
 
     /// Returns the flattened length of the tensor's data.
@@ -251,7 +252,7 @@ impl<T> Drop for TensorUninit<T> {
 
 #[cfg(test)]
 mod test {
-    use std::{sync::{Arc, Mutex}};
+    use std::sync::{Arc, Mutex};
 
     use crate::{prelude::*, tensor::{Dtype, TensorUninit, data::TensorData}};
 

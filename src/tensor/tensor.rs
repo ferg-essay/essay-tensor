@@ -149,6 +149,22 @@ impl<T: Clone + 'static> Tensor<T> {
     }
 }
 
+impl<T: Dtype> Tensor<T> {
+    pub fn join_vec(
+        vec: &Vec<Vec<T>>, 
+    ) -> Self {
+        let mut flat_vec = Vec::<T>::new();
+
+        for item in vec.iter() {
+            for v in item.iter() {
+                flat_vec.push(v.clone());
+            }
+        }
+
+        Tensor::from(flat_vec)
+    }
+}
+
 impl<T> Tensor<T> {
     pub(crate) fn with_id(self, id: TensorId) -> Tensor<T> {
         Self { id, ..self }

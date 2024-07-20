@@ -4,7 +4,7 @@ use std::{any::type_name, marker::PhantomData};
 use crate::{
     Tensor, 
     tensor::{Dtype, TensorId, TensorUninit}, 
-    model::{NodeOp, Tape, Operation, IntoForward, Expr, expr::{GradientOp, GradOperation}}, prelude::Shape
+    model::{NodeOp, Tape, Operation, Expr, expr::{GradientOp, GradOperation}}, prelude::Shape
 };
 
 pub trait ReduceKernel<S: State, D: Dtype=f32> : Clone + Copy + Send + Sync + 'static {

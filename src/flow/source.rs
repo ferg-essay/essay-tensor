@@ -89,12 +89,12 @@ impl<T: 'static> SourceId<T> {
 //
 // Output task
 //
-#[derive(Clone, Debug)]
-pub struct OutputData<T: Clone + Send + 'static> {
-    marker: PhantomData<T>,
-}
+//#[derive(Clone, Debug)]
+//pub struct OutputData<T: Clone + Send + 'static> {
+//    marker: PhantomData<T>,
+//}
 
-impl<T: Clone + Send + Sync + fmt::Debug + 'static> FlowData for OutputData<T> {}
+//impl<T: Clone + Send + Sync + fmt::Debug + 'static> FlowData for OutputData<T> {}
 
 pub struct OutputSource<O: FlowIn<O>> {
     data: SharedOutput<O>,

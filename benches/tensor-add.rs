@@ -1,4 +1,4 @@
-use std::{time::Instant};
+use std::time::Instant;
 
 use essay_tensor::{Tensor, model::Function, tensor::TensorUninit};
 
@@ -110,7 +110,7 @@ fn main() {
         //println!("Shape {:?}", _c.shape());
         let time_matvec = start.elapsed();
 
-        let a = Tensor::zeros([1024]);
+        //let a = Tensor::zeros([1024]);
 
         //let start = Instant::now();
         //let _c = &a.softmax();

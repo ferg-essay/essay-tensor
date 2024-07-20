@@ -1,5 +1,5 @@
 use super::{
-    source::{SourceId}, 
+    source::SourceId, 
     data::{FlowIn, FlowData}, SourceFactory,
 };
 
@@ -13,11 +13,11 @@ pub trait Flow<I: FlowIn<I>, O: FlowIn<O>> {
     fn iter<'a>(&'a mut self, input: I) -> Self::Iter<'a>;
 }
 
-pub trait FlowTrait<I: FlowIn<I>, O: FlowIn<O>> {
-    type Iter<'a> : Iterator<Item=O> where Self: 'a;
-
-    fn iter<'a>(&'a mut self, input: I) -> Self::Iter<'a>;
-}
+//pub trait FlowTrait<I: FlowIn<I>, O: FlowIn<O>> {
+//    type Iter<'a> : Iterator<Item=O> where Self: 'a;
+//
+//    fn iter<'a>(&'a mut self, input: I) -> Self::Iter<'a>;
+//}
 
 pub trait FlowSourcesBuilder {
     fn source<I, O>(
@@ -43,12 +43,12 @@ pub trait FlowOutputBuilder<In: FlowIn<In>> : FlowSourcesBuilder + Sized + 'stat
 
 #[cfg(test)]
 mod test {
-    use std::{sync::{Arc, Mutex}};
+    use std::sync::{Arc, Mutex};
 
     use source::Source;
 
     use crate::flow::{
-        pipe::{In}, SourceFactory, FlowIn, flow_pool::{PoolFlowBuilder}, 
+        pipe::In, SourceFactory, FlowIn, flow_pool::PoolFlowBuilder, 
         flow::{Flow, FlowSourcesBuilder},
         FlowOutputBuilder, source::{self, Out},
     };

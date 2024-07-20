@@ -5,6 +5,4 @@ pub use uniform::{
     uniform, uniform_b,
 };
 
-pub use random::{
-    RandomSource
-};
+pub use random::RandomSource;

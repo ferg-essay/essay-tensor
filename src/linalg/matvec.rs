@@ -2,7 +2,7 @@ use std::{any::type_name, cmp};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit}, 
-    model::{Operation, Expr, expr::{GradientOp, GradOperation}, Tape, NodeOp, IntoForward}, linalg::blas::sgemm
+    model::{Operation, Expr, expr::{GradientOp, GradOperation}, Tape, NodeOp}, linalg::blas::sgemm
 };
 
 use super::matmul::Transpose;
