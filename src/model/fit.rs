@@ -2,7 +2,8 @@ use essay_opt::derive_opt;
 
 use crate::{
     prelude::Dataset, 
-    dataset::{DatasetIter, rebatch}, Tensor,
+    dataset::{DatasetIter, rebatch}, 
+    Tensor,
     model::Trainer, nn::l2_loss,
 };
 
@@ -166,7 +167,7 @@ impl _FitBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::{model::{fit::_FitBuilder, }, model::Var};
+    use crate::{model::fit::_FitBuilder, model::Var};
     pub use crate::prelude::*;
     pub use crate::model::prelude::*;
 

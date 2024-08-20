@@ -19,8 +19,8 @@ pub fn decode_wav(
         fmt: cursor.read_u16_little(),
         n_channels: cursor.read_u16_little(),
         sample_rate: cursor.read_u32_little(),
-        byte_rate: cursor.read_u32_little(),
-        block_align: cursor.read_u16_little(),
+        _byte_rate: cursor.read_u32_little(),
+        _block_align: cursor.read_u16_little(),
         bits_per_sample: cursor.read_u16_little(),
     };
 
@@ -63,8 +63,8 @@ struct Meta {
     fmt: u16,
     n_channels: u16,
     sample_rate: u32,
-    byte_rate: u32,
-    block_align: u16,
+    _byte_rate: u32,
+    _block_align: u16,
     bits_per_sample: u16,
 }
 
@@ -87,7 +87,7 @@ impl<'a> Cursor<'a> {
         v
     }
 
-    fn read_u16(&mut self) -> u16 {
+    fn _read_u16(&mut self) -> u16 {
         0x100 * self.read() as u16 + self.read() as u16
     }
 
@@ -113,7 +113,7 @@ impl<'a> Cursor<'a> {
         0x100_0000 * self.read() as u32
     }
 
-    fn read_slice(&mut self, slice: &mut [u8]) {
+    fn _read_slice(&mut self, slice: &mut [u8]) {
         for i in 0..slice.len() {
             slice[i] = self.slice[i + self.index] 
         }

@@ -1,27 +1,26 @@
-use std::{ops::{RangeBounds, Bound}};
 use glob::glob;
 
-use crate::{Tensor, tensor, flow::{Source, self, Out}};
+use crate::{Tensor, flow::{Source, self, Out}};
 
-use super::{dataset::{Dataset}};
+use super::dataset::Dataset;
 
-pub fn list_files(glob: &str) -> Dataset<Tensor<String>> {
+pub fn _list_files(glob: &str) -> Dataset<Tensor<String>> {
     let glob = glob.to_string();
 
     Dataset::from_flow(|builder| {
         builder.source(move || {
-            ListFiles::new(&glob)
+            _ListFiles::_new(&glob)
         }, &())
     })
 }
 
-struct ListFiles {
+struct _ListFiles {
     file_list: Tensor<String>,
     index: usize,
 }
 
-impl ListFiles {
-    fn new(pattern: &str) -> Self {
+impl _ListFiles {
+    fn _new(pattern: &str) -> Self {
         let file_list : Tensor<String> = glob(pattern).unwrap()
             .into_iter()
             .map(|p| p.unwrap().into_os_string().to_string_lossy().to_string())
@@ -34,7 +33,7 @@ impl ListFiles {
     }
 }
 
-impl Source<(), Tensor<String>> for ListFiles {
+impl Source<(), Tensor<String>> for _ListFiles {
     fn next(&mut self, _input: &mut ()) -> flow::Result<Out<Tensor<String>>> {
         if self.index < self.file_list.len() {
             let value = self.file_list.slice(self.index);
@@ -53,11 +52,11 @@ impl Source<(), Tensor<String>> for ListFiles {
 mod test {
     use crate::prelude::*;
 
-    use super::list_files;
+    use super::_list_files;
 
     #[test]
     fn test_file_list() {
-        let mut data = list_files("../../assets/audio/book-24/*.wav");
+        let mut data = _list_files("../../assets/audio/book-24/*.wav");
 
         let values = data.iter().collect::<Vec<Tensor<String>>>();
         assert_eq!(values[0][0], "../../assets/audio/book-24/237-0000.wav");

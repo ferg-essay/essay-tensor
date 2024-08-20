@@ -11,14 +11,11 @@ pub use data::{
     FlowIn, FlowData,
 };
 
-pub use pipe::{
-    In, 
-};
+pub use pipe::In;
 
-pub use flow_pool::{
-//    SourceId, Source, SourceFactory, Result,
-    FlowPool, PoolFlowBuilder,
-};
+//pub use flow_pool::{
+//    FlowPool, PoolFlowBuilder,
+//};
 
 pub use flow_single::{
     FlowSingle, FlowBuilderSingle, FlowIterSingle,

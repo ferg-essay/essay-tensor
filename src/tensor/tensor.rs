@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{any::type_name, sync::Arc, ops::{Deref}, slice};
+use std::{any::type_name, sync::Arc, ops::Deref, slice};
 
 use num_complex::Complex;
 
@@ -893,9 +893,9 @@ impl Dtype for f32 {
 mod test {
     use tensor::Shape;
 
-    use crate::{tensor::{C32}, tc32, tensor};
+    use crate::{tensor::C32, tc32, tensor};
 
-    use super::{Tensor};
+    use super::Tensor;
 
     #[test]
     fn debug_tensor_from_f32() {

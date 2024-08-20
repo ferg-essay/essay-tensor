@@ -1,4 +1,4 @@
-use crate::random::RandomSource;
+use crate::random::Rand32;
 use crate::{Tensor, prelude::Shape};
 use crate::ops::{init_op, InitKernel};
 
@@ -29,15 +29,18 @@ pub struct RandomUniform {
 }
 
 impl InitKernel<f32> for RandomUniform {
-    type State = RandomSource;
+    type State = Rand32;
 
     fn init(&self, _shape: &Shape) -> Self::State {
-        RandomSource::new(self.seed)
+        match self.seed {
+            Some(seed) => Rand32(seed),
+            None => Rand32::new(),
+        }
     }
 
     fn f(&self, state: &mut Self::State) -> f32 {
-        let u_rng = state.next_u64();
-        let rng = u_rng as f64 / u64::MAX as f64;
+        let rng = state.next_uniform();
+
         self.min + (self.max - self.min) * rng as f32
     }
 }
@@ -102,7 +105,7 @@ mod test {
     use random_uniform::UniformOpt;
 
     use crate::prelude::*;
-    use crate::init::{random_uniform};
+    use crate::init::random_uniform;
 
     #[test]
     fn test_uniform() {

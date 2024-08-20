@@ -1,7 +1,7 @@
 use core::fmt;
-use std::{sync::{mpsc::{self}, Mutex, Arc}};
+use std::sync::{mpsc::{self}, Mutex, Arc};
 
-use super::{data::FlowData, dispatch::{InnerWaker}, source::{NodeId, SourceId, Out}};
+use super::{data::FlowData, dispatch::InnerWaker, source::{NodeId, SourceId, Out}};
 
 pub trait PipeIn<T> : Send {
     fn src_id(&self) -> NodeId;
@@ -16,9 +16,9 @@ pub trait PipeIn<T> : Send {
 }
 
 pub trait PipeOut<T> : Send {
-    fn dst_id(&self) -> NodeId;
+    fn _dst_id(&self) -> NodeId;
 
-    fn send(&mut self, value: Option<T>);
+    fn _send(&mut self, value: Option<T>);
 }
 
 pub struct ChannelIn<T> {
@@ -36,7 +36,7 @@ pub struct ChannelIn<T> {
 
 pub struct In<T>(Box<dyn PipeIn<T>>);
 
-pub(crate) fn pipe<T: Send + 'static>(
+pub(crate) fn _pipe<T: Send + 'static>(
     src_id: SourceId<T>, 
     src_index: usize,
 
@@ -46,8 +46,8 @@ pub(crate) fn pipe<T: Send + 'static>(
     let (sender, receiver) = mpsc::channel::<Option<T>>();
 
     (
-        Box::new(ChannelIn::new(src_id.id(), src_index, dst_id, dst_index, receiver)),
-        Box::new(ChannelOut::new(src_id.id(), dst_id, sender))
+        Box::new(ChannelIn::_new(src_id.id(), src_index, dst_id, dst_index, receiver)),
+        Box::new(ChannelOut::_new(src_id.id(), dst_id, sender))
     )
 }
 
@@ -89,7 +89,7 @@ where
 //
 
 impl<T> ChannelIn<T> {
-    fn new(
+    fn _new(
         src_id: NodeId, 
         src_index: usize, 
 
@@ -189,7 +189,7 @@ pub struct ChannelOut<T> {
 }
 
 impl<T> ChannelOut<T> {
-    fn new(src_id: NodeId, dst_id: NodeId, sender: mpsc::Sender<Option<T>>) -> Self {
+    fn _new(src_id: NodeId, dst_id: NodeId, sender: mpsc::Sender<Option<T>>) -> Self {
         Self {
             _src: src_id,
             _dst: dst_id,
@@ -199,11 +199,11 @@ impl<T> ChannelOut<T> {
 }
 
 impl<T: Send> PipeOut<T> for ChannelOut<T> {
-    fn dst_id(&self) -> NodeId {
+    fn _dst_id(&self) -> NodeId {
         self._dst
     }
 
-    fn send(&mut self, value: Option<T>) {
+    fn _send(&mut self, value: Option<T>) {
         match self.sender.send(value) {
             Ok(_) => {},
             Err(err) => { 

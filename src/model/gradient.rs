@@ -1,8 +1,8 @@
 use std::{collections::HashSet, any::type_name};
 
-use crate::{Tensor, tensor::{TensorId}, model::ModelId};
+use crate::{Tensor, tensor::TensorId, model::ModelId};
 
-use super::{Expr, NodeOp, IntoForward, BoxForwardOp, Operation, EvalOp, 
+use super::{Expr, NodeOp, Operation, EvalOp, 
     expr::{IntoBack, GradientOp, BoxBackOp, GradOperation}
 };
 
@@ -205,7 +205,7 @@ impl ArgTrace {
 #[cfg(test)]
 mod test {
     use crate::model::{Var, Trainer};
-    use crate::{Tensor};
+    use crate::Tensor;
     use crate::prelude::{*};
 
     #[test]

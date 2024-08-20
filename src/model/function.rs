@@ -1,5 +1,5 @@
-use super::{Var, Expr, TensorCache, Tensors, Operation, model::ModelContext, expr::GradOperation};
-use crate::{tensor::{TensorId}, Tensor};
+use super::{Var, Expr, TensorCache, Tensors, model::ModelContext, expr::GradOperation};
+use crate::{tensor::TensorId, Tensor};
 use std::{cell::RefCell, sync::atomic::{AtomicU32, Ordering}};
 
 pub struct Function<In: Tensors, Out: Tensors> {
@@ -174,7 +174,7 @@ thread_local! {
 }
 
 #[derive(Debug)]
-pub enum TapeError {}
+pub enum _TapeError {}
 
 static MODEL_ID: AtomicU32 = AtomicU32::new(0);
 
@@ -204,7 +204,6 @@ mod test {
     use crate::{
         model::{function::Function, Var},
         tensor,
-        Tensor,
     };
 
     #[test]

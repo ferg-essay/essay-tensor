@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{ops::{Deref, self}, cell::{UnsafeCell}, sync::{atomic::{AtomicU64, Ordering}, Mutex, Arc}};
+use std::{ops::{Deref, self}, cell::UnsafeCell, sync::{atomic::{AtomicU64, Ordering}, Mutex, Arc}};
 
 use crate::{tensor::{Dtype, TensorId}, Tensor};
 
@@ -49,8 +49,8 @@ impl<D: Dtype> Var<D> {
 }
 
 impl Var<f32> {
-    pub(crate) fn assign_sub(&self, grad: Tensor) -> &Self {
-        self.tensor.lock().unwrap().assign_sub(grad);
+    pub(crate) fn _assign_sub(&self, grad: Tensor) -> &Self {
+        self.tensor.lock().unwrap()._assign_sub(grad);
 
         self
     }
@@ -223,7 +223,7 @@ impl<D> TensorShare<D> {
 }
 
 impl TensorShare<f32> {
-    fn assign_sub(&mut self, tensor: Tensor<f32>) {
+    fn _assign_sub(&mut self, tensor: Tensor<f32>) {
         self.0 = &self.0 - &tensor;
     }
 }

@@ -52,7 +52,7 @@ where
         }
     }
 
-    pub(crate) fn get_var(&self, id: VarId) -> &Var {
+    pub(crate) fn _get_var(&self, id: VarId) -> &Var {
         self.fun.expr().get_var(id)
     }
 }
@@ -82,7 +82,7 @@ impl<In:Tensors, Out:Tensors> Train<'_, In, Out> {
         panic!("{:?} is an unknown gradient", var);
     }
 
-    pub(crate) fn gradients(&self) -> Vec<(VarId, Tensor)> {
+    pub(crate) fn _gradients(&self) -> Vec<(VarId, Tensor)> {
         let mut vec = Vec::new();
 
         for (id, grad_graph) in &self.module.gradients {

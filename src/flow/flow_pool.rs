@@ -1,9 +1,9 @@
 use std::{sync::{Mutex, Arc}, marker::PhantomData, cmp, any::Any, mem};
 
 use super::{
-    data::{FlowIn},
+    data::FlowIn,
     dispatch::{InnerWaker, OuterWaker, FlowThreads},
-    pipe::{PipeOut, PipeIn, pipe}, FlowData, In, FlowOutputBuilder, flow::{Flow, FlowSourcesBuilder}, Source, source::{NodeId, self, SharedOutput, OutputSource, TailSource}, SourceId, SourceFactory, Out,
+    pipe::{PipeOut, PipeIn, _pipe}, FlowData, In, FlowOutputBuilder, flow::{Flow, FlowSourcesBuilder}, Source, source::{NodeId, self, SharedOutput, OutputSource, TailSource}, SourceId, SourceFactory, Out,
 };
 
 type BoxSource<In, Out> = Box<dyn Source<In, Out>>;
@@ -450,7 +450,7 @@ where
         value: Option<O>,
         waker: &mut dyn InnerWaker,
     ) {
-        self.outputs[index].send(value);
+        self.outputs[index]._send(value);
         self.output_meta.lock().unwrap().send(index, waker);
     }
 } 
@@ -878,7 +878,7 @@ where
         let output_index = self.outputs.len();
 
         let (input, output) = 
-            pipe(self.id.clone(), output_index, dst_id, input_index);
+            _pipe(self.id.clone(), output_index, dst_id, input_index);
 
         self.outputs.push(output);
         self.output_meta.push(OutMeta::new(dst_id, input_index));
@@ -913,12 +913,12 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::{sync::{Arc, Mutex}};
+    use std::sync::{Arc, Mutex};
 
     use source::Source;
 
     use crate::flow::{
-        pipe::{In}, SourceFactory, FlowIn, flow_pool::{PoolFlowBuilder}, 
+        pipe::In, SourceFactory, FlowIn, flow_pool::PoolFlowBuilder, 
         flow::{Flow, FlowSourcesBuilder},
         FlowOutputBuilder, source::{self, Out},
     };

@@ -1,6 +1,4 @@
-use std::f64::consts::TAU;
-
-use crate::random::RandomSource;
+use crate::random::Rand32;
 use crate::{Tensor, prelude::Shape};
 use crate::ops::{init_op, InitKernel};
 
@@ -33,20 +31,17 @@ pub struct RandomNormal {
 }
 
 impl InitKernel<f32> for RandomNormal {
-    type State = RandomSource;
+    type State = Rand32;
 
     fn init(&self, _shape: &Shape) -> Self::State {
-        RandomSource::new(self.seed)
+        match self.seed {
+            Some(seed) => Rand32(seed),
+            None => Rand32::new(),
+        }
     }
 
     fn f(&self, state: &mut Self::State) -> f32 {
-        let rng_a = state.next_u64() as f64 / u64::MAX as f64;
-        let rng_b = state.next_u64() as f64 / u64::MAX as f64;
-
-        // TODO: save 2nd random variable to reduce next_u64 call
-
-        // Box-Muller
-        let p = ((-2. * rng_a.ln()).sqrt() * (TAU * rng_b).cos()) as f32;
+        let p = state.next_normal();
 
         self.mean + p * self.stddev
     }
@@ -118,7 +113,7 @@ mod test {
     use random_normal::NormalOpt;
 
     use crate::prelude::*;
-    use crate::init::{random_normal};
+    use crate::init::random_normal;
 
     #[test]
     fn test_normal() {

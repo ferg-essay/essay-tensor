@@ -5,7 +5,7 @@
 
 use core::fmt;
 
-use crate::{Tensor, flow::{FlowData, Source, VecSource}, tensor::Dtype};
+use crate::{Tensor, flow::{FlowData, VecSource}, tensor::Dtype};
 
 use super::Dataset;
 

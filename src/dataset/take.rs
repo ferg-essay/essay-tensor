@@ -5,9 +5,9 @@
 
 use std::marker::PhantomData;
 
-use crate::{flow::{self, Out, Source, In, FlowData, SourceId}, Tensor};
+use crate::flow::{self, Out, Source, In, FlowData, SourceId};
 
-use super::{IntoFlowBuilder};
+use super::IntoFlowBuilder;
 
 pub struct Take<T: FlowData> {
     count: usize, 

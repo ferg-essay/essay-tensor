@@ -1,14 +1,11 @@
-use core::fmt;
-use std::{collections::VecDeque};
-
 use crate::{Tensor, 
     flow::{
         FlowData, FlowIn, SourceFactory, SourceId, Flow, FlowSingle, 
-        FlowSourcesBuilder, FlowBuilderSingle, FlowOutputBuilder, Source, self, Out,
+        FlowSourcesBuilder, FlowBuilderSingle, FlowOutputBuilder,
     }, 
 };
 
-use super::{take::Take};
+use super::take::Take;
 
 pub struct Dataset<T: FlowData = Tensor<f32>> {
     // marker: PhantomData<T>,
@@ -65,9 +62,9 @@ impl<T: FlowData> Iterator for DatasetIter<'_, T> {
 // IntoFlow
 //
 
-pub trait IntoFlow<T: FlowData> {
-    fn into_flow(self, builder: &mut IntoFlowBuilder) -> SourceId<T>;
-}
+//pub trait IntoFlow<T: FlowData> {
+//    fn into_flow(self, builder: &mut IntoFlowBuilder) -> SourceId<T>;
+//}
 
 pub struct IntoFlowBuilder {
     builder: FlowBuilderSingle<()>,
