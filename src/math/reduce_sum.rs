@@ -12,9 +12,11 @@ pub fn reduce_sum_opt(a: &Tensor, opt: impl ReduceOpt) -> Tensor {
 }
 
 impl Tensor {
+    /*
     pub fn reduce_sum(&self) -> Tensor {
         reduce_sum(self)
     }
+    */
 
     pub fn reduce_sum_opt(&self, opt: impl ReduceOpt) -> Tensor {
         reduce_sum_opt(self, opt)

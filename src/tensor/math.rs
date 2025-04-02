@@ -146,6 +146,23 @@ impl<T: Float + Clone + 'static> Tensor<T> {
     pub fn to_radians(&self) -> Tensor<T> {
         self.map(|a| a.to_radians())
     }
+
+    pub fn reduce_min(&self) -> Tensor<T> {
+        // self.fold(T::max_value(), |s, v| s.min(v))
+        todo!()
+    }
+}
+
+impl<T: ops::Add + Zero + Clone + 'static> Tensor<T> {
+    pub fn reduce_sum(&self) -> Tensor<T> {
+        //self.fold(T::zero(), |s, v| s + v)
+        todo!()
+    }
+
+    pub fn reduce_product(&self) -> Tensor<T> {
+        //self.fold(T::one(), |s, v| s * v)
+        todo!()
+    }
 }
 
 macro_rules! tensor_ops2 {

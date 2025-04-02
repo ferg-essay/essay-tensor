@@ -4,7 +4,7 @@ use crate::{tensor::TensorUninit, Tensor};
 pub fn diagflat(vec: impl Into<Tensor>) -> Tensor {
     let vec : Tensor = vec.into();
 
-    assert!(vec.rank() == 1, "diagflag currently expects a 1d vector {:?}", vec.shape().as_slice());
+    assert!(vec.rank() == 1, "diagflat currently expects a 1d vector {:?}", vec.shape().as_slice());
     let n = vec.len();
     let size = n * n;
 

@@ -12,9 +12,11 @@ pub fn reduce_min_opt(a: &Tensor, opt: impl ReduceOpt) -> Tensor {
 }
 
 impl Tensor {
+    /*
     pub fn reduce_min(&self) -> Tensor {
         reduce_min(self)
     }
+    */
 
     pub fn reduce_min_opt(&self, opt: impl ReduceOpt) -> Tensor {
         reduce_min_opt(self, opt)

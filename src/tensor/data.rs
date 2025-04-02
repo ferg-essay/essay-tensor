@@ -276,21 +276,26 @@ impl<'a, T> TensorDataSlice<'a, T> {
         }
     }
 
-    pub(super) fn fold<S: Clone + 'static>(
+    pub(super) fn fold_into<S, F, V>(
         &self, 
         cols: usize,
         init: S,
-        mut f: impl FnMut(S, &T) -> S
-    ) -> TensorData<S> {
+        mut f: F,
+    ) -> TensorData<V> 
+    where
+        S: Clone + Into<V>,
+        F: FnMut(S, &T) -> S,
+        V: Clone + 'static
+    {
         let len = self.len / cols;
         assert!(cols * len == self.len);
         
         unsafe {
-            let mut out = TensorUninit::<S>::new(len);
+            let mut out = TensorUninit::<V>::new(len);
         
             let o_ptr = out.as_mut_ptr();
             let mut a_ptr = self.as_ptr();
-            
+
             for i in 0..len {
                 let mut value = init.clone();
 
@@ -298,7 +303,7 @@ impl<'a, T> TensorDataSlice<'a, T> {
                     value = (f)(value, a_ptr.add(i).as_ref().unwrap());
                 }
 
-                *o_ptr.add(i) = value;
+                *o_ptr.add(i) = value.into();
 
                 a_ptr = a_ptr.add(cols);
             }

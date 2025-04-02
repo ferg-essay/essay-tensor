@@ -436,6 +436,35 @@ impl<T: Clone + 'static> Tensor<T> {
 
         Tensor::from_data(data, self.shape().with_col(M))
     }
+
+    pub fn fold<S, F>(&self, init: S, f: F) -> Tensor<S>
+    where
+        S: Clone + 'static,
+        F: FnMut(S, &T) -> S
+    {
+        let data: TensorData<S> = self.as_data_slice().fold_into(
+            self.cols(),
+            init, 
+            f
+        );
+
+        Tensor::from_data(data, self.shape().reduce())
+    }
+
+    pub fn fold_into<S, F, V>(&self, init: S, f: F) -> Tensor<V>
+    where
+        S: Clone + Into<V>,
+        F: FnMut(S, &T) -> S,
+        V: Clone + 'static,
+    {
+        let data = self.as_data_slice().fold_into(
+            self.cols(),
+            init, 
+            f
+        );
+
+        Tensor::from_data(data, self.shape().reduce())
+    }
 }
 
 impl<T: Clone + Default + 'static> Tensor<T> {
@@ -1439,5 +1468,46 @@ mod test {
         assert_eq!(t1.offset(), t2.offset());
         assert_eq!(t1.len(), t2.len());
         assert_eq!(t2, Tensor::from([2., 4., 6., 8.]));
+    }
+
+    #[test]
+    fn tensor_fold_i32() {
+        let t1 = tensor!([1, 2, 3, 4]);
+        let t2 = t1.fold(0, |s, v| s + v);
+
+        assert_eq!(t2.shape().as_slice(), &[1]);
+        assert_eq!(t2.offset(), 0);
+        assert_eq!(t2.len(), 1);
+        assert_eq!(t2, tensor!([10]));
+    }
+
+    #[derive(Clone, Default)]
+    struct Acc {
+        value: u32,
+    }
+
+    impl Acc {
+        fn add(&self, value: u32) -> Self {
+            Self {
+                value: self.value + value
+            }
+        }
+    }
+
+    impl From<Acc> for u32 {
+        fn from(value: Acc) -> Self {
+            value.value + 100
+        }
+    }
+
+    #[test]
+    fn tensor_fold_into() {
+        let t1 = tensor!([1, 2, 3, 4]);
+        let t2 = t1.fold_into(Acc::default(), |s, v| s.add(*v));
+
+        assert_eq!(t2.shape().as_slice(), &[1]);
+        assert_eq!(t2.offset(), 0);
+        assert_eq!(t2.len(), 1);
+        assert_eq!(t2, tensor!([110]));
     }
 }

@@ -258,6 +258,17 @@ impl Shape {
         Self::from(vec)
     }
 
+    pub fn reduce(&self) -> Shape {
+        let mut vec = self.dims.clone();
+        vec.pop();
+
+        if vec.len() == 0 {
+            vec.push(1);
+        }
+        
+        Self::from(vec)
+    }
+
     pub fn remove(&self, axis: usize) -> Shape {
         let mut vec = self.dims.clone();
         vec.remove(axis);
