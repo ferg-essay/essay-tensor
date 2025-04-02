@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{any::type_name, sync::Arc, ops::Deref, slice};
+use std::{any::type_name, ops::Deref, ptr, slice, sync::Arc};
 
 use num_complex::Complex;
 
@@ -357,9 +357,42 @@ impl<T> Tensor<T> {
     }
 }
 
-impl<T:Clone> Tensor<T> {
+impl<T: Clone + 'static> Tensor<T> {
     pub fn slice<S:TensorSlice>(&self, index: S) -> Tensor<T> {
         S::slice(index, &self)
+    }
+
+    pub fn map_slice<const N: usize>(
+        &self, 
+        f: impl Fn(&[T]) -> [T; N]
+    ) -> Tensor<T> {
+        assert!(self.rank() == 2);
+        assert!(self.cols() == N);
+
+        let n = self.rows();
+
+        unsafe {
+            let mut out = TensorUninit::<T>::new(N * n);
+
+            let xy = self.as_ptr();
+            let o = out.as_mut_slice();
+
+            for i in 0..n {
+                let offset = N * i;
+
+                let slice = ptr::slice_from_raw_parts(xy.add(offset), N)
+                    .as_ref()
+                    .unwrap();
+
+                let value = (f)(slice);
+
+                for j in 0..N {
+                    o[offset + j] = value[j].clone();
+                }
+            }
+
+            Tensor::from_uninit(out, self.shape())
+        }
     }
 }
 
