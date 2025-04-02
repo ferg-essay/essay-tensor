@@ -13,11 +13,11 @@ pub trait UnaryKernel<D:Dtype> : fmt::Debug + Copy + Clone + PartialEq + Sync + 
 }
 
 #[derive(Clone, PartialEq)]
-pub struct UopCpu<Op:UnaryKernel<f32>>(Op);
+pub struct UopCpu<Op: UnaryKernel<f32>>(Op);
 
 pub fn unary_op<Op>(a: &Tensor, op: Op) -> Tensor
 where
-    Op:UnaryKernel<f32>
+    Op: UnaryKernel<f32>
 {
     let uop = UopCpu(op.clone());
 
@@ -39,21 +39,9 @@ impl<Op: UnaryKernel<f32>> Operation<f32> for UopCpu<Op> {
         id: TensorId,
     ) -> Tensor {
         let a = args[0];
-        let len = a.len();
-    
-        unsafe {
-            let mut out = TensorUninit::<f32>::new(len);
-    
-            let op = &self.0;
-            let a_ptr = a.as_ptr();
-            let o_ptr = out.as_mut_ptr();
-        
-            for i in 0..len {
-                *o_ptr.add(i) = op.f(*a_ptr.add(i));
-            }
-    
-            out.into_tensor_with_id(a.shape(), id)
-        }
+        let op = &self.0;
+
+        a.map(|v| op.f(*v)).with_id(id)
     }
 }
 

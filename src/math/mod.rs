@@ -29,26 +29,26 @@ mod square;
 use std::ops;
 
 use crate::{
-    tensor::{Tensor, Dtype}, 
+    tensor::Tensor, 
     tensor_uop, ops::unary_op,
     tensor_binop, ops::binary_op,
 };
 
-tensor_uop!(abs, abs::Abs);
+// tensor_uop!(abs, abs::Abs);
 tensor_uop!(cos, cos::Cos);
-tensor_uop!(exp, exp::Exp);
-tensor_uop!(ln, ln::Ln);
+//tensor_uop!(exp, exp::Exp);
+//tensor_uop!(ln, ln::Ln);
 tensor_uop!(sin, sin::Sin);
 
 tensor_uop!(square, square::SquareOp);
 
 tensor_binop!(atan2, atan2::Atan2);
 tensor_binop!(hypot, hypot::Hypot);
-tensor_binop!(log, log::Log);
-tensor_binop!(max, max::Max);
-tensor_binop!(min, min::Min);
-tensor_binop!(powf, powf::Powf);
-tensor_binop!(powi, powi::Powi);
+//tensor_binop!(log, log::Log);
+//tensor_binop!(max, max::Max);
+//tensor_binop!(min, min::Min);
+//tensor_binop!(powf, powf::Powf);
+//tensor_binop!(powi, powi::Powi);
 
 pub use reduce_hypot::reduce_hypot;
 pub use reduce_mean::reduce_mean;
@@ -143,7 +143,7 @@ macro_rules! tensor_ops {
     }
 }
 
-macro_rules! tensor_ops2 {
+macro_rules! _tensor_ops2 {
     ($ty:ty, $op:ident, $fun:ident, $binop:expr, $uop_st:ty, $uop_ts:ty) => {
         pub fn $fun<D>(
             a: impl Into<Tensor<D>>, 
@@ -241,8 +241,7 @@ macro_rules! tensor_ops2 {
     }
 }
 
-//tensor_ops!(f32, Add, add, add::Add, add::AddScalar, add::AddScalar);
-tensor_ops2!(f32, Add, add, add::Add2::new(), add::AddScalar, add::AddScalar);
+//tensor_ops2!(f32, Add, add, add::Add2::new(), add::AddScalar, add::AddScalar);
 tensor_ops!(f32, Div, div, div::Div, div::DivST, div::DivTS);
 tensor_ops!(f32, Mul, mul, mul::Mul, mul::MulScalar, mul::MulScalar);
 tensor_ops!(f32, Rem, rem, rem::Rem, rem::RemST, rem::RemTS);

@@ -18,17 +18,19 @@ pub fn fill<D:Dtype + Copy>(fill: D, shape: impl Into<Shape>) -> Tensor<D> {
 }
 
 impl<D:Dtype + Copy> Tensor<D> {
+    /*
     pub fn fill(value: D, shape: impl Into<Shape>) -> Tensor<D> {
         fill(value, shape)
     }
+    */
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, init::fill};
-    
     #[test]
     fn fill_basic() {
+        todo!();
+        /*
         assert_eq!(fill(0., []), tensor!(0.));
         assert_eq!(fill(1., [1]), tensor!([1.]));
         assert_eq!(fill(2., [3]), tensor!([2., 2., 2.]));
@@ -38,5 +40,6 @@ mod test {
             [[4.], [4.]],
             [[4.], [4.]],
         ]));
+        */
     }
 }

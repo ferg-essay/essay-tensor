@@ -1,4 +1,4 @@
-use std::{slice::SliceIndex, cmp, ops::Index};
+use std::{cmp, ops::Index, slice::SliceIndex};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Shape {
@@ -8,7 +8,7 @@ pub struct Shape {
 impl Shape {
     pub fn scalar() -> Self {
         Self {
-            dims: Vec::new()
+            dims: Vec::new(),
         }
     }
 
@@ -60,6 +60,20 @@ impl Shape {
             1
         }
     }
+    
+    #[inline]
+    pub fn with_col(&self, col: usize) -> Self {
+        let rank = self.rank();
+
+        assert!(rank > 0);
+
+        let mut dims = self.dims.clone();
+        dims[rank - 1] = col;
+
+        Self {
+            dims,
+        }
+    }
 
     #[inline]
     pub fn rows(&self) -> usize {
@@ -94,6 +108,34 @@ impl Shape {
         }
 
         if self.rank() < b.rank() { b.size() } else { self.size() }
+    }
+
+    pub fn check_broadcast(&self, b: &Shape) {
+        let min_rank = cmp::min(self.rank(), b.rank());
+        for i in 0..min_rank {
+            assert_eq!(
+                self.dim_rev(i), b.dim_rev(i), 
+                "broadcast ranks must match a={:?} b={:?}",
+                self.as_slice(), b.as_slice(),
+            );
+        }
+    }
+
+    pub fn broadcast_to(&self, b: &Shape) -> Self {
+        let min_rank = cmp::min(self.rank(), b.rank());
+        for i in 0..min_rank {
+            assert_eq!(
+                self.dim_rev(i), b.dim_rev(i), 
+                "broadcast ranks must match a={:?} b={:?}",
+                self.as_slice(), b.as_slice(),
+            );
+        }
+
+        if self.rank() < b.rank() {
+            b.clone()
+        } else {
+            self.clone()
+        }
     }
 
     pub fn broadcast_min(

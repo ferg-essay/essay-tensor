@@ -8,9 +8,11 @@ pub fn ones(shape: impl Into<Shape>) -> Tensor {
 }
 
 impl Tensor {
+    /*
     pub fn ones(shape: impl Into<Shape>) -> Tensor {
         ones(shape)
     }
+    */
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

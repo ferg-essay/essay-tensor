@@ -1,14 +1,14 @@
 use std::time::Instant;
 
-use essay_tensor::{Tensor, model::Function, tensor::TensorUninit};
+use essay_tensor::{Tensor, model::Function};
 
 fn main() {
     println!("Benchmarking tensor add");
 
     for _ in 0..16 {
 
-        let a = Tensor::zeros(1);
-        let b = Tensor::ones(1);
+        let a = Tensor::<f32>::zeros(1);
+        let b = Tensor::<f32>::ones(1);
 
         let start = Instant::now();
         //let _c = &a + &b;
@@ -27,18 +27,7 @@ fn main() {
             //let mut vec = Vec::<f32>::new();
             //vec.resize(len, 0.);
             //let vec_arc = Rc::new(vec);
-
-            unsafe {
-                let mut uninit = TensorUninit::<f32>::new(len);
-                let ptr = uninit.as_mut_ptr();
-                for i in 0..len {
-                    *ptr.add(i) = 0.;
-                }
-
-                //let arc = Arc::new(uninit.init());
-                //let c = Tensor::zeros(len);
-                Tensor::<f32>::from_uninit(uninit, [len]);
-            }
+            Tensor::<f32>::zeros([len]);
         }
         let _time_zeros = start.elapsed();
 

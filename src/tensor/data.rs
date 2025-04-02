@@ -1,8 +1,6 @@
 use core::slice;
 use std::{
-    ptr::{NonNull, self}, 
-    alloc::Layout, alloc, 
-    mem,
+    alloc::{self, Layout}, mem, ptr::{self, NonNull}, sync::Arc
 };
 
 use crate::Tensor;
@@ -138,6 +136,214 @@ impl<T: Clone> TensorData<T> {
     }
 }
 
+pub(super) struct TensorDataSlice<'a, T> {
+    data: &'a Arc<TensorData<T>>,
+    offset: usize,
+    len: usize,
+}
+
+impl<'a, T> TensorDataSlice<'a, T> {
+    pub(super) fn new(data: &'a Arc<TensorData<T>>, offset: usize, len: usize) -> Self {
+        assert!(offset + len <= data.len());
+
+        Self {
+            data,
+            offset,
+            len
+        }
+    }
+
+    #[inline]
+    pub(super) fn _as_slice(&self) -> &[T] {
+        unsafe { self.data.as_sub_slice(self.offset, self.len) }
+    }
+
+    // Returns a possibly-wrapped pointer at the offset to support
+    // broadcast
+    #[inline]
+    pub(super) unsafe fn as_wrap_slice(&self, offset: usize) -> &[T] {
+        let offset = if offset < self.len {
+            offset
+        } else {
+            offset % self.len
+        };
+
+        self.data.as_sub_slice(self.offset + offset, self.len - offset)
+    }
+
+    #[inline]
+    pub unsafe fn as_ptr(&self) -> *const T {
+        self.data.as_ptr().add(self.offset)
+    }
+
+    // Returns a possibly-wrapped pointer at the offset to support
+    // broadcast
+    #[inline]
+    pub unsafe fn _as_wrap_ptr(&self, offset: usize) -> *const T {
+        if offset < self.len {
+            self.data.as_ptr().add(self.offset + offset)
+        } else {
+            self.data.as_ptr().add(self.offset + offset % self.len)
+        }
+    }
+
+    pub(super) fn map<U: Clone + 'static>(
+        &self, 
+        mut f: impl FnMut(&T) -> U
+    ) -> TensorData<U> {
+        let len = self.len;
+        
+        unsafe {
+            let mut out = TensorUninit::<U>::new(len);
+        
+            let a_ptr = self.as_ptr();
+            let o_ptr = out.as_mut_ptr();
+            
+            for i in 0..len {
+                *o_ptr.add(i) = (f)(a_ptr.add(i).as_ref().unwrap());
+            }
+        
+            out.into()
+        }
+    }
+
+    pub(crate) fn map2<U, F, V: Clone + 'static>(
+        &self, 
+        rhs: &TensorDataSlice<U>,
+        mut f: F
+    ) -> TensorData<V>
+    where
+        F: FnMut(&T, &U) -> V
+    {
+        let a_len = self.len;
+        let b_len = rhs.len;
+
+        let size = a_len.max(b_len);
+        let inner = a_len.min(b_len);
+        let batch = size / inner;
+
+        assert!(batch * inner == size, "broadcast mismatch a.len={} b.len={}", a_len, b_len);
+        
+        unsafe {
+            let mut out = TensorUninit::<V>::new(size);
+
+            for n in 0..batch {
+                let a = self.as_wrap_slice(n * inner);
+                let b = rhs.as_wrap_slice(n * inner);
+
+                let o = out.as_sub_slice(n * inner, inner);
+
+                for k in 0..inner {
+                    o[k] = f(&a[k], &b[k]);
+                }
+            }
+
+            out.into()
+        }
+    }
+
+    pub(crate) fn map_slice<const M: usize, U: Clone + 'static>(
+        &self, 
+        n: usize,
+        f: impl Fn(&[T]) -> [U; M]
+    ) -> TensorData<U> {
+        assert!(n > 0);
+        assert!(self.len % n == 0);
+
+        let len = self.len / n;
+
+        unsafe {
+            let mut out = TensorUninit::<U>::new(M * len);
+
+            let xy = self.as_ptr();
+            let o = out.as_mut_slice();
+
+            for i in 0..len {
+                let offset = n * i;
+
+                let slice = ptr::slice_from_raw_parts(xy.add(offset), n)
+                    .as_ref()
+                    .unwrap();
+
+                let value = (f)(slice);
+
+                for j in 0..M {
+                    o[offset + j] = value[j].clone();
+                }
+            }
+
+            out.into()
+        }
+    }
+
+    pub(super) fn fold<S: Clone + 'static>(
+        &self, 
+        cols: usize,
+        init: S,
+        mut f: impl FnMut(S, &T) -> S
+    ) -> TensorData<S> {
+        let len = self.len / cols;
+        assert!(cols * len == self.len);
+        
+        unsafe {
+            let mut out = TensorUninit::<S>::new(len);
+        
+            let o_ptr = out.as_mut_ptr();
+            let mut a_ptr = self.as_ptr();
+            
+            for i in 0..len {
+                let mut value = init.clone();
+
+                for i in 0..cols {
+                    value = (f)(value, a_ptr.add(i).as_ref().unwrap());
+                }
+
+                *o_ptr.add(i) = value;
+
+                a_ptr = a_ptr.add(cols);
+            }
+        
+            out.into()
+        }
+    }
+}
+
+impl<T: Clone + 'static> TensorData<T> {
+    /*
+    pub fn map_slice<const N: usize, const M: usize>(
+        &self, 
+        f: impl Fn(&[T]) -> [T; M]
+    ) -> Self {
+        assert!(self.len() % N == 0);
+
+        let n = self.len();
+
+        unsafe {
+            let mut out = TensorUninit::<T>::new(N * n);
+
+            let xy = self.as_ptr();
+            let o = out.as_mut_slice();
+
+            for i in 0..n {
+                let offset = N * i;
+
+                let slice = ptr::slice_from_raw_parts(xy.add(offset), N)
+                    .as_ref()
+                    .unwrap();
+
+                let value = (f)(slice);
+
+                for j in 0..M {
+                    o[offset + j] = value[j].clone();
+                }
+            }
+
+            out.into()
+        }
+    }
+    */
+}
+
 impl<T> Drop for TensorData<T> {
     fn drop(&mut self) {
         unsafe {
@@ -222,7 +428,7 @@ impl<T: Clone + 'static> TensorUninit<T> {
     }
 
     #[inline]
-    pub(crate) unsafe fn init(self) -> TensorData<T> {
+    pub(crate) unsafe fn into(self) -> TensorData<T> {
         let ptr = mem::ManuallyDrop::new(self);
         TensorData::new(ptr.data, ptr.len)
     }
@@ -238,6 +444,19 @@ impl<T: Clone + 'static> TensorUninit<T> {
         id: TensorId
     ) -> Tensor<T> {
         Tensor::from_uninit_with_id(self, shape, id)
+    }
+
+    pub unsafe fn init<F>(&mut self, mut f: F) 
+    where
+        F: FnMut() -> T
+    {
+        let len = self.len;
+
+        let slice = self.as_mut_slice();
+
+        for i in 0..len {
+            slice[i] = (f)();
+        }
     }
 }
 
@@ -499,7 +718,7 @@ mod test {
             let slice = a.as_mut_slice();
             slice[0] = 10.0;
             assert_eq!(slice, &[10.]);
-            let data = a.init();
+            let data = a.into();
 
             assert_eq!(data.as_sub_slice(0, data.len()), &[10.]);
         };

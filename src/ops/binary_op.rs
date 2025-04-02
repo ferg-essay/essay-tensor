@@ -226,80 +226,9 @@ impl<Op:BinaryKernel<f32>> GradientOp for BinopDy<Op> {
     }
 }
 
-// TODO: debug seems wrong
-/*
-impl<F, D:Dtype + Copy> BinaryKernel<D> for F
-where F: Fn(D, D) -> D + Send + Sync + 'static + Clone + Copy {
-    fn f(&self, x: &D, y: &D) -> D {
-        (self)(*x, *y)
-    }
-
-    fn df_dx(&self, _x: D, _y: D) -> D {
-        todo!()
-    }
-
-    fn df_dy(&self, _x: D, _y: D) -> D {
-        todo!()
-    }
-}
-*/
-
 #[cfg(test)]
 mod test {
     use crate::{prelude::{*}, model::Var};
-
-    /*
-    #[test]
-    fn binop_broadcast() {
-        let a = tf32!([1., 2., 3.]);
-        let b = tf32!(1.);
-
-        assert_eq!(
-            binary_op(&a, &b, |a, b| 100. * a + b),
-            tf32!([101., 201., 301.])
-        );
-
-        assert_eq!(
-            binary_op(&b, &a, |a, b| 100. * a + b),
-            tf32!([101., 102., 103.])
-        );
-
-        let a = tf32!([1., 2.]);
-        let b = tf32!([[1., 2.], [3., 4.]]);
-
-        assert_eq!(
-            binary_op(&a, &b, |a, b| 100. * a + b),
-            tf32!([[101., 202.], [103., 204.]])
-        );
-
-        assert_eq!(
-            binary_op(&b, &a, |a, b| 100. * a + b),
-            tf32!([[101., 202.], [301., 402.]])
-        );
-
-        let a = tf32!([1., 2.]);
-        let b = tf32!([
-            [[1., 2.], [3., 4.]],
-            [[10., 20.], [30., 40.]],
-        ]);
-
-        assert_eq!(
-            binary_op(&a, &b, |a, b| 100. * a + b),
-            tf32!([
-                [[101., 202.], [103., 204.]],
-                [[110., 220.], [130., 240.]],
-            ])
-        );
-
-        assert_eq!(
-            binary_op(&b, &a, |a, b| 100. * a + b),
-            tf32!([
-                [[101., 202.], [301., 402.]],
-                [[1001., 2002.], [3001., 4002.]],
-            ]),
-        );
-    }
-    */
 
     #[test]
     fn binop_df() {

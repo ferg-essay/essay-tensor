@@ -99,4 +99,25 @@ mod test {
         vec.push([2., 20.]);
         assert_eq!(vec.into_tensor(), tf32!([[1., 10.], [2., 20.]]));
     }
+
+    #[test]
+    fn vec_f32_push() {
+        let mut vec = Vec::<f32>::new();
+        vec.push(1.);
+        vec.push(2.);
+        assert_eq!(Tensor::from(vec), tf32!([1., 2.]));
+    }
+
+    #[test]
+    fn vec_f32x2_push() {
+        let mut vec = Vec::<[f32; 2]>::new();
+        vec.push([1., 10.]);
+        vec.push([2., 20.]);
+        assert_eq!(Tensor::from(vec), tf32!([[1., 10.], [2., 20.]]));
+    }
+
+    #[test]
+    fn test_vec_drop() {
+        todo!();
+    }
 }

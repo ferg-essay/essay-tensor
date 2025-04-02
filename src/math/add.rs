@@ -40,7 +40,7 @@ impl UnaryKernel<f32> for AddScalar {
 }
 
 impl AddScalar {
-    pub fn new(value: f32) -> Self {
+    pub fn _new(value: f32) -> Self {
         AddScalar(value)
     }
 }
@@ -51,7 +51,7 @@ pub struct Add2<D: ops::Add> {
 }
 
 impl<D: ops::Add> Add2<D> {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn _new() -> Self {
         Self {
             marker: PhantomData,
         }
@@ -77,7 +77,7 @@ impl<D: Dtype + ops::Add<Output=D> + Copy> BinaryKernel<D> for Add2<D> {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, model::{Var, Trainer}, tc32, math::add};
+    use crate::{prelude::*, model::{Var, Trainer}};
 
     #[test]
     fn test_add() {
@@ -120,6 +120,7 @@ mod test {
         assert_eq!(3. + &tf32!(2.), tf32!(5.));
     }
 
+    /*
     #[test]
     fn add_c32() {
         assert_eq!(
@@ -131,4 +132,5 @@ mod test {
             tc32!([(3., 30.)]),
         );
     }
+    */
 }

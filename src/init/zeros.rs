@@ -12,9 +12,11 @@ pub fn zeros_initializer() -> Box<dyn Initializer> {
 }
 
 impl Tensor {
+    /*
     pub fn zeros(shape: impl Into<Shape>) -> Tensor {
         zeros(shape)
     }
+    */
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
