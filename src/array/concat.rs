@@ -1,131 +1,89 @@
 use crate::{
     prelude::AxisOpt, 
-    tensor::{TensorId, TensorUninit, Dtype, IntoTensorList},
+    tensor::{IntoTensorList, TensorData},
     Tensor, 
 };
 
-pub fn concatenate<D>(x: impl IntoTensorList<D>, axis: impl Into<AxisOpt>) -> Tensor<D>
+pub fn concatenate<T>(x: impl IntoTensorList<T>) -> Tensor<T>
 where
-    D: Dtype + Clone
+    T: Clone + 'static
 {
-    let mut vec = Vec::<Tensor<D>>::new();
+    let mut vec = Vec::<Tensor<T>>::new();
 
     x.into_list(&mut vec);
 
-    concat_vec(vec, axis)
+    concat_axis(vec, 0)
 }
 
-pub fn concat_vec<D>(x: Vec<Tensor<D>>, axis: impl Into<AxisOpt>) -> Tensor<D>
+pub fn concatenate_axis<T>(x: impl IntoTensorList<T>, axis: impl Into<AxisOpt>) -> Tensor<T>
 where
-    D: Dtype + Clone
+    T: Clone + 'static
 {
+    let mut vec = Vec::<Tensor<T>>::new();
+
     let axis: AxisOpt = axis.into();
 
-    let op = ConcatOp(axis.get_axis());
+    x.into_list(&mut vec);
 
-    let x_ptr : Vec<&Tensor<D>> = x.iter().collect();
+    // concat_vec(vec, axis)
+    let axis = if vec.len() > 0 {
+        axis.axis_from_rank(vec[0].rank())
+    } else {
+        0
+    };
 
-    //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
-    let id = TensorId::unset();
-
-    // let tensor = op.f(x_ptr.as_slice(), id);
-
-    // D::set_tape(tensor)
-
-    todo!();
+    concat_axis(vec, axis)
 }
 
-impl<D: Dtype + Clone> Tensor<D> {
-    pub fn concat(
-        &self, others: impl IntoTensorList<D>, 
-        axis: impl Into<AxisOpt>
-    ) -> Tensor<D> {
-        let mut vec = Vec::<Tensor<D>>::new();
-        vec.push(self.clone());
-
-        others.into_list(&mut vec);
-
-        concat_vec(vec, axis)
-    }
-}
-
-#[derive(Clone)]
-pub struct ConcatOp(Option<isize>);
-
-impl ConcatOp {
-    fn axis(&self) -> &Option<isize> {
-        &self.0
-    }
-}
-/*
-impl<D: Dtype + Clone> Operation<D> for ConcatOp {
-    fn f(
-        &self,
-        args: &[&Tensor<D>],
-        id: TensorId,
-    ) -> Tensor<D> {
-
-        let shape = args[0].shape().clone();
-
-        let axis = axis_from_rank(self.axis(), shape.rank());
-
-        concat_impl(args, axis, id)
-    }
-}
-*/
-
-pub(crate) fn concat_impl<D: Dtype + Clone>(
-    args: &[&Tensor<D>], 
-    axis: usize, 
-    id: TensorId,
-) -> Tensor<D> {
-    let axis_len = validate_concat(args, axis);
-
+pub(crate) fn concat_axis<T: Clone + 'static>(
+    args: Vec<Tensor<T>>, 
+    axis: usize,
+) -> Tensor<T> {
     let shape = args[0].shape();
+    // let axis = axis.axis_from_rank(shape.rank());
+
+    let axis_len = validate_concat(&args, axis);
 
     let shape_inner = shape.remove(axis);
 
     let o_len = args.iter().map(|t| t.len()).sum();
+    let n_outer = shape_inner.sublen(0..axis);
+    let n_inner = if axis < shape_inner.rank() {
+        shape_inner.sublen(axis..)
+    } else {
+        1
+    };
+
+    let shape = shape_inner.insert(axis, axis_len);
 
     unsafe {
-        let mut out = TensorUninit::<D>::new(o_len);
+        TensorData::<T>::unsafe_init(o_len, |o| {
+            let j_stride = n_inner * axis_len;
+            let mut t = 0;
 
-        let o = out.as_mut_ptr();
+            for tensor in args.iter() {
+                let n_axis = tensor.shape().dim(axis);
 
-        let n_outer = shape_inner.sublen(0..axis);
-        let n_inner = if axis < shape_inner.rank() {
-            shape_inner.sublen(axis..)
-        } else {
-            1
-        };
+                let x = tensor.as_slice();
 
-        let j_stride = n_inner * axis_len;
-        let mut t = 0;
+                for j in 0..n_outer {
+                    for k in 0..n_axis {
+                        for i in 0..n_inner {
+                            let value = x[j * n_axis * n_inner + k * n_inner + i].clone();
 
-        for tensor in args.iter() {
-            let n_axis = tensor.shape().dim(axis);
-
-            let x = tensor.as_slice();
-
-            for j in 0..n_outer {
-                for k in 0..n_axis {
-                    for i in 0..n_inner {
-                        *o.add(j * j_stride + t + k * n_inner + i)
-                            = x[j * n_axis * n_inner + k * n_inner + i].clone();
+                            o.add(j * j_stride + t + k * n_inner + i).write(value);
+                        }
                     }
                 }
+
+                t += n_axis * n_inner;
             }
 
-            t += n_axis * n_inner;
-        }
-
-        let shape = shape_inner.insert(axis, axis_len);
-
-        out.into().into_tensor(shape).with_id(id)
+        }).into_tensor(shape)
     }
 }
 
-fn validate_concat<D>(args: &[&Tensor<D>], axis: usize) -> usize {
+fn validate_concat<D>(args: &Vec<Tensor<D>>, axis: usize) -> usize {
     let shape = args[0].shape();
 
     let mut axis_len = 0;
@@ -154,84 +112,77 @@ fn validate_concat<D>(args: &[&Tensor<D>], axis: usize) -> usize {
     axis_len
 }
 
-fn axis_from_rank(axis: &Option<isize>, rank: usize) -> usize {
-    match axis {
-        Some(axis) => (axis + rank as isize) as usize % rank,
-        None => 0,
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{Axis, concatenate}};
+    use crate::{array::{concatenate, concatenate_axis, Axis}, prelude::*};
     
     #[test]
     fn test_concat() {
         assert_eq!(concatenate((
             tf32!([1.]),
             tf32!([10.])
-        ), ()), tf32!([1., 10.]));
+        )), tf32!([1., 10.]));
 
         assert_eq!(concatenate((
             tf32!([1., 2.]),
             tf32!([10., 20., 30.])
-        ), ()), tf32!([
+        )), tf32!([
             1., 2., 10., 20., 30.,
         ]));
 
         assert_eq!(concatenate((
             tf32!([[1.], [2.]]),
             tf32!([[10.], [20.], [30.]])
-        ), ()), tf32!([
+        )), tf32!([
             [1.], [2.], [10.], [20.], [30.],
         ]));
 
         assert_eq!(concatenate((
             tf32!([[1., 2.]]),
             tf32!([[10., 20.], [30., 40.]])
-        ), ()), tf32!([
+        )), tf32!([
             [1., 2.], [10., 20.], [30., 40.],
         ]));
 
         assert_eq!(concatenate((
             tf32!([[[1., 2.]]]),
             tf32!([[[10., 20.]], [[30., 40.]]])
-        ), ()), tf32!([
+        )), tf32!([
             [[1., 2.]], [[10., 20.]], [[30., 40.]],
         ]));
     }
     
     #[test]
     fn test_concat_axis() {
-        assert_eq!(concatenate((
+        assert_eq!(concatenate_axis((
             tf32!([1.]),
             tf32!([10.])
-        ), Axis::axis(0)), tf32!([
+        ), 0), tf32!([
             1., 10., 
         ]));
 
-        assert_eq!(concatenate((
+        assert_eq!(concatenate_axis((
             tf32!([1., 2.]),
             tf32!([10., 20., 30.])
-        ), Axis::axis(-1)), tf32!([
+        ), -1), tf32!([
             1., 2., 10., 20., 30.,
         ]));
 
-        assert_eq!(concatenate((
+        assert_eq!(concatenate_axis((
             tf32!([[1., 2.]]),
             tf32!([[10., 20.]])
         ), Axis::axis(0)), tf32!([
             [1., 2.], [10., 20.],
         ]));
 
-        assert_eq!(concatenate((
+        assert_eq!(concatenate_axis((
             tf32!([[1., 2.]]),
             tf32!([[10., 20.]])
         ), Axis::axis(1)), tf32!([
             [1., 2., 10., 20.],
         ]));
 
-        assert_eq!(concatenate((
+        assert_eq!(concatenate_axis((
             tf32!([[1., 2.], [3., 4.]]),
             tf32!([[10.], [20.]])
         ), Axis::axis(1)), tf32!([

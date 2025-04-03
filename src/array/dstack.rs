@@ -4,8 +4,6 @@ use crate::{
     tensor::{TensorId, Dtype, IntoTensorList}
 };
 
-use super::concat::concat_impl;
-
 pub fn dstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
     D: Dtype + Clone

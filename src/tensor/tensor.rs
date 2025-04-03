@@ -92,7 +92,7 @@ impl<T: Clone + 'static> Tensor<T> {
         let mut vec = Vec::from(self.shape.as_slice());
         vec[0] = self.dim(0) + tensor.dim(0);
 
-        Tensor::from_merge(&vec![self.clone(), tensor], vec, TensorId::NONE)
+        Tensor::from_merge(&vec![self.clone(), tensor], vec)
     }
 
     pub unsafe fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
@@ -125,8 +125,7 @@ impl<T: Clone + 'static> Tensor<T> {
 
     pub fn from_merge(
         vec: &[Tensor<T>], 
-        shape: impl Into<Shape>,
-        id: TensorId,
+        shape: impl Into<Shape>
     ) -> Self {
         let shape = shape.into();
 
@@ -804,27 +803,27 @@ impl<T: Dtype + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<
     }
 }
 
-pub trait IntoTensorList<D: Dtype> {
-    fn into_list(self, vec: &mut Vec<Tensor<D>>);
+pub trait IntoTensorList<T> {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>);
 }
 
-impl<D: Dtype> IntoTensorList<D> for Vec<Tensor<D>> {
-    fn into_list(self, vec: &mut Vec<Tensor<D>>) {
+impl<T> IntoTensorList<T> for Vec<Tensor<T>> {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
         let mut this = self;
 
         vec.append(&mut this)
     }
 }
 
-impl<D: Dtype> IntoTensorList<D> for &[Tensor<D>] {
-    fn into_list(self, vec: &mut Vec<Tensor<D>>) {
+impl<T> IntoTensorList<T> for &[Tensor<T>] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
         let mut vec2 = Vec::from(self);
         vec.append(&mut vec2);
     }
 }
 
-impl<D: Dtype, const N: usize> IntoTensorList<D> for [Tensor<D>; N] {
-    fn into_list(self, vec: &mut Vec<Tensor<D>>) {
+impl<T, const N: usize> IntoTensorList<T> for [Tensor<T>; N] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
         let mut vec2 = Vec::from(self);
         vec.append(&mut vec2);
     }

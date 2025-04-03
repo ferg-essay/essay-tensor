@@ -12,10 +12,17 @@ impl AxisOpt {
         Self { axis: Some(axis), ..self }
     }
 
-    pub fn get_axis(self) -> Option<isize> {
+    pub fn get_axis(&self) -> Option<isize> {
         self.axis
     }
 
+    pub fn axis_from_rank(&self, rank: usize) -> usize {
+        match self.axis {
+            Some(axis) => (axis + rank as isize) as usize % rank,
+            None => 0,
+        }
+    }
+    
     pub(crate) fn _axis_with_shape(&self, shape: &Shape) -> usize {
         match self.axis {
             Some(axis) => {

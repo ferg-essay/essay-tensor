@@ -3,8 +3,6 @@ use crate::{
     Tensor, 
 };
 
-use super::concat::concat_impl;
-
 pub fn hstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
     D: Dtype + Clone

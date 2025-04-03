@@ -17,7 +17,7 @@ pub use axis::{
 };
 
 pub use concat::{
-    concatenate,
+    // concatenate,
 };
 
 pub use dstack::{
@@ -63,3 +63,7 @@ pub use transpose::{
 pub use vstack::{
     vstack,
 };
+
+use crate::{tensor::IntoTensorList, Tensor};
+
+pub use concat::{concatenate, concatenate_axis};

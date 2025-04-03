@@ -1,6 +1,6 @@
 use crate::{Tensor, tensor::{TensorId, Dtype, IntoTensorList}};
 
-use super::concat::concat_impl;
+use super::concat::concat_axis;
 
 pub fn vstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
@@ -60,7 +60,8 @@ impl VstackOp {
 
         let vec : Vec<&Tensor<D>> = expand_args.iter().collect();
 
-        concat_impl(vec.as_slice(), 0, id)
+        //concat_axis(vec.as_slice(), 0)
+        todo!()
     }
 }
 

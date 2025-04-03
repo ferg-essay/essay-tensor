@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorId};
+use crate::Tensor;
 
 pub fn frame(x: impl Into<Tensor>, len: usize, step: usize) -> Tensor {
     let x = x.into();
@@ -19,7 +19,7 @@ pub fn frame(x: impl Into<Tensor>, len: usize, step: usize) -> Tensor {
     shape[0] = len;
     shape.insert(0, n_frames);
 
-    Tensor::from_merge(&vec, shape, TensorId::NONE)
+    Tensor::from_merge(&vec, shape)
 }
 
 #[cfg(test)]
