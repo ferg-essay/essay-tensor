@@ -1,7 +1,7 @@
 use std::{any::type_name, cmp};
 
 use crate::{
-    tensor::{Tensor, TensorId, TensorUninit}, 
+    tensor::{Tensor, TensorUninit}, 
     linalg::blas::sgemm
 };
 

@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{TensorId, TensorUninit, Dtype}};
+use crate::{Tensor, tensor::{TensorUninit, Dtype}};
 
 pub fn tile<D>(tensor: impl Into<Tensor<D>>, multiples: impl Into<Tensor<usize>>) -> Tensor<D>
 where
@@ -17,9 +17,8 @@ impl<D: Dtype + Clone> Tensor<D> {
         let op = TileOp(multiples.into());
 
         //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
-        let id = TensorId::unset();
     
-        let tensor = op.f(&[&self], id);
+        let tensor = op.f(&[&self]);
     
         // D::set_tape(tensor)
         todo!();
@@ -38,8 +37,7 @@ impl TileOp {
 //impl<D: Dtype + Clone> Operation<D> for TileOp {
     fn f<D: Dtype + Clone>(
         &self,
-        args: &[&Tensor<D>],
-        _id: TensorId,
+        args: &[&Tensor<D>]
     ) -> Tensor<D> {
         let tensor = args[0];
         let shape = tensor.shape();

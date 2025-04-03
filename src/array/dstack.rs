@@ -1,7 +1,7 @@
 use crate::{
     Tensor, 
     prelude::Shape, 
-    tensor::{TensorId, Dtype, IntoTensorList}
+    tensor::{Dtype, IntoTensorList}
 };
 
 pub fn dstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
@@ -35,7 +35,6 @@ where
     let x_ptr : Vec<&Tensor<D>> = x.iter().collect();
 
     //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
-    let id = TensorId::unset();
 
     //let tensor = op.f(x_ptr.as_slice(), id);
 

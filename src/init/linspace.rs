@@ -2,7 +2,7 @@ use std::cmp;
 
 use crate::{
     Tensor, 
-    tensor::{TensorUninit, TensorId}, 
+    tensor::TensorUninit, 
     prelude::Shape
 };
 
@@ -20,9 +20,9 @@ pub fn linspace(start: impl Into<Tensor>, end: impl Into<Tensor>, len: usize) ->
     let linspace_op = LinspaceCpu(len);
 
     //let id = NodeOp::new(&[&start, &end], Box::new(linspace_op));
-    let id = TensorId::unset();
+    //let id = TensorId::unset();
 
-    let tensor = linspace_op.f(&[&start, &end], id);
+    let tensor = linspace_op.f(&[&start, &end]);
 
     //Tape::set_tensor(tensor)
     tensor
@@ -45,7 +45,6 @@ impl LinspaceCpu {
     fn f(
         &self,
         args: &[&Tensor],
-        id: TensorId,
     ) -> Tensor {
         assert!(args.len() == 2);
 
@@ -80,7 +79,7 @@ impl LinspaceCpu {
                         o[k * batch + n] = start + step * k as f32;
                     }
                 }
-            }).into_tensor(o_shape).with_id(id)
+            }).into_tensor(o_shape)
         }
     }
 }

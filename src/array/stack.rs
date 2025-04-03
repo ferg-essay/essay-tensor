@@ -1,6 +1,6 @@
 use crate::{
     Tensor, prelude::{AxisOpt, Shape}, 
-    tensor::{TensorId, TensorUninit, Dtype, IntoTensorList}
+    tensor::{TensorUninit, Dtype, IntoTensorList}
 };
 
 use super::axis::axis_from_rank;
@@ -40,12 +40,13 @@ where
     let x_ptr : Vec<&Tensor<D>> = x.iter().collect();
 
     //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
-    let id = TensorId::unset();
+    //let id = TensorId::unset();
 
-    let tensor = op.f(x_ptr.as_slice(), id);
+    //let tensor = op.f(x_ptr.as_slice(), id);
 
     // Tape::set_tensor(tensor)
-    tensor
+    //tensor
+    todo!()
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
@@ -71,7 +72,6 @@ impl StackOp {
     fn f<D: Dtype + Clone>(
         &self,
         args: &[&Tensor<D>],
-        id: TensorId,
     ) -> Tensor<D> {
         let shape = args[0].shape();
 
@@ -104,7 +104,7 @@ impl StackOp {
             let mut vec = Vec::from(args[0].shape().as_slice());
             vec.insert(axis, args.len());
     
-            out.into().into_tensor(vec).with_id(id)
+            out.into().into_tensor(vec)
         }
     }
 }

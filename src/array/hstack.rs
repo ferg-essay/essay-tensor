@@ -1,5 +1,5 @@
 use crate::{
-    tensor::{TensorId, Dtype, IntoTensorList},
+    tensor::{Dtype, IntoTensorList},
     Tensor, 
 };
 
@@ -23,7 +23,7 @@ where
     let x_ptr : Vec<&Tensor<D>> = x.iter().collect();
 
     //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
-    let id = TensorId::unset();
+    //let id = TensorId::unset();
 
     // let tensor = op.f(x_ptr.as_slice(), id);
 

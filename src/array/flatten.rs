@@ -1,13 +1,13 @@
 use crate::{
     Tensor, 
-    tensor::{TensorId, Dtype}, 
+    tensor::Dtype, 
 };
 
 pub fn flatten<D: Dtype>(x: &Tensor<D>) -> Tensor<D> {
     let op = FlattenOp;
 
     //let node = NodeOp::new(&[x], Box::new(op.clone()));
-    let id = TensorId::unset();
+    //let id = TensorId::unset();
 
     //let tensor = op.f(&[&x], id);
 

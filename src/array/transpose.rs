@@ -1,16 +1,16 @@
 use crate::{
-    Tensor, tensor::{TensorId, TensorUninit, Dtype}
+    Tensor, tensor::{TensorUninit, Dtype}
 };
 
 pub fn transpose<D: Dtype + Clone>(x: impl Into<Tensor<D>>) -> Tensor<D> {
     let op = Transpose;
 
     //let id = D::node_op(x, Box::new(op));
-    let id = TensorId::unset(); // D::node_op(x, Box::new(op));
+    // let id = TensorId::unset(); // D::node_op(x, Box::new(op));
 
     let x = x.into();
 
-    let tensor = op.f(&[&x], id);
+    let tensor = op.f(&[&x]);
 
     // D::set_tape(tensor)
     todo!();
@@ -35,7 +35,6 @@ impl Transpose {
     fn f<D: Dtype + Clone>(
         &self,
         args: &[&Tensor<D>],
-        id: TensorId,
     ) -> Tensor<D> {
         let tensor = args[0];
 
@@ -65,7 +64,7 @@ impl Transpose {
             slice.push(cols);
             slice.push(rows);
     
-            Tensor::from_uninit_with_id(out, slice, id)
+            Tensor::from_uninit(out, slice)
         }
     }
 }

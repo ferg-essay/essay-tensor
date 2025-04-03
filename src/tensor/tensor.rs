@@ -10,7 +10,6 @@ use super::{
 };
 
 pub struct Tensor<T=f32> {
-    id: TensorId,
     shape: Shape,
     offset: usize,
     len: usize,
@@ -21,8 +20,6 @@ pub struct Tensor<T=f32> {
 impl<T> Tensor<T> {
     pub(crate) fn from_data(data: TensorData<T>, shape: impl Into<Shape>) -> Self {
         Self {
-            id: TensorId::NONE,
-
             shape: shape.into(),
             offset: 0,
             len: data.len(),
@@ -33,8 +30,6 @@ impl<T> Tensor<T> {
 
     pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
         Self {
-            id: TensorId::NONE,
-
             shape: shape.into(),
             offset: 0,
             len: vec.len(),
@@ -45,8 +40,6 @@ impl<T> Tensor<T> {
     
     pub fn from_box(data: Box<[T]>, shape: impl Into<Shape>) -> Self {
         Self {
-            id: TensorId::NONE,
-
             shape: shape.into(),
             offset: 0,
             len: data.len(),
@@ -59,8 +52,6 @@ impl<T> Tensor<T> {
 impl<T: Clone + 'static> Tensor<T> {
     pub fn empty() -> Self {
         Self {
-            id: TensorId::NONE,
-
             shape: Shape::from([0]),
             offset: 0,
             len: 0,
@@ -74,8 +65,6 @@ impl<T: Clone + 'static> Tensor<T> {
         assert!(data.len() > 0);
 
         Self {
-            id: TensorId::NONE,
-
             shape: Shape::from(data.len()),
             offset: 0,
             len: data.len(),
@@ -95,14 +84,9 @@ impl<T: Clone + 'static> Tensor<T> {
         Tensor::from_merge(&vec![self.clone(), tensor], vec)
     }
 
-    pub unsafe fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
-        Self::from_uninit_with_id(data, shape, TensorId::NONE)
-    }
-
-    pub unsafe fn from_uninit_with_id(
+    pub unsafe fn from_uninit(
         data: TensorUninit<T>, 
         shape: impl Into<Shape>,
-        id: TensorId,
     ) -> Self {
         let shape = shape.into();
         let len: usize = data.len(); // max(1, shape.size());
@@ -113,8 +97,6 @@ impl<T: Clone + 'static> Tensor<T> {
         );
 
         Self {
-            id,
-
             shape,
             offset: 0,
             len,
@@ -162,11 +144,6 @@ impl<T: Dtype> Tensor<T> {
 }
 
 impl<T> Tensor<T> {
-    #[inline]
-    pub fn id(&self) -> TensorId {
-        self.id
-    }
-
     #[inline]
     pub fn len(&self) -> usize {
         self.len
@@ -222,10 +199,6 @@ impl<T> Tensor<T> {
         self.shape.broadcast_min(a_min, b.shape(), b_min)
     }
 
-    pub(crate) fn with_id(self, id: TensorId) -> Tensor<T> {
-        Self { id, ..self }
-    }
-
     pub fn with_shape(self, shape: impl Into<Shape>) -> Tensor<T> {
         let shape = shape.into();
 
@@ -234,41 +207,6 @@ impl<T> Tensor<T> {
         );
 
         Self { shape, ..self }
-    }
-
-    pub(crate) fn clone_with_shape(&self, shape: impl Into<Shape>, id: TensorId) -> Tensor<T> {
-        let shape = shape.into();
-        assert_eq!(shape.size(), self.len(), "shape size must match {:?} new={:?}", 
-            self.shape().as_slice(), shape.as_slice()
-        );
-
-        Self { 
-            id, 
-            shape, 
-            data: self.data.clone(),
-            offset: self.offset,
-            len: self.len,
-        }
-    }
-
-    pub(crate) fn reshape_impl(
-        &self, 
-        shape: impl Into<Shape>,
-        id: TensorId,
-    ) -> Self {
-        let shape = shape.into();
-
-        assert_eq!(self.len(), shape.size());
-
-        Tensor {
-            id,
-
-            shape,
-            offset: self.offset,
-            len: self.len,
-
-            data: self.data.clone(),
-        }
     }
 
     #[inline]
@@ -322,8 +260,6 @@ impl<T> Tensor<T> {
         assert!(shape_len == len || shape.size() == 0 && len == 1);
 
         Self {
-            id: TensorId::NONE,
-
             shape,
 
             offset: self.offset + offset,
@@ -462,8 +398,6 @@ impl<T> Deref for Tensor<T> {
 impl<T> Clone for Tensor<T> {
     fn clone(&self) -> Self {
         Self { 
-            id: self.id,
-
             shape: self.shape.clone(), 
 
             offset: self.offset,
@@ -512,10 +446,6 @@ impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
         
         write!(f, ", shape: {:?}", &self.shape.as_slice())?;
         // write!(f, ", dtype: {}", type_name::<T>())?;
-
-        if f.alternate() && self.id().is_some() {
-            write!(f, ", id: {:#?}", &self.id)?;
-        }
 
         write!(f, "}}")?;
         Ok(())
@@ -858,52 +788,6 @@ tensor_list!(P0, P1, P2, P3, P4, P5, P6);
 tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7);
 tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8);
 tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TensorId(u32, u32);
-
-impl TensorId {
-    pub const NONE : TensorId = TensorId(u32::MAX, u32::MAX);
-
-    #[inline]
-    pub(crate) fn new(model_index: u32, tensor_index: u32) -> TensorId {
-        TensorId(model_index, tensor_index)
-    }
-
-    #[inline]
-    pub fn index(&self) -> usize {
-        self.1 as usize
-    }
-
-    #[inline]
-    pub fn model_index(&self) -> usize {
-        self.0 as usize
-    }
-
-    #[inline]
-    pub fn is_some(&self) -> bool {
-        self != &Self::NONE
-    }
-
-    #[inline]
-    pub fn is_none(&self) -> bool {
-        self == &Self::NONE
-    }
-
-    pub fn unset() -> TensorId {
-        Self::NONE
-    }
-}
-
-impl fmt::Debug for TensorId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_none() {
-            write!(f, "TensorId(None)")
-        } else {
-            write!(f, "TensorId({}:{})", self.0, self.1)
-        }
-    }
-}
 
 pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {
 }

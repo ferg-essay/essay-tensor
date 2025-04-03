@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{TensorId, Dtype, IntoTensorList}};
+use crate::{Tensor, tensor::{Dtype, IntoTensorList}};
 
 use super::concat::concat_axis;
 
@@ -22,9 +22,9 @@ where
     let x_ptr : Vec<&Tensor<D>> = x.iter().collect();
 
     //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
-    let id = TensorId::unset();
+    //let id = TensorId::unset();
 
-    let tensor = op.f(x_ptr.as_slice(), id);
+    let tensor = op.f(x_ptr.as_slice());
 
     // D::set_tape(tensor)
     todo!();
@@ -51,11 +51,10 @@ impl VstackOp {
     fn f<D: Dtype + Clone>(
         &self,
         args: &[&Tensor<D>],
-        id: TensorId,
     ) -> Tensor<D> {
         let expand_args : Vec<Tensor<D>> = args.iter().map(|t| {
             let shape = t.shape().insert(0, 1);
-            t.clone_with_shape(shape, TensorId::unset())
+            (*t).clone().with_shape(shape)
         }).collect();
 
         let vec : Vec<&Tensor<D>> = expand_args.iter().collect();

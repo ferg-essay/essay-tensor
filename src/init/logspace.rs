@@ -2,7 +2,7 @@ use std::{cmp};
 
 use crate::{
     Tensor, 
-    tensor::{TensorUninit, TensorId}, 
+    tensor::TensorUninit, 
     prelude::Shape
 };
 
@@ -42,9 +42,9 @@ pub fn logspace_opt(
     let logspace_op = LogspaceCpu { base, len };
 
     //let id = NodeOp::new(&[&start, &end], Box::new(linspace_op));
-    let id = TensorId::unset();
+    //let id = TensorId::unset();
 
-    let tensor = logspace_op.f(&[&start, &end], id);
+    let tensor = logspace_op.f(&[&start, &end]);
 
     //Tape::set_tensor(tensor)
     tensor
@@ -60,7 +60,6 @@ impl LogspaceCpu {
     fn f(
         &self,
         args: &[&Tensor],
-        id: TensorId,
     ) -> Tensor {
         assert!(args.len() == 2);
 
@@ -100,7 +99,7 @@ impl LogspaceCpu {
                 }
             }
 
-            o_data.into().into_tensor(o_shape).with_id(id)
+            o_data.into().into_tensor(o_shape)
         }
     }
 }

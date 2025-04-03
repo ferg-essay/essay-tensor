@@ -6,7 +6,7 @@
 use crate::{
     Tensor, 
     prelude::Shape, 
-    tensor::{TensorId, Dtype}, 
+    tensor::Dtype, 
 };
 
 pub fn reshape<D: Dtype>(x: &Tensor<D>, shape: impl Into<Shape>) -> Tensor<D> {
@@ -14,7 +14,7 @@ pub fn reshape<D: Dtype>(x: &Tensor<D>, shape: impl Into<Shape>) -> Tensor<D> {
     let op = ReshapeOp(shape);
 
     //let node = NodeOp::new(&[x], Box::new(op.clone()));
-    let id = TensorId::unset();
+    //let id = TensorId::unset();
 
     //let tensor = op.f(&[&x], id);
 

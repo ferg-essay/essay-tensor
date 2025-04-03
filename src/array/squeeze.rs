@@ -3,14 +3,14 @@
 // squeeze operation
 //
 
-use crate::{Tensor, prelude::AxisOpt, tensor::{TensorId, Dtype}};
+use crate::{Tensor, prelude::AxisOpt, tensor::Dtype};
 
 pub fn squeeze<D: Dtype>(x: &Tensor<D>, axis: impl Into<AxisOpt>) -> Tensor<D> {
     let axis : AxisOpt = axis.into();
     let op = SqueezeOp(axis.get_axis());
 
     //let node = NodeOp::new(&[x], Box::new(op.clone()));
-    let id = TensorId::unset();
+    //let id = TensorId::unset();
 
     //let tensor = op.f(&[&x], id);
 

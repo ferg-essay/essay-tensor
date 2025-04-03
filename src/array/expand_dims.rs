@@ -4,7 +4,7 @@
 //
 
 use crate::{
-    Tensor, prelude::AxisOpt, tensor::{TensorId, Dtype},
+    Tensor, prelude::AxisOpt, tensor::Dtype,
 };
 
 pub fn expand_dims<D: Dtype>(x: impl Into<Tensor<D>>, axis: impl Into<AxisOpt>) -> Tensor<D> {
@@ -17,7 +17,7 @@ impl<D: Dtype> Tensor<D> {
         let op = ExpandDims(axis.get_axis().unwrap());
     
         //let node = NodeOp::new(&[x], Box::new(op.clone()));
-        let id = TensorId::unset();
+        //let id = TensorId::unset();
     
         // let tensor = op.f(&[self], id);
     
