@@ -100,7 +100,7 @@ impl Operation<f32> for LogspaceCpu {
                 }
             }
 
-            o_data.into_tensor_with_id(o_shape, id)
+            o_data.into().into_tensor(o_shape).with_id(id)
         }
     }
 }

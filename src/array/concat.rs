@@ -114,7 +114,7 @@ pub(crate) fn concat_impl<D: Dtype + Clone>(
 
         let shape = shape_inner.insert(axis, axis_len);
 
-        out.into_tensor_with_id(shape, id)
+        out.into().into_tensor(shape).with_id(id)
     }
 }
 

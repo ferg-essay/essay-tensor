@@ -5,7 +5,11 @@ use num_complex::Complex;
 
 use crate::model::{NodeOp, Tape, expr::GradOperation};
 
-use super::{data::{TensorData, TensorDataSlice}, slice::TensorSlice, Shape, TensorUninit};
+use super::{
+    data::TensorData, 
+    slice::TensorSlice, 
+    Shape, TensorUninit
+};
 
 pub struct Tensor<T=f32> {
     id: TensorId,
@@ -28,6 +32,7 @@ impl<T> Tensor<T> {
             data: Arc::new(data)
         }
     }
+
     pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
         Self {
             id: TensorId::NONE,
@@ -37,6 +42,18 @@ impl<T> Tensor<T> {
             len: vec.len(),
 
             data: Arc::new(TensorData::from_vec(vec)),
+        }
+    }
+    
+    pub fn from_box(data: Box<[T]>, shape: impl Into<Shape>) -> Self {
+        Self {
+            id: TensorId::NONE,
+
+            shape: shape.into(),
+            offset: 0,
+            len: data.len(),
+
+            data: Arc::new(TensorData::from_boxed_slice(data)),
         }
     }
 }
@@ -54,7 +71,8 @@ impl<T: Clone + 'static> Tensor<T> {
         }
     }
 
-    pub fn from_slice(data: &[T]) -> Self {
+    pub fn from_slice(data: impl AsRef<[T]>) -> Self {
+        let data = data.as_ref();
         assert!(data.len() > 0);
 
         Self {
@@ -76,7 +94,7 @@ impl<T: Clone + 'static> Tensor<T> {
         let mut vec = Vec::from(self.shape.as_slice());
         vec[0] = self.dim(0) + tensor.dim(0);
 
-        Tensor::from_merge(vec![self.clone(), tensor], vec, TensorId::NONE)
+        Tensor::from_merge(&vec![self.clone(), tensor], vec, TensorId::NONE)
     }
 
     pub unsafe fn from_uninit(data: TensorUninit<T>, shape: impl Into<Shape>) -> Self {
@@ -108,7 +126,7 @@ impl<T: Clone + 'static> Tensor<T> {
     }
 
     pub fn from_merge(
-        vec: Vec<Tensor<T>>, 
+        vec: &[Tensor<T>], 
         shape: impl Into<Shape>,
         id: TensorId,
     ) -> Self {
@@ -121,31 +139,14 @@ impl<T: Clone + 'static> Tensor<T> {
             "Tensor data len={} must match shape size {:?}", len, shape.as_slice()
         );
 
-        unsafe {
-            let mut uninit = TensorUninit::<T>::new(len);
+        let mut data = Vec::<T>::new();
+        data.reserve_exact(len);
 
-            let mut o_ptr = uninit.as_mut_ptr();
+        let data = vec.iter()
+            .flat_map(|tensor| tensor.as_slice().iter().map(|v| v.clone()))
+            .collect();
 
-            for tensor in vec {
-                let x = tensor.as_slice();
-
-                for i in 0..tensor.len() {
-                    *o_ptr.add(i) = x[i].clone();
-                }
-
-                o_ptr = o_ptr.add(tensor.len());
-            }
-
-            Self {
-                id,
-
-                shape,
-                offset: 0,
-                len,
-
-                data: Arc::new(uninit.into()),
-            }
-        }
+        Tensor::from_vec(data, shape)
     }
 }
 
@@ -153,15 +154,13 @@ impl<T: Dtype> Tensor<T> {
     pub fn join_vec(
         vec: &Vec<Vec<T>>, 
     ) -> Self {
-        let mut flat_vec = Vec::<T>::new();
+        let data: Vec<T> = vec.iter()
+            .flat_map(|row| row.iter().map(|v| v.clone()))
+            .collect();
 
-        for item in vec.iter() {
-            for v in item.iter() {
-                flat_vec.push(v.clone());
-            }
-        }
+        let len = data.len();
 
-        Tensor::from(flat_vec)
+        Tensor::from_vec(data, len)
     }
 }
 
@@ -276,11 +275,6 @@ impl<T> Tensor<T> {
     }
 
     #[inline]
-    pub(super) fn as_data_slice(&self) -> TensorDataSlice<T> {
-        TensorDataSlice::new(&self.data, self.offset, self.len)
-    }
-
-    #[inline]
     pub fn get(&self, offset: usize) -> Option<&T> {
         unsafe { self.data.get(self.offset + offset) }
     }
@@ -293,14 +287,16 @@ impl<T> Tensor<T> {
     // Returns a possibly-wrapped pointer at the offset to support
     // broadcast
     #[inline]
-    pub unsafe fn as_wrap_slice(&self, offset: usize) -> &[T] {
+    pub fn as_wrap_slice(&self, offset: usize) -> &[T] {
         let offset = if offset < self.len {
             offset
         } else {
             offset % self.len
         };
 
-        self.data.as_sub_slice(self.offset + offset, self.len - offset)
+        unsafe {
+            self.data.as_sub_slice(self.offset + offset, self.len - offset)
+        }
     }
 
     #[inline]
@@ -401,12 +397,10 @@ impl<T: Clone + 'static> Tensor<T> {
 
     pub fn map<U, F>(&self, f: F) -> Tensor<U>
     where
-        U: Clone + 'static,
+        U: 'static,
         F: FnMut(&T) -> U
     {
-        let data = self.as_data_slice().map(f);
-
-        Tensor::from_data(data, self.shape())
+        TensorData::map(self, f).into_tensor(self.shape())
     }
 
     pub fn map2<U, F, V: Clone + 'static>(
@@ -420,21 +414,16 @@ impl<T: Clone + 'static> Tensor<T> {
     {
         let shape = self.shape().broadcast_to(rhs.shape());
 
-        let a = self.as_data_slice();
-        let b = rhs.as_data_slice();
-
-        let data = a.map2(&b, f);
-
-        Tensor::from_data(data, shape)
+        TensorData::map2(&self, rhs, f).into_tensor(shape)
     }
 
     pub fn map_slice<const M: usize, U: Clone + 'static>(
         &self, 
         f: impl Fn(&[T]) -> [U; M]
     ) -> Tensor<U> {
-        let data = self.as_data_slice().map_slice(self.cols(), f);
+        let shape =  self.shape().with_col(M);
 
-        Tensor::from_data(data, self.shape().with_col(M))
+        TensorData::map_slice(self, self.cols(), f).into_tensor(shape)
     }
 
     pub fn fold<S, F>(&self, init: S, f: F) -> Tensor<S>
@@ -442,28 +431,20 @@ impl<T: Clone + 'static> Tensor<T> {
         S: Clone + 'static,
         F: FnMut(S, &T) -> S
     {
-        let data: TensorData<S> = self.as_data_slice().fold_into(
-            self.cols(),
-            init, 
-            f
-        );
+        let shape = self.shape().reduce();
 
-        Tensor::from_data(data, self.shape().reduce())
+        TensorData::fold_into(self, self.cols(), init, f).into_tensor(shape)
     }
 
     pub fn fold_into<S, F, V>(&self, init: S, f: F) -> Tensor<V>
     where
         S: Clone + Into<V>,
         F: FnMut(S, &T) -> S,
-        V: Clone + 'static,
+        V: 'static,
     {
-        let data = self.as_data_slice().fold_into(
-            self.cols(),
-            init, 
-            f
-        );
+        let shape = self.shape().reduce();
 
-        Tensor::from_data(data, self.shape().reduce())
+        TensorData::fold_into(self, self.cols(), init, f).into_tensor(shape)
     }
 }
 
@@ -499,6 +480,26 @@ impl<T> Clone for Tensor<T> {
 impl<T:PartialEq> PartialEq for Tensor<T> {
     fn eq(&self, other: &Self) -> bool {
         self.shape == other.shape && self.as_slice() == other.as_slice()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Tensor<T> {
+    type Item = &'a T;
+    type IntoIter = slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+impl<T> AsRef<Tensor<T>> for Tensor<T> {
+    fn as_ref(&self) -> &Tensor<T> {
+    	self
+    }
+}
+
+impl<T> AsRef<[T]> for Tensor<T> {
+    fn as_ref(&self) -> &[T] {
+	    self.as_slice()
     }
 }
 
@@ -612,18 +613,10 @@ impl<T: Dtype> From<Vec<T>> for Tensor<T> {
 
 impl<T: Dtype> From<&Vec<T>> for Tensor<T> {
     fn from(value: &Vec<T>) -> Self {
-        let len = value.len();
+        let data = value.clone();
+        let len = data.len();
 
-        unsafe {
-            let mut uninit = TensorUninit::<T>::new(value.len());
-
-            let o = uninit.as_mut_slice();
-            for (i, item) in value.iter().enumerate() {
-                o[i] = item.clone();
-            }
-
-            uninit.into_tensor(len)
-        }
+        Tensor::from_vec(data, len)
     }
 }
 
@@ -640,26 +633,30 @@ impl<T: Dtype, const N: usize> From<Vec<[T; N]>> for Tensor<T> {
 impl<T: Dtype, const N: usize> From<&Vec<[T; N]>> for Tensor<T> {
     fn from(value: &Vec<[T; N]>) -> Self {
         let len = value.len();
-        let size = len * N;
 
-        unsafe {
-            let mut uninit = TensorUninit::<T>::new(size);
+        let data: Vec<T> = value.iter()
+            .flat_map(|row| row.iter().map(|v| v.clone()))
+            .collect();
 
-            let o = uninit.as_mut_slice();
-            for (j, row) in value.iter().enumerate() {
-                for (i,  item) in row.iter().enumerate() {
-                    o[j * N + i] = item.clone();
-                }
-            }
-
-            uninit.into_tensor([len, N])
-        }
+        Tensor::from_vec(data, [len, N])
     }
 }
 
 // array conversions
 
-impl<T: Dtype, const N: usize> From<[T; N]> for Tensor<T> {
+// can't generalize from Dtype because internal array's can't match such
+// as [[1., 2.]], where T=f32 not T=[f32; 2]
+impl<T: Dtype + 'static> From<&[T]> for Tensor<T> {
+    fn from(value: &[T]) -> Self {
+        let len = value.len();
+
+        let data = Vec::from(value);
+
+        Tensor::from_vec(data, [len])
+    }
+}
+
+impl<T: Dtype + 'static, const N: usize> From<[T; N]> for Tensor<T> {
     fn from(value: [T; N]) -> Self {
         let vec = Vec::<T>::from(value);
         let len = vec.len();
@@ -668,41 +665,15 @@ impl<T: Dtype, const N: usize> From<[T; N]> for Tensor<T> {
     }
 }
 
-impl<T: Dtype> From<&[T]> for Tensor<T> {
-    fn from(value: &[T]) -> Self {
-        let len = value.len();
-        let size = len;
-
-        unsafe {
-            let mut uninit = TensorUninit::<T>::new(size);
-
-            let o = uninit.as_mut_slice();
-            for (i, item) in value.iter().enumerate() {
-                o[i] = item.clone();
-            }
-
-            uninit.into_tensor([len])
-        }
-    }
-}
-
 impl<T: Dtype, const N: usize> From<&[[T; N]]> for Tensor<T> {
     fn from(value: &[[T; N]]) -> Self {
         let len = value.len();
-        let size = len * N;
 
-        unsafe {
-            let mut uninit = TensorUninit::<T>::new(size);
+        let data: Vec<T> = value.iter()
+            .flat_map(|row| row.iter().map(|v| v.clone()))
+            .collect();
 
-            let o = uninit.as_mut_slice();
-            for (j, row) in value.iter().enumerate() {
-                for (i,  item) in row.iter().enumerate() {
-                    o[j * N + i] = item.clone();
-                }
-            }
-
-            uninit.into_tensor([len, N])
-        }
+        Tensor::from_vec(data, [len, N])
     }
 }
 
@@ -736,15 +707,11 @@ where
     T: Dtype,
 {
     fn from(value: [[T; N]; M]) -> Self {
-        let mut vec = Vec::<T>::new();
+        let data = value.into_iter()
+            .flat_map(|row| row.into_iter())
+            .collect();
 
-        for value in value.iter() {
-            for value in value.iter() {
-                vec.push(value.clone());
-            }
-        }
-
-        Tensor::from_vec(vec, [M, N])
+        Tensor::from_vec(data, [M, N])
     }
 }
 
@@ -754,17 +721,12 @@ where
     T: Dtype
 {
     fn from(value: [[[T; N]; M]; L]) -> Self {
-        let mut vec = Vec::<T>::new();
+        let data = value.into_iter()
+            .flat_map(|r1| 
+                r1.into_iter().flat_map(|row| row.into_iter())
+            ).collect();
 
-        for value in value.iter() {
-            for value in value.iter() {
-                for value in value.iter() {
-                    vec.push(value.clone());
-                }
-            }
-        }
-
-        Tensor::from_vec(vec, [L, M, N])
+        Tensor::from_vec(data, [L, M, N])
     }
 }
 
@@ -790,9 +752,18 @@ where
     }
 }
 
-impl<T: Dtype> FromIterator<T> for Tensor<T> {
+impl<T> FromIterator<T> for Tensor<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let vec : Vec<T> = Vec::from_iter(iter);
+        let len = vec.len();
+
+        Tensor::from_vec(vec, len)
+    }
+}
+
+impl<'a, T: Clone> FromIterator<&'a T> for Tensor<T> {
+    fn from_iter<I: IntoIterator<Item = &'a T>>(iter: I) -> Self {
+        let vec : Vec<T> = iter.into_iter().map(|v| v.clone()).collect();
         let len = vec.len();
 
         Tensor::from_vec(vec, len)
@@ -819,20 +790,11 @@ impl<T: Dtype + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
             assert_eq!(shape, value.shape(), "tensor shapes must match");
         }
 
-        unsafe {
-            let mut data = TensorUninit::<T>::new(sublen * n);
+        let data : Vec<T> = values.iter().flat_map(|tensor|
+            tensor.as_slice().iter().map(|v| v.clone())
+        ).collect();
 
-            let o = data.as_mut_slice();
-            for j in 0..n {
-                let tensor = &values[j];
-
-                for (i, value) in tensor.as_slice().iter().enumerate() {
-                    o[j * sublen + i] = value.clone();
-                }
-            }
-
-            Tensor::from_uninit(data, shape.push(n))
-        }
+        Tensor::from_vec(data, shape.push(n)) 
     }
 }
 
@@ -1509,5 +1471,50 @@ mod test {
         assert_eq!(t2.offset(), 0);
         assert_eq!(t2.len(), 1);
         assert_eq!(t2, tensor!([110]));
+    }
+
+    #[test]
+    fn test_as_ref() {
+        let t1 = tensor!([1, 2, 3]);
+
+        as_ref(t1);
+    }
+
+    fn as_ref(tensor: impl AsRef<Tensor<i32>>) {
+        let _my_ref = tensor.as_ref();
+    }
+
+    #[test]
+    fn test_as_slice() {
+        let t1 = tensor!([1, 2, 3]);
+
+        as_slice(t1);
+    }
+
+    fn as_slice(slice: impl AsRef<[i32]>) {
+        let _my_ref = slice.as_ref();
+    }
+
+    #[test]
+    fn test_collect() {
+        let t1: Tensor<i32> = [1, 2, 3].iter().collect();
+
+        assert_eq!(t1, tensor!([1, 2, 3]));
+
+        let t1: Tensor<i32> = [1, 2, 3].into_iter().collect();
+
+        assert_eq!(t1, tensor!([1, 2, 3]));
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut vec = Vec::new();
+
+        let t1: Tensor<i32> = [1, 2, 3].iter().collect();
+        for v in &t1 {
+            vec.push(*v);
+        }
+
+        assert_eq!(vec, vec![1, 2, 3]);
     }
 }

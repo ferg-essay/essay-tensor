@@ -118,7 +118,7 @@ fn split_by_axis<D: Dtype>(
                 shape.push(tensor.shape().dim(i))
             }
 
-            slices.push(uninit.into_tensor(shape));
+            slices.push(uninit.into().into_tensor(shape));
         }
 
         prev = cut;

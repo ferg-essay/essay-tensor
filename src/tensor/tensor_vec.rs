@@ -73,7 +73,9 @@ where
                 }
             }
 
-            out.into_tensor([len, M])
+            let data = out.into();
+
+            Tensor::from_data(data, [len, M])
         }
     }
 }

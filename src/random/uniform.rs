@@ -8,30 +8,17 @@ pub fn uniform(
     max: f32, 
     seed: Option<u64>,
 ) -> Tensor {
-    let shape = shape.into(); // Shape::from(shape);
-    let len : usize = shape.size();
+    match seed {
+        Some(seed) => {
+            let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
 
-    unsafe {
-        let mut uninit = TensorUninit::new(len);
+            Tensor::init(shape, || rng.gen_range(min..max))
+        }
+        None => { 
+            let mut rng = thread_rng() ;
 
-        match seed {
-            Some(seed) => {
-                let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-
-                for value in uninit.as_mut_slice() {
-                    *value = rng.gen_range(min..max);
-                }
-            }
-            None => { 
-                let mut rng = thread_rng() ;
-
-                for value in uninit.as_mut_slice() {
-                    *value = rng.gen_range(min..max);
-                }
-            }
-        };
-
-        uninit.into_tensor(shape)
+            Tensor::init(shape, || rng.gen_range(min..max))
+        }
     }
 }
 

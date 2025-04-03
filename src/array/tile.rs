@@ -82,7 +82,7 @@ impl<D: Dtype + Clone> Operation<D> for TileOp {
                 &mut offset
             );
 
-            uninit.into_tensor(o_shape)
+            uninit.into().into_tensor(o_shape)
         }
     }
 }

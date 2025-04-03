@@ -5,18 +5,13 @@ pub fn eye(n: usize) -> Tensor {
     let size = n * n;
 
     unsafe {
-        let mut uninit = TensorUninit::<f32>::new(size);
+        TensorUninit::<f32>::create(size, |o| {
+            o.fill(0.);
 
-        for item in uninit.as_mut_slice() {
-            *item = 0.;
-        }
-
-        let slice = uninit.as_mut_slice();
-        for i in 0..n {
-            slice[i * n + i] = 1.;
-        }
-
-        uninit.into_tensor([n, n])
+            for i in 0..n {
+                o[i * n + i] = 1.;
+            }
+        }).into_tensor([n, n])
     }
 }
 

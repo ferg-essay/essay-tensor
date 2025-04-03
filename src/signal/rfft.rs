@@ -26,52 +26,48 @@ pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
     };
 
     unsafe {
-        let mut uninit = TensorUninit::<f32>::new(batch * len_out);
+        let data = TensorUninit::<f32>::create(batch * len_out, |o| {
+            for n in 0..batch {
+                let x = tensor.as_wrap_slice(n * len);
 
-        for n in 0..batch {
-            let x = tensor.as_wrap_slice(n * len);
-
-            for i in 0..len {
-                buffer[i] = Complex { re: x[i] * window[i], im: 0. };
-            }
+                for i in 0..len {
+                    buffer[i] = Complex { re: x[i] * window[i], im: 0. };
+                }
         
-            fft_fwd.process(&mut buffer);
+                fft_fwd.process(&mut buffer);
 
-            let fft_slice = buffer.as_slice();
-            let o_ptr = uninit.as_mut_ptr().add(n * len_out);
+                let fft_slice = buffer.as_slice();
+                let offset = n * len_out;
 
-            for i in 0..cmp::min(fft_out, len_out) {
-                *o_ptr.add(i) = fft_slice[i].norm();
+                for i in 0..cmp::min(fft_out, len_out) {
+                    o[offset + i] = fft_slice[i].norm();
+                }
+
+                for i in fft_out..len_out {
+                    o[offset + i] = 0.;
+                }
             }
-
-            for i in fft_out..len_out {
-                *o_ptr.add(i) = 0.;
-            }
-        }
+        });
 
 
         let mut vec = Vec::from(tensor.shape().as_slice());
         let len = vec.len();
         vec[len - 1] = len_out;
-        Tensor::from_uninit(uninit, vec)
+        data.into_tensor(vec)
     }
 }
 
 fn hann_window(len: usize) -> Tensor {
     unsafe {
-        let mut uninit = TensorUninit::<f32>::new(len);
+        TensorUninit::<f32>::create(len, |o| {
+            let step : f32 = PI / len as f32;
 
-        let o = uninit.as_mut_slice();
+            for i in 0..len {
+                let tmp = (step * i as f32).sin();
 
-        let step : f32 = PI / len as f32;
-
-        for i in 0..len {
-            let tmp = (step * i as f32).sin();
-
-            o[i] = tmp * tmp;
-        }
-
-        uninit.into_tensor([len])
+                o[i] = tmp * tmp;
+            }
+        }).into_tensor([len])
     }
 }
 

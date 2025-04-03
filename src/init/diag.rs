@@ -1,27 +1,21 @@
-use crate::{tensor::TensorUninit, Tensor};
+use crate::Tensor;
 
 
-pub fn diagflat(vec: impl Into<Tensor>) -> Tensor {
-    let vec : Tensor = vec.into();
+pub fn diagflat(diag: impl Into<Tensor>) -> Tensor {
+    let vec : Tensor = diag.into();
 
     assert!(vec.rank() == 1, "diagflat currently expects a 1d vector {:?}", vec.shape().as_slice());
     let n = vec.len();
     let size = n * n;
 
-    unsafe {
-        let mut uninit = TensorUninit::<f32>::new(size);
+    let mut data = Vec::new();
+    data.resize(size, 0.);
 
-        for item in uninit.as_mut_slice() {
-            *item = 0.;
-        }
-
-        let slice = uninit.as_mut_slice();
-        for (i, value) in vec.iter().enumerate() {
-            slice[i * n + i] = *value;
-        }
-
-        uninit.into_tensor([n, n])
+    for (i, value) in vec.iter().enumerate() {
+        data[i * n + i] = *value;
     }
+
+    Tensor::from_vec(data, [n, n])
 }
 
 impl Tensor {

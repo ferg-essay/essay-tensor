@@ -1,11 +1,13 @@
 use core::slice;
 use std::{
-    alloc::{self, Layout}, mem, ptr::{self, NonNull}, sync::Arc
+    alloc::{self, Layout}, 
+    mem, 
+    ptr::{self, NonNull},
 };
 
 use crate::Tensor;
 
-use super::{Shape, TensorId};
+use super::Shape;
 
 pub(crate) struct TensorData<T> {
     data: NonNull<T>,
@@ -89,6 +91,10 @@ impl<T> TensorData<T> {
         Self::_from_boxed_matrices(Vec::into_boxed_slice(vec))
     }
 
+    pub(crate) fn into_tensor(self, shape: impl Into<Shape>) -> Tensor<T> {
+        Tensor::from_data(self, shape)
+    }
+
     /// Returns the flattened length of the tensor's data.
     #[inline]
     pub fn len(&self) -> usize {
@@ -120,6 +126,9 @@ impl<T> TensorData<T> {
     }
 }
 
+impl<T: 'static> TensorData<T> {
+}
+
 impl<T: Clone> TensorData<T> {
     pub(crate) fn from_slice(value: &[T]) -> Self {
         unsafe {
@@ -136,87 +145,49 @@ impl<T: Clone> TensorData<T> {
     }
 }
 
-pub(super) struct TensorDataSlice<'a, T> {
-    data: &'a Arc<TensorData<T>>,
-    offset: usize,
-    len: usize,
-}
+impl<T: 'static> TensorData<T> {
+    /// This initialization is unsafe because the data is uninitialized,
+    /// which means the caller must take take to both assign every item,
+    /// and to only use o.write(data) to update values because other methods 
+    /// will try to drop the uninitialized previous
+    pub(crate) unsafe fn unsafe_init<F>(len: usize, mut init: F) -> TensorData<T>
+    where
+        F: FnMut(*mut T)
+    {
+        let mut uninit = TensorUninit::new(len);
 
-impl<'a, T> TensorDataSlice<'a, T> {
-    pub(super) fn new(data: &'a Arc<TensorData<T>>, offset: usize, len: usize) -> Self {
-        assert!(offset + len <= data.len());
+        (init)(uninit.as_mut_ptr());
 
-        Self {
-            data,
-            offset,
-            len
-        }
+        uninit.into()
     }
 
-    #[inline]
-    pub(super) fn _as_slice(&self) -> &[T] {
-        unsafe { self.data.as_sub_slice(self.offset, self.len) }
-    }
-
-    // Returns a possibly-wrapped pointer at the offset to support
-    // broadcast
-    #[inline]
-    pub(super) unsafe fn as_wrap_slice(&self, offset: usize) -> &[T] {
-        let offset = if offset < self.len {
-            offset
-        } else {
-            offset % self.len
-        };
-
-        self.data.as_sub_slice(self.offset + offset, self.len - offset)
-    }
-
-    #[inline]
-    pub unsafe fn as_ptr(&self) -> *const T {
-        self.data.as_ptr().add(self.offset)
-    }
-
-    // Returns a possibly-wrapped pointer at the offset to support
-    // broadcast
-    #[inline]
-    pub unsafe fn _as_wrap_ptr(&self, offset: usize) -> *const T {
-        if offset < self.len {
-            self.data.as_ptr().add(self.offset + offset)
-        } else {
-            self.data.as_ptr().add(self.offset + offset % self.len)
-        }
-    }
-
-    pub(super) fn map<U: Clone + 'static>(
-        &self, 
-        mut f: impl FnMut(&T) -> U
-    ) -> TensorData<U> {
-        let len = self.len;
+    pub(super) fn map<U>(
+        a: &Tensor<U>,
+        mut f: impl FnMut(&U) -> T
+    ) -> Self {
+        let len = a.len();
         
         unsafe {
-            let mut out = TensorUninit::<U>::new(len);
-        
-            let a_ptr = self.as_ptr();
-            let o_ptr = out.as_mut_ptr();
+            Self::unsafe_init(len, |o| {
+                let a = a.as_slice();
             
-            for i in 0..len {
-                *o_ptr.add(i) = (f)(a_ptr.add(i).as_ref().unwrap());
-            }
-        
-            out.into()
+                for i in 0..len {
+                    o.add(i).write((f)(&a[i]));
+                }
+            })
         }
     }
 
-    pub(crate) fn map2<U, F, V: Clone + 'static>(
-        &self, 
-        rhs: &TensorDataSlice<U>,
+    pub(crate) fn map2<U, V, F>(
+        a: &Tensor<U>,
+        b: &Tensor<V>,
         mut f: F
-    ) -> TensorData<V>
+    ) -> TensorData<T>
     where
-        F: FnMut(&T, &U) -> V
+        F: FnMut(&U, &V) -> T
     {
-        let a_len = self.len;
-        let b_len = rhs.len;
+        let a_len = a.len();
+        let b_len = b.len();
 
         let size = a_len.max(b_len);
         let inner = a_len.min(b_len);
@@ -225,128 +196,83 @@ impl<'a, T> TensorDataSlice<'a, T> {
         assert!(batch * inner == size, "broadcast mismatch a.len={} b.len={}", a_len, b_len);
         
         unsafe {
-            let mut out = TensorUninit::<V>::new(size);
+            Self::unsafe_init(size, |o| {
+                for n in 0..batch {
+                    let offset = n * inner;
 
-            for n in 0..batch {
-                let a = self.as_wrap_slice(n * inner);
-                let b = rhs.as_wrap_slice(n * inner);
+                    let a = a.as_wrap_slice(offset);
+                    let b = b.as_wrap_slice(offset);
 
-                let o = out.as_sub_slice(n * inner, inner);
-
-                for k in 0..inner {
-                    o[k] = f(&a[k], &b[k]);
+                    for k in 0..inner {
+                        o.add(offset + k).write(f(&a[k], &b[k]));
+                    }
                 }
-            }
-
-            out.into()
+            })
         }
     }
 
-    pub(crate) fn map_slice<const M: usize, U: Clone + 'static>(
-        &self, 
+    pub(crate) fn map_slice<const M: usize, U>(
+        a: &Tensor<U>, 
         n: usize,
-        f: impl Fn(&[T]) -> [U; M]
-    ) -> TensorData<U> {
+        f: impl Fn(&[U]) -> [T; M]
+    ) -> Self {
         assert!(n > 0);
-        assert!(self.len % n == 0);
 
-        let len = self.len / n;
+        let len = a.len() / n;
+        assert!(n * len == a.len());
 
         unsafe {
-            let mut out = TensorUninit::<U>::new(M * len);
+            Self::unsafe_init(M * len, |o| {
+                let a = a.as_ptr();
 
-            let xy = self.as_ptr();
-            let o = out.as_mut_slice();
+                for i in 0..len {
+                    let offset = n * i;
 
-            for i in 0..len {
-                let offset = n * i;
+                    let slice = ptr::slice_from_raw_parts(a.add(offset), n)
+                        .as_ref()
+                        .unwrap();
 
-                let slice = ptr::slice_from_raw_parts(xy.add(offset), n)
-                    .as_ref()
-                    .unwrap();
+                    let value = (f)(slice);
 
-                let value = (f)(slice);
-
-                for j in 0..M {
-                    o[offset + j] = value[j].clone();
+                    for (j, value) in value.into_iter().enumerate() {
+                        o.add(offset + j).write(value);
+                    }
                 }
-            }
-
-            out.into()
+            })
         }
     }
 
-    pub(super) fn fold_into<S, F, V>(
-        &self, 
+    pub(super) fn fold_into<U, S, F>(
+        tensor: &Tensor<U>,
         cols: usize,
         init: S,
         mut f: F,
-    ) -> TensorData<V> 
+    ) -> TensorData<T> 
     where
-        S: Clone + Into<V>,
-        F: FnMut(S, &T) -> S,
-        V: Clone + 'static
+        S: Clone + Into<T>,
+        F: FnMut(S, &U) -> S,
     {
-        let len = self.len / cols;
-        assert!(cols * len == self.len);
+        let len = tensor.len() / cols;
+        assert!(cols * len == tensor.len());
         
         unsafe {
-            let mut out = TensorUninit::<V>::new(len);
-        
-            let o_ptr = out.as_mut_ptr();
-            let mut a_ptr = self.as_ptr();
+            Self::unsafe_init(len, |o| {
+                let a = tensor.as_slice();
 
-            for i in 0..len {
-                let mut value = init.clone();
+                for j in 0..len {
+                    let mut value = init.clone();
 
-                for i in 0..cols {
-                    value = (f)(value, a_ptr.add(i).as_ref().unwrap());
+                    let offset = j * cols;
+
+                    for i in 0..cols {
+                        value = (f)(value, &a[offset + i]);
+                    }
+
+                    o.add(j).write(value.into());
                 }
-
-                *o_ptr.add(i) = value.into();
-
-                a_ptr = a_ptr.add(cols);
-            }
-        
-            out.into()
+            })
         }
     }
-}
-
-impl<T: Clone + 'static> TensorData<T> {
-    /*
-    pub fn map_slice<const N: usize, const M: usize>(
-        &self, 
-        f: impl Fn(&[T]) -> [T; M]
-    ) -> Self {
-        assert!(self.len() % N == 0);
-
-        let n = self.len();
-
-        unsafe {
-            let mut out = TensorUninit::<T>::new(N * n);
-
-            let xy = self.as_ptr();
-            let o = out.as_mut_slice();
-
-            for i in 0..n {
-                let offset = N * i;
-
-                let slice = ptr::slice_from_raw_parts(xy.add(offset), N)
-                    .as_ref()
-                    .unwrap();
-
-                let value = (f)(slice);
-
-                for j in 0..M {
-                    o[offset + j] = value[j].clone();
-                }
-            }
-
-            out.into()
-        }
-    }
-    */
 }
 
 impl<T> Drop for TensorData<T> {
@@ -421,7 +347,7 @@ impl<T> TensorUninit<T> {
     }
 }
 
-impl<T: Clone + 'static> TensorUninit<T> {
+impl<T: 'static> TensorUninit<T> {
     pub unsafe fn new(len: usize) -> Self {
         let layout = Layout::array::<T>(len).unwrap();
         
@@ -438,17 +364,15 @@ impl<T: Clone + 'static> TensorUninit<T> {
         TensorData::new(ptr.data, ptr.len)
     }
 
-    #[inline]
-    pub unsafe fn into_tensor(self, shape: impl Into<Shape>) -> Tensor<T> {
-        Tensor::from_uninit(self, shape)
-    }
+    pub(crate) unsafe fn create<F>(len: usize, mut init: F) -> TensorData<T>
+    where
+        F: FnMut(&mut [T])
+    {
+        let mut uninit = Self::new(len);
 
-    pub unsafe fn into_tensor_with_id(
-        self, 
-        shape: impl Into<Shape>, 
-        id: TensorId
-    ) -> Tensor<T> {
-        Tensor::from_uninit_with_id(self, shape, id)
+        (init)(uninit.as_mut_slice());
+
+        uninit.into()
     }
 
     pub unsafe fn init<F>(&mut self, mut f: F) 
@@ -736,6 +660,53 @@ mod test {
             uninit.as_mut_slice()[0] = 3;
             //uninit.init()
         };
+    }
+
+    #[test]
+    fn uninit_deadbeef() {
+        // TODO: validate the dropped values, which would require a static global
+        unsafe {
+            TensorData::<Deadbeef>::unsafe_init(1, |o| {
+                o.write(Deadbeef::new(0x10));
+                o.write(Deadbeef::new(0x20));
+                o.write(Deadbeef::new(0x30));
+            });
+        }
+
+        unsafe {
+            TensorData::<Deadbeef>::unsafe_init(1, |o| {
+                o.write(Deadbeef::new(0x10));
+                // Note: this drops the previous value, so can't be used
+                *o = Deadbeef::new(0x20);
+                // Note: this does not drop the previous value
+                o.write(Deadbeef::new(0x30));
+            });
+        }
+    }
+
+    #[test]
+    fn map_deadbeef() {
+        let t = tensor!([0x10, 0x20, 0x30]);
+
+        t.map(|v| Deadbeef::new(*v));
+    }
+
+    struct Deadbeef {
+        data: u32,
+    }
+
+    impl Deadbeef {
+        fn new(data: u32) -> Self {
+            Self {
+                data,
+            }
+        }
+    }
+
+    impl Drop for Deadbeef {
+        fn drop(&mut self) {
+            println!("Drop {:.08x}", self.data);
+        }
     }
 
     fn take(ptr: &Arc<Mutex<Vec<String>>>) -> String {

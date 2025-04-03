@@ -102,7 +102,7 @@ impl<D: Dtype + Clone> Operation<D> for StackOp {
             let mut vec = Vec::from(args[0].shape().as_slice());
             vec.insert(axis, args.len());
     
-            out.into_tensor_with_id(vec, id)
+            out.into().into_tensor(vec).with_id(id)
         }
     }
 }

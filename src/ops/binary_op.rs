@@ -79,27 +79,27 @@ where
         let size = a.broadcast(&b);
         let inner = a.len().min(b.len());
         let batch = size / inner;
-        
-        unsafe {
-            let mut out = TensorUninit::<D>::new(size);
 
-            for n in 0..batch {
-                let a = a.as_wrap_slice(n * inner);
-                let b = b.as_wrap_slice(n * inner);
-                let o = out.as_sub_slice(n * inner, inner);
-
-                for k in 0..inner {
-                    o[k] = op.f(&a[k], &b[k]);
-                }
-            }
-
-            let shape = if a.rank() < b.rank() { 
-                b.shape()
-            } else { 
-                a.shape()
-            };
+        let shape = if a.rank() < b.rank() { 
+            b.shape()
+        } else { 
+            a.shape()
+        };
     
-            out.into_tensor_with_id(shape, id)
+        unsafe {
+            TensorUninit::<D>::create(size, |o| {
+                for n in 0..batch {
+                    let offset = n * inner;
+
+                    let a = a.as_wrap_slice(offset);
+                    let b = b.as_wrap_slice(offset);
+
+                    for k in 0..inner {
+                        o[offset + k] = op.f(&a[k], &b[k]);
+                    }
+
+                }
+            }).into_tensor(shape).with_id(id)
         }
     }
 }

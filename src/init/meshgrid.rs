@@ -93,7 +93,7 @@ fn build_meshgrid_axis(x: &Tensor, shape: &Shape, k_s: usize) -> Tensor {
             }
         }
 
-        out.into_tensor(shape)
+        out.into().into_tensor(shape)
     }
 }
 

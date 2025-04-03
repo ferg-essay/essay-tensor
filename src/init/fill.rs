@@ -3,18 +3,7 @@ use std::cmp;
 use crate::{Tensor, tensor::{Dtype, TensorUninit}, prelude::Shape};
 
 pub fn fill<D:Dtype + Copy>(fill: D, shape: impl Into<Shape>) -> Tensor<D> {
-    let shape = Into::into(shape);
-    let len = cmp::max(1, shape.size());
-    
-    unsafe {
-        let mut data = TensorUninit::<D>::new(len);
-
-        for value in data.as_mut_slice() {
-            *value = fill;
-        }
-
-        data.into_tensor(shape)
-    }
+    Tensor::fill(shape, fill)
 }
 
 impl<D:Dtype + Copy> Tensor<D> {

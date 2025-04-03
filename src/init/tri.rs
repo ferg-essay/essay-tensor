@@ -14,7 +14,7 @@ pub fn tri(n: usize) -> Tensor {
             }
         }
 
-        uninit.into_tensor([n, n])
+        uninit.into().into_tensor([n, n])
     }
 }
 
@@ -58,7 +58,7 @@ pub fn tril(tensor: impl Into<Tensor>) -> Tensor {
             }
         }
 
-        uninit.into_tensor(tensor.shape())
+        uninit.into().into_tensor(tensor.shape())
     }
 }
 
@@ -95,7 +95,7 @@ pub fn triu(tensor: impl Into<Tensor>) -> Tensor {
             }
         }
 
-        uninit.into_tensor(tensor.shape())
+        uninit.into().into_tensor(tensor.shape())
     }
 }
 #[cfg(test)]

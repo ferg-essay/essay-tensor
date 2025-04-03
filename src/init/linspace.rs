@@ -63,27 +63,24 @@ impl Operation<f32> for LinspaceCpu {
         let o_shape = Shape::from(o_shape_vec);
 
         unsafe {
-            let mut o_data = TensorUninit::<f32>::new(size);
+            TensorUninit::<f32>::create(size, |o| {
+                for n in 0..batch {
+                    let start = start[n];
+                    let end = end[n];
 
-            let o = o_data.as_mut_ptr();
-            for n in 0..batch {
-                let start = start[n];
-                let end = end[n];
+                    assert!(start <= end);
 
-                assert!(start <= end);
+                    let step = if len > 1 {
+                        (end - start) / (len - 1) as f32
+                    } else {
+                        0.
+                    };
 
-                let step = if len > 1 {
-                    (end - start) / (len - 1) as f32
-                } else {
-                    0.
-                };
-
-                for k in 0..len {
-                    *o.add(k * batch + n) = start + step * k as f32;
+                    for k in 0..len {
+                        o[k * batch + n] = start + step * k as f32;
+                    }
                 }
-            }
-
-            o_data.into_tensor_with_id(o_shape, id)
+            }).into_tensor(o_shape).with_id(id)
         }
     }
 }

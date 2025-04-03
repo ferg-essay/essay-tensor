@@ -86,7 +86,9 @@ impl Operation<f32> for GeomspaceCpu {
                 }
             }
 
-            o_data.into_tensor_with_id(o_shape, id)
+            let o_data = o_data.into();
+
+            o_data.into_tensor(o_shape).with_id(id)
         }
     }
 }

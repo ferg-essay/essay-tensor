@@ -14,7 +14,7 @@ impl Shape {
 
     #[inline]
     pub fn size(&self) -> usize {
-        self.dims.iter().product()
+        self.dims.iter().product::<usize>() as usize
     }
 
     #[inline]
@@ -24,19 +24,19 @@ impl Shape {
 
     #[inline]
     pub fn dim(&self, i: usize) -> usize {
-        self.dims[i]
+        self.dims[i] as usize
     }
 
     #[inline]
     pub fn dim_rev(&self, i: usize) -> usize {
-        self.dims[self.dims.len() - 1 - i]
+        self.dims[self.dims.len() - 1 - i] as usize
     }
 
     #[inline]
     pub fn idim(&self, i: isize) -> usize {
         let i = (i + self.rank() as isize) as usize % self.rank();
         
-        self.dims[i]
+        self.dims[i] as usize
     }
 
     #[inline]
@@ -44,7 +44,7 @@ impl Shape {
         let rank = self.rank();
 
         if rank > 0 {
-            self.dims[rank - 1]
+            self.dims[rank - 1] as usize
         } else {
             1
         }
@@ -55,7 +55,7 @@ impl Shape {
         let rank = self.rank();
 
         if rank > 0 {
-            self.dims[rank - 1]
+            self.dims[rank - 1] as usize
         } else {
             1
         }
@@ -80,7 +80,7 @@ impl Shape {
         let rank = self.rank();
 
         if rank > 1 {
-            self.dims[rank - 2]
+            self.dims[rank - 2] as usize
         } else {
             0
         }
