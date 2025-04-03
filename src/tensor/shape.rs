@@ -434,40 +434,6 @@ impl From<Vec<usize>> for Shape {
         }
     }
 }
-/*
-impl Index<usize> for Shape {
-    type Output = usize;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &(self.dims[index] as u32)
-    }
-}
-*/
-
-pub(super) struct ShapeIndex {
-    shape: Shape,
-    index: Vec<usize>,
-}
-
-impl ShapeIndex {
-    #[inline]
-    pub(super) fn as_slice(&self) -> &[usize] {
-        self.index.as_slice()
-    }
-
-    #[inline]
-    pub(super) fn next(&mut self) {
-        for i in 0..self.shape.rank() {
-            let next = (self.index[i] + 1) % self.shape.rdim(i).max(1);
-
-            self.index[i] = next;
-
-            if next != 0 {
-                break
-            }
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {
@@ -477,12 +443,14 @@ mod test {
     fn shape_from_slice() {
         let shape = Shape::from([]);
         assert_eq!(shape.rank(), 1);
+        assert_eq!(shape.size(), 0);
         assert_eq!(shape.cols(), 0);
         assert_eq!(shape.rows(), 0);
         assert_eq!(shape.as_vec(), vec![0]);
 
         let shape = Shape::from([4]);
         assert_eq!(shape.rank(), 1);
+        assert_eq!(shape.size(), 4);
         assert_eq!(shape.cols(), 4);
         assert_eq!(shape.rows(), 0);
         assert_eq!(shape.dim(0), 4);
@@ -491,6 +459,7 @@ mod test {
 
         let shape = Shape::from([2, 4]);
         assert_eq!(shape.rank(), 2);
+        assert_eq!(shape.size(), 8);
         assert_eq!(shape.cols(), 4);
         assert_eq!(shape.rows(), 2);
         assert_eq!(shape.dim(0), 2);

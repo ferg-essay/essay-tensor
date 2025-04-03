@@ -13,5 +13,3 @@ pub use shape::Shape;
 pub use tensor::{
     Dtype, Tensor, IntoTensorList,
 };
-
-pub use tensor_vec::TensorVec;

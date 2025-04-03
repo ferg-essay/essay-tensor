@@ -1,7 +1,4 @@
-use crate::{
-    Tensor, 
-    tensor::TensorVec, 
-};
+use crate::Tensor;
 
 pub fn arange(start: f32, end: f32, step: f32) -> Tensor {
     assert!(step != 0.);
