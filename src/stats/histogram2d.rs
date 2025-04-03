@@ -2,8 +2,8 @@ use crate::{Tensor, init::linspace};
 
 pub fn histogram2d(data: impl Into<Tensor>, args: impl Into<Hist2Args>) -> (Tensor, Tensor, Tensor) {
     let data : Tensor = data.into();
-    assert!(data.rank() == 2, "histogram2d requires a rank 2 tensor {:?}", data.shape().as_slice());
-    assert!(data.cols() == 2, "histogram2d requires 2D tensor {:?}", data.shape().as_slice());
+    assert!(data.rank() == 2, "histogram2d requires a rank 2 tensor {:?}", data.shape().as_vec());
+    assert!(data.cols() == 2, "histogram2d requires 2D tensor {:?}", data.shape().as_vec());
 
     let args = args.into();
     let min = data.reduce_min_opt(0);

@@ -60,7 +60,7 @@ impl GeomspaceCpu {
         //let start_ln = start.ln();
         //let end_ln = end.ln();
 
-        let mut o_shape_vec = Vec::from(start.shape().as_slice());
+        let mut o_shape_vec = Vec::from(start.shape().as_vec());
         o_shape_vec.insert(0, len);
         let o_shape = Shape::from(o_shape_vec);
 

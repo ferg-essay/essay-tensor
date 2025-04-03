@@ -1,77 +1,70 @@
-use std::{cmp, ops::Index, slice::SliceIndex};
+use std::cmp;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Shape {
-    dims: Vec<usize>,
+    dims: [u32; Shape::MAX_RANK],
+    rank: usize,
 }
 
 impl Shape {
+    pub const MAX_RANK: usize = 6;
+
     pub fn scalar() -> Self {
+        let mut dims = [0; Self::MAX_RANK];
+        dims[0] = 1;
+
         Self {
-            dims: Vec::new(),
+            dims,
+            rank: 1,
         }
     }
 
     #[inline]
     pub fn size(&self) -> usize {
-        self.dims.iter().product::<usize>() as usize
+        self.dims[0..self.rank as usize].iter().product::<u32>() as usize
     }
 
     #[inline]
     pub fn rank(&self) -> usize {
-        self.dims.len()
+        self.rank as usize
     }
 
+    ///
+    /// Returns the dimension ordered from outside-in
+    /// 
     #[inline]
     pub fn dim(&self, i: usize) -> usize {
-        self.dims[i] as usize
+        self.dims[self.rank - 1 - i] as usize
     }
 
+    ///
+    /// Dimension indexed in reverse order, so 0 is cols, 1 is rows
+    /// 
     #[inline]
-    pub fn dim_rev(&self, i: usize) -> usize {
-        self.dims[self.dims.len() - 1 - i] as usize
+    pub fn rdim(&self, i: usize) -> usize {
+        self.dims[i] as usize
     }
 
     #[inline]
     pub fn idim(&self, i: isize) -> usize {
         let i = (i + self.rank() as isize) as usize % self.rank();
         
-        self.dims[i] as usize
-    }
-
-    #[inline]
-    pub fn dim_tail(&self) -> usize {
-        let rank = self.rank();
-
-        if rank > 0 {
-            self.dims[rank - 1] as usize
-        } else {
-            1
-        }
+        self.dim(i)
     }
 
     #[inline]
     pub fn cols(&self) -> usize {
-        let rank = self.rank();
-
-        if rank > 0 {
-            self.dims[rank - 1] as usize
-        } else {
-            1
-        }
+        self.dims[0] as usize
     }
     
     #[inline]
     pub fn with_col(&self, col: usize) -> Self {
-        let rank = self.rank();
-
-        assert!(rank > 0);
-
         let mut dims = self.dims.clone();
-        dims[rank - 1] = col;
+        dims[0] = col as u32;
 
         Self {
             dims,
+            rank: self.rank,
         }
     }
 
@@ -80,7 +73,7 @@ impl Shape {
         let rank = self.rank();
 
         if rank > 1 {
-            self.dims[rank - 2] as usize
+            self.dims[1] as usize
         } else {
             0
         }
@@ -90,8 +83,8 @@ impl Shape {
     pub fn batch_len(&self, base_rank: usize) -> usize {
         let rank = self.rank();
 
-        if rank > base_rank {
-            self.dims[0..rank - base_rank].iter().product()
+        if base_rank < rank {
+            self.dims[0..rank - base_rank].iter().product::<u32>() as usize
         } else {
             1
         }
@@ -101,9 +94,9 @@ impl Shape {
         let min_rank = cmp::min(self.rank(), b.rank());
         for i in 0..min_rank {
             assert_eq!(
-                self.dim_rev(i), b.dim_rev(i), 
+                self.rdim(i), b.rdim(i), 
                 "broadcast ranks must match a={:?} b={:?}",
-                self.as_slice(), b.as_slice(),
+                self.as_vec(), b.as_vec(),
             );
         }
 
@@ -114,9 +107,9 @@ impl Shape {
         let min_rank = cmp::min(self.rank(), b.rank());
         for i in 0..min_rank {
             assert_eq!(
-                self.dim_rev(i), b.dim_rev(i), 
+                self.rdim(i), b.rdim(i), 
                 "broadcast ranks must match a={:?} b={:?}",
-                self.as_slice(), b.as_slice(),
+                self.as_vec(), b.as_vec(),
             );
         }
     }
@@ -125,9 +118,9 @@ impl Shape {
         let min_rank = cmp::min(self.rank(), b.rank());
         for i in 0..min_rank {
             assert_eq!(
-                self.dim_rev(i), b.dim_rev(i), 
+                self.rdim(i), b.rdim(i), 
                 "broadcast ranks must match a={:?} b={:?}",
-                self.as_slice(), b.as_slice(),
+                self.as_vec(), b.as_vec(),
             );
         }
 
@@ -154,71 +147,64 @@ impl Shape {
         }
 
         if self.rank() - a_min < b.rank() - b_min { 
-            b.sublen(0..b.rank() - b_min)
+            b.sublen(0, b.rank() - b_min)
         } else { 
-            self.sublen(0..self.rank() - a_min)
+            self.sublen(0, self.rank() - a_min)
         }
     }
 
     #[inline]
-    pub fn as_slice(&self) -> &[usize] {
-        self.dims.as_slice()
+    pub fn as_vec(&self) -> Vec<usize> {
+        let mut vec = Vec::new();
+
+        for i in 0..self.rank as usize {
+            vec.push(self.dim(i))
+        }
+
+        vec
     }
 
     pub fn push(&self, dim: usize) -> Self {
         let mut dims = self.dims.clone();
-
-        dims.push(dim);
+        dims[self.rank as usize] = dim as u32;
 
         Self {
-            dims
+            dims,
+            rank: self.rank + 1,
         }
     }
 
     pub fn append(&self, tail: &[usize]) -> Self {
         let mut dims = self.dims.clone();
 
-        for dim in tail {
-            dims.push(*dim);
+        for (i, dim) in tail.iter().enumerate() {
+            dims[i + self.rank as usize] = *dim as u32;
         }
 
         Self {
-            dims
+            dims,
+            rank: self.rank + dims.len(),
         }
     }
 
     #[inline]
-    pub fn sublen<I>(&self, range: I) -> usize
-    where
-        I: SliceIndex<[usize], Output=[usize]>
+    pub fn sublen(&self, start: usize, end: usize) -> usize
     {
-        self.dims[range].iter().product()
-    }
+        let mut size = 1;
 
-    #[inline]
-    pub fn as_subslice<I>(&self, range: I) -> &[usize]
-    where
-        I: SliceIndex<[usize], Output=[usize]>
-    {
-        &self.dims[range]
-    }
-
-    #[inline]
-    pub fn slice<I>(&self, range: I) -> Self
-    where
-        I: SliceIndex<[usize], Output=[usize]>
-    {
-        Self {
-            dims: Vec::from(&self.dims[range])
+        for i in start..end {
+            size *= self.dims[i];
         }
+
+        size as usize
     }
 
     #[inline]
     pub fn expand_dims(&self, axis: isize) -> Self {
-        let mut vec = Vec::from(self.as_slice());
+        let mut vec = self.as_vec();
 
         let index = if axis >= 0  { axis } else { vec.len() as isize + axis + 1 } as usize;
-        assert!(index <= vec.len(), "expand_dims axis is invalid {} in {:?}", axis, self.as_slice());
+        assert!(index <= vec.len(), "expand_dims axis is invalid {} in {:?}", axis, self.as_vec());
 
         vec.insert(index, 1);
 
@@ -226,59 +212,110 @@ impl Shape {
     }
 
     pub fn squeeze(&self, axis: &Option<isize>) -> Self {
-        let mut vec = Vec::<usize>::new();
         match axis {
             None => {
-                for dim in self.as_slice() {
-                    if *dim != 1 {
-                        vec.push(*dim)
+                let mut rank = 0;
+                let mut dims = [0; Self::MAX_RANK];
+                dims[0] = 1;
+
+                for i in 0..self.rank as usize {
+                    if self.dims[i] != 1 {
+                        dims[rank] = self.dims[i];
+                        rank += 1;
                     }
+                }
+
+                Self {
+                    dims,
+                    rank: rank.max(1),
                 }
             },
             Some(axis) => {
-                let len = self.as_slice().len();
+                let len = self.rank;
                 let axis = (axis + len as isize) % len as isize;
-                let axis = axis as usize;
+                let axis = self.rank as usize - axis as usize;
                 
-                let mut vec = Vec::<usize>::new();
-                for (i, dim) in self.as_slice().iter().enumerate() {
-                    if i != axis || *dim != 1 {
-                        vec.push(*dim)
+                let mut rank = 0;
+                let mut dims = [0; Self::MAX_RANK];
+                dims[0] = 1;
+
+                for i in 0..self.rank as usize {
+                    if i != axis || self.dims[i] != 1 {
+                        dims[rank] = self.dims[i];
+                        rank += 1;
                     }
                 }
-            }
-        };
 
-        Self::from(vec)
+                Self {
+                    dims,
+                    rank: rank.max(1),
+                }
+            }
+        }
     }
 
     pub fn pop(&self) -> Shape {
-        let mut vec = self.dims.clone();
-        vec.pop();
-        Self::from(vec)
+        let mut dims = self.dims.clone();
+
+        dims[self.rank as usize - 1] = 0;
+
+        Self {
+            dims,
+            rank: self.rank.max(1) - 1,
+        }
     }
 
     pub fn reduce(&self) -> Shape {
-        let mut vec = self.dims.clone();
-        vec.pop();
+        let mut dims = [0; Self::MAX_RANK];
 
-        if vec.len() == 0 {
-            vec.push(1);
+        dims[0] = 0;
+        for i in 1..self.rank {
+            dims[i] = self.dims[i - 1];
         }
-        
-        Self::from(vec)
+
+        Self {
+            dims,
+            rank: self.rank.max(1) - 1,
+        }
     }
 
     pub fn remove(&self, axis: usize) -> Shape {
-        let mut vec = self.dims.clone();
-        vec.remove(axis);
-        Self::from(vec)
+        let axis = self.rank - 1 - axis;
+        let mut dims = [0; Self::MAX_RANK];
+
+        dims[0] = 0;
+        for i in 0..axis {
+            dims[i] = self.dims[i];
+        }
+
+        for i in axis + 1..self.rank {
+            dims[i - 1] = self.dims[i];
+        }
+
+        Self {
+            dims,
+            rank: self.rank.max(1) - 1,
+        }
     }
 
     pub fn insert(&self, axis: usize, len: usize) -> Shape {
-        let mut vec = self.dims.clone();
-        vec.insert(axis, len);
-        Self::from(vec)
+        let axis = self.rank - axis;
+        let mut dims = [0; Self::MAX_RANK];
+
+        for i in 0..axis {
+            dims[i] = self.dims[i];
+        }
+
+        dims[axis] = len as u32;
+
+        for i in axis..self.rank {
+            dims[i + 1] = self.dims[i];
+        }
+
+        Self {
+            dims,
+            rank: self.rank + 1,
+        }
     }
 }
 
@@ -290,40 +327,115 @@ impl From<&Shape> for Shape {
 
 impl From<usize> for Shape {
     fn from(value: usize) -> Self {
+        let mut dims = [0; Self::MAX_RANK];
+        dims[0] = value as u32;
+
         Shape {
-            dims: vec![value]
+            dims,
+            rank: 1,
         }
     }
 }
 
 impl From<&[usize]> for Shape {
-    fn from(dims: &[usize]) -> Self {
+    fn from(value: &[usize]) -> Self {
+        let mut dims = [0; Self::MAX_RANK];
+
+        for (i, v) in value.iter().rev().enumerate() {
+            dims[i] = *v as u32;
+        }
+
         Shape {
-            dims: dims.to_vec(),
+            dims,
+            rank: value.len().max(1),
         }
     }
 }
 
 impl<const N: usize> From<[usize; N]> for Shape {
-    fn from(dims: [usize; N]) -> Self {
+    fn from(value: [usize; N]) -> Self {
+        let mut dims = [0; Self::MAX_RANK];
+
+        for (i, v) in value.iter().rev().enumerate() {
+            dims[i] = *v as u32;
+        }
+
         Shape {
-            dims: dims.to_vec(),
+            dims,
+            rank: value.len().max(1),
         }
     }
 }
 
 impl From<Vec<usize>> for Shape {
-    fn from(dims: Vec<usize>) -> Self {
+    fn from(value: Vec<usize>) -> Self {
+        let mut dims = [0; Self::MAX_RANK];
+
+        for (i, v) in value.iter().rev().enumerate() {
+            dims[i] = *v as u32;
+        }
+
         Shape {
-            dims: dims,
+            dims,
+            rank: value.len().max(1),
         }
     }
 }
-
+/*
 impl Index<usize> for Shape {
     type Output = usize;
 
     fn index(&self, index: usize) -> &Self::Output {
-        &self.dims[index]
+        &(self.dims[index] as u32)
+    }
+}
+*/
+
+#[cfg(test)]
+mod test {
+    use super::Shape;
+
+    #[test]
+    fn shape_from_slice() {
+        let shape = Shape::from([]);
+        assert_eq!(shape.rank(), 1);
+        assert_eq!(shape.cols(), 0);
+        assert_eq!(shape.rows(), 0);
+        assert_eq!(shape.as_vec(), vec![0]);
+
+        let shape = Shape::from([4]);
+        assert_eq!(shape.rank(), 1);
+        assert_eq!(shape.cols(), 4);
+        assert_eq!(shape.rows(), 0);
+        assert_eq!(shape.dim(0), 4);
+        assert_eq!(shape.rdim(0), 4);
+        assert_eq!(shape.as_vec(), vec![4]);
+
+        let shape = Shape::from([2, 4]);
+        assert_eq!(shape.rank(), 2);
+        assert_eq!(shape.cols(), 4);
+        assert_eq!(shape.rows(), 2);
+        assert_eq!(shape.dim(0), 2);
+        assert_eq!(shape.dim(1), 4);
+        assert_eq!(shape.rdim(0), 4);
+        assert_eq!(shape.rdim(1), 2);
+        assert_eq!(shape.as_vec(), vec![2, 4]);
+
+    }
+    #[test]
+    fn shape_debug() {
+        assert_eq!(format!("{:?}", Shape::from([])), "Shape { dims: [0, 0, 0, 0, 0, 0], rank: 1 }");
+        assert_eq!(format!("{:?}", Shape::from([4])), "Shape { dims: [4, 0, 0, 0, 0, 0], rank: 1 }");
+        assert_eq!(format!("{:?}", Shape::from([4, 2])), "Shape { dims: [2, 4, 0, 0, 0, 0], rank: 2 }");
+    }
+
+    #[test]
+    fn shape_insert() {
+        assert_eq!(Shape::from([1]).insert(0, 4).as_vec(), vec![4, 1]);
+        assert_eq!(Shape::from([1]).insert(1, 4).as_vec(), vec![1, 4]);
+
+        assert_eq!(Shape::from([1, 2]).insert(0, 4).as_vec(), vec![4, 1, 2]);
+        assert_eq!(Shape::from([1, 2]).insert(1, 4).as_vec(), vec![1, 4, 2]);
+        assert_eq!(Shape::from([1, 2]).insert(2, 4).as_vec(), vec![1, 2, 4]);
     }
 }

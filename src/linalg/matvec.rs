@@ -78,7 +78,7 @@ fn matvec_t_op(
             transpose.sgemm(a, x, o_cols, o_rows, a_ptr, x_ptr, o_ptr);
         }
 
-        let mut o_shape = Vec::from(x.shape().as_slice());
+        let mut o_shape = Vec::from(x.shape().as_vec());
         let len = o_shape.len();
         o_shape[len - 1] = o_cols;
         let tensor = Tensor::from_uninit(out, o_shape);
@@ -109,14 +109,14 @@ impl TransposeMatvec for Transpose {
             Transpose::None => {
                 assert_eq!(a.cols(), x.cols(),
                     "matvec shapes do not match. A={:?} x={:?}",
-                    &a.shape().as_slice(), &x.shape().as_slice());
+                    &a.shape().as_vec(), &x.shape().as_vec());
 
                 (a.rows(), cmp::max(1, x.rows()))
             },
             Transpose::TransposeA => {
                 assert_eq!(a.rows(), x.cols(),
                     "matvec shapes do not match. A={:?} x={:?} for {:?}",
-                    &a.shape().as_slice(), &x.shape().as_slice(), self);
+                    &a.shape().as_vec(), &x.shape().as_vec(), self);
                     
                 (a.cols(), cmp::max(1, x.rows()))
             },

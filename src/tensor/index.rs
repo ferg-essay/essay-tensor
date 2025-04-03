@@ -27,7 +27,7 @@ impl<T> Index<(usize, usize)> for Tensor<T> {
         assert!(index.1 < shape.idim(-1));
 
         let offset =
-            index.1 + shape[len - 1] * index.0;
+            index.1 + shape.rdim(0) * index.0;
 
         assert!(offset < self.len());
 
@@ -43,13 +43,13 @@ impl<T> Index<(usize, usize, usize)> for Tensor<T> {
         let len = shape.size();
 
         assert!(len > 2);
-        assert!(index.0 < shape[len - 3]);
-        assert!(index.1 < shape[len - 2]);
-        assert!(index.2 < shape[len - 1]);
+        assert!(index.0 < shape.rdim(2));
+        assert!(index.1 < shape.rdim(1));
+        assert!(index.2 < shape.rdim(0));
 
         let offset =
-            index.2 + shape[len - 1] * (
-                index.1 + shape[len - 2] * index.0
+            index.2 + shape.rdim(0) * (
+                index.1 + shape.rdim(1) * index.0
             );
 
         // assert!(offset < self.len());
@@ -66,15 +66,15 @@ impl<T> Index<(usize, usize, usize, usize)> for Tensor<T> {
         let len = shape.size();
 
         assert!(len > 3);
-        assert!(index.0 < shape[len - 4]);
-        assert!(index.1 < shape[len - 3]);
-        assert!(index.2 < shape[len - 2]);
-        assert!(index.3 < shape[len - 1]);
+        assert!(index.0 < shape.rdim(3));
+        assert!(index.1 < shape.rdim(2));
+        assert!(index.2 < shape.rdim(1));
+        assert!(index.3 < shape.rdim(0));
 
         let offset =
-            index.3 + shape[len - 1] * (
-                index.2 + shape[len - 2] * (
-                    index.1 + shape[len - 3] * index.0
+            index.3 + shape.rdim(0) * (
+                index.2 + shape.rdim(1) * (
+                    index.1 + shape.rdim(2) * index.0
                 )
             );
 
@@ -89,20 +89,20 @@ impl<T> Index<(usize, usize, usize, usize, usize)> for Tensor<T> {
 
     fn index(&self, index: (usize, usize, usize, usize, usize)) -> &Self::Output {
         let shape = self.shape();
-        let len = shape.size();
+        let len = shape.rank();
 
         assert!(len > 4);
-        assert!(index.0 < shape[len - 5]);
-        assert!(index.1 < shape[len - 4]);
-        assert!(index.2 < shape[len - 3]);
-        assert!(index.3 < shape[len - 2]);
-        assert!(index.4 < shape[len - 1]);
+        assert!(index.0 < shape.rdim(4));
+        assert!(index.1 < shape.rdim(3));
+        assert!(index.2 < shape.rdim(2));
+        assert!(index.3 < shape.rdim(1));
+        assert!(index.4 < shape.rdim(0));
 
         let offset =
-            index.4 + shape[len - 1] * (
-                index.3 + shape[len - 2] * (
-                    index.2 + shape[len - 3] * (
-                        index.1 + shape[len - 4] * index.0
+            index.4 + shape.rdim(0) * (
+                index.3 + shape.rdim(1) * (
+                    index.2 + shape.rdim(2) * (
+                        index.1 + shape.rdim(3) * index.0
                     )
                 )
             );
@@ -121,7 +121,7 @@ mod test {
     #[test]
     fn index_rank_2() {
         let t = tf32!([[1., 2.], [3., 4.], [5., 6.]]);
-        assert_eq!(t.shape().as_slice(), &[3, 2]);
+        assert_eq!(t.shape().as_vec(), &[3, 2]);
 
         assert_eq!(t[0], 1.);
         assert_eq!(t[1], 2.);
@@ -138,7 +138,7 @@ mod test {
     #[test]
     fn index_rank_1() {
         let t = tf32!([1., 2., 3., 4.]);
-        assert_eq!(t.shape().as_slice(), &[4]);
+        assert_eq!(t.shape().as_vec(), &[4]);
 
         assert_eq!(t[0], 1.);
         assert_eq!(t[1], 2.);
@@ -149,7 +149,7 @@ mod test {
     #[test]
     fn index_rank_1_slice() {
         let t = tf32!([1., 2., 3., 4.]);
-        assert_eq!(t.shape().as_slice(), &[4]);
+        assert_eq!(t.shape().as_vec(), &[4]);
 
         assert_eq!(t.slice(0)[0], 1.);
         assert_eq!(t.slice(1)[0], 2.);

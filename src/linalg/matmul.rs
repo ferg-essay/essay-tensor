@@ -44,11 +44,12 @@ pub fn matmul(a: &Tensor, b: &Tensor) -> Tensor {
 pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Tensor {
     //assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
     assert!(a.rank() > 1, "matrix multiplication requires rank >= 2");
-    assert_eq!(&a.shape().as_subslice(2..), &b.shape().as_subslice(2..), "matmul batch shape must match");
+    //assert_eq!(&a.shape().as_subslice(2..), &b.shape().as_subslice(2..), "matmul batch shape must match");
+    todo!();
 
     let (m, _, n) = transpose.mkn(a, b);
 
-    let batch_len : usize = a.shape().sublen(0..a.rank() - 2);
+    let batch_len : usize = a.shape().sublen(0, a.rank() - 2);
     let a_size = a.rows() * a.cols();
     let b_size = b.rows() * b.cols();
     let o_size = m * n;
@@ -64,7 +65,7 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
             transpose.sgemm(a, b, a_ptr, b_ptr, c_ptr);
         }
 
-        let mut o_shape = Vec::from(b.shape().as_slice());
+        let mut o_shape = Vec::from(b.shape().as_vec());
         let len = o_shape.len();
         o_shape[len - 1] = m;
         o_shape[len - 2] = n;
@@ -83,25 +84,25 @@ impl TransposeMatmul for Transpose {
         match self {
             Transpose::None => {
                 assert_eq!(a.cols(), b.rows(), "matmul shape does not match. A={:?} B={:?}",
-                    a.shape().as_slice(), b.shape().as_slice());
+                    a.shape().as_vec(), b.shape().as_vec());
 
                 (a.rows(), a.cols(), b.cols())
             },
             Transpose::TransposeA => {
                 assert_eq!(a.rows(), b.rows(), "matmul shape does not match. A={:?} B={:?} for {:?}", 
-                    a.shape().as_slice(), b.shape().as_slice(), &self);
+                    a.shape().as_vec(), b.shape().as_vec(), &self);
 
                 (a.cols(), a.rows(), b.cols())
             },
             Transpose::TransposeB => {
                 assert_eq!(a.cols(), b.cols(), "matmul shape does not match. A={:?} B={:?} for {:?}", 
-                    a.shape().as_slice(), b.shape().as_slice(), &self);
+                    a.shape().as_vec(), b.shape().as_vec(), &self);
 
                 (a.rows(), a.rows(), b.rows())
             },
             Transpose::TransposeAB => {
                 assert_eq!(a.rows(), b.cols(), "matmul shape does not match. A={:?} B={:?} for {:?}", 
-                    a.shape().as_slice(), b.shape().as_slice(), &self);
+                    a.shape().as_vec(), b.shape().as_vec(), &self);
 
                 (a.cols(), a.rows(), b.rows())
             },

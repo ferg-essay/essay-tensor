@@ -79,7 +79,7 @@ impl StackOp {
 
         let n_args = args.len();
         let x_len = shape.size();
-        let n_inner = shape.sublen(axis..);
+        let n_inner = shape.sublen(axis, shape.rank());
         let n_outer = x_len / n_inner;
 
         let o_len = args.iter().map(|t| t.len()).sum();
@@ -101,7 +101,7 @@ impl StackOp {
                 }
             }
 
-            let mut vec = Vec::from(args[0].shape().as_slice());
+            let mut vec = Vec::from(args[0].shape().as_vec());
             vec.insert(axis, args.len());
     
             out.into().into_tensor(vec)

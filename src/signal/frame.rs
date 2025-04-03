@@ -15,11 +15,14 @@ pub fn frame(x: impl Into<Tensor>, len: usize, step: usize) -> Tensor {
         vec.push(x.subslice(i * step, len))
     }
 
+    todo!();
+    /*
     let mut shape = Vec::from(x.shape().as_slice());
     shape[0] = len;
     shape.insert(0, n_frames);
 
     Tensor::from_merge(&vec, shape)
+    */
 }
 
 #[cfg(test)]

@@ -638,8 +638,8 @@ mod test {
 
     #[test]
     fn neg_i32() {
-        assert_eq!(tensor!(1).neg(), tensor!(-1));
-        assert_eq!(tensor!([1, 2, 3]).neg(), tensor!([-1, -2, -3]));
+        assert_eq!(tensor![1].neg(), tensor![-1]);
+        assert_eq!(tensor!(1, 2, 3).neg(), tensor!([-1, -2, -3]));
         assert_eq!(
             tensor!([[1, 2], [3, 4]]).neg(), 
             tensor!([[-1, -2], [-3, -4]]),

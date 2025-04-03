@@ -42,7 +42,7 @@ impl TileOp {
         let tensor = args[0];
         let shape = tensor.shape();
 
-        let mut shape_r = Vec::from(shape.as_slice());
+        let mut shape_r = Vec::from(shape.as_vec());
         shape_r.reverse();
 
         let multiples = self.dims();

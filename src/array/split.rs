@@ -77,9 +77,9 @@ fn split_by_axis<D: Dtype>(
     axis: usize, 
     cuts: Vec<usize>
 ) -> Vec<Tensor<D>> {
-    let n_outer = tensor.shape().sublen(0..axis);
+    let n_outer = tensor.shape().sublen(0, axis);
     let n_inner = if axis < tensor.rank() {
-        tensor.shape().sublen(axis + 1..)
+        tensor.shape().sublen(axis + 1, tensor.rank())
     } else {
         1
     };

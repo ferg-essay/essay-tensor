@@ -47,9 +47,9 @@ pub(crate) fn concat_axis<T: Clone + 'static>(
     let shape_inner = shape.remove(axis);
 
     let o_len = args.iter().map(|t| t.len()).sum();
-    let n_outer = shape_inner.sublen(0..axis);
+    let n_outer = shape_inner.sublen(0, axis);
     let n_inner = if axis < shape_inner.rank() {
-        shape_inner.sublen(axis..)
+        shape_inner.sublen(axis, shape_inner.rank())
     } else {
         1
     };
@@ -94,7 +94,7 @@ fn validate_concat<D>(args: &Vec<Tensor<D>>, axis: usize) -> usize {
     
         assert_eq!(shape.rank(), x_shape.rank(),
             "concat() tensor shape must match {:?} {:?}", 
-            shape.as_slice(), x_shape.as_slice()
+            shape.as_vec(), x_shape.as_vec()
         );
     
         for i in 0..shape.rank() {
@@ -103,7 +103,7 @@ fn validate_concat<D>(args: &Vec<Tensor<D>>, axis: usize) -> usize {
             } else {
                 assert_eq!(x_shape.dim(i), shape.dim(i),
                     "concat() tensor shape must match {:?} {:?}", 
-                    shape.as_slice(), x_shape.as_slice()
+                    shape.as_vec(), x_shape.as_vec()
                 );
             }
         }

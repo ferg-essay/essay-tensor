@@ -58,7 +58,7 @@ impl Transpose {
                 }
             }
 
-            let mut slice = Vec::from(tensor.shape().as_slice());
+            let mut slice = Vec::from(tensor.shape().as_vec());
             slice.pop();
             slice.pop();
             slice.push(cols);

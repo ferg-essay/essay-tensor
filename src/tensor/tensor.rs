@@ -76,9 +76,12 @@ impl<T: Clone + 'static> Tensor<T> {
     pub fn append(&self, tensor: impl Into<Tensor<T>>) -> Tensor<T> {
         let tensor = tensor.into();
 
-        assert_eq!(self.shape().sublen(1..), tensor.shape().sublen(1..));
+        assert_eq!(
+            self.shape().sublen(1, self.rank()), 
+            tensor.shape().sublen(1, tensor.rank())
+        );
 
-        let mut vec = Vec::from(self.shape.as_slice());
+        let mut vec = Vec::from(self.shape.as_vec());
         vec[0] = self.dim(0) + tensor.dim(0);
 
         Tensor::from_merge(&vec![self.clone(), tensor], vec)
@@ -93,7 +96,7 @@ impl<T: Clone + 'static> Tensor<T> {
 
         assert_eq!(
             data.len(), len, 
-            "Tensor data len={} must match shape size {:?}", data.len(), shape.as_slice()
+            "Tensor data len={} must match shape size {:?}", data.len(), shape.as_vec()
         );
 
         Self {
@@ -115,7 +118,7 @@ impl<T: Clone + 'static> Tensor<T> {
 
         assert_eq!(
             len, shape.size(),
-            "Tensor data len={} must match shape size {:?}", len, shape.as_slice()
+            "Tensor data len={} must match shape size {:?}", len, shape.as_vec()
         );
 
         let mut data = Vec::<T>::new();
@@ -171,7 +174,7 @@ impl<T> Tensor<T> {
 
     #[inline]
     pub fn cols(&self) -> usize {
-        self.shape.dim_tail()
+        self.shape.cols()
     }
 
     #[inline]
@@ -203,7 +206,7 @@ impl<T> Tensor<T> {
         let shape = shape.into();
 
         assert_eq!(shape.size(), self.len(), "shape size must match {:?} new={:?}", 
-            self.shape().as_slice(), shape.as_slice()
+            self.shape().as_vec(), shape.as_vec()
         );
 
         Self { shape, ..self }
@@ -276,9 +279,9 @@ impl<T> Tensor<T> {
         assert!(offset <= dim_0);
         assert!(offset + len <= dim_0);
 
-        let size : usize = self.shape().as_slice()[1..].iter().product();
+        let size : usize = self.shape().as_vec()[1..].iter().product();
 
-        let mut shape = Vec::from(self.shape.as_slice());
+        let mut shape = Vec::from(self.shape.as_vec());
         shape[0] = len;
 
         self.subslice_flat(offset * size, len * size, shape)
@@ -444,7 +447,7 @@ impl<T: fmt::Debug> fmt::Debug for Tensor<T> {
 
         fmt_tensor_rec(&self, f, self.rank(), 0)?;
         
-        write!(f, ", shape: {:?}", &self.shape.as_slice())?;
+        write!(f, ", shape: {:?}", &self.shape.as_vec())?;
         // write!(f, ", dtype: {}", type_name::<T>())?;
 
         write!(f, "}}")?;
@@ -495,8 +498,8 @@ fn fmt_tensor_rec<T: fmt::Debug>(
             let shape = tensor.shape();
             let rank = shape.rank();
             // TODO:
-            let stride : usize = shape.sublen((rank - n + 1)..);
-            for j in 0..shape.dim_rev(n - 1) {
+            let stride : usize = shape.sublen(rank - n + 1, rank);
+            for j in 0..shape.rdim(n - 1) {
                 if j > 0 {
                     write!(f, ",\n\n  ")?;
                 }
@@ -929,7 +932,7 @@ mod test {
     fn tensor_from_scalar_iterator() {
         let t0 = Tensor::from_iter(0..6);
         assert_eq!(t0.len(), 6);
-        assert_eq!(t0.shape().as_slice(), &[6]);
+        assert_eq!(t0.shape().as_vec(), &[6]);
         for i in 0..6 {
             assert_eq!(t0.get(i), Some(&i));
         }
@@ -943,7 +946,7 @@ mod test {
     fn tensor_from_vec() {
         let t0 = Tensor::from(vec![10, 11, 12]);
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.shape().as_vec(), &[3]);
         assert_eq!(t0.as_slice(), &[10, 11, 12]);
     }
 
@@ -951,7 +954,7 @@ mod test {
     fn tensor_from_vec_ref() {
         let t0 = Tensor::from(&vec![10, 11, 12]);
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.shape().as_vec(), &[3]);
         assert_eq!(t0.as_slice(), &[10, 11, 12]);
     }
 
@@ -962,7 +965,7 @@ mod test {
         assert_eq!(t0.len(), 6);
         assert_eq!(t0.cols(), 3);
         assert_eq!(t0.rows(), 2);
-        assert_eq!(t0.shape().as_slice(), &[2, 3]);
+        assert_eq!(t0.shape().as_vec(), &[2, 3]);
         assert_eq!(t0.as_slice(), &[10, 20, 30, 11, 21, 31]);
     }
 
@@ -973,7 +976,7 @@ mod test {
         assert_eq!(t0.len(), 6);
         assert_eq!(t0.cols(), 3);
         assert_eq!(t0.rows(), 2);
-        assert_eq!(t0.shape().as_slice(), &[2, 3]);
+        assert_eq!(t0.shape().as_vec(), &[2, 3]);
         assert_eq!(t0.as_slice(), &[10, 20, 30, 11, 21, 31]);
     }
 
@@ -984,7 +987,7 @@ mod test {
         assert_eq!(t0.len(), 4);
         assert_eq!(t0.cols(), 4);
         assert_eq!(t0.rows(), 0);
-        assert_eq!(t0.shape().as_slice(), &[4]);
+        assert_eq!(t0.shape().as_vec(), &[4]);
         assert_eq!(t0, tf32!([0., 0., 0., 0.]));
 
         let t0 = Tensor::init([3, 2], || 0.);
@@ -992,7 +995,7 @@ mod test {
         assert_eq!(t0.len(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0, tf32!([[0., 0.], [0., 0.], [0., 0.]]));
     }
 
@@ -1008,7 +1011,7 @@ mod test {
         assert_eq!(t0.len(), 4);
         assert_eq!(t0.cols(), 4);
         assert_eq!(t0.rows(), 0);
-        assert_eq!(t0.shape().as_slice(), &[4]);
+        assert_eq!(t0.shape().as_vec(), &[4]);
         assert_eq!(t0, tensor!([0, 1, 2, 3]));
 
         let mut count = 0;
@@ -1021,7 +1024,7 @@ mod test {
         assert_eq!(t0.len(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0, tensor!([[0, 1], [2, 3], [4, 5]]));
     }
 
@@ -1032,7 +1035,7 @@ mod test {
         assert_eq!(t0.len(), 4);
         assert_eq!(t0.cols(), 4);
         assert_eq!(t0.rows(), 0);
-        assert_eq!(t0.shape().as_slice(), &[4]);
+        assert_eq!(t0.shape().as_vec(), &[4]);
         assert_eq!(t0, tensor!([0, 0, 0, 0]));
 
         let t0 = Tensor::fill([3, 2], 0.);
@@ -1040,7 +1043,7 @@ mod test {
         assert_eq!(t0.len(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0, tensor!([[0., 0.], [0., 0.], [0., 0.]]));
     }
 
@@ -1051,7 +1054,7 @@ mod test {
         assert_eq!(t0.len(), 4);
         assert_eq!(t0.cols(), 4);
         assert_eq!(t0.rows(), 0);
-        assert_eq!(t0.shape().as_slice(), &[4]);
+        assert_eq!(t0.shape().as_vec(), &[4]);
         assert_eq!(t0, tensor!([0, 0, 0, 0]));
 
         let t0 = Tensor::zeros([3, 2]);
@@ -1059,7 +1062,7 @@ mod test {
         assert_eq!(t0.len(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0, tensor!([[0., 0.], [0., 0.], [0., 0.]]));
     }
 
@@ -1072,7 +1075,7 @@ mod test {
     fn tensor_from_array_1d() {
         let t0 = Tensor::from([10, 11, 12]);
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.shape().as_vec(), &[3]);
         assert_eq!(t0.as_slice(), &[10, 11, 12]);
     }
 
@@ -1081,7 +1084,7 @@ mod test {
     fn tensor_from_array_1d_ref() {
         let t0 = Tensor::from(vec![10, 11, 12].as_slice());
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.shape().as_vec(), &[3]);
         assert_eq!(t0.as_slice(), &[10, 11, 12]);
     }
 
@@ -1090,7 +1093,7 @@ mod test {
     fn tensor_from_array_2d() {
         let t0 = Tensor::from([[10, 11], [110, 111], [210, 211]]);
         assert_eq!(t0.len(), 6);
-        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0.as_slice(), &[10, 11, 110, 111, 210, 211]);
     }
 
@@ -1104,7 +1107,7 @@ mod test {
         let t0 = Tensor::from(vec.as_slice());
 
         assert_eq!(t0.len(), 6);
-        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0.as_slice(), &[10, 11, 110, 111, 210, 211]);
     }
 
@@ -1115,7 +1118,7 @@ mod test {
         let t0 = tc32!(1., 10.);
         
         assert_eq!(t0.len(), 1);
-        assert_eq!(t0.shape().as_slice(), &[]);
+        assert_eq!(t0.shape().as_vec(), &[]);
         assert_eq!(t0.as_slice(), &[C32 { re: 1., im: 10. }]);
     }
 
@@ -1124,7 +1127,7 @@ mod test {
         let t0 = tc32!([(100., 10.), (101., 11.), (102., 12.)]);
         
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.shape().as_vec(), &[3]);
         assert_eq!(t0.as_slice(), &[
             C32 { re: 100., im: 10. },
             C32 { re: 101., im: 11. },
@@ -1141,7 +1144,7 @@ mod test {
         ]);
         
         assert_eq!(t0.len(), 6);
-        assert_eq!(t0.shape().as_slice(), &[3, 2]);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0.as_slice(), &[
             C32 { re: 100., im: 10. },  C32 { re: 101., im: 11. },
             C32 { re: 200., im: 20. },  C32 { re: 201., im: 21. },
@@ -1157,7 +1160,7 @@ mod test {
     fn tensor_from_tensor_slice() {
         let t0 = Tensor::from([tensor!(2.), tensor!(1.), tensor!(3.)]);
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.shape().as_vec(), &[3]);
         assert_eq!(t0.get(0), Some(&2.));
         assert_eq!(t0.get(1), Some(&1.));
         assert_eq!(t0.get(2), Some(&3.));
@@ -1168,7 +1171,7 @@ mod test {
             tensor!([3., 4.])]
         );
         assert_eq!(t1.len(), 6);
-        assert_eq!(t1.shape().as_slice(), &[2, 3]);
+        assert_eq!(t1.shape().as_vec(), &[2, 3]);
         assert_eq!(t1[0], 1.);
         assert_eq!(t1[1], 2.);
         assert_eq!(t1[2], 2.);
@@ -1183,7 +1186,7 @@ mod test {
 
         let t0 = Tensor::from(vec.as_slice());
         assert_eq!(t0.len(), 3);
-        assert_eq!(t0.shape().as_slice(), &[3]);
+        assert_eq!(t0.shape().as_vec(), &[3]);
         assert_eq!(t0.get(0), Some(&2.));
         assert_eq!(t0.get(1), Some(&1.));
         assert_eq!(t0.get(2), Some(&3.));
@@ -1198,7 +1201,7 @@ mod test {
         let t1 = Tensor::from(ptr);
 
         assert_eq!(t1.len(), 6);
-        assert_eq!(t1.shape().as_slice(), &[2, 3]);
+        assert_eq!(t1.shape().as_vec(), &[2, 3]);
         assert_eq!(t1[0], 1.);
         assert_eq!(t1[1], 2.);
         assert_eq!(t1[2], 2.);
@@ -1209,7 +1212,7 @@ mod test {
         let t1 = Tensor::from(&vec);
 
         assert_eq!(t1.len(), 6);
-        assert_eq!(t1.shape().as_slice(), &[2, 3]);
+        assert_eq!(t1.shape().as_vec(), &[2, 3]);
         assert_eq!(t1[0], 1.);
         assert_eq!(t1[1], 2.);
         assert_eq!(t1[2], 2.);
@@ -1221,7 +1224,7 @@ mod test {
     #[test]
     fn shape_from_zeros() {
         let t = Tensor::<f32>::zeros([3, 2, 4, 5]);
-        assert_eq!(t.shape().as_slice(), &[3, 2, 4, 5]);
+        assert_eq!(t.shape().as_vec(), &[3, 2, 4, 5]);
         assert_eq!(t.rank(), 4);
         assert_eq!(t.cols(), 5);
         assert_eq!(t.rows(), 4);
@@ -1230,14 +1233,30 @@ mod test {
     }
 
     #[test]
-    fn string_tensor_from_macro() {
+    fn tensor_macro_float() {
+        let t = tensor![1.];
+        assert_eq!(t.shape().as_vec(), [1]);
+        assert_eq!(t, Tensor::from([1.]));
+
+        let t = tensor![1., 2., 3.];
+        assert_eq!(t.shape().as_vec(), [3]);
+        assert_eq!(t, Tensor::from([1., 2., 3.]));
+        assert_eq!(t, [1., 2., 3.].into());
+
+        let t = tensor![[1., 2., 3.], [4., 5., 6.]];
+        assert_eq!(t.shape().as_vec(), [2, 3]);
+        assert_eq!(t, [[1., 2., 3.], [4., 5., 6.]].into());
+    }
+
+    #[test]
+    fn tensor_macro_string() {
         let t = tensor!("test");
-        assert_eq!(t.shape().as_slice(), &[]);
+        assert_eq!(t.shape().as_vec(), &[1]);
 
         assert_eq!(&t[0], "test");
 
-        let t = tensor!(["t1", "t2", "t3"]);
-        assert_eq!(t.shape().as_slice(), &[3]);
+        let t = tensor!["t1", "t2", "t3"];
+        assert_eq!(t.shape().as_vec(), &[3]);
 
         assert_eq!(&t[0], "t1");
         assert_eq!(&t[1], "t2");
@@ -1293,7 +1312,7 @@ mod test {
         let t1 = tensor!([1, 2, 3, 4]);
         let t2 = t1.fold(0, |s, v| s + v);
 
-        assert_eq!(t2.shape().as_slice(), &[1]);
+        assert_eq!(t2.shape().as_vec(), &[1]);
         assert_eq!(t2.offset(), 0);
         assert_eq!(t2.len(), 1);
         assert_eq!(t2, tensor!([10]));
@@ -1323,7 +1342,7 @@ mod test {
         let t1 = tensor!([1, 2, 3, 4]);
         let t2 = t1.fold_into(Acc::default(), |s, v| s.add(*v));
 
-        assert_eq!(t2.shape().as_slice(), &[1]);
+        assert_eq!(t2.shape().as_vec(), &[1]);
         assert_eq!(t2.offset(), 0);
         assert_eq!(t2.len(), 1);
         assert_eq!(t2, tensor!([110]));

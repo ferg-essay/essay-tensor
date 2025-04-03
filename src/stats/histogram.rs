@@ -2,7 +2,7 @@ use crate::{Tensor, init::linspace};
 
 pub fn histogram(data: impl Into<Tensor>, args: impl Into<HistArgs>) -> (Tensor, Tensor) {
     let data : Tensor = data.into();
-    assert!(data.rank() == 1, "histogram requires a rank 1 tensor {:?}", data.shape().as_slice());
+    assert!(data.rank() == 1, "histogram requires a rank 1 tensor {:?}", data.shape().as_vec());
 
     let args = args.into();
     let min = data.reduce_min()[0];

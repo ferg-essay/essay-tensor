@@ -50,10 +50,10 @@ pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
         });
 
 
-        let mut vec = Vec::from(tensor.shape().as_slice());
-        let len = vec.len();
-        vec[len - 1] = len_out;
-        data.into_tensor(vec)
+        // let mut vec = Vec::from(tensor.shape().as_slice());
+        // let len = vec.len();
+        // vec[len - 1] = len_out;
+        data.into_tensor(tensor.shape().with_col(len_out))
     }
 }
 
