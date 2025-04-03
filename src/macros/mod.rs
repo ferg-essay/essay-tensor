@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! tensor {
+macro_rules! ten {
     [ $([ $([ $( $x:expr),* $(,)?]),* $(,)?]),* $(,)?] => {
         $crate::Tensor::from([$([$([$($x),*]),*]),*])
     };

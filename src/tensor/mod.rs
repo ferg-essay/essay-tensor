@@ -11,7 +11,7 @@ pub(crate) use data::{TensorData, TensorUninit};
 pub use shape::Shape;
 
 pub use tensor::{
-    Dtype, Tensor, IntoTensorList, C32, C64
+    Dtype, Tensor, IntoTensorList,
 };
 
 pub use tensor_vec::TensorVec;

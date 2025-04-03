@@ -1,8 +1,7 @@
 use std::{any::type_name, cmp};
 
 use crate::{
-    tensor::{Tensor, TensorUninit}, 
-    linalg::blas::sgemm
+    linalg::blas::sgemm, tensor::{Tensor, TensorData, TensorUninit}
 };
 
 use super::matmul::Transpose;
@@ -68,23 +67,15 @@ fn matvec_t_op(
     let o_size = o_cols * o_rows;
 
     unsafe {
-        let mut out = TensorUninit::<f32>::new(o_size * batch);
+        TensorData::<f32>::unsafe_init(o_size * batch, |o| {
+            for n in 0..batch {
+                let a_ptr = a.as_wrap_ptr(n * a_size);
+                let x_ptr = x.as_wrap_ptr(n * x_size);
+                let o_ptr = o.add(n * o_size);
 
-        for n in 0..batch {
-            let a_ptr = a.as_wrap_ptr(n * a_size);
-            let x_ptr = x.as_wrap_ptr(n * x_size);
-            let o_ptr = out.as_mut_ptr().add(n * o_size);
-
-            transpose.sgemm(a, x, o_cols, o_rows, a_ptr, x_ptr, o_ptr);
-        }
-
-        let mut o_shape = Vec::from(x.shape().as_vec());
-        let len = o_shape.len();
-        o_shape[len - 1] = o_cols;
-        let tensor = Tensor::from_uninit(out, o_shape);
-
-        // Tape::set_tensor(tensor)
-        tensor
+                transpose.sgemm(a, x, o_cols, o_rows, a_ptr, x_ptr, o_ptr);
+            }
+        }).into_tensor(x.shape().clone().with_col(o_cols))
     }
 }
 
@@ -191,51 +182,51 @@ impl Operation<f32> for Matvec {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, linalg::matmul::Transpose, tf32};
+    use crate::{ten, Tensor, linalg::matmul::Transpose, tf32};
 
     #[test]
     fn test_matvec_1_1() {
-        let a = tensor!([[2.]]);
-        let b = tensor!([3.]);
+        let a = ten!([[2.]]);
+        let b = ten!([3.]);
 
-        assert_eq!(a.matvec(&b), tensor!([6.]));
+        assert_eq!(a.matvec(&b), ten!([6.]));
     }
 
     #[test]
     fn test_matvec_1_2() {
-        let a = tensor!([[1., 2.]]);
-        let b = tensor!([3., 4.]);
+        let a = ten!([[1., 2.]]);
+        let b = ten!([3., 4.]);
 
-        assert_eq!(a.matvec(&b), tensor!([11.]));
+        assert_eq!(a.matvec(&b), ten!([11.]));
     }
 
     #[test]
     fn test_matvec_2_n() {
-        let a = tensor!([[1.], [2.]]);
-        let b = tensor!([2.]);
-        assert_eq!(a.matvec(&b), tensor!([2., 4.]));
+        let a = ten!([[1.], [2.]]);
+        let b = ten!([2.]);
+        assert_eq!(a.matvec(&b), ten!([2., 4.]));
 
-        let a = tensor!([[1., 2.], [2., 3.]]);
-        let b = tensor!([2., 3.]);
-        assert_eq!(a.matvec(&b), tensor!([8., 13.]));
+        let a = ten!([[1., 2.], [2., 3.]]);
+        let b = ten!([2., 3.]);
+        assert_eq!(a.matvec(&b), ten!([8., 13.]));
     }
 
     #[test]
     fn test_matvec_3_n() {
-        let a = tensor!([[1.], [2.], [3.]]);
-        let b = tensor!([2.]);
-        assert_eq!(a.matvec(&b), tensor!([2., 4., 6.]));
+        let a = ten!([[1.], [2.], [3.]]);
+        let b = ten!([2.]);
+        assert_eq!(a.matvec(&b), ten!([2., 4., 6.]));
     }
 
     #[test]
     fn test_matvec_t() {
-        let a = tensor!([[1., 4.], [2., 5.], [3., 6.]]);
-        let b = tensor!([10., 20.]);
-        assert_eq!(a.matvec(&b), tensor!([90., 120., 150.]));
+        let a = ten!([[1., 4.], [2., 5.], [3., 6.]]);
+        let b = ten!([10., 20.]);
+        assert_eq!(a.matvec(&b), ten!([90., 120., 150.]));
 
-        let a = tensor!([[1., 2., 3.], [4., 5., 6.]]);
-        let b = tensor!([10., 20.]);
-        assert_eq!(a.matvec_t(&b, Transpose::TransposeA), tensor!([90., 120., 150.]));
+        let a = ten!([[1., 2., 3.], [4., 5., 6.]]);
+        let b = ten!([10., 20.]);
+        assert_eq!(a.matvec_t(&b, Transpose::TransposeA), ten!([90., 120., 150.]));
     }
 
     #[test]

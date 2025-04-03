@@ -38,11 +38,41 @@ impl Shape {
     }
 
     ///
+    /// Sets the dimension ordered from outside-in
+    /// 
+    #[inline]
+    pub fn with_dim(self, i: usize, value: usize) -> Self {
+        let mut dims = self.dims.clone();
+
+        dims[self.rank - 1 - i] = value as u32;
+
+        Self {
+            dims,
+            rank: self.rank
+        }
+    }
+
+    ///
     /// Dimension indexed in reverse order, so 0 is cols, 1 is rows
     /// 
     #[inline]
     pub fn rdim(&self, i: usize) -> usize {
         self.dims[i] as usize
+    }
+
+    ///
+    /// Dimension indexed in bottom-up, reverse order, where 0 is cols, 1 is rows
+    /// 
+    #[inline]
+    pub fn with_rdim(self, i: usize, value: usize) -> Self {
+        let mut dims = self.dims.clone();
+
+        dims[i] = value as u32;
+
+        Self {
+            dims,
+            rank: self.rank
+        }
     }
 
     #[inline]
@@ -58,14 +88,12 @@ impl Shape {
     }
     
     #[inline]
-    pub fn with_col(&self, col: usize) -> Self {
-        let mut dims = self.dims.clone();
-        dims[0] = col as u32;
+    pub fn with_col(self, col: usize) -> Self {
+        let mut own = self;
 
-        Self {
-            dims,
-            rank: self.rank,
-        }
+        own.dims[0] = col as u32;
+
+        own
     }
 
     #[inline]
@@ -76,6 +104,17 @@ impl Shape {
             self.dims[1] as usize
         } else {
             0
+        }
+    }
+    
+    #[inline]
+    pub fn with_row(&self, row: usize) -> Self {
+        let mut dims = self.dims.clone();
+        dims[1] = row as u32;
+
+        Self {
+            dims,
+            rank: self.rank,
         }
     }
 

@@ -580,77 +580,77 @@ tensor_ops2_scalar!(i32, Div, div, div, div_st, div_ts);
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, tf32};
+    use crate::{ten, tf32};
 
     #[test]
     fn abs() {
-        assert_eq!(tensor!(-1.).abs(), tensor!(1.));
-        assert_eq!(tensor!([1., -2., 3.]).abs(), tensor!([1., 2., 3.]));
+        assert_eq!(ten!(-1.).abs(), ten!(1.));
+        assert_eq!(ten!([1., -2., 3.]).abs(), ten!([1., 2., 3.]));
         assert_eq!(
-            tensor!([[1., -2.], [-3., 4.]]).abs(), 
-            tensor!([[1., 2.], [3., 4.]]),
+            ten!([[1., -2.], [-3., 4.]]).abs(), 
+            ten!([[1., 2.], [3., 4.]]),
         );
         assert_ne!(
-            tensor!([[-1., 2.], [3., -4.]]).abs(), 
-            tensor!([1., 2., 3., 4.]),
+            ten!([[-1., 2.], [3., -4.]]).abs(), 
+            ten!([1., 2., 3., 4.]),
         );
         assert_eq!(
-            tensor!([[1., 2.], [-3., 4.]]).subslice(1, 1).abs(), 
-            tensor!([[3., 4.]]),
+            ten!([[1., 2.], [-3., 4.]]).subslice(1, 1).abs(), 
+            ten!([[3., 4.]]),
         );
     }
 
     #[test]
     fn abs_i32() {
-        assert_eq!(tensor!(-1i32).abs(), tensor!(1i32));
-        assert_eq!(tensor!([1, -2, 3]).abs(), tensor!([1, 2, 3]));
+        assert_eq!(ten!(-1i32).abs(), ten!(1i32));
+        assert_eq!(ten!([1, -2, 3]).abs(), ten!([1, 2, 3]));
         assert_eq!(
-            tensor!([[1, -2], [-3, 4]]).abs(), 
-            tensor!([[1, 2], [3, 4]]),
+            ten!([[1, -2], [-3, 4]]).abs(), 
+            ten!([[1, 2], [3, 4]]),
         );
         assert_ne!(
-            tensor!([[-1, 2], [3, -4]]).abs(), 
-            tensor!([1, 2, 3, 4]),
+            ten!([[-1, 2], [3, -4]]).abs(), 
+            ten!([1, 2, 3, 4]),
         );
         assert_eq!(
-            tensor!([[1, 2], [-3, 4]]).subslice(1, 1).abs(), 
-            tensor!([[3, 4]]),
+            ten!([[1, 2], [-3, 4]]).subslice(1, 1).abs(), 
+            ten!([[3, 4]]),
         );
     }
 
     #[test]
     fn neg() {
-        assert_eq!(tensor!(1.).neg(), tensor!(-1.));
-        assert_eq!(tensor!([1., 2., 3.]).neg(), tensor!([-1., -2., -3.]));
+        assert_eq!(ten!(1.).neg(), ten!(-1.));
+        assert_eq!(ten!([1., 2., 3.]).neg(), ten!([-1., -2., -3.]));
         assert_eq!(
-            tensor!([[1., 2.], [3., 4.]]).neg(), 
-            tensor!([[-1., -2.], [-3., -4.]]),
+            ten!([[1., 2.], [3., 4.]]).neg(), 
+            ten!([[-1., -2.], [-3., -4.]]),
         );
         assert_ne!(
-            tensor!([[1., 2.], [3., 4.]]).neg(), 
-            tensor!([-1., -2., -3., -4.]),
+            ten!([[1., 2.], [3., 4.]]).neg(), 
+            ten!([-1., -2., -3., -4.]),
         );
         assert_eq!(
-            tensor!([[1., 2.], [3., 4.]]).subslice(1, 1).neg(), 
-            tensor!([[-3., -4.]]),
+            ten!([[1., 2.], [3., 4.]]).subslice(1, 1).neg(), 
+            ten!([[-3., -4.]]),
         );
     }
 
     #[test]
     fn neg_i32() {
-        assert_eq!(tensor![1].neg(), tensor![-1]);
-        assert_eq!(tensor!(1, 2, 3).neg(), tensor!([-1, -2, -3]));
+        assert_eq!(ten![1].neg(), ten![-1]);
+        assert_eq!(ten!(1, 2, 3).neg(), ten!([-1, -2, -3]));
         assert_eq!(
-            tensor!([[1, 2], [3, 4]]).neg(), 
-            tensor!([[-1, -2], [-3, -4]]),
+            ten!([[1, 2], [3, 4]]).neg(), 
+            ten!([[-1, -2], [-3, -4]]),
         );
         assert_ne!(
-            tensor!([[1, 2], [3, 4]]).neg(), 
-            tensor!([-1, -2, -3, -4]),
+            ten!([[1, 2], [3, 4]]).neg(), 
+            ten!([-1, -2, -3, -4]),
         );
         assert_eq!(
-            tensor!([[1, 2], [3, 4]]).subslice(1, 1).neg(), 
-            tensor!([[-3, -4]]),
+            ten!([[1, 2], [3, 4]]).subslice(1, 1).neg(), 
+            ten!([[-3, -4]]),
         );
     }
 
@@ -690,15 +690,15 @@ mod test {
 
     #[test]
     fn add_i32() {
-        assert_eq!(tensor!(2) + tensor!(3), tensor!(5));
-        assert_eq!(tensor!(2) + &tensor!(3), tensor!(5));
-        assert_eq!(&tensor!(2) + tensor!(3), tensor!(5));
-        assert_eq!(&tensor!(2) + &tensor!(3), tensor!(5));
+        assert_eq!(ten!(2) + ten!(3), ten!(5));
+        assert_eq!(ten!(2) + &ten!(3), ten!(5));
+        assert_eq!(&ten!(2) + ten!(3), ten!(5));
+        assert_eq!(&ten!(2) + &ten!(3), ten!(5));
 
-        assert_eq!(tensor!(2) + 3, tensor!(5));
-        assert_eq!(3 + tensor!(2), tensor!(5));
+        assert_eq!(ten!(2) + 3, ten!(5));
+        assert_eq!(3 + ten!(2), ten!(5));
 
-        assert_eq!(&tensor!(2) + 3, tensor!(5));
-        assert_eq!(3 + &tensor!(2), tensor!(5));
+        assert_eq!(&ten!(2) + 3, ten!(5));
+        assert_eq!(3 + &ten!(2), ten!(5));
     }
 }

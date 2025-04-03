@@ -17,7 +17,7 @@ pub mod macros;
 pub use tensor::Tensor;
 
 pub mod prelude {
-    pub use crate::{tensor, tf32};
+    pub use crate::{ten, tf32};
     pub use crate::tensor::Shape;
     pub use crate::array::AxisOpt;
     pub use crate::Tensor;

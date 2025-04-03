@@ -6,13 +6,13 @@ pub fn read_file(filename: impl Into<Tensor<String>>) -> Result<Tensor<u8>, std:
     let mut file = File::open(&filename.into()[0])?;
     let len = file.metadata()?.len();
 
-    unsafe {
-        let mut uninit = TensorUninit::<u8>::new(len as usize);
+    let mut data: Vec<u8> = Vec::new();
+    data.reserve_exact(len as usize);
+    data.resize(len as usize, 0);
 
-        file.read(uninit.as_mut_slice())?;
+    file.read(data.as_mut_slice())?;
 
-        Ok(Tensor::from_uninit(uninit, len as usize))
-    }
+    Ok(Tensor::from(data))
 }
 
 #[cfg(test)]

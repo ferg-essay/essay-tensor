@@ -1,4 +1,4 @@
-use crate::{tensor::{Tensor, TensorUninit}, linalg::blas::sgemm};
+use crate::{linalg::blas::sgemm, tensor::{Tensor, TensorData, TensorUninit}};
 
 #[derive(Clone, Debug)]
 pub enum Transpose {
@@ -44,8 +44,8 @@ pub fn matmul(a: &Tensor, b: &Tensor) -> Tensor {
 pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Tensor {
     //assert_eq!(M, N, "matrix multiplication requires matching dim >= 2");
     assert!(a.rank() > 1, "matrix multiplication requires rank >= 2");
+    // todo!() - re-enable this assertion
     //assert_eq!(&a.shape().as_subslice(2..), &b.shape().as_subslice(2..), "matmul batch shape must match");
-    todo!();
 
     let (m, _, n) = transpose.mkn(a, b);
 
@@ -54,23 +54,18 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
     let b_size = b.rows() * b.cols();
     let o_size = m * n;
 
+    let shape = b.shape().clone().with_col(m).with_row(n);
+
     unsafe {
-        let out = TensorUninit::<f32>::new(o_size * batch_len);
-
-        for batch in 0..batch_len {
-            let a_ptr = a.as_ptr().add(a_size * batch);
-            let b_ptr = b.as_ptr().add(b_size * batch);
-            let c_ptr = out.as_ptr().add(o_size * batch);
+        TensorData::<f32>::unsafe_init(o_size * batch_len, |o| {
+            for batch in 0..batch_len {
+                let a_ptr = a.as_ptr().add(a_size * batch);
+                let b_ptr = b.as_ptr().add(b_size * batch);
+                let c_ptr = o.add(o_size * batch);
         
-            transpose.sgemm(a, b, a_ptr, b_ptr, c_ptr);
-        }
-
-        let mut o_shape = Vec::from(b.shape().as_vec());
-        let len = o_shape.len();
-        o_shape[len - 1] = m;
-        o_shape[len - 2] = n;
-
-        Tensor::from_uninit(out, o_shape)
+                transpose.sgemm(a, b, a_ptr, b_ptr, c_ptr);
+            }
+        }).into_tensor(shape)
     }
 }
 
@@ -174,51 +169,51 @@ impl TransposeMatmul for Transpose {
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, linalg::matmul::Transpose};
+    use crate::{ten, linalg::matmul::Transpose};
 
     #[test]
     fn test_matmul_1() {
-        let a = tensor!([[2.]]);
-        let b = tensor!([[3.]]);
+        let a = ten!([[2.]]);
+        let b = ten!([[3.]]);
 
-        assert_eq!(a.matmul(&b), tensor!([[6.]]));
+        assert_eq!(a.matmul(&b), ten!([[6.]]));
     }
 
     #[test]
     fn test_matmul_vectors() {
-        let a = tensor!([[1., 2.]]);
-        let b = tensor!([[1.], [3.]]);
-        assert_eq!(a.matmul(&b), tensor!([[7.]]));
+        let a = ten!([[1., 2.]]);
+        let b = ten!([[1.], [3.]]);
+        assert_eq!(a.matmul(&b), ten!([[7.]]));
 
-        let a = tensor!([[1.], [3.]]);
-        let b = tensor!([[1., 2.]]);
-        assert_eq!(a.matmul(&b), tensor!([[1., 2.], [3., 6.]]));
+        let a = ten!([[1.], [3.]]);
+        let b = ten!([[1., 2.]]);
+        assert_eq!(a.matmul(&b), ten!([[1., 2.], [3., 6.]]));
     }
 
     #[test]
     fn test_matmul_square() {
-        let id = tensor!([[1., 0.], [0., 1.]]);
+        let id = ten!([[1., 0.], [0., 1.]]);
         assert_eq!(&id.clone().matmul(&id), &id);
 
-        let a = tensor!([[1., 0.], [0., 2.]]);
+        let a = ten!([[1., 0.], [0., 2.]]);
         assert_eq!(&id.clone().matmul(&a), &a);
         assert_eq!(&a.clone().matmul(&id), &a);
         assert_eq!(&a.clone().matmul(&a),
-            &tensor!([[1., 0.], [0., 4.]]));
+            &ten!([[1., 0.], [0., 4.]]));
 
-        let top = tensor!([[1., 1.], [0., 1.]]);
-        assert_eq!(top.matmul(&top), tensor!([[1., 2.], [0., 1.]]));
+        let top = ten!([[1., 1.], [0., 1.]]);
+        assert_eq!(top.matmul(&top), ten!([[1., 2.], [0., 1.]]));
 
-        let bot = tensor!([[1., 0.], [1., 1.]]);
-        assert_eq!(bot.matmul(&bot), tensor!([[1., 0.], [2., 1.]]));
+        let bot = ten!([[1., 0.], [1., 1.]]);
+        assert_eq!(bot.matmul(&bot), ten!([[1., 0.], [2., 1.]]));
     }
 
     #[test]
     fn test_matmul_2x3() {
-        let a = tensor!([[1., 0., 2.], [0., 1., 10.]]);
-        let b = tensor!([[1., 0.], [0., 1.], [3., 4.]]);
-        assert_eq!(a.matmul(&b), tensor!([[7., 8.], [30., 41.]]));
-        assert_eq!(b.matmul(&a), tensor!([
+        let a = ten!([[1., 0., 2.], [0., 1., 10.]]);
+        let b = ten!([[1., 0.], [0., 1.], [3., 4.]]);
+        assert_eq!(a.matmul(&b), ten!([[7., 8.], [30., 41.]]));
+        assert_eq!(b.matmul(&a), ten!([
             [1., 0., 2.],
             [0., 1., 10.],
             [3., 4., 46.]]));
@@ -226,69 +221,69 @@ mod test {
 
     #[test]
     fn matmul_transpose_none() {
-        let a = tensor!([[1., 2.]]);
-        let b = tensor!([[10.], [20.]]);
+        let a = ten!([[1., 2.]]);
+        let b = ten!([[10.], [20.]]);
 
-        assert_eq!(a.matmul_t(&b, Transpose::None), tensor!([[50.]]));
+        assert_eq!(a.matmul_t(&b, Transpose::None), ten!([[50.]]));
     }
 
     #[test]
     fn matmul_transpose_a() {
-        let a = tensor!([[1.], [2.]]);
-        let b = tensor!([[10.], [20.]]);
+        let a = ten!([[1.], [2.]]);
+        let b = ten!([[10.], [20.]]);
 
-        assert_eq!(a.matmul_t(&b, Transpose::TransposeA), tensor!([[50.]]));
+        assert_eq!(a.matmul_t(&b, Transpose::TransposeA), ten!([[50.]]));
     }
 
     #[test]
     fn matmul_transpose_b() {
-        let a = tensor!([[1., 2.]]);
-        let b = tensor!([[10., 20.]]);
+        let a = ten!([[1., 2.]]);
+        let b = ten!([[10., 20.]]);
 
-        assert_eq!(a.matmul_t(&b, Transpose::TransposeB), tensor!([[50.]]));
+        assert_eq!(a.matmul_t(&b, Transpose::TransposeB), ten!([[50.]]));
     }
 
     #[test]
     fn matmul_transpose_ab() {
-        let a = tensor!([[1.], [2.]]);
-        let b = tensor!([[10., 20.]]);
+        let a = ten!([[1.], [2.]]);
+        let b = ten!([[10., 20.]]);
 
-        assert_eq!(a.matmul_t(&b, Transpose::TransposeAB), tensor!([[50.]]));
+        assert_eq!(a.matmul_t(&b, Transpose::TransposeAB), ten!([[50.]]));
     }
 
     #[test]
     fn matmul_2_2_transpose() {
-        let a = tensor!([[1., 2.], [3., 4.]]);
-        let b = tensor!([[10., 20.], [30., 40.]]);
+        let a = ten!([[1., 2.], [3., 4.]]);
+        let b = ten!([[10., 20.], [30., 40.]]);
 
         assert_eq!(a.matmul_t(&b, Transpose::None), 
-            tensor!([[70., 100.], [150., 220.]]));
+            ten!([[70., 100.], [150., 220.]]));
 
         assert_eq!(a.matmul_t(&b, Transpose::TransposeA), 
-            tensor!([[100., 140.], [140., 200.]]));
+            ten!([[100., 140.], [140., 200.]]));
 
         assert_eq!(a.matmul_t(&b, Transpose::TransposeB), 
-            tensor!([[50., 110.], [110., 250.]]));
+            ten!([[50., 110.], [110., 250.]]));
     }
 
     #[test]
     fn matmul_1_2_2_3_transpose() {
-        let a = tensor!([[1., 2.]]);
-        let b = tensor!([[10., 20., 30.], [40., 50., 60.]]);
+        let a = ten!([[1., 2.]]);
+        let b = ten!([[10., 20., 30.], [40., 50., 60.]]);
 
         assert_eq!(a.matmul_t(&b, Transpose::None), 
-            tensor!([[90., 120., 150.]]));
+            ten!([[90., 120., 150.]]));
 
-        let a = tensor!([[1.], [2.]]);
-        let b = tensor!([[10., 20., 30.], [40., 50., 60.]]);
+        let a = ten!([[1.], [2.]]);
+        let b = ten!([[10., 20., 30.], [40., 50., 60.]]);
 
         assert_eq!(a.matmul_t(&b, Transpose::TransposeA), 
-            tensor!([[90., 120., 150.]]));
+            ten!([[90., 120., 150.]]));
 
-        let a = tensor!([[1., 2.]]);
-        let b = tensor!([[10., 40.], [20., 50.], [30., 60.]]);
+        let a = ten!([[1., 2.]]);
+        let b = ten!([[10., 40.], [20., 50.], [30., 60.]]);
     
         assert_eq!(a.matmul_t(&b, Transpose::TransposeB), 
-            tensor!([[90., 120., 150.]]));
+            ten!([[90., 120., 150.]]));
     }
 }

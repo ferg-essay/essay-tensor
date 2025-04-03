@@ -612,16 +612,16 @@ mod test {
 
     #[test]
     fn test_slice() {
-        let a = tensor!(10.);
+        let a = ten!(10.);
         assert_eq!(a.as_slice(), &[10.]);
 
-        let a = tensor!([10.]);
+        let a = ten!([10.]);
         assert_eq!(a.as_slice(), &[10.]);
 
-        let a = tensor!([10., 20., 30.]);
+        let a = ten!([10., 20., 30.]);
         assert_eq!(a.as_slice(), &[10., 20., 30.]);
 
-        let a = tensor!([[10., 20.], [30., 40.]]);
+        let a = ten!([[10., 20.], [30., 40.]]);
         assert_eq!(a.as_slice(), &[10., 20., 30., 40.]);
     }
 
@@ -686,7 +686,7 @@ mod test {
 
     #[test]
     fn map_deadbeef() {
-        let t = tensor!([0x10, 0x20, 0x30]);
+        let t = ten!([0x10, 0x20, 0x30]);
 
         t.map(|v| Deadbeef::new(*v));
     }

@@ -35,27 +35,21 @@ pub fn decode_wav(
     let n_samples = size / 2;
     //let len = meta.n_channels * 
 
-    unsafe {
-        let mut uninit = TensorUninit::<f32>::new(n_samples as usize);
+    let mut data = Vec::new();
+    data.reserve_exact(n_samples as usize);
 
-        let slice = uninit.as_mut_slice();
-
-        for i in 0..n_samples as usize {
-            let item = cursor.read_i16_little();
-            slice[i] = (item as f32) / (0x8000 as f32);
-        }
-
-        //println!("Samples {}", n_samples);
-
-        (
-            Tensor::from_uninit(uninit, [
-                n_samples as usize / meta.n_channels as usize, 
-                meta.n_channels as usize
-            ]), 
-            Tensor::from(meta.sample_rate as usize)
-        )
+    for _ in 0..n_samples as usize {
+        let item = cursor.read_i16_little();
+        data.push((item as f32) / (0x8000 as f32));
     }
 
+    (
+        Tensor::from_vec(data, [
+            n_samples as usize / meta.n_channels as usize, 
+            meta.n_channels as usize
+        ]), 
+        Tensor::from(meta.sample_rate as usize)
+    )
 }
 
 #[derive(Debug)]
@@ -131,6 +125,6 @@ mod test {
 
         let (audio, rate) = decode_wav(&data);
         assert_eq!(audio.shape(), &Shape::from([118080, 1]));
-        assert_eq!(rate, tensor!(16000));
+        assert_eq!(rate, ten!(16000));
     }
 }

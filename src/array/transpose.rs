@@ -1,5 +1,5 @@
 use crate::{
-    Tensor, tensor::{TensorUninit, Dtype}
+    tensor::{Dtype, TensorData, TensorUninit}, Tensor
 };
 
 pub fn transpose<D: Dtype + Clone>(x: impl Into<Tensor<D>>) -> Tensor<D> {
@@ -32,10 +32,10 @@ impl<D: Dtype + Clone> Tensor<D> {
 pub struct Transpose;
 
 impl Transpose {
-    fn f<D: Dtype + Clone>(
+    fn f<T: Clone + 'static>(
         &self,
-        args: &[&Tensor<D>],
-    ) -> Tensor<D> {
+        args: &[&Tensor<T>],
+    ) -> Tensor<T> {
         let tensor = args[0];
 
         let cols = tensor.cols().max(1);
@@ -45,33 +45,25 @@ impl Transpose {
         let batch = size / n_inner;
 
         unsafe {
-            let mut out = TensorUninit::<D>::new(size);
+            TensorData::<T>::unsafe_init(size, |o| {
+                let x = tensor.as_slice();
 
-            let o = out.as_mut_slice();
-            let x = tensor.as_slice();
-
-            for n in 0..batch {
-                for j in 0..rows {
-                    for i in 0..cols {
-                        o[n * n_inner + i * rows + j] = x[n * n_inner + j * cols + i].clone();
+                for n in 0..batch {
+                    for j in 0..rows {
+                        for i in 0..cols {
+                            o.add(n * n_inner + i * rows + j)
+                                .write(x[n * n_inner + j * cols + i].clone());
+                        }
                     }
                 }
-            }
-
-            let mut slice = Vec::from(tensor.shape().as_vec());
-            slice.pop();
-            slice.pop();
-            slice.push(cols);
-            slice.push(rows);
-    
-            Tensor::from_uninit(out, slice)
+            }).into_tensor(tensor.shape().clone().with_col(cols).with_row(rows))
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{transpose}};
+    use crate::{prelude::*, array::transpose};
     
     #[test]
     fn test_transpose() {
