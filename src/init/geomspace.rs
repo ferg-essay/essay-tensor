@@ -3,7 +3,7 @@ use std::{cmp};
 use crate::{
     Tensor, 
     tensor::{TensorUninit, TensorId}, 
-    model::{Operation}, prelude::Shape
+    prelude::Shape
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -40,7 +40,8 @@ impl Tensor {
     }
 }
 
-impl Operation<f32> for GeomspaceCpu {
+//impl Operation<f32> for GeomspaceCpu {
+impl GeomspaceCpu {
     fn f(
         &self,
         args: &[&Tensor],

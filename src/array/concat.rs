@@ -1,4 +1,8 @@
-use crate::{model::{Operation}, Tensor, prelude::{AxisOpt}, tensor::{TensorId, TensorUninit, Dtype, IntoTensorList}};
+use crate::{
+    prelude::AxisOpt, 
+    tensor::{TensorId, TensorUninit, Dtype, IntoTensorList},
+    Tensor, 
+};
 
 pub fn concatenate<D>(x: impl IntoTensorList<D>, axis: impl Into<AxisOpt>) -> Tensor<D>
 where
@@ -24,9 +28,11 @@ where
     //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
     let id = TensorId::unset();
 
-    let tensor = op.f(x_ptr.as_slice(), id);
+    // let tensor = op.f(x_ptr.as_slice(), id);
 
-    D::set_tape(tensor)
+    // D::set_tape(tensor)
+
+    todo!();
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
@@ -51,7 +57,7 @@ impl ConcatOp {
         &self.0
     }
 }
-
+/*
 impl<D: Dtype + Clone> Operation<D> for ConcatOp {
     fn f(
         &self,
@@ -66,6 +72,7 @@ impl<D: Dtype + Clone> Operation<D> for ConcatOp {
         concat_impl(args, axis, id)
     }
 }
+*/
 
 pub(crate) fn concat_impl<D: Dtype + Clone>(
     args: &[&Tensor<D>], 

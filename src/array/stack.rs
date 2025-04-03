@@ -1,4 +1,7 @@
-use crate::{model::{Operation}, Tensor, prelude::{AxisOpt, Shape}, tensor::{TensorId, TensorUninit, Dtype, IntoTensorList}};
+use crate::{
+    Tensor, prelude::{AxisOpt, Shape}, 
+    tensor::{TensorId, TensorUninit, Dtype, IntoTensorList}
+};
 
 use super::axis::axis_from_rank;
 
@@ -63,10 +66,9 @@ impl StackOp {
     fn axis(&self) -> &Option<isize> {
         &self.0
     }
-}
 
-impl<D: Dtype + Clone> Operation<D> for StackOp {
-    fn f(
+// impl<D: Dtype + Clone> Operation<D> for StackOp {
+    fn f<D: Dtype + Clone>(
         &self,
         args: &[&Tensor<D>],
         id: TensorId,

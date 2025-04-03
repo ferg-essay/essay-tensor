@@ -151,6 +151,11 @@ impl<T: Float + Clone + 'static> Tensor<T> {
         // self.fold(T::max_value(), |s, v| s.min(v))
         todo!()
     }
+
+    pub fn reduce_max(&self) -> Tensor<T> {
+        // self.fold(T::max_value(), |s, v| s.min(v))
+        todo!()
+    }
 }
 
 impl<T: ops::Add + Zero + Clone + 'static> Tensor<T> {

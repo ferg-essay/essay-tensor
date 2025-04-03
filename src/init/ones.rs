@@ -1,11 +1,10 @@
 use crate::{Tensor, prelude::Shape};
-use crate::ops::{init_op, InitKernel};
 
-use super::initializer::Initializer;
-
+/*
 pub fn ones(shape: impl Into<Shape>) -> Tensor {
     init_op(Ones, shape)
 }
+    */
 
 impl Tensor {
     /*
@@ -17,7 +16,7 @@ impl Tensor {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ones;
-
+/*
 impl InitKernel<f32> for Ones {
     type State = ();
 
@@ -29,12 +28,14 @@ impl InitKernel<f32> for Ones {
         1.
     }
 }
-
+    */
+/*
 impl Initializer for Ones {
     fn init(&self, shape: &Shape) -> Tensor {
         init_op(self.clone(), shape)
     }
 }
+    */
 
 #[cfg(test)]
 mod test {

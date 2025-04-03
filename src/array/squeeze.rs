@@ -3,7 +3,7 @@
 // squeeze operation
 //
 
-use crate::{Tensor, prelude::AxisOpt, tensor::{TensorId, Dtype}, model::Operation};
+use crate::{Tensor, prelude::AxisOpt, tensor::{TensorId, Dtype}};
 
 pub fn squeeze<D: Dtype>(x: &Tensor<D>, axis: impl Into<AxisOpt>) -> Tensor<D> {
     let axis : AxisOpt = axis.into();
@@ -12,10 +12,11 @@ pub fn squeeze<D: Dtype>(x: &Tensor<D>, axis: impl Into<AxisOpt>) -> Tensor<D> {
     //let node = NodeOp::new(&[x], Box::new(op.clone()));
     let id = TensorId::unset();
 
-    let tensor = op.f(&[&x], id);
+    //let tensor = op.f(&[&x], id);
 
     //Tape::set_tensor(tensor)
-    tensor
+    //    tensor
+    todo!();
 }
 
 impl<D: Dtype> Tensor<D> {
@@ -32,7 +33,7 @@ impl SqueezeOp {
         &self.0
     }
 }
-
+/*
 impl<D: Dtype> Operation<D> for SqueezeOp {
     fn f(
         &self,
@@ -46,6 +47,7 @@ impl<D: Dtype> Operation<D> for SqueezeOp {
         tensor.clone_with_shape(shape, id)
     }
 }
+*/
 
 #[cfg(test)]
 mod test {

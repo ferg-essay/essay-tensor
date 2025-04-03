@@ -3,7 +3,7 @@ use std::{cmp};
 use crate::{
     Tensor, 
     tensor::{TensorUninit, TensorId}, 
-    model::{Operation, Expr, expr::GradOperation}, prelude::Shape
+    prelude::Shape
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -56,7 +56,7 @@ impl Tensor {
     }
 }
 
-impl Operation<f32> for LogspaceCpu {
+impl LogspaceCpu {
     fn f(
         &self,
         args: &[&Tensor],
@@ -104,7 +104,7 @@ impl Operation<f32> for LogspaceCpu {
         }
     }
 }
-
+/*
 impl GradOperation<f32> for LogspaceCpu {
         fn df(
         &self,
@@ -117,6 +117,7 @@ impl GradOperation<f32> for LogspaceCpu {
         todo!();
     }
 }
+    */
 
 pub struct Opt {
     base: Option<f32>,

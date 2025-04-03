@@ -1,6 +1,5 @@
 use crate::random::Rand32;
 use crate::{Tensor, prelude::Shape};
-use crate::ops::{init_op, InitKernel};
 
 use super::initializer::Initializer;
 
@@ -8,7 +7,8 @@ pub fn random_normal(
     shape: impl Into<Shape>,
     opt: impl NormalOpt<RandomNormal>,
 ) -> Tensor {
-    init_op(opt.into_arg(), shape)
+    // init_op(opt.into_arg(), shape)
+    todo!();
 }
 
 pub fn random_normal_initializer(
@@ -30,7 +30,9 @@ pub struct RandomNormal {
     seed: Option<u64>,
 }
 
-impl InitKernel<f32> for RandomNormal {
+//impl InitKernel<f32> for RandomNormal {
+/*
+impl RandomNormal {
     type State = Rand32;
 
     fn init(&self, _shape: &Shape) -> Self::State {
@@ -46,6 +48,7 @@ impl InitKernel<f32> for RandomNormal {
         self.mean + p * self.stddev
     }
 }
+*/    
 
 impl Default for RandomNormal {
     fn default() -> Self {
@@ -56,12 +59,13 @@ impl Default for RandomNormal {
         }
     }
 }
-
+/*
 impl Initializer for RandomNormal {
     fn init(&self, shape: &Shape) -> Tensor {
         init_op(self.clone(), shape)
     }
 }
+*/    
 
 pub trait NormalOpt<Arg> {
     fn into_arg(self) -> Arg;

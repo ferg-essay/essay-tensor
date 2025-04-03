@@ -1,4 +1,4 @@
-use crate::{model::{Operation}, Tensor, tensor::{TensorId, TensorUninit, Dtype}};
+use crate::{Tensor, tensor::{TensorId, TensorUninit, Dtype}};
 
 pub fn tile<D>(tensor: impl Into<Tensor<D>>, multiples: impl Into<Tensor<usize>>) -> Tensor<D>
 where
@@ -21,7 +21,8 @@ impl<D: Dtype + Clone> Tensor<D> {
     
         let tensor = op.f(&[&self], id);
     
-        D::set_tape(tensor)
+        // D::set_tape(tensor)
+        todo!();
     }
 }
 
@@ -32,10 +33,10 @@ impl TileOp {
     fn dims(&self) -> &Tensor<usize> {
         &self.0
     }
-}
+// }
 
-impl<D: Dtype + Clone> Operation<D> for TileOp {
-    fn f(
+//impl<D: Dtype + Clone> Operation<D> for TileOp {
+    fn f<D: Dtype + Clone>(
         &self,
         args: &[&Tensor<D>],
         _id: TensorId,

@@ -2,7 +2,7 @@ use std::{any::type_name, cmp};
 
 use crate::{
     tensor::{Tensor, TensorId, TensorUninit}, 
-    model::{Operation, Expr, expr::{GradientOp, GradOperation}, Tape, NodeOp}, linalg::blas::sgemm
+    linalg::blas::sgemm
 };
 
 use super::matmul::Transpose;
@@ -27,11 +27,12 @@ impl Tensor<f32> {
 }
 
 pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
-    let node = NodeOp::new(&[a, b], Box::new(Matvec));
+    // let node = NodeOp::new(&[a, b], Box::new(Matvec));
 
-    let value = matvec_t_op(a, b, Transpose::None, node);
+    let value = matvec_t_op(a, b, Transpose::None); //, node);
 
-    Tape::set_tensor(value)
+    // Tape::set_tensor(value)
+    todo!();
 }
 
 pub fn matvec_t(
@@ -39,18 +40,20 @@ pub fn matvec_t(
     x: &Tensor<f32>,
     _transpose: impl TransposeMatvec,
 ) -> Tensor<f32> {
+    /*
     let node = NodeOp::new(&[a, x], Box::new(Matvec));
 
     let value = matvec_t_op(a, x, _transpose, node);
 
     Tape::set_tensor(value)
+    */
+    todo!();
 }
 
 fn matvec_t_op(
     a: &Tensor<f32>,
     x: &Tensor<f32>,
     transpose: impl TransposeMatvec,
-    id: TensorId,
 ) -> Tensor<f32> {
     assert!(a.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", a.rank());
     
@@ -78,7 +81,7 @@ fn matvec_t_op(
         let mut o_shape = Vec::from(x.shape().as_slice());
         let len = o_shape.len();
         o_shape[len - 1] = o_cols;
-        let tensor = Tensor::from_uninit_with_id(out, o_shape, id);
+        let tensor = Tensor::from_uninit(out, o_shape);
 
         // Tape::set_tensor(tensor)
         tensor
@@ -168,7 +171,7 @@ impl TransposeMatvec for Transpose {
         }
     }
 }
-
+/*
 impl Operation<f32> for Matvec {
     fn name(&self) -> &str {
         type_name::<Self>()
@@ -184,71 +187,11 @@ impl Operation<f32> for Matvec {
         value
     }
 }
-
-impl GradOperation<f32> for Matvec {
-    fn df(
-        &self,
-        _forward: &Expr,
-        graph: &mut Expr,
-        i: usize,
-        args: &[TensorId],
-        prev: TensorId,
-    ) -> TensorId {
-        match i {
-            0 => {
-                graph.add_grad_op(MatvecBackLeft, &[args[1]], prev)
-            },
-            1 => {
-                // let left = graph.constant_id(args[0]);
-                graph.add_grad_op(MatvecBackRight, &[args[0]], prev)
-            }
-            _ => panic!("invalid argument")
-        }
-    }
-}
-
-impl GradientOp for MatvecBackLeft {
-    fn name(&self) -> &str {
-        type_name::<Self>()
-    }
-    
-    fn df(
-        &self,
-        args: &[&Tensor],
-        prev: &Tensor,
-    ) -> Tensor {
-        let mut x = args[0].clone();
-        let mut prev = prev.clone();
-
-        if x.rank() <= 1 {
-            x = x.reshape([1, x.cols()]);
-        }
-        if prev.rank() <= 1 {
-            prev = prev.reshape([1, prev.cols()]);
-        }
-        //args[0].outer_product(prev)
-        // TODO: matmul_t_op
-        x.matmul_t(&prev, Transpose::TransposeA)
-    }
-}
-
-impl GradientOp for MatvecBackRight {
-    fn name(&self) -> &str {
-        type_name::<Self>()
-    }
-    
-    fn df(
-        &self,
-        args: &[&Tensor],
-        prev: &Tensor,
-    ) -> Tensor {
-        args[0].matvec_t(prev, Transpose::TransposeA)
-    }
-}
+*/
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor, Tensor, model::{Var, Trainer}, linalg::matmul::Transpose, tf32};
+    use crate::{tensor, Tensor, linalg::matmul::Transpose, tf32};
 
     #[test]
     fn test_matvec_1_1() {
@@ -296,142 +239,6 @@ mod test {
     }
 
     #[test]
-    fn matvec_1x1_by_1() {
-        // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
-        
-        let a = tf32!([[10.]]);
-        let x = tf32!([2.]);
-
-        assert_eq!(a.matvec(&x), tf32!([20.]));
-
-        let a = Var::new("a", tf32!([[10.]]));
-        let x = Var::new("x", tf32!([2.]));
-
-        let module = Trainer::compile((), |(), _| {
-            a.matvec(&x)
-        }); // .training(&[&a, &x]);
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!([20.]));
-        assert_eq!(train.gradient(&a), tensor!([[2.0]]));
-        assert_eq!(train.gradient(&x), tensor!([10.0]));
-    }
-
-    #[test]
-    fn matvec_1x1_by_1x1() {
-        // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
-        
-        let a = tf32!([[10.]]);
-        let x = tf32!([[2.]]);
-
-        assert_eq!(a.matvec(&x), tf32!([[20.]]));
-
-        let a = Var::new("a", tf32!([[10.]]));
-        let x = Var::new("x", tf32!([[2.]]));
-
-        let module = Trainer::compile((), |(), _| {
-            a.matvec(&x)
-        }); // .training(&[&a, &x]);
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!([[20.]]));
-        assert_eq!(train.gradient(&a), tensor!([[2.0]]));
-        assert_eq!(train.gradient(&x), tensor!([[10.0]]));
-    }
-
-    #[test]
-    fn matvec_1x1_by_1x2() {
-        let a = tf32!([[10.]]);
-        let x = tf32!([[1.], [2.]]);
-
-        assert_eq!(a.matvec(&x), tf32!([[10.], [20.]]));
-        assert_eq!(
-            a.matvec_t(&tf32!([[1.], [1.]]), Transpose::TransposeA),
-            tensor!([[10.], [10.]])
-        );
-
-        let a = Var::new("a", tf32!([[10.]]));
-        let x = Var::new("x", tf32!([[1.], [2.]]));
-
-        let module = Trainer::compile((), |(), _| {
-            a.matvec(&x)
-        }); // .training(&[&a, &x]);
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!([[10.], [20.]]));
-        assert_eq!(train.gradient(&a), tensor!([[3.0]]));
-        assert_eq!(train.gradient(&x), tensor!([[10.0], [10.0]]));
-    }
-
-    #[test]
-    fn matvec_1x1_by_2x1x1() {
-        let a = tf32!([[10.]]);
-        let x = tf32!([[[2.]], [[3.]]]);
-
-        assert_eq!(a.matvec(&x), tf32!([[[20.]], [[30.]]]));
-
-        let a = Var::new("a", tf32!([[10.]]));
-        let x = Var::new("x", tf32!([[[2.]], [[3.]]]));
-
-        let module = Trainer::compile((), |(), _| {
-            a.matvec(&x)
-        });
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!([[[20.]], [[30.]]]));
-        assert_eq!(train.gradient(&a), tensor!([[5.0]]));
-        assert_eq!(train.gradient(&x), tensor!([[[10.0]], [[10.0]]]));
-    }
-
-    #[test]
-    fn matvec_2x1_by_1() {
-        // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
-        
-        let a = tf32!([[1.], [10.]]);
-        let x = tf32!([2.]);
-
-        assert_eq!(a.matvec(&x), tensor!([2., 20.]));
-        assert_eq!(
-            a.matvec_t(&tf32!([1., 1.]), Transpose::TransposeA),
-            tensor!([11.])
-        );
-
-        let a = Var::new("a", tf32!([[1.], [10.]]));
-        let x = Var::new("x", tf32!([2.]));
-
-        let module = Trainer::compile((), |(), _| {
-            a.matvec(&x)
-        }); // .training(&[&a, &x]);
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!([2., 20.]));
-        assert_eq!(train.gradient(&x), tensor!([11.0]));
-        assert_eq!(train.gradient(&a), tensor!([[2.0], [2.]]));
-    }
-
-    #[test]
-    fn matvec_1x2_by_2() {
-        // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
-        
-        let a = tf32!([[10., 20.]]);
-        let x = tf32!([1., 3.]);
-
-        assert_eq!(a.matvec(&x), tf32!([70.]));
-
-        let a = Var::new("a", tf32!([[10., 20.]]));
-        let x = Var::new("x", tf32!([1., 3.]));
-
-        let module = Trainer::compile((), |(), _| {
-            a.matvec(&x)
-        });
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!([70.]));
-        assert_eq!(train.gradient(&x), tensor!([10.0, 20.0]));
-        assert_eq!(train.gradient(&a), tensor!([[1.0, 3.0]]));
-    }
-
-    #[test]
     #[should_panic]
     fn matvec_2x1_by_2() {
         // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
@@ -442,64 +249,4 @@ mod test {
         assert_eq!(a.matvec(&x), tf32!([[10.], [20.]]));
     }
     
-    #[test]
-    fn backprop_1_1() {
-        let a = Var::new("a", tensor!([[1.]]));
-        let x = Var::new("x", tensor!([1.]));
-    
-        let module = Trainer::compile((), |(), _| {
-            a.matvec(&x)
-        }); // .training(&[&a, &x]);
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!([1.]));
-        assert_eq!(train.gradient(&a), tensor!([[1.0]]));
-        assert_eq!(train.gradient(&x), tensor!([1.0]));
-
-        let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
-        let x = Var::new("x", tensor!([10., 20., 30.]));
-    
-        let module = Trainer::compile((), |(), _| {
-            a.matvec(&x)
-        }); // .training(&[&a, &x]);
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!([140., 320.]));
-        assert_eq!(train.gradient(&a), tensor!([[10., 20., 30.], [10., 20., 30.]]));
-        assert_eq!(train.gradient(&x), tensor!([5., 7., 9.]));
-    }
-    
-    #[test]
-    fn backprop_1_1_prev() {
-        let a = Var::new("a", tensor!([[1.]]));
-        let x = Var::new("x", tensor!([1.]));
-    
-        let module = Trainer::compile((), |(), _| {
-            let out: Tensor = a.matvec(&x);
-
-            out.l2_loss()
-        }); // .training(&[&a, &x]);
-        let train = module.train(());
-
-        assert_eq!(train.value(), tensor!(0.5));
-        assert_eq!(train.gradient(&a), tensor!([[1.0]]));
-        assert_eq!(train.gradient(&x), tensor!([1.0]));
-
-        let a = Var::new("a", tensor!([[1., 2., 3.], [4., 5., 6.]]));
-        let x = Var::new("x", tensor!([10., 20., 30.]));
-    
-        let trainer = Trainer::compile((), |(), _| {
-            let out = a.matvec(&x);
-            assert_eq!(out, tensor!([140., 320.]));
-
-            out.l2_loss()
-        }); // .training(&[&a, &x]);
-        let train = trainer.train(());
-    
-        let da = train.gradient(&a);
-        assert_eq!(da, tensor!([[1400., 2800., 4200.], [3200., 6400., 9600.]]));
-    
-        let dx = train.gradient(&x);
-        assert_eq!(dx, tensor!([1420., 1880., 2340.]));
-    }
 }

@@ -3,7 +3,11 @@
 // reshape operation
 //
 
-use crate::{Tensor, prelude::{Shape}, tensor::{TensorId, Dtype}, model::Operation};
+use crate::{
+    Tensor, 
+    prelude::Shape, 
+    tensor::{TensorId, Dtype}, 
+};
 
 pub fn reshape<D: Dtype>(x: &Tensor<D>, shape: impl Into<Shape>) -> Tensor<D> {
     let shape = shape.into();
@@ -12,10 +16,12 @@ pub fn reshape<D: Dtype>(x: &Tensor<D>, shape: impl Into<Shape>) -> Tensor<D> {
     //let node = NodeOp::new(&[x], Box::new(op.clone()));
     let id = TensorId::unset();
 
-    let tensor = op.f(&[&x], id);
+    //let tensor = op.f(&[&x], id);
 
     //Tape::set_tensor(tensor)
-    tensor
+    //tensor
+
+    todo!();
 }
 
 impl<D: Dtype> Tensor<D> {
@@ -26,7 +32,7 @@ impl<D: Dtype> Tensor<D> {
 
 #[derive(Clone)]
 pub struct ReshapeOp(Shape);
-
+/*
 impl<D: Dtype> Operation<D> for ReshapeOp {
     fn f(
         &self,
@@ -40,6 +46,7 @@ impl<D: Dtype> Operation<D> for ReshapeOp {
         tensor.reshape_impl(&self.0, id)
     }
 }
+    */
 
 #[cfg(test)]
 mod test {

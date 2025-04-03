@@ -1,4 +1,6 @@
-use crate::{model::{Operation}, Tensor, tensor::{TensorId, TensorUninit, Dtype}};
+use crate::{
+    Tensor, tensor::{TensorId, TensorUninit, Dtype}
+};
 
 pub fn transpose<D: Dtype + Clone>(x: impl Into<Tensor<D>>) -> Tensor<D> {
     let op = Transpose;
@@ -10,7 +12,8 @@ pub fn transpose<D: Dtype + Clone>(x: impl Into<Tensor<D>>) -> Tensor<D> {
 
     let tensor = op.f(&[&x], id);
 
-    D::set_tape(tensor)
+    // D::set_tape(tensor)
+    todo!();
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
@@ -28,8 +31,8 @@ impl<D: Dtype + Clone> Tensor<D> {
 #[derive(Clone)]
 pub struct Transpose;
 
-impl<D: Dtype + Clone> Operation<D> for Transpose {
-    fn f(
+impl Transpose {
+    fn f<D: Dtype + Clone>(
         &self,
         args: &[&Tensor<D>],
         id: TensorId,

@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use essay_tensor::{Tensor, model::Function};
+use essay_tensor::Tensor;
 
 fn main() {
     println!("Benchmarking tensor add");
@@ -17,8 +17,8 @@ fn main() {
 
         let len = 65536;
 
-        let a = Tensor::zeros(len);
-        let b = Tensor::ones(len);
+        let a = Tensor::<f32>::zeros(len);
+        let b = Tensor::<f32>::ones(len);
 
         let k = 100;
 
@@ -30,11 +30,6 @@ fn main() {
             Tensor::<f32>::zeros([len]);
         }
         let _time_zeros = start.elapsed();
-
-        let _add = Function::new(
-            (a.clone(), b.clone()),
-            |(x, y), _| x + y
-        );
 
         let start = Instant::now();
         //let _c = &a + &b;

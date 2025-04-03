@@ -5,10 +5,8 @@ pub mod io;
 // pub mod dataset;
 pub mod init;
 pub mod linalg;
-pub mod nn;
-pub mod model;
 pub mod math;
-pub mod ops;
+//pub mod ops;
 pub mod random;
 pub mod stats;
 pub mod tensor;
@@ -23,7 +21,6 @@ pub mod prelude {
     pub use crate::tensor::Shape;
     pub use crate::array::AxisOpt;
     pub use crate::Tensor;
-    pub use crate::model::Trainer;
     // pub use crate::dataset::Dataset;
-    pub use crate::ops::ReduceOpt;
+    //pub use crate::ops::ReduceOpt;
 }

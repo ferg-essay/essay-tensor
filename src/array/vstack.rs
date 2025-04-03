@@ -1,4 +1,4 @@
-use crate::{model::{Operation}, Tensor, tensor::{TensorId, Dtype, IntoTensorList}};
+use crate::{Tensor, tensor::{TensorId, Dtype, IntoTensorList}};
 
 use super::concat::concat_impl;
 
@@ -26,7 +26,8 @@ where
 
     let tensor = op.f(x_ptr.as_slice(), id);
 
-    D::set_tape(tensor)
+    // D::set_tape(tensor)
+    todo!();
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
@@ -45,8 +46,9 @@ impl<D: Dtype + Clone> Tensor<D> {
 #[derive(Clone)]
 pub struct VstackOp;
 
-impl<D: Dtype + Clone> Operation<D> for VstackOp {
-    fn f(
+//impl<D: Dtype + Clone> Operation<D> for VstackOp {
+impl VstackOp {
+    fn f<D: Dtype + Clone>(
         &self,
         args: &[&Tensor<D>],
         id: TensorId,

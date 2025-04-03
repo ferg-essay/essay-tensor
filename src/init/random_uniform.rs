@@ -1,12 +1,12 @@
 use crate::random::Rand32;
 use crate::{Tensor, prelude::Shape};
-use crate::ops::{init_op, InitKernel};
 
 pub fn random_uniform(
     shape: impl Into<Shape>,
     opt: impl UniformOpt<RandomUniform>,
 ) -> Tensor {
-    init_op(opt.into_arg(), shape)
+    // init_op(opt.into_arg(), shape)
+    todo!()
 }
 
 pub fn random_uniform_initializer(
@@ -27,7 +27,7 @@ pub struct RandomUniform {
     max: f32,
     seed: Option<u64>,
 }
-
+/*
 impl InitKernel<f32> for RandomUniform {
     type State = Rand32;
 
@@ -44,6 +44,7 @@ impl InitKernel<f32> for RandomUniform {
         self.min + (self.max - self.min) * rng as f32
     }
 }
+    */
 
 impl Default for RandomUniform {
     fn default() -> Self {

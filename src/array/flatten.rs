@@ -1,4 +1,7 @@
-use crate::{Tensor, tensor::{TensorId, Dtype}, model::Operation};
+use crate::{
+    Tensor, 
+    tensor::{TensorId, Dtype}, 
+};
 
 pub fn flatten<D: Dtype>(x: &Tensor<D>) -> Tensor<D> {
     let op = FlattenOp;
@@ -6,10 +9,12 @@ pub fn flatten<D: Dtype>(x: &Tensor<D>) -> Tensor<D> {
     //let node = NodeOp::new(&[x], Box::new(op.clone()));
     let id = TensorId::unset();
 
-    let tensor = op.f(&[&x], id);
+    //let tensor = op.f(&[&x], id);
 
     //Tape::set_tensor(tensor)
-    tensor
+    //tensor
+
+    todo!();
 }
 
 impl<D: Dtype> Tensor<D> {
@@ -22,6 +27,7 @@ impl<D: Dtype> Tensor<D> {
 #[derive(Clone)]
 pub struct FlattenOp;
 
+/*
 impl<D: Dtype> Operation<D> for FlattenOp {
     fn f(
         &self,
@@ -33,6 +39,7 @@ impl<D: Dtype> Operation<D> for FlattenOp {
         tensor.clone_with_shape([tensor.shape().size()], id)
     }
 }
+    */
 
 #[cfg(test)]
 mod test {

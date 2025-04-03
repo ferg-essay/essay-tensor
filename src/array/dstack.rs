@@ -1,6 +1,10 @@
-use crate::{model::{Operation}, Tensor, prelude::{Shape}, tensor::{TensorId, Dtype, IntoTensorList}};
+use crate::{
+    Tensor, 
+    prelude::Shape, 
+    tensor::{TensorId, Dtype, IntoTensorList}
+};
 
-use super::{concat::{concat_impl}};
+use super::concat::concat_impl;
 
 pub fn dstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
@@ -35,10 +39,11 @@ where
     //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
     let id = TensorId::unset();
 
-    let tensor = op.f(x_ptr.as_slice(), id);
+    //let tensor = op.f(x_ptr.as_slice(), id);
 
     // Tape::set_tensor(tensor)
-    tensor
+    //tensor
+    todo!();
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
@@ -55,6 +60,7 @@ impl<D: Dtype + Clone> Tensor<D> {
 #[derive(Clone)]
 pub struct DstackOp;
 
+/*
 impl<D: Dtype + Clone> Operation<D> for DstackOp {
     fn f(
         &self,
@@ -75,6 +81,7 @@ impl<D: Dtype + Clone> Operation<D> for DstackOp {
         concat_impl(vec.as_slice(), 2, id)
     }
 }
+    */
 
 #[cfg(test)]
 mod test {

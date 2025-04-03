@@ -3,8 +3,6 @@ use std::{any::type_name, ops::Deref, slice, sync::Arc};
 
 use num_complex::Complex;
 
-use crate::model::{NodeOp, Tape, expr::GradOperation};
-
 use super::{
     data::TensorData, 
     slice::TensorSlice, 
@@ -909,20 +907,6 @@ impl fmt::Debug for TensorId {
 }
 
 pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {
-    #[inline]
-    fn node_op<Op>(_args: &[&Tensor<Self>], _op: &Op) -> TensorId
-    where
-        Op: GradOperation<Self> + Clone
-    {
-        TensorId::unset()
-        
-        // let node = NodeOp::new(&[&a, &b], binop.to_op());
-    }
-
-    fn set_tape(tensor: Tensor<Self>) -> Tensor<Self> {
-        tensor // Tape::set_tensor(tensor)
-    }
-
 }
 
 //trait Dtype : Copy {}
@@ -940,6 +924,8 @@ impl Dtype for i32 {}
 impl Dtype for i64 {}
 impl Dtype for isize {}
 
+impl Dtype for f32 {}
+
 impl Dtype for String {}
 
 pub type C32 = Complex<f32>;
@@ -947,19 +933,6 @@ pub type C64 = Complex<f64>;
 
 impl Dtype for C32 {}
 impl Dtype for C64 {}
-
-impl Dtype for f32 {
-    fn node_op<Op>(args: &[&Tensor<Self>], op: &Op) -> TensorId
-    where
-        Op: GradOperation<Self> + Clone
-    {
-        NodeOp::new(args, Box::new(op.clone()))
-    }
-
-    fn set_tape(tensor: Tensor<Self>) -> Tensor<Self> {
-        Tape::set_tensor(tensor)
-    }
-}
 
 #[cfg(test)]
 mod test {

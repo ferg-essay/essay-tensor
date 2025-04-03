@@ -3,7 +3,9 @@
 // expand dims
 //
 
-use crate::{Tensor, prelude::AxisOpt, tensor::{TensorId, Dtype}, model::Operation};
+use crate::{
+    Tensor, prelude::AxisOpt, tensor::{TensorId, Dtype},
+};
 
 pub fn expand_dims<D: Dtype>(x: impl Into<Tensor<D>>, axis: impl Into<AxisOpt>) -> Tensor<D> {
     x.into().expand_dims(axis)
@@ -17,9 +19,11 @@ impl<D: Dtype> Tensor<D> {
         //let node = NodeOp::new(&[x], Box::new(op.clone()));
         let id = TensorId::unset();
     
-        let tensor = op.f(&[self], id);
+        // let tensor = op.f(&[self], id);
     
-        D::set_tape(tensor)
+        // D::set_tape(tensor)
+
+        todo!();
     }
 }
 
@@ -33,6 +37,7 @@ impl ExpandDims {
     }
 }
 
+/*
 impl<D: Dtype> Operation<D> for ExpandDims {
     fn f(
         &self,
@@ -48,6 +53,7 @@ impl<D: Dtype> Operation<D> for ExpandDims {
         tensor.clone_with_shape(shape, id)
     }
 }
+    */
 
 #[cfg(test)]
 mod test {

@@ -3,7 +3,7 @@ use std::cmp;
 use crate::{
     Tensor, 
     tensor::{TensorUninit, TensorId}, 
-    model::{Operation, Expr, expr::GradOperation}, prelude::Shape
+    prelude::Shape
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -39,9 +39,9 @@ impl LinspaceCpu {
     fn len(&self) -> usize {
         self.0
     }
-}
+//}
 
-impl Operation<f32> for LinspaceCpu {
+//impl Operation<f32> for LinspaceCpu {
     fn f(
         &self,
         args: &[&Tensor],
@@ -84,7 +84,7 @@ impl Operation<f32> for LinspaceCpu {
         }
     }
 }
-
+/*
 impl GradOperation<f32> for LinspaceCpu {
         fn df(
         &self,
@@ -97,6 +97,7 @@ impl GradOperation<f32> for LinspaceCpu {
         todo!();
     }
 }
+    */
 
 #[cfg(test)]
 mod test {
