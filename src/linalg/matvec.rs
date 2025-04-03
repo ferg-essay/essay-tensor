@@ -1,7 +1,7 @@
 use std::{any::type_name, cmp};
 
 use crate::{
-    linalg::blas::sgemm, tensor::{Tensor, TensorData, TensorUninit}
+    linalg::blas::sgemm, tensor::{Tensor, TensorData}
 };
 
 use super::matmul::Transpose;

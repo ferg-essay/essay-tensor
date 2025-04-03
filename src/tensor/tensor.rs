@@ -4,7 +4,7 @@ use std::{any::type_name, ops::Deref, slice, sync::Arc};
 use super::{
     data::TensorData, 
     slice::TensorSlice, 
-    Shape, TensorUninit
+    Shape,
 };
 
 pub struct Tensor<T=f32> {
@@ -287,17 +287,17 @@ impl<T: Clone + 'static> Tensor<T> {
         F: FnMut() -> T
     {
         let shape = shape.into();
-        let size = shape.size();
 
-        let data = unsafe {
-            let mut uninit = TensorUninit::<T>::new(size);
+        Self::from_data(TensorData::init(&shape, f), shape)
+    }
 
-            uninit.init(f);
+    pub fn init_indexed<F>(shape: impl Into<Shape>, f: F) -> Self
+    where
+        F: FnMut(&[usize]) -> T
+    {
+        let shape = shape.into();
 
-            uninit.into()
-        };
-
-        Self::from_data(data, shape)
+        Self::from_data(TensorData::init_indexed(&shape, f), shape)
     }
 
     pub fn fill(shape: impl Into<Shape>, value: T) -> Self {
@@ -984,6 +984,43 @@ mod test {
         assert_eq!(t0.rows(), 3);
         assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0, ten!([[0, 1], [2, 3], [4, 5]]));
+    }
+
+    #[test]
+    fn tensor_init_indexed() {
+        let t0 = Tensor::init_indexed([4], |idx| idx[0]);
+
+        assert_eq!(t0.len(), 4);
+        assert_eq!(t0.cols(), 4);
+        assert_eq!(t0.rows(), 0);
+        assert_eq!(t0.shape().as_vec(), &[4]);
+        assert_eq!(t0, ten![0, 1, 2, 3]);
+
+        let t0 = Tensor::init_indexed([3, 2], |idx| idx[0]);
+
+        assert_eq!(t0.len(), 6);
+        assert_eq!(t0.cols(), 2);
+        assert_eq!(t0.rows(), 3);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
+        assert_eq!(t0, ten![[0, 1], [0, 1], [0, 1]]);
+
+        let t0 = Tensor::init_indexed([3, 2], |idx| idx[1]);
+
+        assert_eq!(t0.len(), 6);
+        assert_eq!(t0.cols(), 2);
+        assert_eq!(t0.rows(), 3);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
+        assert_eq!(t0, ten![[0, 0], [1, 1], [2, 2]]);
+
+        let t0 = Tensor::init_indexed([3, 2], |idx| 
+            if idx[1] == idx[0] { 1 } else { 0 }
+        );
+
+        assert_eq!(t0.len(), 6);
+        assert_eq!(t0.cols(), 2);
+        assert_eq!(t0.rows(), 3);
+        assert_eq!(t0.shape().as_vec(), &[3, 2]);
+        assert_eq!(t0, ten![[1, 0], [0, 1], [0, 0]]);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorUninit, prelude::Shape};
+use crate::{prelude::Shape, tensor::TensorData, Tensor};
 
 use super::linspace;
 
@@ -70,30 +70,28 @@ fn build_meshgrid_axis(x: &Tensor, shape: &Shape, k_s: usize) -> Tensor {
 
     unsafe {
         let len = x.len();
-        let mut out = TensorUninit::<f32>::new(size);
-
-        let x = x.as_slice();
-        let o = out.as_mut_slice();
-
         let n = size / len;
         assert!(n % k_s == 0);
 
-        let i_n = k_s;
+        TensorData::<f32>::unsafe_init(size, |o| {
+            let x = x.as_slice();
 
-        let j_n = n / i_n;
-        let j_s = size / j_n;
+            let i_n = k_s;
 
-        for k in 0..len {
-            let v = x[k];
+            let j_n = n / i_n;
+            let j_s = size / j_n;
 
-            for j in 0..j_n {
-                for i in 0..i_n {
-                    o[k * k_s + j * j_s + i] = v;
+            for k in 0..len {
+                let v = x[k];
+
+                for j in 0..j_n {
+                    for i in 0..i_n {
+                        o.add(k * k_s + j * j_s + i)
+                            .write(v);
+                    }
                 }
             }
-        }
-
-        out.into().into_tensor(shape)
+        }).into_tensor(shape)
     }
 }
 

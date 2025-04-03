@@ -154,11 +154,55 @@ impl<T: 'static> TensorData<T> {
     where
         F: FnMut(*mut T)
     {
-        let mut uninit = TensorUninit::new(len);
+        let layout = Layout::array::<T>(len).unwrap();
+        let data = NonNull::<T>::new_unchecked(alloc::alloc(layout).cast::<T>());
 
-        (init)(uninit.as_mut_ptr());
+        (init)(data.cast::<T>().as_mut());
 
-        uninit.into()
+        // let ptr = mem::ManuallyDrop::new(self);
+        // TensorData::new(ptr.data, ptr.len)
+
+        let ptr = mem::ManuallyDrop::new(data);
+        TensorData::new(*ptr, len)
+    }
+
+    pub(super) fn init<F>(shape: impl Into<Shape>, mut f: F) -> Self
+    where
+        F: FnMut() -> T
+    {
+        let shape = shape.into();
+        let size = shape.size();
+
+        unsafe {
+            Self::unsafe_init(size, |o| {
+                for i in 0..size {
+                    o.add(i).write( (f)());
+                }
+            }).into()
+        }
+    }
+
+
+    pub(super) fn init_indexed<F>(shape: impl Into<Shape>, mut f: F) -> Self
+    where
+        F: FnMut(&[usize]) -> T
+    {
+        let shape = shape.into();
+        let size = shape.size();
+
+        unsafe {
+            Self::unsafe_init(size, |o| {
+                let mut vec = Vec::<usize>::new();
+                vec.resize(shape.rank(), 0);
+                let index = vec.as_mut_slice();
+
+                for i in 0..size {
+                    o.add(i).write( (f)(index));
+
+                    shape.next_index(index);
+                }
+            }).into()
+        }
     }
 
     pub(super) fn map<U>(
@@ -289,120 +333,11 @@ impl<T> Drop for TensorData<T> {
 unsafe impl<T: Send> Send for TensorData<T> {}
 unsafe impl<T: Sync> Sync for TensorData<T> {}
 
-///
-/// TensorUninit is used to create new tensor data when the caller can guarantee
-/// that all items will be initialized.
-/// 
-/// It is intrinsically unsafe because it's working with uninitialized data.
-/// 
-pub struct TensorUninit<T=f32> {
-    len: usize,
-
-    data: NonNull<T>,
-}
-
-impl<T> TensorUninit<T> {
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    #[inline]
-    pub unsafe fn as_ptr(&self) -> *mut T {
-        self.data.cast::<T>().as_ptr()
-    }
-
-    #[inline]
-    pub unsafe fn as_mut_ptr(&mut self) -> *mut T {
-        self.data.cast::<T>().as_mut()
-    }
-
-    #[inline]
-    pub unsafe fn as_mut(&mut self) -> &mut T {
-        self.data.cast::<T>().as_mut()
-    }
-
-    #[inline]
-    pub unsafe fn as_slice(&self) -> &[T] {
-        ptr::slice_from_raw_parts(self.as_ptr(), self.len())
-            .as_ref()
-            .unwrap()
-    }
-
-    #[inline]
-    pub unsafe fn as_mut_slice(&mut self) -> &mut [T] {
-        ptr::slice_from_raw_parts_mut(self.as_mut_ptr(), self.len())
-            .as_mut()
-            .unwrap()
-    }
-
-    #[inline]
-    pub unsafe fn as_sub_slice(&mut self, offset: usize, len: usize) -> &mut [T] {
-        assert!(offset <= self.len);
-        assert!(offset + len <= self.len);
-
-        ptr::slice_from_raw_parts_mut(self.as_mut_ptr().add(offset), len)
-            .as_mut()
-            .unwrap()
-    }
-}
-
-impl<T: 'static> TensorUninit<T> {
-    pub unsafe fn new(len: usize) -> Self {
-        let layout = Layout::array::<T>(len).unwrap();
-        
-        Self {
-            len,
-
-            data: NonNull::<T>::new_unchecked(alloc::alloc(layout).cast::<T>()),
-        }
-    }
-
-    #[inline]
-    pub(crate) unsafe fn into(self) -> TensorData<T> {
-        let ptr = mem::ManuallyDrop::new(self);
-        TensorData::new(ptr.data, ptr.len)
-    }
-
-    pub(crate) unsafe fn create<F>(len: usize, mut init: F) -> TensorData<T>
-    where
-        F: FnMut(&mut [T])
-    {
-        let mut uninit = Self::new(len);
-
-        (init)(uninit.as_mut_slice());
-
-        uninit.into()
-    }
-
-    pub unsafe fn init<F>(&mut self, mut f: F) 
-    where
-        F: FnMut() -> T
-    {
-        let len = self.len;
-
-        let slice = self.as_mut_slice();
-
-        for i in 0..len {
-            slice[i] = (f)();
-        }
-    }
-}
-
-impl<T> Drop for TensorUninit<T> {
-    fn drop(&mut self) {
-        unsafe {
-            let layout = Layout::array::<T>(self.len()).unwrap();
-            alloc::dealloc(self.data.as_ptr().cast::<u8>(), layout);
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use std::sync::{Arc, Mutex};
 
-    use crate::{prelude::*, tensor::{Dtype, TensorUninit, data::TensorData}};
+    use crate::{prelude::*, tensor::{Dtype, data::TensorData}};
 
     #[test]
     fn data_drop_from_vec() {
@@ -641,29 +576,7 @@ mod test {
     }
 
     #[test]
-    fn uninit_slice_mut() {
-        unsafe {
-            let mut a = TensorUninit::<f32>::new(1);
-            let slice = a.as_mut_slice();
-            slice[0] = 10.0;
-            assert_eq!(slice, &[10.]);
-            let data = a.into();
-
-            assert_eq!(data.as_sub_slice(0, data.len()), &[10.]);
-        };
-    }
-
-    #[test]
-    fn uninit_drop() {
-        unsafe {
-            let mut uninit = TensorUninit::<u32>::new(1);
-            uninit.as_mut_slice()[0] = 3;
-            //uninit.init()
-        };
-    }
-
-    #[test]
-    fn uninit_deadbeef() {
+    fn unsafe_init_deadbeef() {
         // TODO: validate the dropped values, which would require a static global
         unsafe {
             TensorData::<Deadbeef>::unsafe_init(1, |o| {

@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{Dtype, TensorUninit}};
+use crate::{tensor::{Dtype, TensorData}, Tensor};
 
 use super::{AxisOpt, axis::axis_from_rank};
 
@@ -95,31 +95,31 @@ fn split_by_axis<D: Dtype>(
             continue;
         }
 
-        unsafe {
-            let mut uninit = TensorUninit::<D>::new(n_outer * n_inner * (cut - prev));
-            let o = uninit.as_mut_slice();
+        let data = unsafe {
+            TensorData::<D>::unsafe_init(n_outer * n_inner * (cut - prev), |o| {
+                for j in 0..n_outer {
+                    for k in prev..cut {
+                        for i in 0..n_inner {
+                            let v = x[j * axis_len * n_inner + k * n_inner + i].clone();
 
-            for j in 0..n_outer {
-                for k in prev..cut {
-                    for i in 0..n_inner {
-                        let v = x[j * axis_len * n_inner + k * n_inner + i].clone();
-
-                        o[j * n_inner * (cut - prev) + (k - prev) * n_inner + i] = v;
+                            o.add(j * n_inner * (cut - prev) + (k - prev) * n_inner + i)
+                                .write(v);
+                        }
                     }
                 }
-            }
+            })
+        };
 
-            let mut shape = Vec::<usize>::new();
-            for i in 0..axis {
-                shape.push(tensor.shape().dim(i))
-            }
-            shape.push(cut - prev);
-            for i in axis + 1..tensor.shape().rank() {
-                shape.push(tensor.shape().dim(i))
-            }
-
-            slices.push(uninit.into().into_tensor(shape));
+        let mut shape = Vec::<usize>::new();
+        for i in 0..axis {
+            shape.push(tensor.shape().dim(i))
         }
+        shape.push(cut - prev);
+        for i in axis + 1..tensor.shape().rank() {
+            shape.push(tensor.shape().dim(i))
+        }
+
+        slices.push(data.into_tensor(shape));
 
         prev = cut;
     }

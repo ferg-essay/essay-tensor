@@ -53,7 +53,7 @@ impl VstackOp {
         args: &[&Tensor<D>],
     ) -> Tensor<D> {
         let expand_args : Vec<Tensor<D>> = args.iter().map(|t| {
-            let shape = t.shape().insert(0, 1);
+            let shape = t.shape().clone().insert(0, 1);
             (*t).clone().with_shape(shape)
         }).collect();
 

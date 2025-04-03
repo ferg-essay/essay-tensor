@@ -1,15 +1,19 @@
-use crate::{tensor::TensorUninit, Tensor};
+use crate::{tensor::TensorData, Tensor};
 
 
 pub fn eye(n: usize) -> Tensor {
     let size = n * n;
 
     unsafe {
-        TensorUninit::<f32>::create(size, |o| {
-            o.fill(0.);
+        TensorData::<f32>::unsafe_init(size, |o| {
+            for i in 0..n {
+                for j in 0..n {
+                    o.add(i * n + j).write(0.);
+                }
+            }
 
             for i in 0..n {
-                o[i * n + i] = 1.;
+                o.add(i * n + i).write(1.);
             }
         }).into_tensor([n, n])
     }

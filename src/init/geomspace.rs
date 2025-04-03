@@ -1,9 +1,7 @@
 use std::cmp;
 
 use crate::{
-    Tensor, 
-    tensor::TensorUninit, 
-    prelude::Shape
+    prelude::Shape, tensor::{TensorData}, Tensor
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -65,30 +63,25 @@ impl GeomspaceCpu {
         let o_shape = Shape::from(o_shape_vec);
 
         unsafe {
-            let mut o_data = TensorUninit::<f32>::new(size);
+            TensorData::<f32>::unsafe_init(size, |o| {
+                for n in 0..batch {
+                    let start = start[n].ln();
+                    let end = end[n].ln();
 
-            let o = o_data.as_mut_ptr();
-            for n in 0..batch {
-                let start = start[n].ln();
-                let end = end[n].ln();
+                    assert!(start <= end);
 
-                assert!(start <= end);
+                    let step = if len > 1 {
+                        (end - start) / (len - 1) as f32
+                    } else {
+                        0.
+                    };
 
-                let step = if len > 1 {
-                    (end - start) / (len - 1) as f32
-                } else {
-                    0.
-                };
-
-                for k in 0..len {
-                    let v = start + step * k as f32;
-                    *o.add(k * batch + n) = v.exp();
+                    for k in 0..len {
+                        let v = start + step * k as f32;
+                        o.add(k * batch + n).write(v.exp());
+                    }
                 }
-            }
-
-            let o_data = o_data.into();
-
-            o_data.into_tensor(o_shape)
+            }).into_tensor(o_shape)
         }
     }
 }

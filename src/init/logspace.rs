@@ -1,9 +1,7 @@
 use std::{cmp};
 
 use crate::{
-    Tensor, 
-    tensor::TensorUninit, 
-    prelude::Shape
+    prelude::Shape, tensor::TensorData, Tensor
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -73,33 +71,28 @@ impl LogspaceCpu {
         let base = self.base;
         let size = batch * len;
 
-        let mut o_shape_vec = Vec::from(start.shape().as_vec());
-        o_shape_vec.insert(0, len);
-        let o_shape = Shape::from(o_shape_vec);
+        let o_shape = start.shape().clone().insert(0, len);
 
         unsafe {
-            let mut o_data = TensorUninit::<f32>::new(size);
+            TensorData::<f32>::unsafe_init(size, |o| {
+                for n in 0..batch {
+                    let start = start[n];
+                    let end = end[n];
 
-            let o = o_data.as_mut_ptr();
-            for n in 0..batch {
-                let start = start[n];
-                let end = end[n];
+                    assert!(start <= end);
 
-                assert!(start <= end);
+                    let step = if len > 1 {
+                        (end - start) / (len - 1) as f32
+                    } else {
+                        0.
+                    };
 
-                let step = if len > 1 {
-                    (end - start) / (len - 1) as f32
-                } else {
-                    0.
-                };
-
-                for k in 0..len {
-                    let v = start + step * k as f32;
-                    *o.add(k * batch + n) = base.powf(v);
+                    for k in 0..len {
+                        let v = start + step * k as f32;
+                        o.add(k * batch + n).write(base.powf(v));
+                    }
                 }
-            }
-
-            o_data.into().into_tensor(o_shape)
+            }).into_tensor(o_shape)
         }
     }
 }

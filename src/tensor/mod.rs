@@ -6,7 +6,7 @@ mod shape;
 mod tensor;
 mod tensor_vec;
 
-pub(crate) use data::{TensorData, TensorUninit};
+pub(crate) use data::TensorData;
 
 pub use shape::Shape;
 

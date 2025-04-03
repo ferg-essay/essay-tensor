@@ -1,6 +1,5 @@
 use crate::{
-    Tensor, prelude::{AxisOpt, Shape}, 
-    tensor::{TensorUninit, Dtype, IntoTensorList}
+    prelude::{AxisOpt, Shape}, tensor::{Dtype, IntoTensorList, TensorData}, Tensor
 };
 
 use super::axis::axis_from_rank;
@@ -85,26 +84,20 @@ impl StackOp {
         let o_len = args.iter().map(|t| t.len()).sum();
 
         unsafe {
-            let mut out = TensorUninit::<D>::new(o_len);
+            TensorData::<D>::unsafe_init(o_len, |o| {
+                for (j, x) in args.iter().enumerate() {
+                    assert_eq!(x_len, x.len());
 
-            let o = out.as_mut_slice();
+                    let x = x.as_slice();
 
-            for (j, x) in args.iter().enumerate() {
-                assert_eq!(x_len, x.len());
-
-                let x = x.as_slice();
-
-                for k in 0..n_outer {
-                    for i in 0..n_inner {
-                        o[(k * n_args + j) * n_inner + i] = x[k * n_inner + i].clone();
+                    for k in 0..n_outer {
+                        for i in 0..n_inner {
+                            o.add((k * n_args + j) * n_inner + i)
+                                .write(x[k * n_inner + i].clone());
+                        }
                     }
                 }
-            }
-
-            let mut vec = Vec::from(args[0].shape().as_vec());
-            vec.insert(axis, args.len());
-    
-            out.into().into_tensor(vec)
+            }).into_tensor(args[0].shape().clone().insert(axis, args.len()))
         }
     }
 }

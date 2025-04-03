@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::{TensorUninit, Dtype}};
+use crate::{tensor::{Dtype, TensorData}, Tensor};
 
 pub fn tile<D>(tensor: impl Into<Tensor<D>>, multiples: impl Into<Tensor<usize>>) -> Tensor<D>
 where
@@ -67,21 +67,19 @@ impl TileOp {
         let o_shape = o_shape_r;
 
         unsafe {
-            let mut uninit = TensorUninit::<D>::new(n_outer * n_inner);
-
-            let mut offset = 0;
-            tile_rec(
-                uninit.as_mut_slice(), 
-                slice, 
-                0,
-                slice.len(),
-                &shape_r,
-                &mult_r,
-                o_rank - 1, 
-                &mut offset
-            );
-
-            uninit.into().into_tensor(o_shape)
+            TensorData::<D>::unsafe_init(n_outer * n_inner, |o| {
+                let mut offset = 0;
+                tile_rec(
+                    o,
+                    slice, 
+                    0,
+                    slice.len(),
+                    &shape_r,
+                    &mult_r,
+                    o_rank - 1, 
+                    &mut offset
+                )
+            }).into_tensor(o_shape)
         }
     }
 }
@@ -89,7 +87,7 @@ impl TileOp {
 // TODO: simplify this logic, possibly by reversing the shapes before
 // starting
 unsafe fn tile_rec<D: Dtype + Clone>(
-    o: &mut [D], 
+    o: *mut D, 
     x: &[D],
     x_off: usize,
     x_len: usize,
@@ -107,7 +105,8 @@ unsafe fn tile_rec<D: Dtype + Clone>(
         if j == 0 {
             // TODO: lookup ptr::copy_non_overlapping
             for i in 0..x_len {
-                o[*offset + i] = x[x_off + i].clone();
+                o.add(*offset + i)
+                    .write(x[x_off + i].clone());
             }
             *offset += x_len;
         } else if j < x_rank {

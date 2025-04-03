@@ -337,7 +337,8 @@ impl Shape {
         }
     }
 
-    pub fn insert(&self, axis: usize, len: usize) -> Shape {
+    #[must_use]
+    pub fn insert(self, axis: usize, len: usize) -> Shape {
         let axis = self.rank - axis;
         let mut dims = [0; Self::MAX_RANK];
 
@@ -354,6 +355,19 @@ impl Shape {
         Self {
             dims,
             rank: self.rank + 1,
+        }
+    }
+
+    #[inline]
+    pub(super) fn next_index(&self, index: &mut [usize]) {
+        for i in 0..index.len() {
+            let value = (index[i] + 1) % self.dims[i].max(1) as usize;
+
+            index[i] = value;
+
+            if value != 0 {
+                break;
+            }
         }
     }
 }
@@ -429,6 +443,31 @@ impl Index<usize> for Shape {
     }
 }
 */
+
+pub(super) struct ShapeIndex {
+    shape: Shape,
+    index: Vec<usize>,
+}
+
+impl ShapeIndex {
+    #[inline]
+    pub(super) fn as_slice(&self) -> &[usize] {
+        self.index.as_slice()
+    }
+
+    #[inline]
+    pub(super) fn next(&mut self) {
+        for i in 0..self.shape.rank() {
+            let next = (self.index[i] + 1) % self.shape.rdim(i).max(1);
+
+            self.index[i] = next;
+
+            if next != 0 {
+                break
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {

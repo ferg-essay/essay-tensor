@@ -1,6 +1,6 @@
 use std::cmp;
 
-use crate::{Tensor, tensor::{Dtype, TensorUninit}, prelude::Shape};
+use crate::{Tensor, tensor::{Dtype}, prelude::Shape};
 
 pub fn fill<D:Dtype + Copy>(fill: D, shape: impl Into<Shape>) -> Tensor<D> {
     Tensor::fill(shape, fill)

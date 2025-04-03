@@ -1,9 +1,7 @@
 use std::cmp;
 
 use crate::{
-    Tensor, 
-    tensor::TensorUninit, 
-    prelude::Shape
+    prelude::Shape, tensor::TensorData, Tensor
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -62,7 +60,7 @@ impl LinspaceCpu {
         let o_shape = Shape::from(o_shape_vec);
 
         unsafe {
-            TensorUninit::<f32>::create(size, |o| {
+            TensorData::<f32>::unsafe_init(size, |o| {
                 for n in 0..batch {
                     let start = start[n];
                     let end = end[n];
@@ -76,7 +74,8 @@ impl LinspaceCpu {
                     };
 
                     for k in 0..len {
-                        o[k * batch + n] = start + step * k as f32;
+                        o.add(k * batch + n)
+                            .write(start + step * k as f32);
                     }
                 }
             }).into_tensor(o_shape)

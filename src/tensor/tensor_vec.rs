@@ -1,7 +1,7 @@
 
 use crate::Tensor;
 
-use super::{Dtype, TensorUninit};
+use super::{Dtype};
 
 pub struct TensorVec<T> {
     vec: Vec<T>,
@@ -64,6 +64,8 @@ where
         unsafe {
             let len = self.vec.len();
 
+            todo!();
+            /*
             let mut out = TensorUninit::<T>::new(self.vec.len() * M);
 
             let o = out.as_mut_slice();
@@ -76,6 +78,7 @@ where
             let data = out.into();
 
             Tensor::from_data(data, [len, M])
+            */
         }
     }
 }

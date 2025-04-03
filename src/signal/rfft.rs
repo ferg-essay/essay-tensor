@@ -3,7 +3,7 @@ use std::{cmp, f32::consts::PI};
 use essay_opt::derive_opt;
 use rustfft::{FftPlanner, num_complex::Complex};
 
-use crate::{Tensor, tensor::TensorUninit};
+use crate::{tensor::TensorData, Tensor};
 
 pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
     let tensor = tensor.into();
@@ -26,7 +26,7 @@ pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
     };
 
     unsafe {
-        let data = TensorUninit::<f32>::create(batch * len_out, |o| {
+        TensorData::<f32>::unsafe_init(batch * len_out, |o| {
             for n in 0..batch {
                 let x = tensor.as_wrap_slice(n * len);
 
@@ -40,32 +40,30 @@ pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
                 let offset = n * len_out;
 
                 for i in 0..cmp::min(fft_out, len_out) {
-                    o[offset + i] = fft_slice[i].norm();
+                    o.add(offset + i).write(fft_slice[i].norm());
                 }
 
                 for i in fft_out..len_out {
-                    o[offset + i] = 0.;
+                    o.add(offset + i).write(0.);
                 }
             }
-        });
 
-
-        // let mut vec = Vec::from(tensor.shape().as_slice());
-        // let len = vec.len();
-        // vec[len - 1] = len_out;
-        data.into_tensor(tensor.shape().clone().with_col(len_out))
+            // let mut vec = Vec::from(tensor.shape().as_slice());
+            // let len = vec.len();
+            // vec[len - 1] = len_out;
+        }).into_tensor(tensor.shape().clone().with_col(len_out))
     }
 }
 
 fn hann_window(len: usize) -> Tensor {
     unsafe {
-        TensorUninit::<f32>::create(len, |o| {
+        TensorData::<f32>::unsafe_init(len, |o| {
             let step : f32 = PI / len as f32;
 
             for i in 0..len {
                 let tmp = (step * i as f32).sin();
 
-                o[i] = tmp * tmp;
+                o.add(i).write(tmp * tmp);
             }
         }).into_tensor([len])
     }

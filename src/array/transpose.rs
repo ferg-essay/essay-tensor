@@ -1,5 +1,5 @@
 use crate::{
-    tensor::{Dtype, TensorData, TensorUninit}, Tensor
+    tensor::{Dtype, TensorData}, Tensor
 };
 
 pub fn transpose<D: Dtype + Clone>(x: impl Into<Tensor<D>>) -> Tensor<D> {

@@ -1,20 +1,18 @@
-use crate::{tensor::TensorUninit, Tensor};
+use crate::{tensor::TensorData, Tensor};
 
 
 pub fn tri(n: usize) -> Tensor {
     let size = n * n;
 
     unsafe {
-        let mut uninit = TensorUninit::<f32>::new(size);
-
-        let slice = uninit.as_mut_slice();
-        for j in 0..n {
-            for i in 0..n {
-                slice[j * n + i] = if i <= j { 1. } else { 0. };
+        TensorData::<f32>::unsafe_init(size, |o| {
+            for j in 0..n {
+                for i in 0..n {
+                    o.add(j * n + i)
+                        .write(if i <= j { 1. } else { 0. });
+                }
             }
-        }
-
-        uninit.into().into_tensor([n, n])
+        }).into_tensor([n, n])
     }
 }
 
@@ -39,26 +37,24 @@ pub fn tril(tensor: impl Into<Tensor>) -> Tensor {
     let size = tensor.shape().size();
 
     unsafe {
-        let mut uninit = TensorUninit::<f32>::new(size);
+        TensorData::<f32>::unsafe_init(size, |o| {
+            let x = tensor.as_slice();
 
-        let x = tensor.as_slice();
-        let o = uninit.as_mut_slice();
+            let rows = tensor.rows();
+            let cols = tensor.cols();
+            let n = size / (rows * cols);
 
-        let rows = tensor.rows();
-        let cols = tensor.cols();
-        let n = size / (rows * cols);
+            for k in 0..n {
+                for j in 0..rows {
+                    for i in 0..cols {
+                        let index = k * rows * cols + j * cols + i;
 
-        for k in 0..n {
-            for j in 0..rows {
-                for i in 0..cols {
-                    let index = k * rows * cols + j * cols + i;
-
-                    o[index] = if i <= j { x[index] } else { 0. };
+                        o.add(index)
+                            .write(if i <= j { x[index] } else { 0. });
+                    }
                 }
             }
-        }
-
-        uninit.into().into_tensor(tensor.shape())
+        }).into_tensor(tensor.shape())
     }
 }
 
@@ -76,26 +72,24 @@ pub fn triu(tensor: impl Into<Tensor>) -> Tensor {
     let size = tensor.shape().size();
 
     unsafe {
-        let mut uninit = TensorUninit::<f32>::new(size);
+        TensorData::<f32>::unsafe_init(size, |o| {
+            let x = tensor.as_slice();
 
-        let x = tensor.as_slice();
-        let o = uninit.as_mut_slice();
+            let rows = tensor.rows();
+            let cols = tensor.cols();
+            let n = size / (rows * cols);
 
-        let rows = tensor.rows();
-        let cols = tensor.cols();
-        let n = size / (rows * cols);
+            for k in 0..n {
+                for j in 0..rows {
+                    for i in 0..cols {
+                        let index = k * rows * cols + j * cols + i;
 
-        for k in 0..n {
-            for j in 0..rows {
-                for i in 0..cols {
-                    let index = k * rows * cols + j * cols + i;
-
-                    o[index] = if j <= i { x[index] } else { 0. };
+                        o.add(index)
+                            .write(if j <= i { x[index] } else { 0. });
+                    }
                 }
             }
-        }
-
-        uninit.into().into_tensor(tensor.shape())
+        }).into_tensor(tensor.shape())
     }
 }
 #[cfg(test)]

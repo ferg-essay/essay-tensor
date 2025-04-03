@@ -1,4 +1,4 @@
-use crate::{Tensor, tensor::TensorUninit};
+use crate::Tensor;
 
 pub fn decode_wav(
     contents: impl Into<Tensor<u8>>
