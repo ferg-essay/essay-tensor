@@ -1,8 +1,6 @@
 use std::cmp;
 
-use crate::{
-    prelude::Shape, tensor::{TensorData}, Tensor
-};
+use crate::tensor::{Shape, Tensor, TensorData};
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct GeomspaceCpu {

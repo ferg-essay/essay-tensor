@@ -1,22 +1,14 @@
-use crate::{tensor::TensorData, Tensor};
+use crate::tensor::Tensor;
 
 
 pub fn eye(n: usize) -> Tensor {
-    let size = n * n;
-
-    unsafe {
-        TensorData::<f32>::unsafe_init(size, |o| {
-            for i in 0..n {
-                for j in 0..n {
-                    o.add(i * n + j).write(0.);
-                }
-            }
-
-            for i in 0..n {
-                o.add(i * n + i).write(1.);
-            }
-        }).into_tensor([n, n])
-    }
+    Tensor::init_indexed([n, n], |idx| {
+        if idx[0] == idx[1] {
+            1.
+        } else {
+            0.
+        }
+    })
 }
 
 pub fn identity(n: usize) -> Tensor {
@@ -37,7 +29,7 @@ impl Tensor {
 mod test {
     use eye::identity;
 
-    use crate::{init::eye, tf32, Tensor};
+    use crate::{init::eye, tf32, tensor::Tensor};
 
     #[test]
     fn test_eye() {

@@ -1,5 +1,4 @@
-use crate::random::Rand32;
-use crate::{Tensor, prelude::Shape};
+use crate::tensor::{Tensor, Shape};
 
 pub fn random_uniform(
     shape: impl Into<Shape>,

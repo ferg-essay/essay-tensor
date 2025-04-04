@@ -1,8 +1,4 @@
-use crate::{
-    prelude::AxisOpt, 
-    tensor::{IntoTensorList, TensorData},
-    Tensor, 
-};
+use crate::tensor::{Axis, IntoTensorList, Tensor, TensorData};
 
 pub fn concatenate<T>(x: impl IntoTensorList<T>) -> Tensor<T>
 where
@@ -15,13 +11,13 @@ where
     concat_axis(vec, 0)
 }
 
-pub fn concatenate_axis<T>(x: impl IntoTensorList<T>, axis: impl Into<AxisOpt>) -> Tensor<T>
+pub fn concatenate_axis<T>(axis: impl Into<Axis>, x: impl IntoTensorList<T>) -> Tensor<T>
 where
     T: Clone + 'static
 {
     let mut vec = Vec::<Tensor<T>>::new();
 
-    let axis: AxisOpt = axis.into();
+    let axis: Axis = axis.into();
 
     x.into_list(&mut vec);
 
@@ -40,7 +36,6 @@ pub(crate) fn concat_axis<T: Clone + 'static>(
     axis: usize,
 ) -> Tensor<T> {
     let shape = args[0].shape();
-    // let axis = axis.axis_from_rank(shape.rank());
 
     let axis_len = validate_concat(&args, axis);
 
@@ -114,7 +109,7 @@ fn validate_concat<D>(args: &Vec<Tensor<D>>, axis: usize) -> usize {
 
 #[cfg(test)]
 mod test {
-    use crate::{array::{concatenate, concatenate_axis, Axis}, prelude::*};
+    use crate::{array::{concatenate, concatenate_axis}, prelude::*};
     
     #[test]
     fn test_concat() {
@@ -154,38 +149,38 @@ mod test {
     
     #[test]
     fn test_concat_axis() {
-        assert_eq!(concatenate_axis((
+        assert_eq!(concatenate_axis(0, (
             tf32!([1.]),
             tf32!([10.])
-        ), 0), tf32!([
+        )), tf32!([
             1., 10., 
         ]));
 
-        assert_eq!(concatenate_axis((
+        assert_eq!(concatenate_axis(-1, (
             tf32!([1., 2.]),
             tf32!([10., 20., 30.])
-        ), -1), tf32!([
+        )), tf32!([
             1., 2., 10., 20., 30.,
         ]));
 
-        assert_eq!(concatenate_axis((
+        assert_eq!(concatenate_axis(Axis::axis(0), (
             tf32!([[1., 2.]]),
             tf32!([[10., 20.]])
-        ), Axis::axis(0)), tf32!([
+        )), tf32!([
             [1., 2.], [10., 20.],
         ]));
 
-        assert_eq!(concatenate_axis((
+        assert_eq!(concatenate_axis(Axis::axis(1), (
             tf32!([[1., 2.]]),
             tf32!([[10., 20.]])
-        ), Axis::axis(1)), tf32!([
+        )), tf32!([
             [1., 2., 10., 20.],
         ]));
 
-        assert_eq!(concatenate_axis((
+        assert_eq!(concatenate_axis(Axis::axis(1), (
             tf32!([[1., 2.], [3., 4.]]),
             tf32!([[10.], [20.]])
-        ), Axis::axis(1)), tf32!([
+        )), tf32!([
             [1., 2., 10.], [3., 4., 20.],
         ]));
     }

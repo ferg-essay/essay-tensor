@@ -1,21 +1,19 @@
-use crate::Tensor;
+use crate::tensor::Tensor;
 
 
 pub fn diagflat(diag: impl Into<Tensor>) -> Tensor {
-    let vec : Tensor = diag.into();
+    let diag : Tensor = diag.into();
 
-    assert!(vec.rank() == 1, "diagflat currently expects a 1d vector {:?}", vec.shape().as_vec());
-    let n = vec.len();
-    let size = n * n;
+    assert!(diag.rank() == 1, "diagflat currently expects a 1d vector {:?}", diag.shape().as_vec());
+    let n = diag.len();
 
-    let mut data = Vec::new();
-    data.resize(size, 0.);
-
-    for (i, value) in vec.iter().enumerate() {
-        data[i * n + i] = *value;
-    }
-
-    Tensor::from_vec(data, [n, n])
+    Tensor::init_indexed([n, n], |idx| {
+        if idx[0] == idx[1] {
+            diag[idx[0]]
+        } else {
+            0.
+        }
+    })
 }
 
 impl Tensor {

@@ -1,6 +1,4 @@
-use crate::{Tensor, tensor::{Dtype, IntoTensorList}};
-
-use super::concat::concat_axis;
+use crate::tensor::{Dtype, IntoTensorList, Tensor};
 
 pub fn vstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
@@ -54,7 +52,7 @@ impl VstackOp {
     ) -> Tensor<D> {
         let expand_args : Vec<Tensor<D>> = args.iter().map(|t| {
             let shape = t.shape().clone().insert(0, 1);
-            (*t).clone().with_shape(shape)
+            (*t).clone().reshape(shape)
         }).collect();
 
         let vec : Vec<&Tensor<D>> = expand_args.iter().collect();

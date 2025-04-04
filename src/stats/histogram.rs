@@ -1,4 +1,4 @@
-use crate::{Tensor, init::linspace};
+use crate::{tensor::Tensor, init::linspace};
 
 pub fn histogram(data: impl Into<Tensor>, args: impl Into<HistArgs>) -> (Tensor, Tensor) {
     let data : Tensor = data.into();

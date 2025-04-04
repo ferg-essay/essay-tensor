@@ -1,6 +1,6 @@
 use rand::prelude::*;
 
-use crate::{tensor::Shape, Tensor};
+use crate::tensor::{Shape, Tensor};
 
 pub fn uniform(
     shape: impl Into<Shape>,

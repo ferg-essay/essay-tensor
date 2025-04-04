@@ -1,4 +1,4 @@
-use crate::Tensor;
+use crate::tensor::Tensor;
 
 pub fn arange(start: f32, end: f32, step: f32) -> Tensor {
     assert!(step != 0.);

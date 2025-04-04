@@ -1,4 +1,4 @@
-use crate::Tensor;
+use crate::tensor::Tensor;
 
 pub fn frame(x: impl Into<Tensor>, len: usize, step: usize) -> Tensor {
     let x = x.into();

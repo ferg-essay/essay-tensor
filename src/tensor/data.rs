@@ -5,7 +5,7 @@ use std::{
     ptr::{self, NonNull},
 };
 
-use crate::Tensor;
+use crate::tensor::Tensor;
 
 use super::Shape;
 

@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use essay_tensor::Tensor;
+use essay_tensor::tensor::Tensor;
 
 fn main() {
     println!("Benchmarking tensor add");

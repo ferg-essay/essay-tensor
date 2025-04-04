@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read};
 
-use crate::Tensor;
+use crate::tensor::Tensor;
 
 pub fn read_file(filename: impl Into<Tensor<String>>) -> Result<Tensor<u8>, std::io::Error> {
     let mut file = File::open(&filename.into()[0])?;
@@ -17,7 +17,7 @@ pub fn read_file(filename: impl Into<Tensor<String>>) -> Result<Tensor<u8>, std:
 
 #[cfg(test)]
 mod test {
-    use crate::Tensor;
+    use crate::tensor::Tensor;
 
     use super::read_file;
 

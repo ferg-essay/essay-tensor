@@ -56,7 +56,7 @@ pub use zeros::{
     zeros, // zeros_initializer,
 };
 
-use crate::{tensor::Shape, Tensor};
+use crate::tensor::{Shape, Tensor};
 
 pub fn ones(shape: impl Into<Shape>) -> Tensor {
     todo!();

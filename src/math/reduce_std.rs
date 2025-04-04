@@ -1,69 +1,38 @@
-use crate::{Tensor, ops::{reduce_op, ReduceKernel, ReduceOpt, reduce}};
+use crate::tensor::{Axis, Tensor};
 
-#[derive(Debug, Copy, Clone)]
-pub struct ReduceStd;
-
-pub fn reduce_std(a: &Tensor, opt: impl ReduceOpt) -> Tensor {
-    reduce_op(a, ReduceStd, opt)
+pub fn reduce_std(tensor: &Tensor) -> Tensor {
+    tensor.reduce(Acc::default(), |s, v| s.update(*v))
 }
 
-impl Tensor {
-    pub fn reduce_std(&self, opt: impl ReduceOpt) -> Tensor {
-        reduce_std(self, opt)
-    }
+pub fn reduce_std_axis(tensor: &Tensor, axis: impl Into<Axis>) -> Tensor {
+    tensor.reduce_axis(axis, Acc::default(), |s, v| s.update(*v))
 }
 
-impl ReduceKernel<Acc> for ReduceStd {
-    #[inline]
-    fn init(&self) -> Acc {
-        Acc {
-            k: 0,
-            m: 0.,
-            s: 0.,
-        }
-    }
-
-    #[inline]
-    fn f(&self, state: Acc, x: f32) -> Acc {
-        // from Welford 1962
-        if state.k == 0 {
-            Acc {
-                k: 1,
-                m: x,
-                s: 0.,
-            }
-        } else {
-            let k = state.k + 1;
-            let m = state.m + (x - state.m) / k as f32;
-
-            Acc {
-                k,
-                m, 
-                s: state.s + (x - state.m) * (x - m),
-            }
-        }
-    }
-
-    #[inline]
-    fn df_dx(&self, x: f32) -> f32 {
-        2. * x
-    }
-}
-
+#[derive(Clone)]
 struct Acc {
     k: usize,
     m: f32,
     s: f32,
 }
 
-impl reduce::State for Acc {
-    type Value = f32;
-
-    fn value(&self) -> Self::Value {
-        if self.k > 1 { 
-            (self.s / self.k as f32).sqrt()
+impl Acc {
+    fn update(self, x: f32) -> Self {
+        // from Welford 1962
+        if self.k == 0 {
+            Acc {
+                k: 1,
+                m: x,
+                s: 0.,
+            }
         } else {
-            0.
+            let k = self.k + 1;
+            let m = self.m + (x - self.m) / k as f32;
+
+            Acc {
+                k,
+                m, 
+                s: self.s + (x - self.m) * (x - m),
+            }
         }
     }
 }
@@ -78,20 +47,30 @@ impl Default for Acc {
     }
 }
 
+impl From<Acc> for f32 {
+    fn from(value: Acc) -> Self {
+        if value.k > 1 { 
+            (value.s / value.k as f32).sqrt()
+        } else {
+            0.
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*};
+    use crate::prelude::*;
 
     #[test]
     fn reduce_std() {
-        assert_eq!(tf32!([1.]).reduce_std(()), tf32!(0.));
-        assert_eq!(tf32!([1., 1.]).reduce_std(()), tf32!(0.));
-        assert_eq!(tf32!([2., 2., 2., 2.]).reduce_std(()), tf32!(0.));
+        assert_eq!(tf32!([1.]).reduce_std(), tf32!(0.));
+        assert_eq!(tf32!([1., 1.]).reduce_std(), tf32!(0.));
+        assert_eq!(tf32!([2., 2., 2., 2.]).reduce_std(), tf32!(0.));
 
-        assert_eq!(tf32!([1., 3.]).reduce_std(()), tf32!(1.));
-        assert_eq!(tf32!([1., 3., 1., 3.]).reduce_std(()), tf32!(1.));
-        assert_eq!(tf32!([1., 3., 3.]).reduce_std(()), tf32!(0.94280905));
-        assert_eq!(tf32!([1., 3., 4., 0.]).reduce_std(()), tf32!(1.5811388));
-        assert_eq!(tf32!([1., 3., 4., 0., 2.]).reduce_std(()), tf32!(1.4142135));
+        assert_eq!(tf32!([1., 3.]).reduce_std(), tf32!(1.));
+        assert_eq!(tf32!([1., 3., 1., 3.]).reduce_std(), tf32!(1.));
+        assert_eq!(tf32!([1., 3., 3.]).reduce_std(), tf32!(0.94280905));
+        assert_eq!(tf32!([1., 3., 4., 0.]).reduce_std(), tf32!(1.5811388));
+        assert_eq!(tf32!([1., 3., 4., 0., 2.]).reduce_std(), tf32!(1.4142135));
     }
 }

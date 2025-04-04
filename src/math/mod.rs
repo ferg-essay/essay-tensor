@@ -1,9 +1,10 @@
 mod reduce;
+mod reduce_std;
 use std::ops;
 
 use num_traits::{Float, Num, One, Signed, Zero};
 
-use crate::{tensor::Shape, Tensor};
+use crate::tensor::{Shape, Tensor};
 
 /*
 use crate::{
@@ -33,7 +34,10 @@ pub use reduce_mean::reduce_mean;
 pub use reduce_min::reduce_min;
 pub use reduce_max::reduce_max;
 pub use reduce_sum::{reduce_sum, reduce_sum_opt};
+*/
+pub use reduce::{reduce, reduce_axis};
 pub use reduce_std::reduce_std;
+/*
 pub use reduce_variance::reduce_variance;
 
 pub use normalize_unit::normalize_unit;

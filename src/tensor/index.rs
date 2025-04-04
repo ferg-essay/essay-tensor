@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use crate::Tensor;
+use crate::tensor::Tensor;
 
 
 impl<T> Index<usize> for Tensor<T> {

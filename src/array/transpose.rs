@@ -1,19 +1,35 @@
-use crate::{
-    tensor::{Dtype, TensorData}, Tensor
-};
+use crate::tensor::{Dtype, Tensor, TensorData};
 
-pub fn transpose<D: Dtype + Clone>(x: impl Into<Tensor<D>>) -> Tensor<D> {
-    let op = Transpose;
+pub fn transpose<T: Clone + 'static>(tensor: impl Into<Tensor<T>>) -> Tensor<T> {
+    let tensor: Tensor<T> = tensor.into();
 
-    //let id = D::node_op(x, Box::new(op));
-    // let id = TensorId::unset(); // D::node_op(x, Box::new(op));
+    let cols = tensor.cols().max(1);
+    let rows = tensor.rows().max(1);
+    let size = tensor.shape().size();
+    let n_inner = cols * rows;
+    let batch = size / n_inner;
 
-    let x = x.into();
+    let mut shape = tensor.shape().clone();
+    if shape.rank() == 1 && cols > 1 {
+        shape = shape.with_rank(2).with_col(rows).with_row(cols);
+    } else {
+        shape = shape.with_col(rows).with_row(cols);
+    }
 
-    let tensor = op.f(&[&x]);
+    unsafe {
+        TensorData::<T>::unsafe_init(size, |o| {
+            let x = tensor.as_slice();
 
-    // D::set_tape(tensor)
-    todo!();
+            for n in 0..batch {
+                for j in 0..rows {
+                    for i in 0..cols {
+                        o.add(n * n_inner + i * rows + j)
+                            .write(x[n * n_inner + j * cols + i].clone());
+                    }
+                }
+            }
+        }).into_tensor(shape)
+    }
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
@@ -25,39 +41,6 @@ impl<D: Dtype + Clone> Tensor<D> {
     #[inline]
     pub fn t(&self) -> Tensor<D> {
         transpose(self)
-    }
-}
-
-#[derive(Clone)]
-pub struct Transpose;
-
-impl Transpose {
-    fn f<T: Clone + 'static>(
-        &self,
-        args: &[&Tensor<T>],
-    ) -> Tensor<T> {
-        let tensor = args[0];
-
-        let cols = tensor.cols().max(1);
-        let rows = tensor.rows().max(1);
-        let size = tensor.shape().size();
-        let n_inner = cols * rows;
-        let batch = size / n_inner;
-
-        unsafe {
-            TensorData::<T>::unsafe_init(size, |o| {
-                let x = tensor.as_slice();
-
-                for n in 0..batch {
-                    for j in 0..rows {
-                        for i in 0..cols {
-                            o.add(n * n_inner + i * rows + j)
-                                .write(x[n * n_inner + j * cols + i].clone());
-                        }
-                    }
-                }
-            }).into_tensor(tensor.shape().clone().with_col(cols).with_row(rows))
-        }
     }
 }
 

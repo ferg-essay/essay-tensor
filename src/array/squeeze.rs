@@ -3,65 +3,41 @@
 // squeeze operation
 //
 
-use crate::{Tensor, prelude::AxisOpt, tensor::Dtype};
+use crate::tensor::{Axis, Dtype, Tensor};
 
-pub fn squeeze<D: Dtype>(x: &Tensor<D>, axis: impl Into<AxisOpt>) -> Tensor<D> {
-    let axis : AxisOpt = axis.into();
-    let op = SqueezeOp(axis.get_axis());
+pub fn squeeze<D: Dtype>(tensor: &Tensor<D>) -> Tensor<D> {
+    let shape = tensor.shape().squeeze(None);
 
-    //let node = NodeOp::new(&[x], Box::new(op.clone()));
-    //let id = TensorId::unset();
+    tensor.clone().reshape(shape)
+}
 
-    //let tensor = op.f(&[&x], id);
+pub fn squeeze_axis<D: Dtype>(axis: impl Into<Axis>, tensor: &Tensor<D>) -> Tensor<D> {
+    let shape = tensor.shape().squeeze(axis);
 
-    //Tape::set_tensor(tensor)
-    //    tensor
-    todo!();
+    tensor.clone().reshape(shape)
 }
 
 impl<D: Dtype> Tensor<D> {
-    pub fn squeeze(x: &Tensor<D>, axis: impl Into<AxisOpt>) -> Tensor<D> {
-        squeeze(x, axis)
+    pub fn squeeze(&self, axis: impl Into<Axis>) -> Tensor<D> {
+        let shape = self.shape().squeeze(axis);
+
+        self.clone().reshape(shape)
     }
 }
-
-#[derive(Clone)]
-pub struct SqueezeOp(Option<isize>);
-
-impl SqueezeOp {
-    fn axis(&self) -> &Option<isize> {
-        &self.0
-    }
-}
-/*
-impl<D: Dtype> Operation<D> for SqueezeOp {
-    fn f(
-        &self,
-        args: &[&Tensor<D>],
-        id: TensorId,
-    ) -> Tensor<D> {
-        let tensor = args[0];
-
-        let shape = tensor.shape().squeeze(self.axis());
-
-        tensor.clone_with_shape(shape, id)
-    }
-}
-*/
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{squeeze, Axis}};
+    use crate::{array::squeeze::{squeeze, squeeze_axis}, tensor::Axis, prelude::*};
     
     #[test]
     fn test_squeeze() {
-        assert_eq!(squeeze(&tf32!([[1.]]), ()), tf32!(1.));
-        assert_eq!(squeeze(&tf32!([[1., 2.]]), ()), tf32!([1., 2.]));
-        assert_eq!(squeeze(&tf32!([[[1.], [2.]]]), ()), tf32!([1., 2.]));
+        assert_eq!(squeeze(&tf32!([[1.]])), tf32!(1.));
+        assert_eq!(squeeze(&tf32!([[1., 2.]])), tf32!([1., 2.]));
+        assert_eq!(squeeze(&tf32!([[[1.], [2.]]])), tf32!([1., 2.]));
     }
     
     #[test]
     fn test_squeeze_axis() {
-        assert_eq!(squeeze(&tf32!([[[1.], [2.]]]), Axis::axis(-1)), tf32!([[1., 2.]]));
+        assert_eq!(squeeze_axis(Axis::axis(-1), &tf32!([[[1.], [2.]]])), tf32!([[1., 2.]]));
     }
 }

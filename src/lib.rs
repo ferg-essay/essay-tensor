@@ -14,13 +14,13 @@ pub mod tensor;
 #[macro_use]
 pub mod macros;
 
-pub use tensor::Tensor;
+// pub use tensor::Tensor;
 
 pub mod prelude {
     pub use crate::{ten, tf32};
     pub use crate::tensor::Shape;
-    pub use crate::array::AxisOpt;
-    pub use crate::Tensor;
+    pub use crate::tensor::Axis;
+    pub use crate::tensor::Tensor;
     // pub use crate::dataset::Dataset;
     //pub use crate::ops::ReduceOpt;
 }

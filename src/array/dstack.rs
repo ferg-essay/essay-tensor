@@ -1,8 +1,6 @@
-use crate::{
-    Tensor, 
-    prelude::Shape, 
-    tensor::{Dtype, IntoTensorList}
-};
+use crate::tensor::{Axis, Dtype, IntoTensorList, Tensor, Shape};
+
+use super::concatenate_axis;
 
 pub fn dstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
@@ -34,13 +32,16 @@ where
 
     let x_ptr : Vec<&Tensor<D>> = x.iter().collect();
 
-    //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
+    let tensors : Vec<Tensor<D>> = x.iter().map(|x| {
+        match x.shape().rank() {
+            0 => todo!(),
+            1 => x.clone().reshape([1, x.len(), 1]),
+            2 => x.clone().reshape([x.rows(), x.cols(), 1]),
+            _ => (*x).clone(),
+        }
+    }).collect();
 
-    //let tensor = op.f(x_ptr.as_slice(), id);
-
-    // Tape::set_tensor(tensor)
-    //tensor
-    todo!();
+    concatenate_axis(Axis::axis(2), tensors.as_slice())
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
@@ -82,16 +83,19 @@ impl<D: Dtype + Clone> Operation<D> for DstackOp {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{dstack}};
+    use crate::{prelude::*, array::dstack};
     
     #[test]
     fn test_dstack() {
-        assert_eq!(dstack(vec![
-            tf32!([1.]),
-            tf32!([10.])
-        ]), tf32!([
-            [[1., 10.]], 
-        ]));
+        assert_eq!(
+            dstack(vec![
+                tf32![1.],
+                tf32![10.]
+            ]), 
+            tf32![
+                [[1., 10.]] 
+            ]
+        );
 
         assert_eq!(dstack(vec![
             tf32!([1., 2.]),

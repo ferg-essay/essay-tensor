@@ -1,4 +1,4 @@
-use crate::{Tensor, prelude::Shape};
+use crate::tensor::Tensor;
 
 /*
 pub fn ones(shape: impl Into<Shape>) -> Tensor {

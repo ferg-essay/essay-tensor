@@ -1,10 +1,21 @@
 use crate::{
-    prelude::{AxisOpt, Shape}, tensor::{Dtype, IntoTensorList, TensorData}, Tensor
+    prelude::{Axis, Shape}, tensor::{Dtype, IntoTensorList, Tensor, TensorData},
 };
 
-use super::axis::axis_from_rank;
+// use super::axis::axis_from_rank;
 
-pub fn stack<D>(x: impl IntoTensorList<D>, axis: impl Into<AxisOpt>) -> Tensor<D>
+pub fn stack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
+where
+    D: Dtype + Clone
+{
+    let mut vec = Vec::<Tensor<D>>::new();
+
+    x.into_list(&mut vec);
+
+    stack_vec(vec, None)
+}
+
+pub fn stack_axis<D>(axis: impl Into<Axis>, x: impl IntoTensorList<D>) -> Tensor<D>
 where
     D: Dtype + Clone
 {
@@ -15,11 +26,11 @@ where
     stack_vec(vec, axis)
 }
 
-pub fn stack_vec<D>(x: Vec<Tensor<D>>, axis: impl Into<AxisOpt>) -> Tensor<D>
+pub fn stack_vec<D>(x: Vec<Tensor<D>>, axis: impl Into<Axis>) -> Tensor<D>
 where
     D: Dtype + Clone
 {
-    let axis: AxisOpt = axis.into();
+    let axis: Axis = axis.into();
 
     let mut shape : Option<Shape> = None;
     for x in &x {
@@ -32,24 +43,39 @@ where
         }
     }
     // TODO: issues with batch and initial size not matching
-    let axis = axis.get_axis();
+    // let axis = axis.get_axis();
 
-    let op = StackOp(axis);
+    let shape = x[0].shape();
 
-    let x_ptr : Vec<&Tensor<D>> = x.iter().collect();
+    let axis = axis.axis_from_rank(shape.rank() + 1);
 
-    //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
-    //let id = TensorId::unset();
+    let n_args = x.len();
+    let x_len = shape.size();
+    let n_inner = shape.sublen(axis, shape.rank());
+    let n_outer = x_len / n_inner;
 
-    //let tensor = op.f(x_ptr.as_slice(), id);
+    let o_len = x.iter().map(|t| t.len()).sum();
 
-    // Tape::set_tensor(tensor)
-    //tensor
-    todo!()
+    unsafe {
+        TensorData::<D>::unsafe_init(o_len, |o| {
+            for (j, x) in x.iter().enumerate() {
+                assert_eq!(x_len, x.len());
+
+                let x = x.as_slice();
+
+                for k in 0..n_outer {
+                    for i in 0..n_inner {
+                        o.add((k * n_args + j) * n_inner + i)
+                            .write(x[k * n_inner + i].clone());
+                    }
+                }
+            }
+        }).into_tensor(x[0].shape().clone().insert(axis, x.len()))
+    }
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
-    pub fn stack(&self, others: impl IntoTensorList<D>, axis: impl Into<AxisOpt>) -> Tensor<D> {
+    pub fn stack(&self, others: impl IntoTensorList<D>, axis: impl Into<Axis>) -> Tensor<D> {
         let mut vec = Vec::<Tensor<D>>::new();
         vec.push(self.clone());
 
@@ -59,59 +85,16 @@ impl<D: Dtype + Clone> Tensor<D> {
     }
 }
 
-#[derive(Clone)]
-pub struct StackOp(Option<isize>);
-
-impl StackOp {
-    fn axis(&self) -> &Option<isize> {
-        &self.0
-    }
-
-// impl<D: Dtype + Clone> Operation<D> for StackOp {
-    fn f<D: Dtype + Clone>(
-        &self,
-        args: &[&Tensor<D>],
-    ) -> Tensor<D> {
-        let shape = args[0].shape();
-
-        let axis = axis_from_rank(self.axis(), shape.rank() + 1);
-
-        let n_args = args.len();
-        let x_len = shape.size();
-        let n_inner = shape.sublen(axis, shape.rank());
-        let n_outer = x_len / n_inner;
-
-        let o_len = args.iter().map(|t| t.len()).sum();
-
-        unsafe {
-            TensorData::<D>::unsafe_init(o_len, |o| {
-                for (j, x) in args.iter().enumerate() {
-                    assert_eq!(x_len, x.len());
-
-                    let x = x.as_slice();
-
-                    for k in 0..n_outer {
-                        for i in 0..n_inner {
-                            o.add((k * n_args + j) * n_inner + i)
-                                .write(x[k * n_inner + i].clone());
-                        }
-                    }
-                }
-            }).into_tensor(args[0].shape().clone().insert(axis, args.len()))
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{stack, Axis}};
+    use crate::{prelude::*, array::{stack, stack_axis}};
     
     #[test]
     fn test_stack() {
         assert_eq!(stack(vec![
             tf32!([1.]),
             tf32!([10.])
-        ], ()), tf32!([
+        ]), tf32!([
             [1.], 
             [10.]
         ]));
@@ -119,7 +102,7 @@ mod test {
         assert_eq!(stack(vec![
             tf32!([1., 2., 3., 4.]),
             tf32!([10., 20., 30., 40.])
-        ], ()), tf32!([
+        ]), tf32!([
             [1., 2., 3., 4.],
             [10., 20., 30., 40.]
         ]));
@@ -127,17 +110,17 @@ mod test {
     
     #[test]
     fn test_stack_axis() {
-        assert_eq!(stack(vec![
+        assert_eq!(stack_axis(Axis::axis(-1), vec![
             tf32!([1.]),
             tf32!([10.])
-        ], Axis::axis(-1)), tf32!([
+        ]), tf32!([
             [1., 10.], 
         ]));
 
-        assert_eq!(stack(vec![
+        assert_eq!(stack_axis(Axis::axis(-1), vec![
             tf32!([1., 2., 3., 4.]),
             tf32!([10., 20., 30., 40.])
-        ], Axis::axis(-1)), tf32!([
+        ]), tf32!([
             [1., 10.],
             [2., 20.],
             [3., 30.],

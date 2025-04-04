@@ -3,7 +3,7 @@ use std::{cmp, f32::consts::PI};
 use essay_opt::derive_opt;
 use rustfft::{FftPlanner, num_complex::Complex};
 
-use crate::{tensor::TensorData, Tensor};
+use crate::tensor::{Tensor, TensorData};
 
 pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
     let tensor = tensor.into();

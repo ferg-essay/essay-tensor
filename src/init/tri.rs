@@ -1,4 +1,4 @@
-use crate::{tensor::TensorData, Tensor};
+use crate::tensor::{TensorData, Tensor};
 
 
 pub fn tri(n: usize) -> Tensor {

@@ -1,14 +1,17 @@
 use crate::random::Rand32;
-use crate::{Tensor, prelude::Shape};
-
-use super::initializer::Initializer;
+use crate::tensor::{Tensor, Shape};
 
 pub fn random_normal(
     shape: impl Into<Shape>,
     opt: impl NormalOpt<RandomNormal>,
 ) -> Tensor {
-    // init_op(opt.into_arg(), shape)
-    todo!();
+    let opt = opt.into_arg();
+
+    let mut state = opt.init();
+
+    Tensor::init(shape, move || {
+        opt.f(&mut state)
+    })
 }
 
 pub fn random_normal_initializer(
@@ -30,25 +33,20 @@ pub struct RandomNormal {
     seed: Option<u64>,
 }
 
-//impl InitKernel<f32> for RandomNormal {
-/*
 impl RandomNormal {
-    type State = Rand32;
-
-    fn init(&self, _shape: &Shape) -> Self::State {
+    fn init(&self) -> Rand32 {
         match self.seed {
             Some(seed) => Rand32(seed),
             None => Rand32::new(),
         }
     }
 
-    fn f(&self, state: &mut Self::State) -> f32 {
+    fn f(&self, state: &mut Rand32) -> f32 {
         let p = state.next_normal();
 
         self.mean + p * self.stddev
     }
 }
-*/    
 
 impl Default for RandomNormal {
     fn default() -> Self {
@@ -195,22 +193,22 @@ mod test {
         // sanity checking
 
         assert_eq!(
-            random_normal([65536], ().seed(100)).reduce_mean(()),
+            random_normal([65536], ().seed(100)).reduce_mean(),
             tf32!(-0.0054125143)
         );
 
         assert_eq!(
-            random_normal([65536], ().seed(10)).reduce_mean(()),
+            random_normal([65536], ().seed(10)).reduce_mean(),
             tf32!(-0.0005972396)
         );
 
         assert_eq!(
-            random_normal([65536], ().seed(10).mean(2.)).reduce_mean(()),
+            random_normal([65536], ().seed(10).mean(2.)).reduce_mean(),
             tf32!(1.9994035)
         );
 
         assert_eq!(
-            random_normal([65536], ().seed(10).stddev(10.)).reduce_mean(()),
+            random_normal([65536], ().seed(10).stddev(10.)).reduce_mean(),
             tf32!(-0.0059724655)
         );
     }
@@ -221,22 +219,22 @@ mod test {
         // sanity checking
     
         assert_eq!(
-            random_normal([65536], ().seed(100)).reduce_std(()),
+            random_normal([65536], ().seed(100)).reduce_std(),
             tf32!(1.0004146)
         );
 
         assert_eq!(
-            random_normal([65536], ().seed(10)).reduce_std(()),
+            random_normal([65536], ().seed(10)).reduce_std(),
             tf32!(1.0015763)
         );
 
         assert_eq!(
-            random_normal([65536], ().seed(10).mean(10.)).reduce_std(()),
+            random_normal([65536], ().seed(10).mean(10.)).reduce_std(),
             tf32!(1.0015757)
         );
 
         assert_eq!(
-            random_normal([65536], ().seed(10).stddev(10.)).reduce_std(()),
+            random_normal([65536], ().seed(10).stddev(10.)).reduce_std(),
             tf32!(10.01571)
         );
     }

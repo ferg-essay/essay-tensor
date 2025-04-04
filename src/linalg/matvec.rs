@@ -182,7 +182,7 @@ impl Operation<f32> for Matvec {
 
 #[cfg(test)]
 mod test {
-    use crate::{ten, Tensor, linalg::matmul::Transpose, tf32};
+    use crate::{ten, tensor::Tensor, linalg::matmul::Transpose, tf32};
 
     #[test]
     fn test_matvec_1_1() {

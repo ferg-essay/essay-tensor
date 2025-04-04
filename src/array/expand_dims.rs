@@ -1,63 +1,24 @@
+use crate::tensor::{Axis, Dtype, Tensor};
 
-//
-// expand dims
-//
-
-use crate::{
-    Tensor, prelude::AxisOpt, tensor::Dtype,
-};
-
-pub fn expand_dims<D: Dtype>(x: impl Into<Tensor<D>>, axis: impl Into<AxisOpt>) -> Tensor<D> {
+pub fn expand_dims<D: Dtype>(x: impl Into<Tensor<D>>, axis: impl Into<Axis>) -> Tensor<D> {
     x.into().expand_dims(axis)
 }
 
 impl<D: Dtype> Tensor<D> {
-    pub fn expand_dims(&self, axis: impl Into<AxisOpt>) -> Tensor<D> {
-        let axis : AxisOpt = axis.into();
-        let op = ExpandDims(axis.get_axis().unwrap());
-    
-        //let node = NodeOp::new(&[x], Box::new(op.clone()));
-        //let id = TensorId::unset();
-    
-        // let tensor = op.f(&[self], id);
-    
-        // D::set_tape(tensor)
+    pub fn expand_dims(&self, axis: impl Into<Axis>) -> Tensor<D> {
+        let axis : Axis = axis.into();
 
-        todo!();
+        let axis = axis.get_axis().unwrap_or(0);
+
+        let shape = self.shape().expand_dims(axis);
+
+        self.clone().reshape(shape)
     }
 }
-
-#[derive(Clone)]
-pub struct ExpandDims(isize);
-
-impl ExpandDims {
-    #[inline]
-    fn axis(&self) -> isize {
-        self.0
-    }
-}
-
-/*
-impl<D: Dtype> Operation<D> for ExpandDims {
-    fn f(
-        &self,
-        args: &[&Tensor<D>],
-        id: TensorId,
-    ) -> Tensor<D> {
-        let tensor = args[0];
-
-        let axis = self.axis();
-
-        let shape = tensor.shape().expand_dims(axis);
-
-        tensor.clone_with_shape(shape, id)
-    }
-}
-    */
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{expand_dims}};
+    use crate::{prelude::*, array::expand_dims};
     
     #[test]
     fn test_expand_dims() {

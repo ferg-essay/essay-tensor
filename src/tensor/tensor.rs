@@ -179,7 +179,7 @@ impl<T> Tensor<T> {
         self.shape.broadcast_min(a_min, b.shape(), b_min)
     }
 
-    pub fn with_shape(self, shape: impl Into<Shape>) -> Tensor<T> {
+    pub fn reshape(self, shape: impl Into<Shape>) -> Tensor<T> {
         let shape = shape.into();
 
         assert_eq!(shape.size(), self.len(), "shape size must match {:?} new={:?}", 
@@ -307,7 +307,9 @@ impl<T: Clone + 'static> Tensor<T> {
     pub fn slice<S: TensorSlice>(&self, index: S) -> Tensor<T> {
         S::slice(index, &self)
     }
+}
 
+impl<T> Tensor<T> {
     pub fn map<U, F>(&self, f: F) -> Tensor<U>
     where
         U: 'static,
@@ -339,10 +341,10 @@ impl<T: Clone + 'static> Tensor<T> {
         TensorData::map_slice(self, self.cols(), f).into_tensor(shape)
     }
 
-    pub fn fold<S, F>(&self, init: S, f: F) -> Tensor<S>
+    pub fn fold<S>(&self, init: S, f: impl FnMut(S, &T) -> S) -> Tensor<S>
     where
         S: Clone + 'static,
-        F: FnMut(S, &T) -> S
+    //    F: FnMut(S, &T) -> S
     {
         let shape = self.shape().reduce();
 
@@ -939,6 +941,19 @@ mod test {
     }
 
     #[test]
+    fn tensor_into() {
+        assert_eq!(into([3.]), ten![3.]);
+    }
+
+    fn as_ref(tensor: impl AsRef<Tensor>) -> Tensor {
+        tensor.as_ref().clone()
+    }
+
+    fn into(tensor: impl Into<Tensor>) -> Tensor {
+        tensor.into()
+    }
+
+    #[test]
     fn tensor_init_zero() {
         let t0 = Tensor::init([4], || 0.);
 
@@ -1306,10 +1321,10 @@ mod test {
     fn test_as_ref() {
         let t1 = ten!([1, 2, 3]);
 
-        as_ref(t1);
+        as_ref_i32(t1);
     }
 
-    fn as_ref(tensor: impl AsRef<Tensor<i32>>) {
+    fn as_ref_i32(tensor: impl AsRef<Tensor<i32>>) {
         let _my_ref = tensor.as_ref();
     }
 

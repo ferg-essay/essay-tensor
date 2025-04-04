@@ -1,4 +1,4 @@
-use crate::{Tensor, init::linspace};
+use crate::{tensor::Tensor, init::linspace};
 
 pub fn histogram2d(data: impl Into<Tensor>, args: impl Into<Hist2Args>) -> (Tensor, Tensor, Tensor) {
     let data : Tensor = data.into();
@@ -6,8 +6,10 @@ pub fn histogram2d(data: impl Into<Tensor>, args: impl Into<Hist2Args>) -> (Tens
     assert!(data.cols() == 2, "histogram2d requires 2D tensor {:?}", data.shape().as_vec());
 
     let args = args.into();
-    let min = data.reduce_min_opt(0);
-    let max = data.reduce_max_opt(0);
+    // let min = data.reduce_min_opt(0);
+    // let max = data.reduce_max_opt(0);
+    let min = data.reduce_min();
+    let max = data.reduce_max();
     let (min_x, min_y) = (min[0], min[1]);
     let (max_x, max_y) = (max[0], max[1]);
 

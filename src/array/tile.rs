@@ -1,4 +1,4 @@
-use crate::{tensor::{Dtype, TensorData}, Tensor};
+use crate::tensor::{Dtype, Tensor, TensorData};
 
 pub fn tile<D>(tensor: impl Into<Tensor<D>>, multiples: impl Into<Tensor<usize>>) -> Tensor<D>
 where
@@ -6,7 +6,47 @@ where
 {
     let tensor = tensor.into();
 
-    tensor.tile(multiples)    
+    let shape = tensor.shape();
+
+    let mut shape_r = Vec::from(shape.as_vec());
+    shape_r.reverse();
+
+    let multiples = multiples.into();
+    let mut mult_r = Vec::from(multiples.as_slice());
+    mult_r.reverse();
+
+    let n_inner = shape.size();
+    let n_outer : usize = multiples.iter().product();
+    let slice = tensor.as_slice();
+
+    let mut o_shape_r = Vec::<usize>::new();
+    let rank = shape.rank();
+    let m_len = multiples.len();
+    let o_rank = rank.max(multiples.len());
+    for i in 0..o_rank {
+        let tile_dim = if i < rank { shape_r[i] } else { 1 };
+        let repeat_dim = if i < m_len { mult_r[i] } else { 1 };
+
+        o_shape_r.push(tile_dim * repeat_dim);
+    }
+    o_shape_r.reverse();
+    let o_shape = o_shape_r;
+
+    unsafe {
+        TensorData::<D>::unsafe_init(n_outer * n_inner, |o| {
+            let mut offset = 0;
+            tile_rec(
+                o,
+                slice, 
+                0,
+                slice.len(),
+                &shape_r,
+                &mult_r,
+                o_rank - 1, 
+                &mut offset
+            )
+        }).into_tensor(o_shape)
+    }
 }
 
 impl<D: Dtype + Clone> Tensor<D> {
@@ -14,73 +54,7 @@ impl<D: Dtype + Clone> Tensor<D> {
         &self, 
         multiples: impl Into<Tensor<usize>>, 
     ) -> Tensor<D> {
-        let op = TileOp(multiples.into());
-
-        //let node = NodeOp::new(x_ptr.as_slice(), Box::new(op.clone()));
-    
-        let tensor = op.f(&[&self]);
-    
-        // D::set_tape(tensor)
-        todo!();
-    }
-}
-
-#[derive(Clone)]
-pub struct TileOp(Tensor<usize>);
-
-impl TileOp {
-    fn dims(&self) -> &Tensor<usize> {
-        &self.0
-    }
-// }
-
-//impl<D: Dtype + Clone> Operation<D> for TileOp {
-    fn f<D: Dtype + Clone>(
-        &self,
-        args: &[&Tensor<D>]
-    ) -> Tensor<D> {
-        let tensor = args[0];
-        let shape = tensor.shape();
-
-        let mut shape_r = Vec::from(shape.as_vec());
-        shape_r.reverse();
-
-        let multiples = self.dims();
-        let mut mult_r = Vec::from(multiples.as_slice());
-        mult_r.reverse();
-
-        let n_inner = shape.size();
-        let n_outer : usize = multiples.iter().product();
-        let slice = tensor.as_slice();
-
-        let mut o_shape_r = Vec::<usize>::new();
-        let rank = shape.rank();
-        let m_len = multiples.len();
-        let o_rank = rank.max(multiples.len());
-        for i in 0..o_rank {
-            let tile_dim = if i < rank { shape_r[i] } else { 1 };
-            let repeat_dim = if i < m_len { mult_r[i] } else { 1 };
-
-            o_shape_r.push(tile_dim * repeat_dim);
-        }
-        o_shape_r.reverse();
-        let o_shape = o_shape_r;
-
-        unsafe {
-            TensorData::<D>::unsafe_init(n_outer * n_inner, |o| {
-                let mut offset = 0;
-                tile_rec(
-                    o,
-                    slice, 
-                    0,
-                    slice.len(),
-                    &shape_r,
-                    &mult_r,
-                    o_rank - 1, 
-                    &mut offset
-                )
-            }).into_tensor(o_shape)
-        }
+        tile(self, multiples)
     }
 }
 
@@ -123,7 +97,7 @@ unsafe fn tile_rec<D: Dtype + Clone>(
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::{tile}};
+    use crate::{prelude::*, array::tile};
     
     #[test]
     fn test_tile() {

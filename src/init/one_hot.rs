@@ -1,4 +1,4 @@
-use crate::Tensor;
+use crate::tensor::Tensor;
 
 pub fn one_hot(indices: impl AsRef<[usize]>, depth: usize) -> Tensor {
     let mut vec = Vec::<f32>::new();

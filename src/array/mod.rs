@@ -1,4 +1,3 @@
-mod axis;
 mod concat;
 mod expand_dims;
 mod flatten;
@@ -10,14 +9,11 @@ mod stack;
 mod squeeze;
 mod tile;
 mod transpose;
+// mod unstack;
 mod vstack;
 
-pub use axis::{
-    Axis, AxisOpt,
-};
-
 pub use concat::{
-    // concatenate,
+    concatenate, concatenate_axis
 };
 
 pub use dstack::{
@@ -41,11 +37,11 @@ pub use reshape::{
 };
 
 pub use split::{
-    split, vsplit, hsplit, dsplit,
+    split, split_axis, vsplit, hsplit, dsplit,
 };
 
 pub use stack::{
-    stack,
+    stack, stack_axis,
 };
 
 pub use squeeze::{
@@ -63,7 +59,3 @@ pub use transpose::{
 pub use vstack::{
     vstack,
 };
-
-use crate::{tensor::IntoTensorList, Tensor};
-
-pub use concat::{concatenate, concatenate_axis};

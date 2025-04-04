@@ -1,4 +1,4 @@
-use crate::{Tensor, prelude::Shape};
+use crate::tensor::{Tensor, Shape};
 //use crate::ops::{init_op, InitKernel};
 
 // use super::initializer::Initializer;

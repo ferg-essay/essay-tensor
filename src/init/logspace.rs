@@ -1,8 +1,6 @@
-use std::{cmp};
+use std::cmp;
 
-use crate::{
-    prelude::Shape, tensor::TensorData, Tensor
-};
+use crate::tensor::{Tensor, TensorData};
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct LogspaceCpu {
@@ -71,7 +69,7 @@ impl LogspaceCpu {
         let base = self.base;
         let size = batch * len;
 
-        let o_shape = start.shape().clone().insert(0, len);
+        let o_shape = start.shape().clone().with_col(len);
 
         unsafe {
             TensorData::<f32>::unsafe_init(size, |o| {
@@ -96,20 +94,6 @@ impl LogspaceCpu {
         }
     }
 }
-/*
-impl GradOperation<f32> for LogspaceCpu {
-        fn df(
-        &self,
-        _forward: &Expr,
-        _graph: &mut Expr,
-        _i: usize,
-        _args: &[TensorId],
-        _prev: TensorId,
-    ) -> TensorId {
-        todo!();
-    }
-}
-    */
 
 pub struct Opt {
     base: Option<f32>,

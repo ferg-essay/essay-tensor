@@ -1,5 +1,7 @@
 use std::cmp;
 
+use super::Axis;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Shape {
     dims: [u32; Shape::MAX_RANK],
@@ -27,6 +29,19 @@ impl Shape {
     #[inline]
     pub fn rank(&self) -> usize {
         self.rank as usize
+    }
+    
+    #[inline]
+    pub fn with_rank(self, rank: usize) -> Self {
+        let mut own = self;
+
+        for i in rank..Self::MAX_RANK {
+            own.dims[i] = 0;
+        }
+
+        own.rank = rank;
+
+        own
     }
 
     ///
@@ -250,8 +265,10 @@ impl Shape {
         Self::from(vec)
     }
 
-    pub fn squeeze(&self, axis: &Option<isize>) -> Self {
-        match axis {
+    pub fn squeeze(&self, axis: impl Into<Axis>) -> Self {
+        let axis: Axis = axis.into();
+
+        match axis.get_axis() {
             None => {
                 let mut rank = 0;
                 let mut dims = [0; Self::MAX_RANK];
@@ -307,14 +324,14 @@ impl Shape {
     pub fn reduce(&self) -> Shape {
         let mut dims = [0; Self::MAX_RANK];
 
-        dims[0] = 0;
-        for i in 1..self.rank {
-            dims[i] = self.dims[i - 1];
+        dims[0] = 1;
+        for i in 0..self.rank - 1 {
+            dims[i] = self.dims[i + 1];
         }
 
         Self {
             dims,
-            rank: self.rank.max(1) - 1,
+            rank: self.rank.max(2) - 1,
         }
     }
 

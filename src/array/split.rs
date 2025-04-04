@@ -1,18 +1,24 @@
-use crate::{tensor::{Dtype, TensorData}, Tensor};
-
-use super::{AxisOpt, axis::axis_from_rank};
+use crate::tensor::{Axis, Dtype, Tensor, TensorData};
 
 // TODO: split can't currenly be written as an operation.
 pub fn split<D: Dtype>(
     tensor: impl Into<Tensor<D>>, 
     sections: impl IntoSections,
-    axis: impl Into<AxisOpt>
 ) -> Vec<Tensor<D>> {
+    split_axis(None, tensor, sections)
+}
+
+// TODO: split can't currenly be written as an operation.
+pub fn split_axis<T: Clone + 'static>(
+    axis: impl Into<Axis>,
+    tensor: impl Into<Tensor<T>>, 
+    sections: impl IntoSections,
+) -> Vec<Tensor<T>> {
     let tensor = tensor.into();
     let section = sections.into_sections();
-    let axis : AxisOpt = axis.into();
+    let axis : Axis = axis.into();
 
-    let axis = axis_from_rank(&axis.get_axis(), tensor.rank());
+    let axis = axis.axis_from_rank(tensor.rank());
 
     let len = tensor.shape().dim(axis);
     let mut cuts = Vec::<usize>::new();
@@ -34,7 +40,7 @@ pub fn split<D: Dtype>(
     }
 
     if axis == 0 {
-        let mut slices = Vec::<Tensor<D>>::new();
+        let mut slices = Vec::<Tensor<T>>::new();
 
         let mut prev = 0;
         for i in cuts {
@@ -55,28 +61,28 @@ pub fn vsplit<D: Dtype>(
     tensor: impl Into<Tensor<D>>, 
     sections: impl IntoSections,
 ) -> Vec<Tensor<D>> {
-    split(tensor, sections, 0)
+    split_axis(Axis::axis(0), tensor, sections)
 }
 
 pub fn hsplit<D: Dtype>(
     tensor: impl Into<Tensor<D>>, 
     sections: impl IntoSections,
 ) -> Vec<Tensor<D>> {
-    split(tensor, sections, 1)
+    split_axis(Axis::axis(0), tensor, sections)
 }
 
 pub fn dsplit<D: Dtype>(
     tensor: impl Into<Tensor<D>>, 
     sections: impl IntoSections,
 ) -> Vec<Tensor<D>> {
-    split(tensor, sections, 2)
+    split_axis(Axis::axis(1), tensor, sections)
 }
 
-fn split_by_axis<D: Dtype>(
-    tensor: Tensor<D>, 
+fn split_by_axis<T: Clone + 'static>(
+    tensor: Tensor<T>, 
     axis: usize, 
     cuts: Vec<usize>
-) -> Vec<Tensor<D>> {
+) -> Vec<Tensor<T>> {
     let n_outer = tensor.shape().sublen(0, axis);
     let n_inner = if axis < tensor.rank() {
         tensor.shape().sublen(axis + 1, tensor.rank())
@@ -88,7 +94,7 @@ fn split_by_axis<D: Dtype>(
     let mut prev = 0;
     let x = tensor.as_slice();
 
-    let mut slices = Vec::<Tensor<D>>::new();
+    let mut slices = Vec::<Tensor<T>>::new();
 
     for cut in cuts {
         if cut == prev {
@@ -96,7 +102,7 @@ fn split_by_axis<D: Dtype>(
         }
 
         let data = unsafe {
-            TensorData::<D>::unsafe_init(n_outer * n_inner * (cut - prev), |o| {
+            TensorData::<T>::unsafe_init(n_outer * n_inner * (cut - prev), |o| {
                 for j in 0..n_outer {
                     for k in prev..cut {
                         for i in 0..n_inner {
@@ -130,23 +136,28 @@ fn split_by_axis<D: Dtype>(
 
 impl<D: Dtype> Tensor<D> {
     #[inline]
-    pub fn split(&self, sections: impl IntoSections, axis: impl Into<AxisOpt>) -> Vec<Tensor<D>> {
-        split(self, sections, axis)
+    pub fn split(&self, sections: impl IntoSections) -> Vec<Tensor<D>> {
+        split(self, sections)
+    }
+
+    #[inline]
+    pub fn split_axis(&self, axis: impl Into<Axis>, sections: impl IntoSections) -> Vec<Tensor<D>> {
+        split_axis(axis, self, sections)
     }
 
     #[inline]
     pub fn vsplit(&self, sections: impl IntoSections) -> Vec<Tensor<D>> {
-        split(self, sections, 0)
+        split_axis(Axis::axis(0), self, sections)
     }
 
     #[inline]
     pub fn hsplit(&self, sections: impl IntoSections) -> Vec<Tensor<D>> {
-        split(self, sections, 1)
+        split_axis(Axis::axis(1), self, sections)
     }
 
     #[inline]
     pub fn dsplit(&self, sections: impl IntoSections) -> Vec<Tensor<D>> {
-        split(self, sections, 2)
+        split_axis(Axis::axis(2), self, sections)
     }
 }
 
@@ -192,19 +203,19 @@ pub enum Sections {
 
 #[cfg(test)]
 mod test {
-    use split::{vsplit, hsplit, dsplit};
+    use crate::array::split::{vsplit, hsplit, dsplit};
 
-    use crate::{prelude::*, array::{split}};
+    use crate::{array::split::{split, split_axis}, prelude::*};
     
     #[test]
     fn test_split() {
         assert_eq!(
-            split(&tf32!([[1., 2.], [3., 4.]]), 2, ()), 
+            split(&tf32!([[1., 2.], [3., 4.]]), 2), 
             vec![tf32!([[1., 2.]]), tf32!([[3., 4.]])],
         );
 
         assert_eq!(
-            split(&tf32!([1., 2., 3., 4.]), [1, 3], ()), 
+            split(&tf32!([1., 2., 3., 4.]), [1, 3]), 
             vec![tf32!([1.]), tf32!([2., 3.]), tf32!([4.])],
         );
     }
@@ -212,7 +223,7 @@ mod test {
     #[test]
     fn test_split_axis() {
         assert_eq!(
-            split(&tf32!([[1., 2.], [3., 4.]]), 2, 1), 
+            split_axis(Axis::axis(1), &tf32!([[1., 2.], [3., 4.]]), 2), 
             vec![tf32!([[1.], [3.]]), tf32!([[2.], [4.]])],
         );
     }
@@ -220,7 +231,7 @@ mod test {
     #[test]
     fn test_vsplit() {
         assert_eq!(
-            vsplit(&tf32!([[1., 2.], [3., 4.]]), 2), 
+            vsplit(tf32!([[1., 2.], [3., 4.]]), 2), 
             vec![tf32!([[1., 2.]]), tf32!([[3., 4.]])],
         );
 
