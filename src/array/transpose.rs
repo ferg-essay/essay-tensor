@@ -11,7 +11,7 @@ pub fn transpose<T: Type + Clone>(tensor: impl Into<Tensor<T>>) -> Tensor<T> {
 
     let mut shape = tensor.shape().clone();
     if shape.rank() == 1 && cols > 1 {
-        shape = shape.with_rank(2).with_cols(rows).with_rows(cols);
+        shape = shape.insert(0, 1);
     } else {
         shape = shape.with_cols(rows).with_rows(cols);
     }

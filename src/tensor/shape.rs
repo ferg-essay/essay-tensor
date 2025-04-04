@@ -1,4 +1,4 @@
-use std::{cmp, mem};
+use std::cmp;
 
 use super::Axis;
 
@@ -29,19 +29,6 @@ impl Shape {
     #[inline]
     pub fn rank(&self) -> usize {
         self.rank as usize
-    }
-    
-    #[inline]
-    pub fn with_rank(self, rank: usize) -> Self {
-        let mut own = self;
-
-        for i in rank..Self::MAX_RANK {
-            own.dims[i] = 0;
-        }
-
-        own.rank = rank;
-
-        own
     }
 
     ///

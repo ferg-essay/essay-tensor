@@ -2,7 +2,7 @@ use core::fmt;
 use std::{any::type_name, ops::Deref, slice, sync::Arc};
 
 use super::{
-    data::{self, TensorData}, slice::TensorSlice, Axis, Shape
+    data::TensorData, map, slice::TensorSlice, Axis, Shape
 };
 
 pub struct Tensor<T: Type=f32> {
@@ -210,154 +210,6 @@ impl<T: Type> Tensor<T> {
             self.as_slice().chunks_exact(1).into_iter()
         }
     }
-    pub fn map<U, F>(&self, f: F) -> Tensor<U>
-    where
-        U: Type,
-        F: FnMut(&T) -> U
-    {
-        TensorData::map(self, f).into_tensor(self.shape())
-    }
-
-    // slice versions
-
-    /// map_row is a map over a fixed-column tensor, such as a tensor of
-    /// [f32; 2] pairs
-    /// 
-    pub fn map_row<const N: usize, U: Type + Clone>(
-        &self, 
-        f: impl FnMut(&[T]) -> [U; N]
-    ) -> Tensor<U> {
-        let shape = if N == 1 && self.shape.rank() > 1 {
-            self.shape.clone().rremove(0)
-        } else {
-            self.shape.clone().with_cols(N)
-        };
-
-        TensorData::map_row(self, f).into_tensor(shape)
-    }
-
-    // slice versions
-
-    /// map_expand returns new columns
-    /// 
-    pub fn map_expand<const N: usize, U: Type + Clone>(
-        &self, 
-        f: impl FnMut(&T) -> [U; N]
-    ) -> Tensor<U> {
-        let shape = self.shape.clone().rinsert(0, N);
-
-        TensorData::map_expand(self, f).into_tensor(shape)
-    }
-
-    pub fn map2<U: Type, F, V: Type + 'static>(
-        &self, 
-        rhs: &Tensor<U>,
-        f: F
-    ) -> Tensor<V>
-    where
-        V: Type,
-        F: FnMut(&T, &U) -> V
-    {
-        let shape = self.shape().broadcast_to(rhs.shape());
-
-        TensorData::map2(&self, rhs, f).into_tensor(shape)
-    }
-
-    pub fn map2_row<const N: usize, U, F, V>(
-        &self, 
-        _rhs: &Tensor<U>,
-        _f: F
-    ) -> Tensor<V>
-    where
-        U: Type,
-        V: Type,
-        F: FnMut(&[T], &[U]) -> [V; N]
-    {
-        todo!()
-    }
-
-    pub fn map2_expand<const N: usize, U, F, V: Clone + 'static>(
-        &self, 
-        _rhs: &Tensor<U>,
-        _f: F
-    ) -> Tensor<V>
-    where
-        U: Type,
-        V: Clone + Type,
-        F: FnMut(&T, &U) -> [V; N]
-    {
-        todo!()
-    }
-
-    pub fn fold<S, F>(&self, init: S, f: F) -> Tensor<S>
-    where
-        S: Type + Clone,
-        F: FnMut(S, &T) -> S
-    {
-        let shape = self.shape().reduce();
-
-        TensorData::fold_into(self, self.cols(), init, f).into_tensor(shape)
-    }
-
-    pub fn fold_axis<S, F>(&self, _axis: impl Into<Axis>, _init: S, _f: F) -> Tensor<S>
-    where
-        S: Type + Clone,
-        F: FnMut(S, &T) -> S
-    {
-        todo!()
-    }
-
-    ///
-    /// fold_into converts the result from the state
-    ///
-    pub fn fold_into<S, F, V>(&self, init: S, f: F) -> Tensor<V>
-    where
-        S: Clone + Into<V>,
-        F: FnMut(S, &T) -> S,
-        V: Type,
-    {
-        let shape = self.shape().reduce();
-
-        TensorData::fold_into(self, self.cols(), init, f).into_tensor(shape)
-    }
-
-    ///
-    /// fold_into converts the result from the state
-    ///
-    pub fn fold_axis_into<S, F, V>(&self, _axis: impl Into<Axis>, init: S, f: F) -> Tensor<V>
-    where
-        S: Clone + Into<V>,
-        F: FnMut(S, &T) -> S,
-        V: Type,
-    {
-        let shape = self.shape().reduce();
-
-        TensorData::fold_into(self, self.cols(), init, f).into_tensor(shape)
-    }
-
-    ///
-    /// fold_row converts the result from the state
-    ///
-    pub fn fold_row<const N: usize, S, F, V>(&self, _axis: impl Into<Axis>, _init: S, _f: F) -> Tensor<V>
-    where
-        S: Clone + Into<[V; N]>,
-        F: FnMut(S, &[T]) -> S,
-        V: Type,
-    {
-        todo!()
-    }
-
-    ///
-    /// fold_row converts the result from the state
-    ///
-    pub fn fold_expand<const N: usize, S, F, V>(&self, _axis: impl Into<Axis>, _init: S, _f: F) -> Tensor<V>
-    where
-        S: Clone + Into<[V; N]>,
-        F: FnMut(S, &T) -> S,
-        V: Type,
-    {
-        todo!()
-    }
 }
 
 impl<T: Type + Clone + 'static> Tensor<T> {
@@ -420,11 +272,11 @@ impl<T: Type + Clone> Tensor<T> {
             Shape::from([1])
         };
 
-        data::reduce(self, f).into_tensor(shape)
+        map::reduce(self, f).into_tensor(shape)
     }
 
     pub fn reduce_axis(&self, axis: impl Into<Axis>, f: impl FnMut(T, T) -> T) -> Tensor<T> {
-        data::reduce_axis(self, axis, f)
+        map::reduce_axis(self, axis, f)
     }
 
     pub fn init<F>(shape: impl Into<Shape>, f: F) -> Self
@@ -433,7 +285,7 @@ impl<T: Type + Clone> Tensor<T> {
     {
         let shape = shape.into();
 
-        Self::from_data(TensorData::init(&shape, f), shape)
+        Self::from_data(map::init(&shape, f), shape)
     }
 
     pub fn init_indexed<F>(shape: impl Into<Shape>, f: F) -> Self
@@ -442,7 +294,7 @@ impl<T: Type + Clone> Tensor<T> {
     {
         let shape = shape.into();
 
-        Self::from_data(TensorData::init_indexed(&shape, f), shape)
+        Self::from_data(map::init_indexed(&shape, f), shape)
     }
 
     pub fn fill(shape: impl Into<Shape>, value: T) -> Self {
