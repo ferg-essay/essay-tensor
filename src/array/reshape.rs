@@ -3,9 +3,9 @@
 // reshape operation
 //
 
-use crate::tensor::{Shape, Tensor};
+use crate::tensor::{Shape, Tensor, Type};
 
-pub fn reshape<T>(x: &Tensor<T>, shape: impl Into<Shape>) -> Tensor<T> {
+pub fn reshape<T: Type>(x: &Tensor<T>, shape: impl Into<Shape>) -> Tensor<T> {
     x.clone().reshape(shape)
 }
 

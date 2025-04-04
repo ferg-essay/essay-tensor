@@ -54,7 +54,7 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
     let b_size = b.rows() * b.cols();
     let o_size = m * n;
 
-    let shape = b.shape().clone().with_col(m).with_row(n);
+    let shape = b.shape().clone().with_cols(m).with_rows(n);
 
     unsafe {
         TensorData::<f32>::unsafe_init(o_size * batch_len, |o| {

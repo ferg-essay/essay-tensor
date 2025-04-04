@@ -1,10 +1,10 @@
-use crate::tensor::{Axis, Dtype, IntoTensorList, Tensor, Shape};
+use crate::tensor::{Axis, Type, IntoTensorList, Tensor, Shape};
 
 use super::concatenate_axis;
 
 pub fn dstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let mut vec = Vec::<Tensor<D>>::new();
 
@@ -15,7 +15,7 @@ where
 
 pub fn dstack_vec<D>(x: Vec<Tensor<D>>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let mut shape : Option<Shape> = None;
     for x in &x {
@@ -35,7 +35,7 @@ where
     let tensors : Vec<Tensor<D>> = x.iter().map(|x| {
         match x.shape().rank() {
             0 => todo!(),
-            1 => x.clone().reshape([1, x.len(), 1]),
+            1 => x.clone().reshape([1, x.size(), 1]),
             2 => x.clone().reshape([x.rows(), x.cols(), 1]),
             _ => (*x).clone(),
         }
@@ -44,7 +44,7 @@ where
     concatenate_axis(Axis::axis(2), tensors.as_slice())
 }
 
-impl<D: Dtype + Clone> Tensor<D> {
+impl<D: Type + Clone> Tensor<D> {
     pub fn dstack(&self, others: impl IntoTensorList<D>) -> Tensor<D> {
         let mut vec = Vec::<Tensor<D>>::new();
         vec.push(self.clone());

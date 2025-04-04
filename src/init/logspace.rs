@@ -64,12 +64,12 @@ impl LogspaceCpu {
 
         assert_eq!(start.shape(), end.shape());
 
-        let batch = cmp::max(1, start.len());
+        let batch = cmp::max(1, start.size());
         let len = self.len;
         let base = self.base;
         let size = batch * len;
 
-        let o_shape = start.shape().clone().with_col(len);
+        let o_shape = start.shape().clone().with_cols(len);
 
         unsafe {
             TensorData::<f32>::unsafe_init(size, |o| {

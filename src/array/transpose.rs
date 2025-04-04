@@ -1,6 +1,6 @@
-use crate::tensor::{Dtype, Tensor, TensorData};
+use crate::tensor::{Type, Tensor, TensorData};
 
-pub fn transpose<T: Clone + 'static>(tensor: impl Into<Tensor<T>>) -> Tensor<T> {
+pub fn transpose<T: Type + Clone>(tensor: impl Into<Tensor<T>>) -> Tensor<T> {
     let tensor: Tensor<T> = tensor.into();
 
     let cols = tensor.cols().max(1);
@@ -11,9 +11,9 @@ pub fn transpose<T: Clone + 'static>(tensor: impl Into<Tensor<T>>) -> Tensor<T> 
 
     let mut shape = tensor.shape().clone();
     if shape.rank() == 1 && cols > 1 {
-        shape = shape.with_rank(2).with_col(rows).with_row(cols);
+        shape = shape.with_rank(2).with_cols(rows).with_rows(cols);
     } else {
-        shape = shape.with_col(rows).with_row(cols);
+        shape = shape.with_cols(rows).with_rows(cols);
     }
 
     unsafe {
@@ -32,7 +32,7 @@ pub fn transpose<T: Clone + 'static>(tensor: impl Into<Tensor<T>>) -> Tensor<T> 
     }
 }
 
-impl<D: Dtype + Clone> Tensor<D> {
+impl<D: Type + Clone> Tensor<D> {
     #[inline]
     pub fn transpose(&self) -> Tensor<D> {
         transpose(self)

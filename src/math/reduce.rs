@@ -2,7 +2,7 @@ use std::ops;
 
 use num_traits::{Float, Zero};
 
-use crate::tensor::{Axis, TensorData, Tensor};
+use crate::tensor::{Axis, Tensor, TensorData, Type};
 
 use super::reduce_std;
 
@@ -47,29 +47,26 @@ impl Tensor {
     }
 }
 
-impl<T: Zero + Clone + 'static> Tensor<T> {
+impl<T: Type + ops::Add<Output=T> + Clone> Tensor<T> {
     pub fn reduce_sum(&self) -> Tensor<T> {
-        self.reduce(T::zero(), |s, v| s + v.clone())
+        self.reduce(|s, v| s + v)
     }
-
     pub fn reduce_sum_axis(&self, axis: impl Into<Axis>) -> Tensor<T> {
-        self.reduce_axis(axis, T::zero(), |s, v| s + v.clone())
+        self.reduce_axis(axis, |s, v| s + v.clone())
     }
 }
 
-impl<T: ops::Add + Zero + Clone + 'static> Tensor<T> {
-        /*
-    pub fn reduce_sum(&self) -> Tensor {
-        self.fold(T::zero(), |s, v| s + v)
-    }
-    */
-
+impl<T: Type + ops::Mul<Output=T> + Clone> Tensor<T> {
     pub fn reduce_product(&self) -> Tensor<T> {
-        //self.fold(T::one(), |s, v| s * v)
-        todo!()
+        self.reduce(|s, v| s * v)
+    }
+
+    pub fn reduce_product_axis(&self, axis: impl Into<Axis>) -> Tensor<T> {
+        self.reduce_axis(axis, |s, v| s * v)
     }
 }
 
+/*
 pub fn reduce<T, U, S, F>(
     tensor: &Tensor<T>,
     init: S,
@@ -80,8 +77,10 @@ where
     S: Clone + Into<U>,
     F: FnMut(S, &T) -> S
 {
-    tensor.fold_into(init, f)
-}    
+    // tensor.reduce(init, f)
+    todo!()
+} 
+*/   
 
 pub fn reduce_axis<T, U, S, F>(
     tensor: &Tensor<T>,
@@ -90,7 +89,8 @@ pub fn reduce_axis<T, U, S, F>(
     mut f: F,
 ) -> Tensor<U> 
 where
-    U: 'static,
+    T: Type,
+    U: Type,
     S: Clone + Into<U>,
     F: FnMut(S, &T) -> S,
 {
@@ -118,21 +118,8 @@ where
         }).into_tensor(o_shape)
     }
 }
-
-impl<T> Tensor<T> {
-    pub fn reduce<U, S, F>(
-        &self,
-        init: S,
-        f: F,
-    ) -> Tensor<U> 
-    where
-        U: 'static,
-        S: Clone + Into<U>,
-        F: FnMut(S, &T) -> S,
-    {
-        reduce(self, init, f)
-    }
-
+/*
+impl<T: Clone + 'static> Tensor<T> {
     pub fn reduce_axis<U, S, F>(
         &self,
         axis: impl Into<Axis>,
@@ -147,6 +134,7 @@ impl<T> Tensor<T> {
         reduce_axis(self, axis, init, f)
     }
 }
+    */
 
 #[cfg(test)]
 mod test {
@@ -155,15 +143,15 @@ mod test {
     #[test]
     fn reduce_axis() {
         assert_eq!(
-            ten![[1, 2], [3, 4]].reduce_axis(None, 0, |s, v| s + v), 
+            ten![[1, 2], [3, 4]].reduce_axis(None, |s, v| s + v), 
             ten![10]
         );
         assert_eq!(
-            ten![[1, 2], [3, 4]].reduce_axis(1, 0, |s, v| s + v), 
+            ten![[1, 2], [3, 4]].reduce_axis(1, |s, v| s + v), 
             ten![3, 7]
         );
         assert_eq!(
-            ten![[1, 2], [3, 4]].reduce_axis(0, 0, |s, v| s + v), 
+            ten![[1, 2], [3, 4]].reduce_axis(0, |s, v| s + v), 
             ten![4, 6]
         );
     }

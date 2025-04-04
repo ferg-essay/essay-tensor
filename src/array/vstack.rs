@@ -1,8 +1,8 @@
-use crate::tensor::{Dtype, IntoTensorList, Tensor};
+use crate::tensor::{Type, IntoTensorList, Tensor};
 
 pub fn vstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let mut vec = Vec::<Tensor<D>>::new();
 
@@ -13,7 +13,7 @@ where
 
 pub fn vstack_vec<D>(x: Vec<Tensor<D>>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let op = VstackOp;
 
@@ -28,7 +28,7 @@ where
     todo!();
 }
 
-impl<D: Dtype + Clone> Tensor<D> {
+impl<D: Type + Clone> Tensor<D> {
     pub fn vstack(
         &self, others: impl IntoTensorList<D>, 
     ) -> Tensor<D> {
@@ -46,7 +46,7 @@ pub struct VstackOp;
 
 //impl<D: Dtype + Clone> Operation<D> for VstackOp {
 impl VstackOp {
-    fn f<D: Dtype + Clone>(
+    fn f<D: Type + Clone>(
         &self,
         args: &[&Tensor<D>],
     ) -> Tensor<D> {

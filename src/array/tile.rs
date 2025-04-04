@@ -1,8 +1,8 @@
-use crate::tensor::{Dtype, Tensor, TensorData};
+use crate::tensor::{Type, Tensor, TensorData};
 
 pub fn tile<D>(tensor: impl Into<Tensor<D>>, multiples: impl Into<Tensor<usize>>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let tensor = tensor.into();
 
@@ -49,7 +49,7 @@ where
     }
 }
 
-impl<D: Dtype + Clone> Tensor<D> {
+impl<D: Type + Clone> Tensor<D> {
     pub fn tile(
         &self, 
         multiples: impl Into<Tensor<usize>>, 
@@ -60,7 +60,7 @@ impl<D: Dtype + Clone> Tensor<D> {
 
 // TODO: simplify this logic, possibly by reversing the shapes before
 // starting
-unsafe fn tile_rec<D: Dtype + Clone>(
+unsafe fn tile_rec<D: Type + Clone>(
     o: *mut D, 
     x: &[D],
     x_off: usize,
@@ -128,5 +128,16 @@ mod test {
             [1., 2., 1., 2., 1., 2.], 
             [1., 2., 1., 2., 1., 2.], 
         ]));
+    }
+
+    #[test]
+    fn tile_i32() {
+        assert_eq!(tile(
+            ten![1, 2],
+            [2, 3]
+        ), ten![
+            [1, 2, 1, 2, 1, 2], 
+            [1, 2, 1, 2, 1, 2], 
+        ]);
     }
 }

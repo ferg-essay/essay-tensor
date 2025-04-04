@@ -1,8 +1,8 @@
-use crate::tensor::{Axis, IntoTensorList, Tensor, TensorData};
+use crate::tensor::{Axis, IntoTensorList, Tensor, TensorData, Type};
 
 pub fn concatenate<T>(x: impl IntoTensorList<T>) -> Tensor<T>
 where
-    T: Clone + 'static
+    T: Type + Clone
 {
     let mut vec = Vec::<Tensor<T>>::new();
 
@@ -13,7 +13,7 @@ where
 
 pub fn concatenate_axis<T>(axis: impl Into<Axis>, x: impl IntoTensorList<T>) -> Tensor<T>
 where
-    T: Clone + 'static
+    T: Type + Clone
 {
     let mut vec = Vec::<Tensor<T>>::new();
 
@@ -31,7 +31,7 @@ where
     concat_axis(vec, axis)
 }
 
-pub(crate) fn concat_axis<T: Clone + 'static>(
+pub(crate) fn concat_axis<T: Type + Clone>(
     args: Vec<Tensor<T>>, 
     axis: usize,
 ) -> Tensor<T> {
@@ -39,9 +39,9 @@ pub(crate) fn concat_axis<T: Clone + 'static>(
 
     let axis_len = validate_concat(&args, axis);
 
-    let shape_inner = shape.remove(axis);
+    let shape_inner = shape.clone().remove(axis);
 
-    let o_len = args.iter().map(|t| t.len()).sum();
+    let o_len = args.iter().map(|t| t.size()).sum();
     let n_outer = shape_inner.sublen(0, axis);
     let n_inner = if axis < shape_inner.rank() {
         shape_inner.sublen(axis, shape_inner.rank())
@@ -78,7 +78,7 @@ pub(crate) fn concat_axis<T: Clone + 'static>(
     }
 }
 
-fn validate_concat<D>(args: &Vec<Tensor<D>>, axis: usize) -> usize {
+fn validate_concat<T: Type>(args: &Vec<Tensor<T>>, axis: usize) -> usize {
     let shape = args[0].shape();
 
     let mut axis_len = 0;

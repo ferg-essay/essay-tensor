@@ -47,15 +47,18 @@ pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
                     o.add(offset + i).write(0.);
                 }
             }
-
-            // let mut vec = Vec::from(tensor.shape().as_slice());
-            // let len = vec.len();
-            // vec[len - 1] = len_out;
-        }).into_tensor(tensor.shape().clone().with_col(len_out))
+        }).into_tensor(tensor.shape().clone().with_cols(len_out))
     }
 }
 
 fn hann_window(len: usize) -> Tensor {
+    let step : f32 = PI / len as f32;
+    
+    Tensor::init_indexed([len], |idx| {
+        let tmp = (step * idx[0] as f32).sin();
+        tmp * tmp
+    })
+    /*
     unsafe {
         TensorData::<f32>::unsafe_init(len, |o| {
             let step : f32 = PI / len as f32;
@@ -67,6 +70,7 @@ fn hann_window(len: usize) -> Tensor {
             }
         }).into_tensor([len])
     }
+    */
 }
 
 #[derive_opt(FftOpt)]

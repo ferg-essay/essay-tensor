@@ -56,7 +56,7 @@ fn matvec_t_op(
 ) -> Tensor<f32> {
     assert!(a.rank() >= 2, "matrix[{}]-vector multiplication requires dim >= 2", a.rank());
     
-    let batch : usize = a.broadcast_min(2, &x, cmp::min(2, x.rank()));
+    let batch : usize = a.shape().broadcast_min(2, x.shape(), cmp::min(2, x.rank()));
 
     let a_size = a.cols() * a.rows();
 
@@ -75,7 +75,7 @@ fn matvec_t_op(
 
                 transpose.sgemm(a, x, o_cols, o_rows, a_ptr, x_ptr, o_ptr);
             }
-        }).into_tensor(x.shape().clone().with_col(o_cols))
+        }).into_tensor(x.shape().clone().with_cols(o_cols))
     }
 }
 

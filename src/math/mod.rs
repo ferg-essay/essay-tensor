@@ -4,7 +4,7 @@ use std::ops;
 
 use num_traits::{Float, Num, One, Signed, Zero};
 
-use crate::tensor::{Shape, Tensor};
+use crate::tensor::{Shape, Tensor, Type};
 
 /*
 use crate::{
@@ -35,7 +35,7 @@ pub use reduce_min::reduce_min;
 pub use reduce_max::reduce_max;
 pub use reduce_sum::{reduce_sum, reduce_sum_opt};
 */
-pub use reduce::{reduce, reduce_axis};
+pub use reduce::reduce_axis;
 pub use reduce_std::reduce_std;
 /*
 pub use reduce_variance::reduce_variance;
@@ -312,21 +312,21 @@ impl Tensor {
 }
 */
 
-impl<T: Zero + Clone + 'static> Tensor<T> {
+impl<T: Type + Zero + Clone> Tensor<T> {
     #[inline]
     pub fn zeros(shape: impl Into<Shape>) -> Self {
         Self::init(shape, || Zero::zero())
     }
 }
 
-impl<T: One + Clone + 'static> Tensor<T> {
+impl<T: Type + One + Clone> Tensor<T> {
     #[inline]
     pub fn ones(shape: impl Into<Shape>) -> Self {
         Self::init(shape, || One::one())
     }
 }
 
-impl<T: Signed + Clone + 'static> Tensor<T> {
+impl<T: Type + Signed + Clone> Tensor<T> {
     #[inline]
     pub fn abs(&self) -> Self {
         self.map(|v| v.abs())
@@ -353,7 +353,7 @@ impl<T: Signed + Clone + 'static> Tensor<T> {
     }
 }
 
-impl<T: Ord + Clone + 'static> Tensor<T> {
+impl<T: Type + Ord + Clone> Tensor<T> {
     #[inline]
     pub fn min(&self, rhs: impl Into<Tensor<T>>) -> Self {
         self.map2(&rhs.into(), |a, b| a.clone().min(b.clone()))
@@ -365,7 +365,7 @@ impl<T: Ord + Clone + 'static> Tensor<T> {
     }
 }
 
-impl<T: Float + Clone + 'static> Tensor<T> {
+impl<T: Type + Float + Clone> Tensor<T> {
     #[inline]
     pub fn floor(&self) -> Tensor<T> {
         self.map(|v| v.floor())
@@ -459,7 +459,7 @@ impl<T: Float + Clone + 'static> Tensor<T> {
 
 macro_rules! tensor_ops2 {
     ($ty:ident, $op:ident, $fun:ident, $binop:ident, $uop_st:ident, $uop_ts:ident) => {
-        impl<T: $ty + Clone + 'static> ops::$op<Tensor<T>> for Tensor<T>
+        impl<T: $ty + Type + Clone> ops::$op<Tensor<T>> for Tensor<T>
         {
             type Output = Tensor<T>;
         
@@ -468,7 +468,7 @@ macro_rules! tensor_ops2 {
             }
         }
 
-        impl<T: $ty + Clone + 'static> ops::$op<Tensor<T>> for &Tensor<T> 
+        impl<T: $ty + Type + Clone> ops::$op<Tensor<T>> for &Tensor<T> 
         {
             type Output = Tensor<T>;
         
@@ -477,7 +477,7 @@ macro_rules! tensor_ops2 {
             }
         }
 
-        impl<T: $ty + Clone + 'static> ops::$op<&Tensor<T>> for Tensor<T>
+        impl<T: $ty + Type + Clone> ops::$op<&Tensor<T>> for Tensor<T>
         {
             type Output = Tensor<T>;
         
@@ -486,7 +486,7 @@ macro_rules! tensor_ops2 {
             }
         }
 
-        impl<T: $ty + Clone + 'static> ops::$op<&Tensor<T>> for &Tensor<T> 
+        impl<T: $ty + Type + Clone> ops::$op<&Tensor<T>> for &Tensor<T> 
         {
             type Output = Tensor<T>;
         
@@ -495,7 +495,7 @@ macro_rules! tensor_ops2 {
             }
         }
 
-    impl<T: $ty + Clone + 'static> ops::$op<T> for Tensor<T> {
+    impl<T: $ty + Type + Clone> ops::$op<T> for Tensor<T> {
         type Output = Tensor<T>;
     
         fn $fun(self, rhs: T) -> Self::Output {
@@ -503,7 +503,7 @@ macro_rules! tensor_ops2 {
         }
     }
 
-    impl<T: $ty + Clone + 'static> ops::$op<T> for &Tensor<T> {
+    impl<T: $ty + Type + Clone> ops::$op<T> for &Tensor<T> {
         type Output = Tensor<T>;
     
         fn $fun(self, rhs: T) -> Self::Output {
@@ -533,15 +533,15 @@ macro_rules! tensor_ops2_scalar {
     }
 }
 
-fn add_f32<T: Num + Clone + 'static>(a: &Tensor<T>, b: &Tensor<T>) -> Tensor<T> {
+fn add_f32<T: Type + Num + Clone>(a: &Tensor<T>, b: &Tensor<T>) -> Tensor<T> {
     a.map2(b, |a, b| a.clone() + b.clone())
 }
 
-fn add_f32_ts<T: Num + Clone + 'static>(a: &Tensor<T>, b: T) -> Tensor<T> {
+fn add_f32_ts<T: Type + Num + Clone>(a: &Tensor<T>, b: T) -> Tensor<T> {
     a.map(|a| a.clone() + b.clone())
 }
 
-fn add_f32_st<T: Num + Clone + 'static>(a: T, b: &Tensor<T>) -> Tensor<T> {
+fn add_f32_st<T: Type + Num + Clone>(a: T, b: &Tensor<T>) -> Tensor<T> {
     b.map(|b| a.clone() + b.clone())
 }
 
@@ -549,15 +549,15 @@ tensor_ops2!(Num, Add, add, add_f32, add_f32_st, add_f32_ts);
 tensor_ops2_scalar!(f32, Add, add, add_f32, add_f32_st, add_f32_ts);
 tensor_ops2_scalar!(i32, Add, add, add_32, add_f32_st, add_f32_ts);
 
-fn mul<T: Num + Clone + 'static>(a: &Tensor<T>, b: &Tensor<T>) -> Tensor<T> {
+fn mul<T: Type + Num + Clone>(a: &Tensor<T>, b: &Tensor<T>) -> Tensor<T> {
     a.map2(b, |a, b| a.clone() * b.clone())
 }
 
-fn mul_ts<T: Num + Clone + 'static>(a: &Tensor<T>, b: T) -> Tensor<T> {
+fn mul_ts<T: Type + Num + Clone>(a: &Tensor<T>, b: T) -> Tensor<T> {
     a.map(|a| a.clone() * b.clone())
 }
 
-fn mul_st<T: Num + Clone + 'static>(a: T, b: &Tensor<T>) -> Tensor<T> {
+fn mul_st<T: Type + Num + Clone>(a: T, b: &Tensor<T>) -> Tensor<T> {
     b.map(|b| a.clone() * b.clone())
 }
 
@@ -565,21 +565,37 @@ tensor_ops2!(Num, Mul, mul, mul, mul_st, mul_ts);
 tensor_ops2_scalar!(f32, Mul, mul, mul, mul_st, mul_ts);
 tensor_ops2_scalar!(i32, Mul, mul, mul, mul_st, mul_ts);
 
-fn div<T: Num + Clone + 'static>(a: &Tensor<T>, b: &Tensor<T>) -> Tensor<T> {
+fn div<T: Type + Num + Clone>(a: &Tensor<T>, b: &Tensor<T>) -> Tensor<T> {
     a.map2(b, |a, b| a.clone() / b.clone())
 }
 
-fn div_ts<T: Num + Clone + 'static>(a: &Tensor<T>, b: T) -> Tensor<T> {
+fn div_ts<T: Type + Num + Clone>(a: &Tensor<T>, b: T) -> Tensor<T> {
     a.map(|a| a.clone() / b.clone())
 }
 
-fn div_st<T: Num + Clone + 'static>(a: T, b: &Tensor<T>) -> Tensor<T> {
+fn div_st<T: Type + Num + Clone>(a: T, b: &Tensor<T>) -> Tensor<T> {
     b.map(|b| a.clone() / b.clone())
 }
 
 tensor_ops2!(Num, Div, div, div, div_st, div_ts);
 tensor_ops2_scalar!(f32, Div, div, div, div_st, div_ts);
 tensor_ops2_scalar!(i32, Div, div, div, div_st, div_ts);
+
+fn rem<T: Type + Num + Clone>(a: &Tensor<T>, b: &Tensor<T>) -> Tensor<T> {
+    a.map2(b, |a, b| a.clone() % b.clone())
+}
+
+fn rem_ts<T: Type + Num + Clone>(a: &Tensor<T>, b: T) -> Tensor<T> {
+    a.map(|a| a.clone() % b.clone())
+}
+
+fn rem_st<T: Type + Num + Clone>(a: T, b: &Tensor<T>) -> Tensor<T> {
+    b.map(|b| a.clone() % b.clone())
+}
+
+tensor_ops2!(Num, Rem, rem, rem, rem_st, rem_ts);
+tensor_ops2_scalar!(f32, Rem, rem, rem, rem_st, rem_ts);
+tensor_ops2_scalar!(i32, Rem, rem, rem, rem_st, rem_ts);
 
 
 #[cfg(test)]

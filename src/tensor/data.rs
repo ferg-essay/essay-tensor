@@ -7,14 +7,14 @@ use std::{
 
 use crate::tensor::Tensor;
 
-use super::Shape;
+use super::{Axis, Shape, Type};
 
-pub(crate) struct TensorData<T> {
+pub(crate) struct TensorData<T: Type> {
     data: NonNull<T>,
     len: usize,
 }
 
-impl<T> TensorData<T> {
+impl<T: Type> TensorData<T> {
     #[inline]
     fn new(data: NonNull<T>, len: usize) -> Self {
         Self {
@@ -107,29 +107,30 @@ impl<T> TensorData<T> {
     }
 
     #[inline]
-    pub unsafe fn as_sub_slice(&self, offset: usize, len: usize) -> &[T] {
+    pub fn as_sub_slice(&self, offset: usize, len: usize) -> &[T] {
         assert!(offset <= self.len());
         assert!(offset + len <= self.len());
 
-        ptr::slice_from_raw_parts(self.as_ptr().add(offset), len)
-            .as_ref()
-            .unwrap()
+        unsafe {
+            ptr::slice_from_raw_parts(self.as_ptr().add(offset), len)
+                .as_ref()
+                .unwrap()
+        }
     }
 
     #[inline]
-    pub unsafe fn get(&self, offset: usize) -> Option<&T> {
-        if offset < self.len {
-            self.as_ptr().add(offset).as_ref()
-        } else {
-            None
+    pub fn get(&self, offset: usize) -> Option<&T> {
+        unsafe {
+            if offset < self.len {
+                self.as_ptr().add(offset).as_ref()
+            } else {
+                None
+            }
         }
     }
 }
 
-impl<T: 'static> TensorData<T> {
-}
-
-impl<T: Clone> TensorData<T> {
+impl<T: Type + Clone> TensorData<T> {
     pub(crate) fn from_slice(value: &[T]) -> Self {
         unsafe {
             let layout = Layout::array::<T>(value.len()).unwrap();
@@ -145,7 +146,7 @@ impl<T: Clone> TensorData<T> {
     }
 }
 
-impl<T: 'static> TensorData<T> {
+impl<T: Type> TensorData<T> {
     /// This initialization is unsafe because the data is uninitialized,
     /// which means the caller must take take to both assign every item,
     /// and to only use o.write(data) to update values because other methods 
@@ -205,11 +206,11 @@ impl<T: 'static> TensorData<T> {
         }
     }
 
-    pub(super) fn map<U>(
+    pub(super) fn map<U: Type>(
         a: &Tensor<U>,
         mut f: impl FnMut(&U) -> T
     ) -> Self {
-        let len = a.len();
+        let len = a.size();
         
         unsafe {
             Self::unsafe_init(len, |o| {
@@ -222,16 +223,65 @@ impl<T: 'static> TensorData<T> {
         }
     }
 
+    pub(crate) fn map_row<const N: usize, U: Type>(
+        a: &Tensor<U>, 
+        mut f: impl FnMut(&[U]) -> [T; N]
+    ) -> Self {
+        let a_cols = a.cols();
+        let len = a.size() / a_cols;
+
+        unsafe {
+            Self::unsafe_init(N * len, |o| {
+                let a = a.as_ptr();
+
+                for i in 0..len {
+                    let slice = ptr::slice_from_raw_parts(a.add(i * a_cols), a_cols)
+                        .as_ref()
+                        .unwrap();
+
+                    let value = (f)(slice);
+
+                    for (j, value) in value.into_iter().enumerate() {
+                        o.add(i * N + j).write(value);
+                    }
+                }
+            })
+        }
+    }
+
+    pub(crate) fn map_expand<const N: usize, U: Type>(
+        a: &Tensor<U>, 
+        mut f: impl FnMut(&U) -> [T; N]
+    ) -> Self {
+        let len = a.size();
+
+        unsafe {
+            Self::unsafe_init(N * len, |o| {
+                let a = a.as_slice();
+
+                for i in 0..len {
+                    let value = (f)(&a[i]);
+
+                    for (j, value) in value.into_iter().enumerate() {
+                        o.add(i * N + j).write(value);
+                    }
+                }
+            })
+        }
+    }
+
     pub(crate) fn map2<U, V, F>(
         a: &Tensor<U>,
         b: &Tensor<V>,
         mut f: F
     ) -> TensorData<T>
     where
+        U: Type,
+        V: Type,
         F: FnMut(&U, &V) -> T
     {
-        let a_len = a.len();
-        let b_len = b.len();
+        let a_len = a.size();
+        let b_len = b.size();
 
         let size = a_len.max(b_len);
         let inner = a_len.min(b_len);
@@ -255,31 +305,43 @@ impl<T: 'static> TensorData<T> {
         }
     }
 
-    pub(crate) fn map_slice<const M: usize, U>(
-        a: &Tensor<U>, 
-        n: usize,
-        f: impl Fn(&[U]) -> [T; M]
-    ) -> Self {
-        assert!(n > 0);
+    pub(crate) fn map2_slice<const L: usize , const M: usize, const N: usize, U, V, F>(
+        a: &Tensor<U>,
+        a_cols: usize,
+        b: &Tensor<V>,
+        b_cols: usize,
+        mut f: F
+    ) -> TensorData<T>
+    where
+        U: Type,
+        V: Type,
+        F: FnMut(&[U], &[V]) -> [T; N]
+    {
+        let a_size = a.size() / a_cols;
+        assert!(a_size * a_cols == a.size());
+        let b_size = b.size() / b_cols;
+        assert!(b_size * b_cols == b.size());
 
-        let len = a.len() / n;
-        assert!(n * len == a.len());
+        let size = a_size.max(b_size);
+        let inner = a_size.min(b_size);
+        let batch = size / inner;
 
+        assert!(batch * inner == size, "broadcast mismatch a.size={} b.size={}", a_size, b_size);
+        
         unsafe {
-            Self::unsafe_init(M * len, |o| {
-                let a = a.as_ptr();
+            Self::unsafe_init(size, |o| {
+                for n in 0..batch {
+                    let offset = n * inner;
 
-                for i in 0..len {
-                    let offset = n * i;
+                    for k in 0..inner {
+                        let a = a.as_wrap_slice_n(a_cols * (offset + k), a_cols);
+                        let b = b.as_wrap_slice_n(b_cols * (offset + k), b_cols);
 
-                    let slice = ptr::slice_from_raw_parts(a.add(offset), n)
-                        .as_ref()
-                        .unwrap();
-
-                    let value = (f)(slice);
-
-                    for (j, value) in value.into_iter().enumerate() {
-                        o.add(offset + j).write(value);
+                        let value = f(&a, &b);
+    
+                        for (i, v) in value.into_iter().enumerate() {
+                            o.add(offset + k * N + i).write(v);
+                        }
                     }
                 }
             })
@@ -293,11 +355,12 @@ impl<T: 'static> TensorData<T> {
         mut f: F,
     ) -> TensorData<T> 
     where
+        U: Type,
         S: Clone + Into<T>,
         F: FnMut(S, &U) -> S,
     {
-        let len = tensor.len() / cols;
-        assert!(cols * len == tensor.len());
+        let len = tensor.size() / cols;
+        assert!(cols * len == tensor.size());
         
         unsafe {
             Self::unsafe_init(len, |o| {
@@ -319,7 +382,10 @@ impl<T: 'static> TensorData<T> {
     }
 }
 
-impl<T> Drop for TensorData<T> {
+impl<T: Clone + Type> TensorData<T> {
+   }
+
+impl<T: Type> Drop for TensorData<T> {
     fn drop(&mut self) {
         unsafe {
             let len = self.len;
@@ -330,14 +396,79 @@ impl<T> Drop for TensorData<T> {
 }
 
 // unsafe: TensorData is read-only
-unsafe impl<T: Send> Send for TensorData<T> {}
-unsafe impl<T: Sync> Sync for TensorData<T> {}
+unsafe impl<T: Type + Send> Send for TensorData<T> {}
+unsafe impl<T: Type + Sync> Sync for TensorData<T> {}
+
+pub(super) fn reduce<T, F>(
+    tensor: &Tensor<T>,
+    mut f: F,
+) -> TensorData<T> 
+where
+    T: Type + Clone,
+    F: FnMut(T, T) -> T,
+{
+    let cols = tensor.cols();
+    let len = tensor.size() / cols;
+    assert!(cols * len == tensor.size());
+    
+    unsafe {
+        TensorData::<T>::unsafe_init(len, |o| {
+            let a = tensor.as_slice();
+
+            for j in 0..len {
+                let offset = j * cols;
+
+                let mut value = a[offset].clone();
+
+                for i in 1..cols {
+                    value = (f)(value, a[offset + i].clone());
+                }
+
+                o.add(j).write(value.into());
+            }
+        })
+    }
+}
+
+pub(super) fn reduce_axis<T, F>(
+    tensor: &Tensor<T>,
+    axis: impl Into<Axis>,
+    mut f: F,
+) -> Tensor<T> 
+where
+    T: Type + Clone,
+    F: FnMut(T, T) -> T,
+{
+    let axis = axis.into();
+
+    let (o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
+
+    unsafe {
+        TensorData::<T>::unsafe_init(o_shape.size(), |o| {
+            let a = tensor.as_slice();
+
+            for n in 0..batch {
+                for i in 0..inner {
+                    let mut state = a[n * a_len * inner + i + 0 * inner].clone();
+
+                    for k in 1..a_len {
+                        let v = a[n * a_len * inner + i + k * inner].clone();
+
+                        state = (f)(state, v);
+                    }
+
+                    o.add(n * inner + i).write(state);
+                }
+            }
+        }).into_tensor(o_shape)
+    }
+}
 
 #[cfg(test)]
 mod test {
     use std::sync::{Arc, Mutex};
 
-    use crate::{prelude::*, tensor::{Dtype, data::TensorData}};
+    use crate::{prelude::*, tensor::{Type, data::TensorData}};
 
     #[test]
     fn data_drop_from_vec() {
@@ -622,6 +753,8 @@ mod test {
         }
     }
 
+    impl Type for Deadbeef {}
+
     fn take(ptr: &Arc<Mutex<Vec<String>>>) -> String {
         let vec : Vec<String> = ptr.lock().unwrap().drain(..).collect();
 
@@ -643,7 +776,7 @@ mod test {
         }
     }
 
-    impl Dtype for Test {}
+    impl Type for Test {}
 
     impl Drop for Test {
         fn drop(&mut self) {

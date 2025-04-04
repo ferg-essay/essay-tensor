@@ -1,10 +1,10 @@
-use crate::tensor::{Dtype, IntoTensorList, Tensor};
+use crate::tensor::{Type, IntoTensorList, Tensor};
 
 use super::concatenate_axis;
 
 pub fn hstack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let mut vec = Vec::<Tensor<D>>::new();
 

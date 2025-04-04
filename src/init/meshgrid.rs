@@ -38,7 +38,7 @@ fn build_meshgrid(axes: &[&Tensor], order: Order) -> Vec<Tensor> {
         axes.reverse();
     }
 
-    let dims : Vec<usize> = axes.iter().map(|x| x.len()).collect();
+    let dims : Vec<usize> = axes.iter().map(|x| x.size()).collect();
     let shape = Shape::from(dims);
 
     //axes.reverse();
@@ -49,7 +49,7 @@ fn build_meshgrid(axes: &[&Tensor], order: Order) -> Vec<Tensor> {
     for x in axes.iter().rev() {
         vec.push(build_meshgrid_axis(x, &shape, inner));
 
-        inner *= x.len();
+        inner *= x.size();
     }
 
     if order == Order::IJ {
@@ -65,11 +65,11 @@ fn build_meshgrid(axes: &[&Tensor], order: Order) -> Vec<Tensor> {
 fn build_meshgrid_axis(x: &Tensor, shape: &Shape, k_s: usize) -> Tensor {
     assert!(x.rank() == 1);
     let size = shape.size();
-    assert!(size % x.len() == 0);
+    assert!(size % x.size() == 0);
     assert!(size % k_s == 0);
 
     unsafe {
-        let len = x.len();
+        let len = x.size();
         let n = size / len;
         assert!(n % k_s == 0);
 

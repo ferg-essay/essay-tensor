@@ -49,7 +49,7 @@ impl GeomspaceCpu {
 
         assert_eq!(start.shape(), end.shape());
 
-        let batch = cmp::max(1, start.len());
+        let batch = cmp::max(1, start.size());
         let len = self.len;
         let size = batch * len;
 

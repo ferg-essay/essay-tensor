@@ -3,21 +3,21 @@
 // squeeze operation
 //
 
-use crate::tensor::{Axis, Dtype, Tensor};
+use crate::tensor::{Axis, Type, Tensor};
 
-pub fn squeeze<D: Dtype>(tensor: &Tensor<D>) -> Tensor<D> {
+pub fn squeeze<D: Type>(tensor: &Tensor<D>) -> Tensor<D> {
     let shape = tensor.shape().squeeze(None);
 
     tensor.clone().reshape(shape)
 }
 
-pub fn squeeze_axis<D: Dtype>(axis: impl Into<Axis>, tensor: &Tensor<D>) -> Tensor<D> {
+pub fn squeeze_axis<D: Type>(axis: impl Into<Axis>, tensor: &Tensor<D>) -> Tensor<D> {
     let shape = tensor.shape().squeeze(axis);
 
     tensor.clone().reshape(shape)
 }
 
-impl<D: Dtype> Tensor<D> {
+impl<D: Type> Tensor<D> {
     pub fn squeeze(&self, axis: impl Into<Axis>) -> Tensor<D> {
         let shape = self.shape().squeeze(axis);
 

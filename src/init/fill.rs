@@ -1,12 +1,12 @@
 use std::cmp;
 
-use crate::tensor::{Dtype, Shape, Tensor};
+use crate::tensor::{Type, Shape, Tensor};
 
-pub fn fill<D:Dtype + Copy>(fill: D, shape: impl Into<Shape>) -> Tensor<D> {
+pub fn fill<D:Type + Copy>(fill: D, shape: impl Into<Shape>) -> Tensor<D> {
     Tensor::fill(shape, fill)
 }
 
-impl<D:Dtype + Copy> Tensor<D> {
+impl<D:Type + Copy> Tensor<D> {
     /*
     pub fn fill(value: D, shape: impl Into<Shape>) -> Tensor<D> {
         fill(value, shape)

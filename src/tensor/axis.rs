@@ -72,13 +72,6 @@ impl Axis {
 
 }
 
-pub fn axis_from_rank(axis: &Option<isize>, rank: usize) -> usize {
-    match axis {
-        Some(axis) => (axis + rank as isize) as usize % rank,
-        None => 0,
-    }
-}
-
 impl From<Option<isize>> for Axis {
     fn from(value: Option<isize>) -> Self {
         Axis::axis_opt(value)

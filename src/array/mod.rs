@@ -45,7 +45,7 @@ pub use stack::{
 };
 
 pub use squeeze::{
-    squeeze,
+    squeeze, squeeze_axis,
 };
 
 pub use tile::{

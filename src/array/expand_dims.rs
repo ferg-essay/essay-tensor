@@ -1,10 +1,10 @@
-use crate::tensor::{Axis, Dtype, Tensor};
+use crate::tensor::{Axis, Type, Tensor};
 
-pub fn expand_dims<D: Dtype>(x: impl Into<Tensor<D>>, axis: impl Into<Axis>) -> Tensor<D> {
+pub fn expand_dims<D: Type>(x: impl Into<Tensor<D>>, axis: impl Into<Axis>) -> Tensor<D> {
     x.into().expand_dims(axis)
 }
 
-impl<D: Dtype> Tensor<D> {
+impl<D: Type> Tensor<D> {
     pub fn expand_dims(&self, axis: impl Into<Axis>) -> Tensor<D> {
         let axis : Axis = axis.into();
 

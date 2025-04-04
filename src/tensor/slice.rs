@@ -1,12 +1,14 @@
 use crate::tensor::Tensor;
 
+use super::Type;
+
 
 pub trait TensorSlice {
-    fn slice<T:Clone>(self, tensor: &Tensor<T>) -> Tensor<T>;
+    fn slice<T: Type>(self, tensor: &Tensor<T>) -> Tensor<T>;
 }
 
 impl TensorSlice for usize {
-    fn slice<T:Clone>(self, tensor: &Tensor<T>) -> Tensor<T> {
+    fn slice<T: Type>(self, tensor: &Tensor<T>) -> Tensor<T> {
         assert!(tensor.rank() > 0);
         assert!(self < tensor.dim(0));
 
@@ -19,7 +21,7 @@ impl TensorSlice for usize {
 }
 
 impl TensorSlice for (usize, usize) {
-    fn slice<T:Clone>(self, tensor: &Tensor<T>) -> Tensor<T> {
+    fn slice<T: Type>(self, tensor: &Tensor<T>) -> Tensor<T> {
         assert!(tensor.rank() > 1);
         assert!(self.0 < tensor.dim(0));
         assert!(self.1 < tensor.dim(1));
@@ -91,11 +93,11 @@ mod test {
         assert_eq!(t.shape().as_vec(), &[2, 3, 2]);
 
         let t1 = t.slice((0, 1));
-        assert_eq!(t1.len(), 2);
+        assert_eq!(t1.size(), 2);
         assert_eq!(t1.as_slice(), &[3., 4.]);
 
         let t1 = t.slice((1, 2));
-        assert_eq!(t1.len(), 2);
+        assert_eq!(t1.size(), 2);
         assert_eq!(t1.as_slice(), &[50., 60.]);
     }
 

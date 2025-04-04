@@ -1,12 +1,12 @@
 use crate::{
-    prelude::{Axis, Shape}, tensor::{Dtype, IntoTensorList, Tensor, TensorData},
+    prelude::{Axis, Shape}, tensor::{Type, IntoTensorList, Tensor, TensorData},
 };
 
 // use super::axis::axis_from_rank;
 
 pub fn stack<D>(x: impl IntoTensorList<D>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let mut vec = Vec::<Tensor<D>>::new();
 
@@ -17,7 +17,7 @@ where
 
 pub fn stack_axis<D>(axis: impl Into<Axis>, x: impl IntoTensorList<D>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let mut vec = Vec::<Tensor<D>>::new();
 
@@ -28,7 +28,7 @@ where
 
 pub fn stack_vec<D>(x: Vec<Tensor<D>>, axis: impl Into<Axis>) -> Tensor<D>
 where
-    D: Dtype + Clone
+    D: Type + Clone
 {
     let axis: Axis = axis.into();
 
@@ -54,12 +54,12 @@ where
     let n_inner = shape.sublen(axis, shape.rank());
     let n_outer = x_len / n_inner;
 
-    let o_len = x.iter().map(|t| t.len()).sum();
+    let o_len = x.iter().map(|t| t.size()).sum();
 
     unsafe {
         TensorData::<D>::unsafe_init(o_len, |o| {
             for (j, x) in x.iter().enumerate() {
-                assert_eq!(x_len, x.len());
+                assert_eq!(x_len, x.size());
 
                 let x = x.as_slice();
 
@@ -74,7 +74,7 @@ where
     }
 }
 
-impl<D: Dtype + Clone> Tensor<D> {
+impl<D: Type + Clone> Tensor<D> {
     pub fn stack(&self, others: impl IntoTensorList<D>, axis: impl Into<Axis>) -> Tensor<D> {
         let mut vec = Vec::<Tensor<D>>::new();
         vec.push(self.clone());

@@ -1,11 +1,11 @@
-use crate::tensor::{Dtype, Tensor};
+use crate::tensor::{Type, Tensor};
 
-pub fn flatten<D: Dtype>(tensor: impl AsRef<Tensor<D>>) -> Tensor<D> {
+pub fn flatten<D: Type>(tensor: impl AsRef<Tensor<D>>) -> Tensor<D> {
     let tensor = tensor.as_ref();
     tensor.clone().reshape([tensor.shape().size()])
 }
 
-impl<D: Dtype> Tensor<D> {
+impl<D: Type> Tensor<D> {
     #[inline]
     pub fn flatten(&self) -> Tensor<D> {
         flatten(self)

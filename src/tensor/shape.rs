@@ -1,4 +1,4 @@
-use std::cmp;
+use std::{cmp, mem};
 
 use super::Axis;
 
@@ -56,15 +56,35 @@ impl Shape {
     /// Sets the dimension ordered from outside-in
     /// 
     #[inline]
+    #[must_use]
     pub fn with_dim(self, i: usize, value: usize) -> Self {
-        let mut dims = self.dims.clone();
+        self.replace(i, value)
+    }
 
-        dims[self.rank - 1 - i] = value as u32;
+    ///
+    /// Sets the dimension
+    /// 
+    #[inline]
+    #[must_use]
+    pub fn replace(self, i: usize, value: usize) -> Self {
+        let rank = self.rank;
 
-        Self {
-            dims,
-            rank: self.rank
-        }
+        assert!(i < rank);
+
+        self.rreplace(rank - 1 - i, value)
+    }
+
+    ///
+    /// Sets the dimension
+    /// 
+    #[inline]
+    #[must_use]
+    pub fn rreplace(mut self, i: usize, value: usize) -> Self {
+        assert!(i < self.rank);
+
+        self.dims[i] = value as u32;
+
+        self
     }
 
     ///
@@ -73,21 +93,6 @@ impl Shape {
     #[inline]
     pub fn rdim(&self, i: usize) -> usize {
         self.dims[i] as usize
-    }
-
-    ///
-    /// Dimension indexed in bottom-up, reverse order, where 0 is cols, 1 is rows
-    /// 
-    #[inline]
-    pub fn with_rdim(self, i: usize, value: usize) -> Self {
-        let mut dims = self.dims.clone();
-
-        dims[i] = value as u32;
-
-        Self {
-            dims,
-            rank: self.rank
-        }
     }
 
     #[inline]
@@ -103,7 +108,8 @@ impl Shape {
     }
     
     #[inline]
-    pub fn with_col(self, col: usize) -> Self {
+    #[must_use]
+    pub fn with_cols(self, col: usize) -> Self {
         let mut own = self;
 
         own.dims[0] = col as u32;
@@ -123,14 +129,15 @@ impl Shape {
     }
     
     #[inline]
-    pub fn with_row(&self, row: usize) -> Self {
-        let mut dims = self.dims.clone();
-        dims[1] = row as u32;
+    #[must_use]
+    pub fn with_rows(self, row: usize) -> Self {
+        assert!(self.rank > 1);
 
-        Self {
-            dims,
-            rank: self.rank,
-        }
+        let mut own = self;
+
+        own.dims[1] = row as u32;
+
+        own
     }
 
     #[inline]
@@ -228,6 +235,7 @@ impl Shape {
         }
     }
 
+    #[must_use]
     pub fn append(&self, tail: &[usize]) -> Self {
         let mut dims = self.dims.clone();
 
@@ -254,6 +262,7 @@ impl Shape {
     }
 
     #[inline]
+    #[must_use]
     pub fn expand_dims(&self, axis: isize) -> Self {
         let mut vec = self.as_vec();
 
@@ -265,6 +274,7 @@ impl Shape {
         Self::from(vec)
     }
 
+    #[must_use]
     pub fn squeeze(&self, axis: impl Into<Axis>) -> Self {
         let axis: Axis = axis.into();
 
@@ -335,44 +345,50 @@ impl Shape {
         }
     }
 
-    pub fn remove(&self, axis: usize) -> Shape {
+    #[must_use]
+    pub fn remove(self, axis: usize) -> Shape {
+        assert!(axis < self.rank);
+
         let axis = self.rank - 1 - axis;
-        let mut dims = [0; Self::MAX_RANK];
 
-        dims[0] = 0;
-        for i in 0..axis {
-            dims[i] = self.dims[i];
-        }
-
-        for i in axis + 1..self.rank {
-            dims[i - 1] = self.dims[i];
-        }
-
-        Self {
-            dims,
-            rank: self.rank.max(1) - 1,
-        }
+        self.rremove(axis)
     }
 
     #[must_use]
+    pub fn rremove(mut self, axis: usize) -> Shape {
+        assert!(axis < self.rank);
+
+        for i in axis..self.rank - 1 {
+            self.dims[i] = self.dims[i + 1];
+        }
+
+        self.rank = self.rank - 1;
+        self.dims[self.rank] = 0;
+
+        self
+    }
+
+    #[must_use]
+    #[inline]
     pub fn insert(self, axis: usize, len: usize) -> Shape {
         let axis = self.rank - axis;
-        let mut dims = [0; Self::MAX_RANK];
 
-        for i in 0..axis {
-            dims[i] = self.dims[i];
+        self.rinsert(axis, len)
+    }
+
+    #[must_use]
+    #[inline]
+    pub fn rinsert(mut self, axis: usize, len: usize) -> Shape {
+        assert!(axis + 1 < Self::MAX_RANK);
+
+        for i in (axis..self.rank).rev() {
+            self.dims[i + 1] = self.dims[i];
         }
 
-        dims[axis] = len as u32;
+        self.dims[axis] = len as u32;
+        self.rank += 1;
 
-        for i in axis..self.rank {
-            dims[i + 1] = self.dims[i];
-        }
-
-        Self {
-            dims,
-            rank: self.rank + 1,
-        }
+        self
     }
 
     #[inline]

@@ -1,11 +1,11 @@
 use crate::tensor::{Axis, Tensor};
 
 pub fn reduce_std(tensor: &Tensor) -> Tensor {
-    tensor.reduce(Acc::default(), |s, v| s.update(*v))
+    tensor.fold_into(Acc::default(), |s, v| s.update(*v))
 }
 
 pub fn reduce_std_axis(tensor: &Tensor, axis: impl Into<Axis>) -> Tensor {
-    tensor.reduce_axis(axis, Acc::default(), |s, v| s.update(*v))
+    tensor.fold_axis_into(axis, Acc::default(), |s, v| s.update(*v))
 }
 
 #[derive(Clone)]

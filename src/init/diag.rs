@@ -5,7 +5,7 @@ pub fn diagflat(diag: impl Into<Tensor>) -> Tensor {
     let diag : Tensor = diag.into();
 
     assert!(diag.rank() == 1, "diagflat currently expects a 1d vector {:?}", diag.shape().as_vec());
-    let n = diag.len();
+    let n = diag.size();
 
     Tensor::init_indexed([n, n], |idx| {
         if idx[0] == idx[1] {

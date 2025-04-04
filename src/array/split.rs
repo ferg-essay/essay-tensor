@@ -1,15 +1,13 @@
-use crate::tensor::{Axis, Dtype, Tensor, TensorData};
+use crate::tensor::{Axis, Type, Tensor, TensorData};
 
-// TODO: split can't currenly be written as an operation.
-pub fn split<D: Dtype>(
+pub fn split<D: Type + Clone>(
     tensor: impl Into<Tensor<D>>, 
     sections: impl IntoSections,
 ) -> Vec<Tensor<D>> {
     split_axis(None, tensor, sections)
 }
 
-// TODO: split can't currenly be written as an operation.
-pub fn split_axis<T: Clone + 'static>(
+pub fn split_axis<T: Type + Clone>(
     axis: impl Into<Axis>,
     tensor: impl Into<Tensor<T>>, 
     sections: impl IntoSections,
@@ -57,28 +55,28 @@ pub fn split_axis<T: Clone + 'static>(
     }
 }
 
-pub fn vsplit<D: Dtype>(
+pub fn vsplit<D: Type + Clone>(
     tensor: impl Into<Tensor<D>>, 
     sections: impl IntoSections,
 ) -> Vec<Tensor<D>> {
     split_axis(Axis::axis(0), tensor, sections)
 }
 
-pub fn hsplit<D: Dtype>(
+pub fn hsplit<D: Type + Clone>(
     tensor: impl Into<Tensor<D>>, 
     sections: impl IntoSections,
 ) -> Vec<Tensor<D>> {
     split_axis(Axis::axis(0), tensor, sections)
 }
 
-pub fn dsplit<D: Dtype>(
+pub fn dsplit<D: Type + Clone>(
     tensor: impl Into<Tensor<D>>, 
     sections: impl IntoSections,
 ) -> Vec<Tensor<D>> {
     split_axis(Axis::axis(1), tensor, sections)
 }
 
-fn split_by_axis<T: Clone + 'static>(
+fn split_by_axis<T: Type + Clone>(
     tensor: Tensor<T>, 
     axis: usize, 
     cuts: Vec<usize>
@@ -134,7 +132,7 @@ fn split_by_axis<T: Clone + 'static>(
     slices
 }
 
-impl<D: Dtype> Tensor<D> {
+impl<D: Type + Clone> Tensor<D> {
     #[inline]
     pub fn split(&self, sections: impl IntoSections) -> Vec<Tensor<D>> {
         split(self, sections)
