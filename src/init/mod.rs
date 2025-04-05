@@ -22,6 +22,7 @@ pub use arange::arange;
 
 pub use diag::diagflat;
 
+use num_traits::{One, Zero};
 pub use one_hot::one_hot;
 
 pub use eye::{
@@ -52,13 +53,60 @@ pub use tri::{
     tri, tril, triu
 };
 
-pub use zeros::{
-    zeros, // zeros_initializer,
-};
+use crate::tensor::{Shape, Tensor, Type};
 
-use crate::tensor::{Shape, Tensor};
+pub fn ones<T: Type + One + Clone>(shape: impl Into<Shape>) -> Tensor<T> {
+    Tensor::init(shape, || One::one())
+}
 
-pub fn ones(shape: impl Into<Shape>) -> Tensor {
-    todo!();
+pub fn zeros<T: Type + Zero + Clone>(shape: impl Into<Shape>) -> Tensor<T> {
+    Tensor::init(shape, || Zero::zero())
+}
+
+impl<T: Type + Zero + Clone> Tensor<T> {
+    #[inline]
+    pub fn zeros(shape: impl Into<Shape>) -> Self {
+        Self::init(shape, || Zero::zero())
+    }
+}
+
+impl<T: Type + One + Clone> Tensor<T> {
+    #[inline]
+    pub fn ones(shape: impl Into<Shape>) -> Self {
+        ones(shape)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::*;
+    use crate::init::zeros;
+
+    #[test]
+    fn test_zeros() {
+        assert_eq!(zeros([1]), ten![0.]);
+        assert_eq!(zeros([3]), ten![0., 0., 0.]);
+        assert_eq!(zeros([2, 3]), ten![[0., 0., 0.], [0., 0., 0.]]);
+    }
+
+    #[test]
+    fn test_zeros_types() {
+        assert_eq!(zeros([1]), ten![0i8]);
+        assert_eq!(zeros([1]), ten![0i16]);
+        assert_eq!(zeros([1]), ten![0i32]);
+        assert_eq!(zeros([1]), ten![0i64]);
+        assert_eq!(zeros([1]), ten![0i128]);
+        assert_eq!(zeros([1]), ten![0isize]);
+
+        assert_eq!(zeros([1]), ten![0u8]);
+        assert_eq!(zeros([1]), ten![0u16]);
+        assert_eq!(zeros([1]), ten![0u32]);
+        assert_eq!(zeros([1]), ten![0u64]);
+        assert_eq!(zeros([1]), ten![0u128]);
+        assert_eq!(zeros([1]), ten![0usize]);
+
+        assert_eq!(zeros([1]), ten![0.0f32]);
+        assert_eq!(zeros([1]), ten![0.0f64]);
+    }
 }
 

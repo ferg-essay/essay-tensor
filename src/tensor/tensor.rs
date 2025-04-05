@@ -697,6 +697,43 @@ impl<T: Type + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<T
     }
 }
 
+//pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {
+//}
+
+pub trait Type: 'static {}
+
+macro_rules! tensor_types {
+    ($($ty:ty)*) => {
+        $(
+            impl Type for $ty {}
+        )*
+    }
+}
+
+tensor_types!(bool);
+tensor_types!(i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize);
+tensor_types!(f32 f64);
+tensor_types!(String);
+
+impl<T: Type> Type for Option<T> {} 
+
+macro_rules! tensor_tuple {
+    ($($id:ident),*) => {
+        #[allow(non_snake_case)]
+        impl<$($id: Type),*> Type for ($($id,)*) {}
+    }
+}
+
+tensor_tuple!(P0, P1);
+tensor_tuple!(P0, P1, P2);
+tensor_tuple!(P0, P1, P2, P3);
+tensor_tuple!(P0, P1, P2, P3, P4);
+tensor_tuple!(P0, P1, P2, P3, P4, P5);
+tensor_tuple!(P0, P1, P2, P3, P4, P5, P6);
+tensor_tuple!(P0, P1, P2, P3, P4, P5, P6, P7);
+tensor_tuple!(P0, P1, P2, P3, P4, P5, P6, P7, P8);
+tensor_tuple!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
+
 pub trait IntoTensorList<T: Type> {
     fn into_list(self, vec: &mut Vec<Tensor<T>>);
 }
@@ -723,7 +760,7 @@ impl<T: Type, const N: usize> IntoTensorList<T> for [Tensor<T>; N] {
     }
 }
 
-macro_rules! tensor_list {
+macro_rules! into_tensor_list {
     ($($id:ident),*) => {
         #[allow(non_snake_case)]
         impl<D: Type, $($id),*> IntoTensorList<D> for ($($id,)*) 
@@ -742,60 +779,16 @@ macro_rules! tensor_list {
     }
 }
 
-tensor_list!(P0);
-tensor_list!(P0, P1);
-tensor_list!(P0, P1, P2);
-tensor_list!(P0, P1, P2, P3);
-tensor_list!(P0, P1, P2, P3, P4);
-tensor_list!(P0, P1, P2, P3, P4, P5);
-tensor_list!(P0, P1, P2, P3, P4, P5, P6);
-tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7);
-tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8);
-tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
-
-//pub trait Dtype : Clone + Send + Sync + fmt::Debug + 'static {
-//}
-
-pub trait Type: 'static {}
-
-impl Type for bool {}
-
-impl Type for u8 {}
-impl Type for u16 {}
-impl Type for u32 {}
-impl Type for u64 {}
-impl Type for u128 {}
-impl Type for usize {}
-
-impl Type for i8 {}
-impl Type for i16 {}
-impl Type for i32 {}
-impl Type for i64 {}
-impl Type for i128 {}
-impl Type for isize {}
-
-impl Type for f32 {}
-
-impl Type for String {}
-
-impl<T: Type> Type for Option<T> {} 
-
-macro_rules! dtype_tuple {
-    ($($id:ident),*) => {
-        #[allow(non_snake_case)]
-        impl<$($id: Type),*> Type for ($($id,)*) {}
-    }
-}
-
-dtype_tuple!(P0, P1);
-dtype_tuple!(P0, P1, P2);
-dtype_tuple!(P0, P1, P2, P3);
-dtype_tuple!(P0, P1, P2, P3, P4);
-dtype_tuple!(P0, P1, P2, P3, P4, P5);
-dtype_tuple!(P0, P1, P2, P3, P4, P5, P6);
-dtype_tuple!(P0, P1, P2, P3, P4, P5, P6, P7);
-dtype_tuple!(P0, P1, P2, P3, P4, P5, P6, P7, P8);
-dtype_tuple!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
+into_tensor_list!(P0);
+into_tensor_list!(P0, P1);
+into_tensor_list!(P0, P1, P2);
+into_tensor_list!(P0, P1, P2, P3);
+into_tensor_list!(P0, P1, P2, P3, P4);
+into_tensor_list!(P0, P1, P2, P3, P4, P5);
+into_tensor_list!(P0, P1, P2, P3, P4, P5, P6);
+into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7);
+into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8);
+into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
 
 #[cfg(test)]
 mod test {
