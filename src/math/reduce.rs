@@ -5,9 +5,30 @@ use num_traits::{Float, Zero};
 use crate::tensor::{Axis, FoldState, Tensor, Type};
 
 impl<T: Type + Float + Zero> Tensor<T> {
+    pub fn reduce_hypot(&self) -> Tensor<T> {
+        self.fold(Hypot::default(), |s, v| s.update(v.clone()))
+    }
 }
 
-impl Tensor {
+impl<T: Type + Float> Tensor<T> {
+    pub fn reduce_min(&self) -> Self {
+        self.reduce(|s, v| s.min(v))
+    }
+
+    pub fn reduce_min_axis(&self, axis: impl Into<Axis>) -> Self {
+        self.reduce_axis(axis, |s, v| s.min(v))
+    }
+
+    pub fn reduce_max(&self) -> Self {
+        self.reduce(|s, v| s.max(v))
+    }
+
+    pub fn reduce_max_axis(&self, axis: impl Into<Axis>) -> Self {
+        self.reduce_axis(axis, |s, v| s.max(v))
+    }
+}
+
+impl Tensor<f32> {
     pub fn reduce_mean(&self) -> Tensor {
         self.fold(Mean::default(), |s, v| s.update(*v))
     }
@@ -24,29 +45,12 @@ impl Tensor {
         self.fold_axis(axis, Std::default(), |s, v| s.update(*v))
     }
     
-    pub fn reduce_var(&self) -> Tensor {
-        // reduce_std(self, opt)
-        todo!();
+    pub fn reduce_variance(&self) -> Tensor {
+        self.fold(Var::default(), |s, v| s.update(*v))
     }
-
-    pub fn reduce_min(&self) -> Tensor {
-        // reduce_min(self)
-        todo!();
-    }
-
-    pub fn reduce_min_opt(&self) -> Tensor {
-        // reduce_min_opt(self, opt)
-        todo!();
-    }
-
-    pub fn reduce_max(&self) -> Tensor {
-        // self.fold(T::max_value(), |s, v| s.min(v))
-        todo!()
-    }
-
-    pub fn reduce_max_opt(&self) -> Tensor {
-        // reduce_min_opt(self, opt)
-        todo!();
+    
+    pub fn reduce_variance_axis(&self, axis: impl Into<Axis>) -> Tensor {
+        self.fold_axis(axis, Var::default(), |s, v| s.update(*v))
     }
 }
 
@@ -66,6 +70,49 @@ impl<T: Type + ops::Mul<Output=T> + Clone> Tensor<T> {
 
     pub fn reduce_product_axis(&self, axis: impl Into<Axis>) -> Tensor<T> {
         self.reduce_axis(axis, |s, v| s * v)
+    }
+}
+
+/*
+impl<T: Type + Ord + Clone> Tensor<T> {
+    pub fn reduce_min(&self) -> Tensor<T> {
+        self.reduce(|s, v| s.min(v))
+    }
+
+    pub fn reduce_min_axis(&self, axis: impl Into<Axis>) -> Tensor<T> {
+        self.reduce_axis(axis, |s, v| s.min(v))
+    }
+
+    pub fn reduce_max(&self) -> Tensor<T> {
+        self.reduce(|s, v| s.max(v))
+    }
+
+    pub fn reduce_max_axis(&self, axis: impl Into<Axis>) -> Tensor<T> {
+        self.reduce_axis(axis, |s, v| s.max(v))
+    }
+}
+    */
+
+#[derive(Clone, Debug)]
+struct Hypot<T: Float>(T);
+
+impl<T: Float> Default for Hypot<T> {
+    fn default() -> Self {
+        Self(T::zero())
+    }
+}
+
+impl<T: Float> Hypot<T> {
+    fn update(self, v: T) -> Self {
+        Hypot(self.0 + v * v)
+    }
+}
+
+impl<T: Float> FoldState for Hypot<T> {
+    type Out = T;
+
+    fn into_result(self) -> Self::Out {
+        self.0.sqrt()
     }
 }
 
@@ -137,6 +184,48 @@ impl FoldState for Std {
     fn into_result(self) -> Self::Out {
         if self.k > 1 { 
             (self.s / self.k as f32).sqrt()
+        } else {
+            0.
+        }
+    }
+}
+
+#[derive(Clone, Default)]
+struct Var {
+    k: usize,
+    m: f32,
+    s: f32,
+}
+
+impl Var {
+    fn update(self, x: f32) -> Var {
+        // from Welford 1962
+        if self.k == 0 {
+            Var {
+                k: 1,
+                m: x,
+                s: 0.,
+            }
+        } else {
+            let k = self.k + 1;
+            let m = self.m + (x - self.m) / k as f32;
+
+            Var {
+                k,
+                m, 
+                s: self.s + (x - self.m) * (x - m),
+            }
+        }
+    }
+
+}
+
+impl FoldState for Var {
+    type Out = f32;
+
+    fn into_result(self) -> Self::Out {
+        if self.k > 1 { 
+            self.s / self.k as f32
         } else {
             0.
         }
@@ -215,6 +304,22 @@ mod test {
         assert_eq!(tf32!([[1.], [2.]]).reduce_sum_axis(0), tf32!([3.]));
         assert_eq!(tf32!([[1., 10.], [100., 1000.]]).reduce_sum_axis(0), tf32!([101., 1010.]));
     }
+
+    #[test]
+    fn reduce_max() {
+        assert_eq!(ten![1., 3., 2.].reduce_max(), ten![3.]);
+    }
+
+    #[test]
+    fn reduce_min() {
+        assert_eq!(ten!([1., 3., 2.]).reduce_min(), ten![1.]);
+    }
+    
+    #[test]
+    fn reduce_hypot() {
+        assert_eq!(tf32!([3., 4.]).reduce_hypot(), tf32!([5.]));
+        assert_eq!(tf32!([2., 2., 2., 2.]).reduce_hypot(), tf32!([4.]));
+    }
     
     #[test]
     fn reduce_mean() {
@@ -259,5 +364,18 @@ mod test {
         assert_eq!(tf32!([1., 3., 1., 3.]).reduce_std(), tf32!(1.));
         assert_eq!(tf32!([1., 3., 4., 0.]).reduce_std(), tf32!(1.5811388));
         assert_eq!(tf32!([1., 3., 4., 0., 2.]).reduce_std(), tf32!(1.4142135));
+    }
+
+    #[test]
+    fn reduce_var() {
+        assert_eq!(tf32!([1.]).reduce_variance(), tf32!(0.));
+        assert_eq!(tf32!([1., 1.]).reduce_variance(), tf32!(0.));
+        assert_eq!(tf32!([2., 2., 2., 2.]).reduce_variance(), tf32!(0.));
+
+        assert_eq!(tf32!([1., 3.]).reduce_variance(), tf32!(1.));
+        assert_eq!(tf32!([1., 3., 1., 3.]).reduce_variance(), tf32!(1.));
+        assert_eq!(tf32!([1., 3., 3.]).reduce_variance(), tf32!(0.8888889));
+        assert_eq!(tf32!([1., 3., 4., 0.]).reduce_variance(), tf32!(2.5));
+        assert_eq!(tf32!([1., 3., 4., 0., 2.]).reduce_variance(), tf32!(2.0));
     }
 }

@@ -1,4 +1,4 @@
-use std::{any::type_name, cmp};
+use std::cmp;
 
 use crate::{
     linalg::blas::sgemm, tensor::{Tensor, TensorData}
@@ -6,50 +6,17 @@ use crate::{
 
 use super::matmul::Transpose;
 
-#[derive(Debug, Clone)]
-struct Matvec;
-
-#[derive(Debug, Clone)]
-struct MatvecBackLeft;
-
-#[derive(Debug, Clone)]
-struct MatvecBackRight;
-
 impl Tensor<f32> {
     pub fn matvec(&self, b: &Tensor<f32>) -> Tensor {
-        matvec_t(&self, b, Transpose::None)
+        matvec_t_f32(&self, b, Transpose::None)
     }
 
     pub fn matvec_t(&self, b: &Tensor<f32>, transpose: impl TransposeMatvec) -> Tensor {
-        matvec_t(&self, b, transpose)
+        matvec_t_f32(&self, b, transpose)
     }
 }
 
-pub fn matvec(a: &Tensor<f32>, b: &Tensor<f32>) -> Tensor {
-    // let node = NodeOp::new(&[a, b], Box::new(Matvec));
-
-    let value = matvec_t_op(a, b, Transpose::None); //, node);
-
-    // Tape::set_tensor(value)
-    todo!();
-}
-
-pub fn matvec_t(
-    a: &Tensor<f32>,
-    x: &Tensor<f32>,
-    _transpose: impl TransposeMatvec,
-) -> Tensor<f32> {
-    /*
-    let node = NodeOp::new(&[a, x], Box::new(Matvec));
-
-    let value = matvec_t_op(a, x, _transpose, node);
-
-    Tape::set_tensor(value)
-    */
-    todo!();
-}
-
-fn matvec_t_op(
+fn matvec_t_f32(
     a: &Tensor<f32>,
     x: &Tensor<f32>,
     transpose: impl TransposeMatvec,
@@ -162,71 +129,54 @@ impl TransposeMatvec for Transpose {
         }
     }
 }
-/*
-impl Operation<f32> for Matvec {
-    fn name(&self) -> &str {
-        type_name::<Self>()
-    }
-    
-    fn f(
-        &self,
-        args: &[&Tensor],
-        node: TensorId,
-    ) -> Tensor {
-        let value = matvec_t_op(args[0], args[1], Transpose::None, node);
-
-        value
-    }
-}
-*/
 
 #[cfg(test)]
 mod test {
-    use crate::{ten, tensor::Tensor, linalg::matmul::Transpose, tf32};
+    use crate::{ten, linalg::matmul::Transpose};
 
     #[test]
     fn test_matvec_1_1() {
-        let a = ten!([[2.]]);
-        let b = ten!([3.]);
+        let a = ten![[2.]];
+        let b = ten![3.];
 
-        assert_eq!(a.matvec(&b), ten!([6.]));
+        assert_eq!(a.matvec(&b), ten![6.]);
     }
 
     #[test]
     fn test_matvec_1_2() {
-        let a = ten!([[1., 2.]]);
-        let b = ten!([3., 4.]);
+        let a = ten![[1., 2.]];
+        let b = ten![3., 4.];
 
-        assert_eq!(a.matvec(&b), ten!([11.]));
+        assert_eq!(a.matvec(&b), ten![11.]);
     }
 
     #[test]
     fn test_matvec_2_n() {
-        let a = ten!([[1.], [2.]]);
-        let b = ten!([2.]);
-        assert_eq!(a.matvec(&b), ten!([2., 4.]));
+        let a = ten![[1.], [2.]];
+        let b = ten![2.];
+        assert_eq!(a.matvec(&b), ten![2., 4.]);
 
-        let a = ten!([[1., 2.], [2., 3.]]);
-        let b = ten!([2., 3.]);
-        assert_eq!(a.matvec(&b), ten!([8., 13.]));
+        let a = ten![[1., 2.], [2., 3.]];
+        let b = ten![2., 3.];
+        assert_eq!(a.matvec(&b), ten![8., 13.]);
     }
 
     #[test]
     fn test_matvec_3_n() {
-        let a = ten!([[1.], [2.], [3.]]);
-        let b = ten!([2.]);
-        assert_eq!(a.matvec(&b), ten!([2., 4., 6.]));
+        let a = ten![[1.], [2.], [3.]];
+        let b = ten![2.];
+        assert_eq!(a.matvec(&b), ten![2., 4., 6.]);
     }
 
     #[test]
     fn test_matvec_t() {
-        let a = ten!([[1., 4.], [2., 5.], [3., 6.]]);
-        let b = ten!([10., 20.]);
-        assert_eq!(a.matvec(&b), ten!([90., 120., 150.]));
+        let a = ten![[1., 4.], [2., 5.], [3., 6.]];
+        let b = ten![10., 20.];
+        assert_eq!(a.matvec(&b), ten![90., 120., 150.]);
 
-        let a = ten!([[1., 2., 3.], [4., 5., 6.]]);
-        let b = ten!([10., 20.]);
-        assert_eq!(a.matvec_t(&b, Transpose::TransposeA), ten!([90., 120., 150.]));
+        let a = ten![[1., 2., 3.], [4., 5., 6.]];
+        let b = ten![10., 20.];
+        assert_eq!(a.matvec_t(&b, Transpose::TransposeA), ten![90., 120., 150.]);
     }
 
     #[test]
@@ -234,10 +184,10 @@ mod test {
     fn matvec_2x1_by_2() {
         // assert_eq!(a.matvec(&b), tensor!([2., 20.]));
         
-        let a = tf32!([[10.], [20.]]);
-        let x = tf32!([1., 3.]);
+        let a = ten![[10.], [20.]];
+        let x = ten![1., 3.];
 
-        assert_eq!(a.matvec(&x), tf32!([[10.], [20.]]));
+        assert_eq!(a.matvec(&x), ten![[10.], [20.]]);
     }
     
 }
