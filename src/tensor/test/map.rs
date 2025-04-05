@@ -145,26 +145,9 @@ fn fold_i32() {
     let t1 = ten![[1, 2, 3], [4, 5, 6]];
     let t2 = t1.fold(100, |s, v| s + v);
 
-    assert_eq!(t2.shape(), &[2].into());
-    assert_eq!(t2.size(), 2);
-    assert_eq!(t2, ten![106, 115]);
-    
-    let t1 = ten![
-        [[1, 2], [11, 12], [21, 22], [31, 32]],
-        [[101, 102], [111, 112], [121, 122], [131, 132]],
-        [[301, 302], [311, 312], [321, 322], [331, 332]],
-    ];
-
-    let t2 = t1.fold(1000, |s, v| s + v);
-
-    assert_eq!(t2, ten![
-        [1003, 1023, 1043, 1063],
-        [1203, 1223, 1243, 1263],
-        [1603, 1623, 1643, 1663],
-    ]);
-
-    assert_eq!(t2.shape(), &[3, 4].into());
-    assert_eq!(t2.size(), 12);
+    assert_eq!(t2, ten![121]);
+    assert_eq!(t2.shape(), &[1].into());
+    assert_eq!(t2.size(), 1);
 }
 
 #[test]

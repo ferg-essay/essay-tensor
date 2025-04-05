@@ -343,7 +343,7 @@ impl Shape {
 
     #[must_use]
     pub fn reduce(self) -> Shape {
-        if self.rank > 0 {
+        if self.rank > 1 {
             self.rremove(0)
         } else {
             self.with_cols(1)

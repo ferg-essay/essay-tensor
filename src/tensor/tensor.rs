@@ -44,7 +44,7 @@ impl<T: Type> Tensor<T> {
         }
     }
 
-    pub(crate) fn from_data(data: TensorData<T>, shape: impl Into<Shape>) -> Self {
+    pub(super) fn from_data(data: TensorData<T>, shape: impl Into<Shape>) -> Self {
         let shape = shape.into();
 
         assert_eq!(shape.size(), data.len());
@@ -212,7 +212,7 @@ impl<T: Type> Tensor<T> {
     }
 }
 
-impl<T: Type + Clone + 'static> Tensor<T> {
+impl<T: Type + Clone> Tensor<T> {
     pub fn from_slice(data: impl AsRef<[T]>) -> Self {
         let data = data.as_ref();
         assert!(data.len() > 0);
@@ -412,13 +412,6 @@ fn fmt_tensor_rec<T: Type + fmt::Debug>(
     }
 }
 
-impl<T: Type> From<()> for Tensor<T> {
-    // TODO: possible conflict with Tensors
-    fn from(_value: ()) -> Self {
-        Tensor::empty()
-    }
-}
-
 impl<T: Type> From<&Tensor<T>> for Tensor<T> {
     fn from(value: &Tensor<T>) -> Self {
         value.clone()
@@ -474,18 +467,31 @@ impl<T: Type + Clone, const N: usize> From<&Vec<[T; N]>> for Tensor<T> {
 
 impl<T: Type + Clone> From<&Vec<Vec<T>>> for Tensor<T> {
     fn from(value: &Vec<Vec<T>>) -> Self {
-        let mut data = Vec::new();
-
         let len_1 = value[0].len();
-        for v1 in value {
+
+        let data = value.iter().flat_map(|v1| {
             assert_eq!(len_1, v1.len());
 
-            for v2 in v1 {
-                data.push(v2.clone());
-            }
-        }
+            v1.iter().map(|v2| v2.clone())
+        }).collect();
 
         Tensor::from_vec(data, [value.len(), len_1])
+    }
+}
+
+impl<T: Type + Clone, const N: usize> From<&Vec<Vec<[T; N]>>> for Tensor<T> {
+    fn from(value: &Vec<Vec<[T; N]>>) -> Self {
+        let len_1 = value[0].len();
+
+        let data = value.iter().flat_map(|v1| {
+            assert_eq!(len_1, v1.len());
+
+            v1.iter().flat_map(|v2| {
+                v2.iter().map(|v3| v3.clone())
+            })
+        }).collect();
+
+        Tensor::from_vec(data, [value.len(), len_1, N])
     }
 }
 

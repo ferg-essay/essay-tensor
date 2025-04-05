@@ -87,7 +87,7 @@ impl<T: Type> Tensor<T> {
         S: Type + Clone,
         F: FnMut(S, &T) -> S
     {
-        fold(self, self.cols(), init, f)
+        fold(self, init, f)
     }
 
     pub fn fold_axis<S, F>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<S>
@@ -104,7 +104,7 @@ impl<T: Type> Tensor<T> {
         F: FnMut(S, &T) -> S,
         V: Type,
     {
-        fold(self, self.cols(), init, f)
+        fold(self, init, f)
     }
 
     pub fn fold_axis_into<S, F, V>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<V>
@@ -364,7 +364,6 @@ where
 
 pub(super) fn fold<U, S, V, F>(
     tensor: &Tensor<U>,
-    cols: usize,
     init: S,
     mut f: F,
 ) -> Tensor<V> 
@@ -374,26 +373,17 @@ where
     V: Type,
     F: FnMut(S, &U) -> S,
 {
-    let len = tensor.size() / cols;
-    assert!(cols * len == tensor.size());
-    
-    unsafe {
-        TensorData::<V>::unsafe_init(len, |o| {
-            let a = tensor.as_slice();
+    let len = tensor.size();
 
-            for j in 0..len {
-                let mut value = init.clone();
+    let a = tensor.as_slice();
 
-                let offset = j * cols;
+    let mut value = init.clone();
 
-                for i in 0..cols {
-                    value = (f)(value, &a[offset + i]);
-                }
-
-                o.add(j).write(value.into());
-            }
-        }).into_tensor(tensor.shape().clone().reduce())
+    for i in 0..len {
+        value = (f)(value, &a[i]);
     }
+
+    TensorData::<V>::from_vec(vec![value.into()]).into_tensor(Shape::scalar())
 }
 
 pub(super) fn fold_axis<T, V, S, F>(

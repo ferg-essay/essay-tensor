@@ -13,8 +13,7 @@ pub fn reduce_mean(a: &Tensor) -> Tensor {
 
 impl Tensor {
     pub fn reduce_mean(&self) -> Tensor {
-        // reduce_mean(self, opt)
-        todo!();
+        self.fold_into(Mean::default(), |s, v| s.update(*v))
     }
 
     pub fn reduce_std(&self) -> Tensor {
@@ -81,7 +80,7 @@ where
     todo!()
 } 
 */   
-
+/*
 pub fn reduce_axis<T, U, S, F>(
     tensor: &Tensor<T>,
     axis: impl Into<Axis>,
@@ -118,23 +117,28 @@ where
         }).into_tensor(o_shape)
     }
 }
-/*
-impl<T: Clone + 'static> Tensor<T> {
-    pub fn reduce_axis<U, S, F>(
-        &self,
-        axis: impl Into<Axis>,
-        init: S,
-        f: F,
-    ) -> Tensor<U> 
-    where
-        U: 'static,
-        S: Clone + Into<U>,
-        F: FnMut(S, &T) -> S,
-    {
-        reduce_axis(self, axis, init, f)
+*/
+
+#[derive(Default, Clone, Debug)]
+struct Mean {
+    n: usize,
+    sum: f32,
+}
+
+impl Mean {
+    fn update(self, value: f32) -> Self {
+        Self {
+            n: self.n + 1,
+            sum: self.sum + value,
+        }
     }
 }
-    */
+
+impl From<Mean> for f32 {
+    fn from(value: Mean) -> Self {
+        value.sum / value.n.max(1) as f32
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -208,4 +212,29 @@ mod test {
         assert_eq!(tf32!([[1.], [2.]]).reduce_sum_axis(0), tf32!([3.]));
         assert_eq!(tf32!([[1., 10.], [100., 1000.]]).reduce_sum_axis(0), tf32!([101., 1010.]));
     }
+    
+    #[test]
+    fn reduce_mean() {
+        assert_eq!(tf32!([1.]).reduce_mean(), tf32!([1.]));
+        assert_eq!(tf32!([1., 3.]).reduce_mean(), tf32!([2.]));
+        assert_eq!(tf32!([[1., 3.], [4., 0.]]).reduce_mean(), tf32!([2., 4.]));
+    }
+
+    /*
+    #[test]
+    fn reduce_mean_axis_m1() {
+        assert_eq!(tf32!([1.]).reduce_mean(().axis(Some(-1))), tf32!(1.));
+        assert_eq!(tf32!([1., 3.]).reduce_mean(().axis(Some(-1))), tf32!(2.));
+        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean(().axis(Some(-1))), tf32!([2., 5.]));
+        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean(().axis(Some(-1))), tf32!([[2.], [5.]]));
+    }
+    
+    #[test]
+    fn reduce_mean_axis_0() {
+        assert_eq!(tf32!([1.]).reduce_mean(().axis(Some(0))), tf32!(1.));
+        assert_eq!(tf32!([1., 3.]).reduce_mean(().axis(Some(0))), tf32!(2.));
+        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean(().axis(Some(0))), tf32!([2.5, 4.5]));
+        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean(().axis(Some(0))), tf32!([[2.5, 4.5]]));
+    }
+    */
 }
