@@ -14,6 +14,8 @@ pub use axis::Axis;
 
 pub(crate) use data::TensorData;
 
+pub use map::FoldState;
+
 pub use shape::Shape;
 
 pub use tensor::{

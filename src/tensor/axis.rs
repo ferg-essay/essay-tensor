@@ -72,10 +72,10 @@ impl Axis {
 
     }
 
-    pub fn reduce_row(&self, shape: &Shape) -> (Shape, usize, usize, usize) {
+    pub fn reduce_row(&self, shape: &Shape, cols: usize) -> (Shape, usize, usize, usize) {
         match self.axis {
             None => {
-                (Shape::from([1]), 1, shape.size() / shape.cols(), 1)
+                (Shape::from([cols]), 1, shape.size() / shape.cols(), 1)
             }
             Some(axis) => {
                 let rank = shape.rank();
@@ -83,7 +83,7 @@ impl Axis {
                 assert!(axis < rank);
             
                 if rank == 1 {
-                    return (Shape::scalar(), 1, shape.size(), 1)
+                    return (Shape::from([cols]), 1, shape.size(), 1)
                 }
 
                 assert!(axis + 1 < rank);
@@ -103,7 +103,8 @@ impl Axis {
                     vec.push(dim);
                     inner *= dim;
                 }
-                println!("Shape {} {:?}", axis, vec);
+
+                vec.push(cols);
             
                 (Shape::from(vec), outer, shape.dim(axis), inner)
             }

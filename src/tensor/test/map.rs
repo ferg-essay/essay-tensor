@@ -237,14 +237,14 @@ fn fold_row_i32() {
         [[1, 2], [11, 12]],
     ];
 
-    let t2 = t1.fold_row(None, 0, |s, v| {
+    let t2 = t1.fold_row(None, [1000, 2000], |s, v| {
         assert_eq!(v.len(), 2);
-        s + 1000 * v[0] + v[1]
+        [s[0] + v[0], s[1] + v[1]]
     });
 
-    assert_eq!(t2, ten![12014]);
-    assert_eq!(t2.shape(), &[1].into());
-    assert_eq!(t2.size(), 1);
+    assert_eq!(t2, ten![1012, 2014]);
+    assert_eq!(t2.shape(), &[2].into());
+    assert_eq!(t2.size(), 2);
 
     let t1 = ten![
         [[1, 2], [10, 20], [100, 200]],
@@ -252,14 +252,18 @@ fn fold_row_i32() {
         [[5, 6], [50, 60], [500, 600]],
     ];
 
-    let t2 = t1.fold_row(-2, 0, |s, v| {
+    let t2 = t1.fold_row(-2, [1000, 2000, 3000], |s, v| {
         assert_eq!(v.len(), 2);
-        s + 1000 * v[0] + v[1]
+        [s[0] + v[0], s[1] + v[1], s[2] + v[0] + v[1]]
     });
 
-    assert_eq!(t2, ten![111222, 333444, 555666]);
-    assert_eq!(t2.shape(), &[3].into());
-    assert_eq!(t2.size(), 3);
+    assert_eq!(t2, ten![
+        [1111, 2222, 3333],
+        [1333, 2444, 3777],
+        [1555, 2666, 4221]
+    ]);
+    assert_eq!(t2.shape(), &[3, 3].into());
+    assert_eq!(t2.size(), 9);
 }
 
 #[test]

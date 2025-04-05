@@ -82,25 +82,27 @@ impl<T: Type> Tensor<T> {
         todo!()
     }
 
-    pub fn fold<S, F>(&self, init: S, f: F) -> Tensor<S>
+    pub fn fold<S, F, V>(&self, init: S, f: F) -> Tensor<V>
     where
-        S: Type + Clone,
-        F: FnMut(S, &T) -> S
+        S: Clone + FoldState<Out=V>,
+        F: FnMut(S, &T) -> S,
+        V: Type,
     {
         fold(self, init, f)
     }
 
-    pub fn fold_axis<S, F>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<S>
+    pub fn fold_axis<S, F, V>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<V>
     where
-        S: Type + Clone,
-        F: FnMut(S, &T) -> S
+        S: Clone + FoldState<Out=V>,
+        F: FnMut(S, &T) -> S,
+        V: Type,
     {
-        fold_axis(&self, axis, init, f)
+        fold_axis(self, axis, init, f)
     }
 
     pub fn fold_into<S, F, V>(&self, init: S, f: F) -> Tensor<V>
     where
-        S: Clone + Into<V>,
+        S: Clone + FoldState<Out=V>,
         F: FnMut(S, &T) -> S,
         V: Type,
     {
@@ -109,22 +111,23 @@ impl<T: Type> Tensor<T> {
 
     pub fn fold_axis_into<S, F, V>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<V>
     where
-        S: Clone + Into<V>,
+        S: Clone + FoldState<Out=V>,
         F: FnMut(S, &T) -> S,
         V: Type,
     {
         fold_axis(self, axis, init, f)
     }
 
-    pub fn fold_row<S, F, V>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<V>
+    pub fn fold_row<const N: usize, S, F, V>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<V>
     where
-        S: Clone + Into<V>,
+        S: Clone + FoldState<Out=[V; N]>,
         F: FnMut(S, &[T]) -> S,
         V: Type,
     {
         fold_row(&self, axis, init, f)
     }
 }
+
 impl<T: Type + Clone> Tensor<T> {
     pub fn reduce(&self, f: impl FnMut(T, T) -> T) -> Tensor<T> {
         let shape = if self.shape().rank() > 1 {
@@ -354,7 +357,7 @@ pub(super) fn fold<U, S, V, F>(
 ) -> Tensor<V> 
 where
     U: Type,
-    S: Clone + Into<V>,
+    S: Clone + FoldState<Out=V>,
     V: Type,
     F: FnMut(S, &U) -> S,
 {
@@ -368,7 +371,7 @@ where
         value = (f)(value, &a[i]);
     }
 
-    TensorData::<V>::from_vec(vec![value.into()]).into_tensor(Shape::scalar())
+    TensorData::<V>::from_vec(vec![value.into_result()]).into_tensor(Shape::scalar())
 }
 
 pub(super) fn fold_axis<T, V, S, F>(
@@ -379,7 +382,7 @@ pub(super) fn fold_axis<T, V, S, F>(
 ) -> Tensor<V> 
 where
     T: Type,
-    S: Clone + Into<V>,
+    S: Clone + FoldState<Out=V>,
     F: FnMut(S, &T) -> S,
     V: Type,
 {
@@ -401,14 +404,14 @@ where
                         state = (f)(state, v);
                     }
 
-                    o.add(n * inner + i).write(state.into());
+                    o.add(n * inner + i).write(state.into_result());
                 }
             }
         }).into_tensor(o_shape)
     }
 }
 
-pub(super) fn fold_row<T, V, S, F>(
+pub(super) fn fold_row<const N: usize, T, V, S, F>(
     tensor: &Tensor<T>,
     axis: impl Into<Axis>,
     init: S,
@@ -416,36 +419,58 @@ pub(super) fn fold_row<T, V, S, F>(
 ) -> Tensor<V> 
 where
     T: Type,
-    S: Clone + Into<V>,
+    S: Clone + FoldState<Out=[V; N]>,
     F: FnMut(S, &[T]) -> S,
     V: Type,
 {
     let axis = axis.into();
 
-    let (o_shape, batch, a_len, inner) = axis.reduce_row(tensor.shape());
+    let (o_shape, batch, a_len, inner) = axis.reduce_row(tensor.shape(), N);
     let cols = tensor.cols();
-    //assert!(cols <= a_len);
-    //let a_len = a_len / cols;
 
     unsafe {
         TensorData::<V>::unsafe_init(o_shape.size(), |o| {
-            for n in 0..batch {
+            for b in 0..batch {
                 for j in 0..inner {
                     let mut state = init.clone();
 
                     for k in 0..a_len {
-                        let offset = (n * a_len + k) * inner + j;
+                        let offset = (b * a_len + k) * inner + j;
                         let v = tensor.as_wrap_slice_n(cols * offset, cols);
 
                         state = (f)(state, v);
                     }
 
-                    let value = state.into();
+                    let value = state.into_result();
 
-                    o.add(n * inner + j).write(value);
+                    for (i, value) in value.into_iter().enumerate() {
+                        o.add((b * inner + j) * N + i).write(value);
+                    }
                 }
             }
         }).into_tensor(o_shape)
+    }
+}
+
+pub trait FoldState {
+    type Out;
+
+    fn into_result(self) -> Self::Out;
+}
+
+impl<T: Type> FoldState for T {
+    type Out = T;
+    
+    fn into_result(self) -> Self::Out {
+        self
+    }
+}
+
+impl<const N: usize, T: Type> FoldState for [T; N] {
+    type Out = [T; N];
+    
+    fn into_result(self) -> Self::Out {
+        self
     }
 }
 

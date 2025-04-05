@@ -1,5 +1,4 @@
 mod reduce;
-mod reduce_std;
 use std::ops;
 
 use num_traits::{Float, Num, One, Signed, Zero};
@@ -36,7 +35,7 @@ pub use reduce_max::reduce_max;
 pub use reduce_sum::{reduce_sum, reduce_sum_opt};
 */
 // pub use reduce::reduce_axis;
-pub use reduce_std::reduce_std;
+//pub use reduce_std::reduce_std;
 /*
 pub use reduce_variance::reduce_variance;
 
@@ -455,6 +454,21 @@ impl<T: Type + Float + Clone> Tensor<T> {
     pub fn to_radians(&self) -> Tensor<T> {
         self.map(|a| a.to_radians())
     }
+
+    #[inline]
+    pub fn sin(&self) -> Tensor<T> {
+        self.map(|a| a.sin())
+    }
+
+    #[inline]
+    pub fn cos(&self) -> Tensor<T> {
+        self.map(|a| a.cos())
+    }
+
+    #[inline]
+    pub fn sin_cos(&self) -> Tensor<(T, T)> {
+        self.map(|a| a.sin_cos())
+    }
 }
 
 macro_rules! tensor_ops2 {
@@ -600,6 +614,8 @@ tensor_ops2_scalar!(i32, Rem, rem, rem, rem_st, rem_ts);
 
 #[cfg(test)]
 mod test {
+    use std::f32::consts::PI;
+
     use crate::{ten, tf32};
 
     #[test]
@@ -711,6 +727,12 @@ mod test {
     #[test]
     fn add_i32() {
         assert_eq!(ten!(2) + ten!(3), ten!(5));
+        assert_eq!(ten![2, 20] + ten![3, 30], ten![5, 50]);
+        assert_eq!(
+            ten![[2, 20], [200, 2000]] + ten![[3, 30], [300, 3000]],
+            ten![[5, 50], [500, 5000]]
+        );
+
         assert_eq!(ten!(2) + &ten!(3), ten!(5));
         assert_eq!(&ten!(2) + ten!(3), ten!(5));
         assert_eq!(&ten!(2) + &ten!(3), ten!(5));
@@ -720,5 +742,20 @@ mod test {
 
         assert_eq!(&ten!(2) + 3, ten!(5));
         assert_eq!(3 + &ten!(2), ten!(5));
+    }
+
+    #[test]
+    fn sin_cos() {
+        assert_eq!(ten![0.].sin_cos(), ten![(0., 1.)]);
+        assert_eq!(
+            ten![0., PI / 2., PI, 3. * PI / 2., 2. * PI].sin_cos(), 
+            ten![
+                (0.0, 1.0),
+                (1.0, -4.371139e-8),
+                (-8.742278e-8, -1.0),
+                (-1.0, 1.1924881e-8),
+                (1.7484555e-7, 1.0)
+            ]
+        );
     }
 }

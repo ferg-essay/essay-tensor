@@ -2,13 +2,9 @@ use std::ops;
 
 use num_traits::{Float, Zero};
 
-use crate::tensor::{Axis, Tensor, TensorData, Type};
+use crate::tensor::{Axis, FoldState, Tensor, Type};
 
-use super::reduce_std;
-
-pub fn reduce_mean(a: &Tensor) -> Tensor {
-    // reduce_op(a, ReduceMean, opt)
-    todo!();
+impl<T: Type + Float + Zero> Tensor<T> {
 }
 
 impl Tensor {
@@ -16,8 +12,16 @@ impl Tensor {
         self.fold_into(Mean::default(), |s, v| s.update(*v))
     }
 
+    pub fn reduce_mean_axis(&self, axis: impl Into<Axis>) -> Tensor {
+        self.fold_axis_into(axis, Mean::default(), |s, v| s.update(*v))
+    }
+
     pub fn reduce_std(&self) -> Tensor {
-        reduce_std(&self)
+        self.fold_into(Std::default(), |s, v| s.update(*v))
+    }
+    
+    pub fn reduce_std_axis(&self, axis: impl Into<Axis>) -> Tensor {
+        self.fold_axis_into(axis, Std::default(), |s, v| s.update(*v))
     }
     
     pub fn reduce_var(&self) -> Tensor {
@@ -65,60 +69,6 @@ impl<T: Type + ops::Mul<Output=T> + Clone> Tensor<T> {
     }
 }
 
-/*
-pub fn reduce<T, U, S, F>(
-    tensor: &Tensor<T>,
-    init: S,
-    f: F,
-) -> Tensor<U> 
-where
-    U: 'static,
-    S: Clone + Into<U>,
-    F: FnMut(S, &T) -> S
-{
-    // tensor.reduce(init, f)
-    todo!()
-} 
-*/   
-/*
-pub fn reduce_axis<T, U, S, F>(
-    tensor: &Tensor<T>,
-    axis: impl Into<Axis>,
-    init: S,
-    mut f: F,
-) -> Tensor<U> 
-where
-    T: Type,
-    U: Type,
-    S: Clone + Into<U>,
-    F: FnMut(S, &T) -> S,
-{
-    let axis = axis.into();
-
-    let (o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
-
-    unsafe {
-        TensorData::<U>::unsafe_init(o_shape.size(), |o| {
-            let a = tensor.as_slice();
-
-            for n in 0..batch {
-                for i in 0..inner {
-                    let mut state = init.clone();
-
-                    for k in 0..a_len {
-                        let v = &a[n * a_len * inner + i + k * inner];
-
-                        state = (f)(state, v);
-                    }
-
-                    o.add(n * inner + i).write(state.into());
-                }
-            }
-        }).into_tensor(o_shape)
-    }
-}
-*/
-
 #[derive(Default, Clone, Debug)]
 struct Mean {
     n: usize,
@@ -134,9 +84,62 @@ impl Mean {
     }
 }
 
-impl From<Mean> for f32 {
-    fn from(value: Mean) -> Self {
-        value.sum / value.n.max(1) as f32
+impl FoldState for Mean {
+    type Out = f32;
+
+    fn into_result(self) -> Self::Out {
+        self.sum / self.n.max(1) as f32
+    }
+}
+
+#[derive(Clone)]
+struct Std {
+    k: usize,
+    m: f32,
+    s: f32,
+}
+
+impl Std {
+    fn update(self, x: f32) -> Self {
+        // from Welford 1962
+        if self.k == 0 {
+            Std {
+                k: 1,
+                m: x,
+                s: 0.,
+            }
+        } else {
+            let k = self.k + 1;
+            let m = self.m + (x - self.m) / k as f32;
+
+            Std {
+                k,
+                m, 
+                s: self.s + (x - self.m) * (x - m),
+            }
+        }
+    }
+}
+
+impl Default for Std {
+    fn default() -> Self {
+        Self { 
+            k: 0,
+            s: 0.,
+            m: 0.,
+        }
+    }
+}
+
+impl FoldState for Std {
+    type Out=f32;
+
+    fn into_result(self) -> Self::Out {
+        if self.k > 1 { 
+            (self.s / self.k as f32).sqrt()
+        } else {
+            0.
+        }
     }
 }
 
@@ -217,24 +220,44 @@ mod test {
     fn reduce_mean() {
         assert_eq!(tf32!([1.]).reduce_mean(), tf32!([1.]));
         assert_eq!(tf32!([1., 3.]).reduce_mean(), tf32!([2.]));
-        assert_eq!(tf32!([[1., 3.], [4., 0.]]).reduce_mean(), tf32!([2., 4.]));
+        // Axis::None behavior is to treat the tensor as flat
+        assert_eq!(tf32!([[1., 3.], [4., 0.]]).reduce_mean(), tf32!([2.]));
     }
 
-    /*
     #[test]
-    fn reduce_mean_axis_m1() {
-        assert_eq!(tf32!([1.]).reduce_mean(().axis(Some(-1))), tf32!(1.));
-        assert_eq!(tf32!([1., 3.]).reduce_mean(().axis(Some(-1))), tf32!(2.));
-        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean(().axis(Some(-1))), tf32!([2., 5.]));
-        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean(().axis(Some(-1))), tf32!([[2.], [5.]]));
+    fn reduce_mean_axis() {
+        assert_eq!(tf32!([1.]).reduce_mean_axis(None), tf32!(1.));
+        assert_eq!(tf32!([1., 3.]).reduce_mean_axis(None), tf32!(2.));
+        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean_axis(None), tf32!([3.5]));
+        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean_axis(None), tf32!([3.5]));
+
+        assert_eq!(tf32!([1.]).reduce_mean_axis(Axis::axis(-1)), tf32!(1.));
+        assert_eq!(tf32!([1., 3.]).reduce_mean_axis(-1), tf32!(2.));
+        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean_axis(-1), tf32!([2., 5.]));
+        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean_axis(-1), tf32!([[2.], [5.]]));
+
+        assert_eq!(tf32!([1.]).reduce_mean_axis(0), tf32!(1.));
+        assert_eq!(tf32!([1., 3.]).reduce_mean_axis(0), tf32!(2.));
+        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean_axis(0), tf32!([2.5, 4.5]));
+        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean_axis(0), tf32!([[2.5, 4.5]]));
     }
-    
+
     #[test]
-    fn reduce_mean_axis_0() {
-        assert_eq!(tf32!([1.]).reduce_mean(().axis(Some(0))), tf32!(1.));
-        assert_eq!(tf32!([1., 3.]).reduce_mean(().axis(Some(0))), tf32!(2.));
-        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean(().axis(Some(0))), tf32!([2.5, 4.5]));
-        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean(().axis(Some(0))), tf32!([[2.5, 4.5]]));
+    fn reduce_std() {
+        assert_eq!(tf32!([1.]).reduce_std(), tf32!(0.));
+        assert_eq!(tf32!([1., 1.]).reduce_std(), tf32!(0.));
+        assert_eq!(tf32!([2., 2., 2., 2.]).reduce_std(), tf32!(0.));
+
+        assert_eq!(tf32!([1., 3., 2., 2.]).reduce_std(), tf32!(0.70710677));
+        assert_eq!(tf32!([[1., 3.], [2., 2.]]).reduce_std(), tf32!(0.70710677));
+        assert_eq!(tf32!([[1., 3.], [2., 2.]]).reduce_std_axis(None), tf32!(0.70710677));
+        assert_eq!(tf32!([[1., 3.], [2., 2.]]).reduce_std_axis(-1), tf32!([1.0, 0.0]));
+        assert_eq!(tf32!([[1., 3.], [2., 2.]]).reduce_std_axis(0), tf32!([0.5, 0.5]));
+
+        assert_eq!(tf32!([1., 3.]).reduce_std(), tf32!(1.));
+        assert_eq!(tf32!([1., 3., 3.]).reduce_std(), tf32!(0.94280905));
+        assert_eq!(tf32!([1., 3., 1., 3.]).reduce_std(), tf32!(1.));
+        assert_eq!(tf32!([1., 3., 4., 0.]).reduce_std(), tf32!(1.5811388));
+        assert_eq!(tf32!([1., 3., 4., 0., 2.]).reduce_std(), tf32!(1.4142135));
     }
-    */
 }
