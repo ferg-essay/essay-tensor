@@ -7,7 +7,7 @@ use std::{
 
 use crate::tensor::Tensor;
 
-use super::{Axis, Shape, Type};
+use super::{Shape, Type};
 
 pub(crate) struct TensorData<T: Type> {
     data: NonNull<T>,
@@ -360,15 +360,13 @@ mod test {
         vec.push([0x03, 0x3000, 0x03_0000]);
         vec.push([0x04, 0x4000, 0x04_0000]);
 
-        unsafe {
-            let data = TensorData::from_vec_rows(vec);
-            assert_eq!(data.as_sub_slice(0, data.len()), &[
-                0x01, 0x1000, 0x01_0000,
-                0x02, 0x2000, 0x02_0000,
-                0x03, 0x3000, 0x03_0000,
-                0x04, 0x4000, 0x04_0000,
-            ]);
-        }
+        let data = TensorData::from_vec_rows(vec);
+        assert_eq!(data.as_sub_slice(0, data.len()), &[
+            0x01, 0x1000, 0x01_0000,
+            0x02, 0x2000, 0x02_0000,
+            0x03, 0x3000, 0x03_0000,
+            0x04, 0x4000, 0x04_0000,
+        ]);
     }
 
     #[test]
@@ -380,14 +378,12 @@ mod test {
         vec.push([[11, 21], [111, 121], [211, 221]]);
         vec.push([[12, 22], [112, 122], [212, 222]]);
 
-        unsafe {
-            let data = TensorData::from_vec_matrices(vec);
-            assert_eq!(data.as_sub_slice(0, data.len()), &[
-                10, 20, 110, 120, 210, 220,
-                11, 21, 111, 121, 211, 221,
-                12, 22, 112, 122, 212, 222,
-            ]);
-        }
+        let data = TensorData::from_vec_matrices(vec);
+        assert_eq!(data.as_sub_slice(0, data.len()), &[
+            10, 20, 110, 120, 210, 220,
+            11, 21, 111, 121, 211, 221,
+            12, 22, 112, 122, 212, 222,
+        ]);
     }
 
     #[test]
@@ -408,16 +404,16 @@ mod test {
     #[test]
     fn data_as_slice() {
         let data = TensorData::from_vec(vec![1., 2., 3.]);
-        unsafe { assert_eq!(data.as_sub_slice(0, 3), &[1., 2., 3.]); }
+        assert_eq!(data.as_sub_slice(0, 3), &[1., 2., 3.]);
 
         let data = TensorData::from_vec(vec![1., 2., 3.]);
-        unsafe { assert_eq!(data.as_sub_slice(0, 2), &[1., 2.]); }
+        assert_eq!(data.as_sub_slice(0, 2), &[1., 2.]);
 
         let data = TensorData::from_vec(vec![1., 2., 3.]);
-        unsafe { assert_eq!(data.as_sub_slice(1, 2), &[2., 3.]); }
+        assert_eq!(data.as_sub_slice(1, 2), &[2., 3.]);
 
         let data = TensorData::from_vec(vec![1., 2., 3.]);
-        unsafe { assert_eq!(data.as_sub_slice(1, 0), &[]); }
+        assert_eq!(data.as_sub_slice(1, 0), &[]);
     }
 
     #[test]

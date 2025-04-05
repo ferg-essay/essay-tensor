@@ -2,7 +2,7 @@ use core::fmt;
 use std::{any::type_name, ops::Deref, slice, sync::Arc};
 
 use super::{
-    data::TensorData, map, slice::TensorSlice, Axis, Shape
+    data::TensorData, slice::TensorSlice, Shape
 };
 
 pub struct Tensor<T: Type=f32> {
@@ -265,42 +265,6 @@ impl<T: Type + Clone + 'static> Tensor<T> {
 }
 
 impl<T: Type + Clone> Tensor<T> {
-    pub fn reduce(&self, f: impl FnMut(T, T) -> T) -> Tensor<T> {
-        let shape = if self.shape().rank() > 1 {
-            self.shape().clone().rremove(0)
-        } else {
-            Shape::from([1])
-        };
-
-        map::reduce(self, f).into_tensor(shape)
-    }
-
-    pub fn reduce_axis(&self, axis: impl Into<Axis>, f: impl FnMut(T, T) -> T) -> Tensor<T> {
-        map::reduce_axis(self, axis, f)
-    }
-
-    pub fn init<F>(shape: impl Into<Shape>, f: F) -> Self
-    where
-        F: FnMut() -> T
-    {
-        let shape = shape.into();
-
-        Self::from_data(map::init(&shape, f), shape)
-    }
-
-    pub fn init_indexed<F>(shape: impl Into<Shape>, f: F) -> Self
-    where
-        F: FnMut(&[usize]) -> T
-    {
-        let shape = shape.into();
-
-        Self::from_data(map::init_indexed(&shape, f), shape)
-    }
-
-    pub fn fill(shape: impl Into<Shape>, value: T) -> Self {
-        Self::init(shape, || value.clone())
-    }
-
     pub fn slice<S: TensorSlice>(&self, index: S) -> Tensor<T> {
         S::slice(index, &self)
     }

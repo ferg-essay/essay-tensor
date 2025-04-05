@@ -318,20 +318,6 @@ impl Shape {
         }
     }
 
-    pub fn reduce(&self) -> Shape {
-        let mut dims = [0; Self::MAX_RANK];
-
-        dims[0] = 1;
-        for i in 0..self.rank - 1 {
-            dims[i] = self.dims[i + 1];
-        }
-
-        Self {
-            dims,
-            rank: self.rank.max(2) - 1,
-        }
-    }
-
     #[must_use]
     pub fn remove(self, axis: usize) -> Shape {
         assert!(axis < self.rank);
@@ -353,6 +339,15 @@ impl Shape {
         self.dims[self.rank] = 0;
 
         self
+    }
+
+    #[must_use]
+    pub fn reduce(self) -> Shape {
+        if self.rank > 0 {
+            self.rremove(0)
+        } else {
+            self.with_cols(1)
+        }
     }
 
     #[must_use]
