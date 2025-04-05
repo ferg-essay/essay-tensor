@@ -1,6 +1,6 @@
-use std::ops;
+use std::ops::{self, Shl};
 
-use num_traits::{Num, Signed};
+use num_traits::{Num, PrimInt, Signed};
 
 use crate::tensor::{Tensor, Type};
 
@@ -64,59 +64,105 @@ impl<T: ops::Neg<Output=T> + Type + Clone> ops::Neg for &Tensor<T> {
 }
 
 //
+// inverse
+//
+
+impl<T: ops::Not<Output=T> + Type + Clone> ops::Not for Tensor<T> {
+    type Output = Tensor<T>;
+
+    fn not(self) -> Self::Output {
+        self.map(|v| !v.clone())
+    }
+}
+
+impl<T: ops::Not<Output=T> + Type + Clone> ops::Not for &Tensor<T> {
+    type Output = Tensor<T>;
+
+    fn not(self) -> Self::Output {
+        self.map(|v| !v.clone())
+    }
+}
+
+//
 // Num binary operations: Add, Sub, Mul, Div, Rem
 //
 
 macro_rules! tensor_ops2 {
-    ($ty:ident, $($sty:ty)*, $op:ident, $fun:ident, $x:ident, $y:ident, $binop:expr) => {
-        impl<T: $ty + Type + Clone> ops::$op<Tensor<T>> for Tensor<T>
+    ($op:ident, $fun:ident, $x:ident, $y:ident, $binop:expr, $($sty:ty)*) => {
+        impl<T, U, V> ops::$op<Tensor<U>> for Tensor<T>
+        where
+            T: ops::$op<U, Output=V> + Type + Clone,
+            U: Type + Clone,
+            V: Type
         {
-            type Output = Tensor<T>;
+            type Output = Tensor<V>;
         
-            fn $fun(self, rhs: Tensor<T>) -> Self::Output {
+            fn $fun(self, rhs: Tensor<U>) -> Self::Output {
                 self.map2(&rhs, |$x, $y| $binop)
             }
         }
 
-        impl<T: $ty + Type + Clone> ops::$op<Tensor<T>> for &Tensor<T> 
+        impl<T, U, V> ops::$op<Tensor<U>> for &Tensor<T>
+        where
+            T: ops::$op<U, Output=V> + Type + Clone,
+            U: Type + Clone,
+            V: Type
         {
-            type Output = Tensor<T>;
+            type Output = Tensor<V>;
         
-            fn $fun(self, rhs: Tensor<T>) -> Self::Output {
+            fn $fun(self, rhs: Tensor<U>) -> Self::Output {
                 self.map2(&rhs, |$x, $y| $binop)
             }
         }
 
-        impl<T: $ty + Type + Clone> ops::$op<&Tensor<T>> for Tensor<T>
+        impl<T, U, V> ops::$op<&Tensor<U>> for Tensor<T>
+        where
+            T: ops::$op<U, Output=V> + Type + Clone,
+            U: Type + Clone,
+            V: Type
         {
-            type Output = Tensor<T>;
+            type Output = Tensor<V>;
         
-            fn $fun(self, rhs: &Tensor<T>) -> Self::Output {
-                self.map2(rhs, |$x, $y| $binop)
+            fn $fun(self, rhs: &Tensor<U>) -> Self::Output {
+                self.map2(&rhs, |$x, $y| $binop)
             }
         }
 
-        impl<T: $ty + Type + Clone> ops::$op<&Tensor<T>> for &Tensor<T> 
+        impl<T, U, V> ops::$op<&Tensor<U>> for &Tensor<T>
+        where
+            T: ops::$op<U, Output=V> + Type + Clone,
+            U: Type + Clone,
+            V: Type
         {
-            type Output = Tensor<T>;
+            type Output = Tensor<V>;
         
-            fn $fun(self, rhs: &Tensor<T>) -> Self::Output {
-                self.map2(rhs, |$x, $y| $binop)
+            fn $fun(self, rhs: &Tensor<U>) -> Self::Output {
+                self.map2(&rhs, |$x, $y| $binop)
             }
         }
 
-        impl<T: $ty + Type + Clone> ops::$op<T> for Tensor<T> {
-            type Output = Tensor<T>;
+        impl<T, U, V> ops::$op<U> for Tensor<T>
+        where
+            T: ops::$op<U, Output=V> + Type + Clone,
+            U: Type + Clone,
+            V: Type
+        {
+            type Output = Tensor<V>;
     
-            fn $fun(self, $y: T) -> Self::Output {
+            fn $fun(self, $y: U) -> Self::Output {
                 self.map(|$x| $binop)
             }
         }
 
-        impl<T: $ty + Type + Clone> ops::$op<T> for &Tensor<T> {
-            type Output = Tensor<T>;
+        impl<T, U, V> ops::$op<U> for &Tensor<T>
+        where
+            T: ops::$op<U, Output=V> + Type + Clone,
+            U: Type + Clone,
+            V: Type
+        {
+            type Output = Tensor<V>;
     
-            fn $fun(self, $y: T) -> Self::Output {
+            fn $fun(self, $y: U) -> Self::Output {
                 self.map(|$x| $binop)
             }
         }
@@ -145,28 +191,55 @@ macro_rules! tensor_ops2 {
 }
 
 tensor_ops2!(
-    Num, i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64,
-    Add, add, x, y, x.clone() + y.clone()
+    Add, add, x, y, x.clone() + y.clone(),
+    i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64
 );
 
 tensor_ops2!(
-    Num, i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64,
-    Sub, sub, x, y, x.clone() - y.clone()
+    Sub, sub, x, y, x.clone() - y.clone(),
+    i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64
 );
 
 tensor_ops2!(
-    Num, i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64,
-    Mul, mul, x, y, x.clone() * y.clone()
+    Mul, mul, x, y, x.clone() * y.clone(),
+    i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64
 );
 
 tensor_ops2!(
-    Num, i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64,
-    Div, div, x, y, x.clone() / y.clone()
+    Div, div, x, y, x.clone() / y.clone(),
+    i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64
 );
 
 tensor_ops2!(
-    Num, i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64,
-    Rem, rem, x, y, x.clone() % y.clone()
+    Rem, rem, x, y, x.clone() % y.clone(),
+    i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64
+);
+
+// Integer operations
+
+tensor_ops2!(
+    BitAnd, bitand, x, y, x.clone() & y.clone(),
+    bool i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize    
+);
+
+tensor_ops2!(
+    BitOr, bitor, x, y, x.clone() | y.clone(),
+    bool i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize
+);
+
+tensor_ops2!(
+    BitXor, bitxor, x, y, x.clone() ^ y.clone(),
+    bool i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize    
+);
+
+tensor_ops2!(
+    Shl, shl, x, y, x.clone() << y.clone(), 
+    i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize    
+);
+
+tensor_ops2!(
+    Shr, shr, x, y, x.clone() >> y.clone(), 
+    i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize    
 );
 
 #[cfg(test)]
@@ -240,17 +313,31 @@ mod test {
     }
 
     #[test]
-    fn add_f32() {
-        assert_eq!(tf32!(2.) + tf32!(3.), tf32!(5.));
-        assert_eq!(tf32!(2.) + &tf32!(3.), tf32!(5.));
-        assert_eq!(&tf32!(2.) + tf32!(3.), tf32!(5.));
-        assert_eq!(&tf32!(2.) + &tf32!(3.), tf32!(5.));
+    fn binop_patterns() {
+        assert_eq!(ten![2, 20] + ten![3, 30], ten![5, 50]);
+        assert_eq!(ten![2, 20] + &ten![3, 30], ten![5, 50]);
+        assert_eq!(&ten![2, 20] + ten![3, 30], ten![5, 50]);
+        assert_eq!(&ten![2, 20]+ &ten![3, 30], ten![5, 50]);
 
-        assert_eq!(tf32!(2.) + 3., tf32!(5.));
-        assert_eq!(3. + tf32!(2.), tf32!(5.));
+        assert_eq!(ten![2, 20] + 3, ten![5, 23]);
+        assert_eq!(3 + ten![2, 20], ten![5, 23]);
 
-        assert_eq!(&tf32!(2.) + 3., tf32!(5.));
-        assert_eq!(3. + &tf32!(2.), tf32!(5.));
+        assert_eq!(&ten![2, 20] + 3, ten![5, 23]);
+        assert_eq!(3 + &ten![2, 20], ten![5, 23]);
+    }
+
+    #[test]
+    fn binop_patterns_order() {
+        assert_eq!(ten![3, 30] - ten![2, 20], ten![1, 10]);
+        assert_eq!(ten![3, 30] - &ten![2, 20], ten![1, 10]);
+        assert_eq!(&ten![3, 30] - ten![2, 20], ten![1, 10]);
+        assert_eq!(&ten![3, 30]- &ten![2, 20], ten![1, 10]);
+
+        assert_eq!(ten![3, 30] - 2, ten![1, 28]);
+        assert_eq!(2 - ten![3, 30], ten![-1, -28]);
+
+        assert_eq!(&ten![3, 30] - 2, ten![1, 28]);
+        assert_eq!(2 - &ten![3, 30], ten![-1, -28]);
     }
 
     #[test]
@@ -291,5 +378,76 @@ mod test {
 
         assert_eq!(&ten!(2) + 3, ten!(5));
         assert_eq!(3 + &ten!(2), ten!(5));
+    }
+
+    #[test]
+    fn bitand_patterns() {
+        assert_eq!(ten![0x3] & ten![0x6], ten![0x2]);
+        assert_eq!(ten![0x3] & &ten![0x6], ten![0x2]);
+        assert_eq!(&ten![0x3] & ten![0x6], ten![0x2]);
+        assert_eq!(&ten![0x3] & &ten![0x6], ten![0x2]);
+
+        assert_eq!(0x3 & ten![0x6], ten![0x2]);
+        assert_eq!(0x3 & &ten![0x6], ten![0x2]);
+        assert_eq!(ten![0x3] & 0x6, ten![0x2]);
+        assert_eq!(&ten![0x3] & 0x6, ten![0x2]);
+    }
+
+    #[test]
+    fn bitor_patterns() {
+        assert_eq!(ten![0x3] | ten![0x6], ten![0x7]);
+        assert_eq!(ten![0x3] | &ten![0x6], ten![0x7]);
+        assert_eq!(&ten![0x3] | ten![0x6], ten![0x7]);
+        assert_eq!(&ten![0x3] | &ten![0x6], ten![0x7]);
+
+        assert_eq!(0x3 | ten![0x6], ten![0x7]);
+        assert_eq!(0x3 | &ten![0x6], ten![0x7]);
+        assert_eq!(ten![0x3] | 0x6, ten![0x7]);
+        assert_eq!(&ten![0x3] | 0x6, ten![0x7]);
+    }
+
+    #[test]
+    fn bitxor_patterns() {
+        assert_eq!(ten![0x3] ^ ten![0x6], ten![0x5]);
+        assert_eq!(ten![0x3] ^ &ten![0x6], ten![0x5]);
+        assert_eq!(&ten![0x3] ^ ten![0x6], ten![0x5]);
+        assert_eq!(&ten![0x3] ^ &ten![0x6], ten![0x5]);
+
+        assert_eq!(0x3 ^ ten![0x6], ten![0x5]);
+        assert_eq!(0x3 ^ &ten![0x6], ten![0x5]);
+        assert_eq!(ten![0x3] ^ 0x6, ten![0x5]);
+        assert_eq!(&ten![0x3] ^ 0x6, ten![0x5]);
+    }
+
+    #[test]
+    fn shl_patterns() {
+        assert_eq!(ten![0x3] << ten![0x2], ten![0xc]);
+        assert_eq!(ten![0x3] << &ten![0x2], ten![0xc]);
+        assert_eq!(&ten![0x3] << ten![0x2], ten![0xc]);
+        assert_eq!(&ten![0x3] << &ten![0x2], ten![0xc]);
+
+        assert_eq!(0x3 << ten![0x2], ten![0xc]);
+        assert_eq!(0x3 << &ten![0x2], ten![0xc]);
+        assert_eq!(ten![0x3] << 0x2, ten![0xc]);
+        assert_eq!(&ten![0x3] << 0x2, ten![0xc]);
+    }
+
+    #[test]
+    fn shr_patterns() {
+        assert_eq!(ten![0xc] >> ten![0x2], ten![0x3]);
+        assert_eq!(ten![0xc] >> &ten![0x2], ten![0x3]);
+        assert_eq!(&ten![0xc] >> ten![0x2], ten![0x3]);
+        assert_eq!(&ten![0xc] >> &ten![0x2], ten![0x3]);
+
+        assert_eq!(0xc >> ten![0x2], ten![0x3]);
+        assert_eq!(0xc >> &ten![0x2], ten![0x3]);
+        assert_eq!(ten![0xc] >> 0x2, ten![0x3]);
+        assert_eq!(&ten![0xc] >> 0x2, ten![0x3]);
+    }
+
+    #[test]
+    fn not_patterns() {
+        assert_eq!(! ten![0x3], ten![-4]);
+        assert_eq!(! &ten![0x3], ten![-4]);
     }
 }
