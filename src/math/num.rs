@@ -1,6 +1,6 @@
-use std::ops::{self, Shl};
+use std::ops;
 
-use num_traits::{Num, PrimInt, Signed};
+use num_traits::Signed;
 
 use crate::tensor::{Tensor, Type};
 
@@ -43,8 +43,21 @@ impl<T: Type + Ord + Clone> Tensor<T> {
     }
 }
 
+impl<T: Type + PartialOrd> PartialOrd for Tensor<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.iter().partial_cmp(other.iter())
+    }
+}
+
+impl<T: Type + ops::Mul<Output=V> + Clone, V: Type> Tensor<T> {
+    #[inline]
+    pub fn square(&self) -> Tensor<V> {
+        self.map(|a| a.clone() * a.clone())
+    }
+}
+
 //
-// neg
+// Neg
 //
 
 impl<T: ops::Neg<Output=T> + Type + Clone> ops::Neg for Tensor<T> {
@@ -64,7 +77,7 @@ impl<T: ops::Neg<Output=T> + Type + Clone> ops::Neg for &Tensor<T> {
 }
 
 //
-// inverse
+// Not
 //
 
 impl<T: ops::Not<Output=T> + Type + Clone> ops::Not for Tensor<T> {
@@ -84,7 +97,7 @@ impl<T: ops::Not<Output=T> + Type + Clone> ops::Not for &Tensor<T> {
 }
 
 //
-// Num binary operations: Add, Sub, Mul, Div, Rem
+// Binary operations: Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shl, Shr
 //
 
 macro_rules! tensor_ops2 {
@@ -215,8 +228,6 @@ tensor_ops2!(
     i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64
 );
 
-// Integer operations
-
 tensor_ops2!(
     BitAnd, bitand, x, y, x.clone() & y.clone(),
     bool i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize    
@@ -244,7 +255,9 @@ tensor_ops2!(
 
 #[cfg(test)]
 mod test {
-    use crate::{ten, tf32};
+    use std::ops;
+
+    use crate::{ten, tensor::Type, tf32};
 
     #[test]
     fn abs() {
@@ -338,6 +351,57 @@ mod test {
 
         assert_eq!(&ten![3, 30] - 2, ten![1, 28]);
         assert_eq!(2 - &ten![3, 30], ten![-1, -28]);
+    }
+
+    #[test]
+    fn binop_asymmetric() {
+        assert_eq!(ten![A(2)] + ten![B(3)], ten![C(203)]);
+        assert_eq!(ten![A(2)] + &ten![B(3)], ten![C(203)]);
+        assert_eq!(&ten![A(2)] + ten![B(3)], ten![C(203)]);
+        assert_eq!(&ten![A(2)] + &ten![B(3)], ten![C(203)]);
+
+        assert_eq!(ten![A(2)] + B(3), ten![C(203)]);
+        assert_eq!(&ten![A(2)] + B(3), ten![C(203)]);
+
+        assert_eq!(ten![B(2)] + ten![A(3)], ten![D(2003)]);
+        assert_eq!(ten![B(2)] + &ten![A(3)], ten![D(2003)]);
+        assert_eq!(&ten![B(2)] + ten![A(3)], ten![D(2003)]);
+        assert_eq!(&ten![B(2)] + &ten![A(3)], ten![D(2003)]);
+
+        assert_eq!(ten![B(2)] + A(3), ten![D(2003)]);
+        assert_eq!(&ten![B(2)] + A(3), ten![D(2003)]);
+    }
+
+    #[derive(Clone, Debug)]
+    struct A(isize);
+    impl Type for A {}
+
+    #[derive(Clone, Debug)]
+    struct B(isize);
+    impl Type for B {}
+
+    #[derive(Debug, PartialEq)]
+    struct C(isize);
+    impl Type for C {}
+
+    #[derive(Debug, PartialEq)]
+    struct D(isize);
+    impl Type for D {}
+
+    impl ops::Add<B> for A {
+        type Output=C;
+    
+        fn add(self, rhs: B) -> Self::Output {
+            C(self.0 * 100 + rhs.0)
+        }
+    }
+
+    impl ops::Add<A> for B {
+        type Output=D;
+    
+        fn add(self, rhs: A) -> Self::Output {
+            D(self.0 * 1000 + rhs.0)
+        }
     }
 
     #[test]
@@ -449,5 +513,20 @@ mod test {
     fn not_patterns() {
         assert_eq!(! ten![0x3], ten![-4]);
         assert_eq!(! &ten![0x3], ten![-4]);
+    }
+
+    #[test]
+    fn partial_ord() {
+        assert!(ten![0] < ten![1]);
+        assert!(! (ten![1] < ten![0]));
+        assert!(ten![0] <= ten![1]);
+        assert!(ten![0] <= ten![0]);
+        assert!(! (ten![1] <= ten![0]));
+
+        assert!(ten![1] > ten![0]);
+        assert!(! (ten![0] > ten![1]));
+        assert!(ten![1] >= ten![0]);
+        assert!(ten![1] >= ten![1]);
+        assert!(! (ten![0] >= ten![1]));
     }
 }

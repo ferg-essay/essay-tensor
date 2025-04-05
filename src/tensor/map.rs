@@ -21,6 +21,7 @@ impl<T: Type> Tensor<T> {
         Self::from_data(init_indexed(&shape, f), shape)
     }
 
+    #[inline]
     pub fn map<U, F>(&self, f: F) -> Tensor<U>
     where
         U: Type,
@@ -55,6 +56,7 @@ impl<T: Type> Tensor<T> {
         map_expand(self, f).into_tensor(shape)
     }
 
+    #[inline]
     pub fn map2<U: Type, F, V>(
         &self, 
         rhs: &Tensor<U>,
@@ -93,6 +95,24 @@ impl<T: Type> Tensor<T> {
         F: FnMut(&T, &U) -> [V; N]
     {
         todo!()
+    }
+
+    #[inline]
+    pub fn map3<U: Type, V: Type, F, W>(
+        &self, 
+        b: &Tensor<U>,
+        c: &Tensor<V>,
+        f: F
+    ) -> Tensor<W>
+    where
+        U: Type,
+        V: Type,
+        W: Type,
+        F: FnMut(&T, &U, &V) -> W
+    {
+        let shape = self.shape().broadcast_to(b.shape()).broadcast_to(c.shape());
+
+        map3(&self, b, c, f).into_tensor(shape)
     }
 
     pub fn fold<S, F, V>(&self, init: S, f: F) -> Tensor<V>
@@ -345,6 +365,46 @@ where
     }
 }
 
+fn map3<T, U, V, W, F>(
+    a: &Tensor<T>,
+    b: &Tensor<U>,
+    c: &Tensor<V>,
+    mut f: F
+) -> TensorData<W>
+where
+    T: Type,
+    U: Type,
+    V: Type,
+    W: Type,
+    F: FnMut(&T, &U, &V) -> W
+{
+    let a_len = a.size();
+    let b_len = b.size();
+    let c_len = c.size();
+
+    let size = a_len.max(b_len).max(c_len);
+    let inner = a_len.min(b_len).min(c_len);
+    let batch = size / inner;
+
+    assert!(batch * inner == size, "broadcast mismatch a.len={} b.len={} c.len={}", a_len, b_len, c_len);
+    
+    unsafe {
+        TensorData::<W>::unsafe_init(size, |o| {
+            for n in 0..batch {
+                let offset = n * inner;
+
+                let a = a.as_wrap_slice(offset);
+                let b = b.as_wrap_slice(offset);
+                let c = c.as_wrap_slice(offset);
+
+                for k in 0..inner {
+                    o.add(offset + k).write(f(&a[k], &b[k], &c[k]));
+                }
+            }
+        })
+    }
+}
+
 pub(super) fn fold<U, S, V, F>(
     tensor: &Tensor<U>,
     init: S,
@@ -581,4 +641,39 @@ where
             }
         }).into_tensor(o_shape)
     }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ten;
+
+    #[test]
+    fn map2() {
+        let a = ten![[1, 20], [3, 40], [5, 60]];
+        let b = ten![[100, 2000], [300, 4000], [500, 6000]];
+    
+        let c = a.map2(&b, |a, b| a + b);
+    
+        assert_eq!(c, ten![[101, 2020], [303, 4040], [505, 6060]]);
+    
+        assert_eq!(c.shape(), &[3, 2].into());
+        assert_eq!(c.size(), 6);
+        assert_eq!(c.offset(), 0);
+    }
+
+    #[test]
+    fn map3() {
+        let a = ten![[1, 20], [3, 40], [5, 60]];
+        let b = ten![[100, 2000], [300, 4000], [500, 6000]];
+        let c = ten![[10000, 200000], [30000, 400000], [50000, 600000]];
+    
+        let d = a.map3(&b, &c, |a, b, c| a + b + c);
+    
+        assert_eq!(d, ten![[10101, 202020], [30303, 404040], [50505, 606060]]);
+    
+        assert_eq!(d.shape(), &[3, 2].into());
+        assert_eq!(d.size(), 6);
+        assert_eq!(d.offset(), 0);
+    }
+
 }

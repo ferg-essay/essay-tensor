@@ -50,6 +50,11 @@ impl<T: Type + Float + Clone> Tensor<T> {
     }
 
     #[inline]
+    pub fn mul_add(&self, b: &Tensor<T>, c: &Tensor<T>) -> Tensor<T> {
+        self.map3(b, c, |a, b, c| a.mul_add(b.clone(), c.clone()))
+    }
+
+    #[inline]
     pub fn sqrt(&self) -> Tensor<T> {
         self.map(|a| a.sqrt())
     }
@@ -95,8 +100,33 @@ impl<T: Type + Float + Clone> Tensor<T> {
     }
 
     #[inline]
+    pub fn cbrt(&self) -> Tensor<T> {
+        self.map(|a| a.cbrt())
+    }
+
+    #[inline]
+    pub fn hypot(&self, b: &Tensor<T>) -> Tensor<T> {
+        self.map2(b, |a, b| a.hypot(b.clone()))
+    }
+
+    #[inline]
     pub fn sin(&self) -> Tensor<T> {
         self.map(|a| a.sin())
+    }
+
+    #[inline]
+    pub fn asin(&self) -> Tensor<T> {
+        self.map(|a| a.asin())
+    }
+
+    #[inline]
+    pub fn sinh(&self) -> Tensor<T> {
+        self.map(|a| a.sinh())
+    }
+
+    #[inline]
+    pub fn asinh(&self) -> Tensor<T> {
+        self.map(|a| a.asinh())
     }
 
     #[inline]
@@ -105,8 +135,63 @@ impl<T: Type + Float + Clone> Tensor<T> {
     }
 
     #[inline]
+    pub fn acos(&self) -> Tensor<T> {
+        self.map(|a| a.acos())
+    }
+
+    #[inline]
+    pub fn cosh(&self) -> Tensor<T> {
+        self.map(|a| a.cos())
+    }
+
+    #[inline]
+    pub fn acosh(&self) -> Tensor<T> {
+        self.map(|a| a.acosh())
+    }
+
+    #[inline]
     pub fn sin_cos(&self) -> Tensor<(T, T)> {
         self.map(|a| a.sin_cos())
+    }
+
+    #[inline]
+    pub fn tan(&self) -> Tensor<T> {
+        self.map(|a| a.tan())
+    }
+
+    #[inline]
+    pub fn atan(&self) -> Tensor<T> {
+        self.map(|a| a.atan())
+    }
+
+    #[inline]
+    pub fn atan2(&self, b: &Tensor<T>) -> Tensor<T> {
+        self.map2(b, |a, b| a.atan2(b.clone()))
+    }
+
+    #[inline]
+    pub fn tanh(&self) -> Tensor<T> {
+        self.map(|a| a.tanh())
+    }
+
+    #[inline]
+    pub fn atanh(&self) -> Tensor<T> {
+        self.map(|a| a.atanh())
+    }
+
+    #[inline]
+    pub fn exp_m1(&self) -> Tensor<T> {
+        self.map(|a| a.exp_m1())
+    }
+
+    #[inline]
+    pub fn ln_1p(&self) -> Tensor<T> {
+        self.map(|a| a.ln_1p())
+    }
+
+    #[inline]
+    pub fn copysign(&self, sign: &Tensor<T>) -> Tensor<T> {
+        self.map2(sign, |a, b| a.copysign(b.clone()))
     }
 }
 
@@ -115,6 +200,11 @@ mod test {
     use std::f32::consts::PI;
 
     use crate::ten;
+
+    #[test]
+    fn mul_add() {
+        assert_eq!(ten![2.].mul_add(&ten![3.], &ten![10.]), ten![(16.)]);
+    }
 
     #[test]
     fn sin_cos() {
