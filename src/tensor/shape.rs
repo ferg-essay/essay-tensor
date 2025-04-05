@@ -1,6 +1,6 @@
 use std::cmp;
 
-use super::Axis;
+use super::{Axis, Tensor, Type};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Shape {
@@ -450,8 +450,86 @@ impl From<Vec<usize>> for Shape {
     }
 }
 
+impl<T: Type> Tensor<T> {
+    #[inline]
+    pub fn rank(&self) -> usize {
+        self.shape.rank()
+    }
+
+    #[inline]
+    pub fn dim(&self, i: usize) -> usize {
+        self.shape.dim(i)
+    }
+
+    #[inline]
+    pub fn rdim(&self, i: usize) -> usize {
+        self.shape.rdim(i)
+    }
+
+    #[inline]
+    pub fn cols(&self) -> usize {
+        self.shape.cols()
+    }
+
+    #[inline]
+    pub fn rows(&self) -> usize {
+        self.shape.rows()
+    }
+}
+
+impl<T: Type + Clone> Tensor<T> {
+    #[inline]
+    #[must_use]
+    pub fn reshape(self, shape: impl Into<Shape>) -> Tensor<T> {
+        let shape = shape.into();
+
+        assert_eq!(shape.size(), self.size(), "shape size must match {:?} new={:?}", 
+            self.shape().as_vec(), shape.as_vec()
+        );
+
+        Self { shape, ..self }
+    }
+
+    #[must_use]
+    pub fn expand_dims(self, axis: impl Into<Axis>) -> Tensor<T> {
+        let axis : Axis = axis.into();
+
+        let axis = axis.get_axis().unwrap_or(0);
+
+        let shape = self.shape().expand_dims(axis);
+
+        self.reshape(shape)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn flatten(self) -> Tensor<T> {
+        let size = self.size();
+
+        self.reshape([size])
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn squeeze(self) -> Tensor<T> {
+        let shape = self.shape().squeeze(None);
+
+        self.reshape(shape)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn squeeze_axis(self, axis: impl Into<Axis>) -> Tensor<T> {
+        let shape = self.shape().squeeze(axis);
+
+        self.reshape(shape)
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use crate::ten;
+
     use super::Shape;
 
     #[test]
@@ -499,5 +577,37 @@ mod test {
         assert_eq!(Shape::from([1, 2]).insert(0, 4).as_vec(), vec![4, 1, 2]);
         assert_eq!(Shape::from([1, 2]).insert(1, 4).as_vec(), vec![1, 4, 2]);
         assert_eq!(Shape::from([1, 2]).insert(2, 4).as_vec(), vec![1, 2, 4]);
+    }
+    
+    #[test]
+    fn test_expand_dims() {
+        assert_eq!(ten![1., 2.].expand_dims(0), ten![[1., 2.]]);
+        assert_eq!(ten![1., 2.].expand_dims(1), ten![[1.], [2.]]);
+        assert_eq!(ten![1., 2.].expand_dims(-1), ten![[1.], [2.]]);
+
+        assert_eq!(
+            ten![[1., 2.], [3., 4.]].expand_dims(0), 
+            ten![[[1., 2.], [3., 4.]]]
+        );
+
+        assert_eq!(
+            ten![[1., 2.], [3., 4.]].expand_dims(1), 
+            ten![[[1., 2.]], [[3., 4.]]]
+        );
+
+        assert_eq!(
+            ten![[1., 2.], [3., 4.]].expand_dims(2), 
+            ten![[[1.], [2.]], [[3.], [4.]]]
+        );
+
+        assert_eq!(
+            ten![[1., 2.], [3., 4.]].expand_dims(-1), 
+            ten![[[1.], [2.]], [[3.], [4.]]]
+        );
+
+        assert_eq!(
+            ten![[1., 2.], [3., 4.]].expand_dims(-2), 
+            ten![[[1., 2.]], [[3., 4.]]]
+        );
     }
 }

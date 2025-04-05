@@ -9,19 +9,19 @@ impl<T: Type + Float + Zero> Tensor<T> {
 
 impl Tensor {
     pub fn reduce_mean(&self) -> Tensor {
-        self.fold_into(Mean::default(), |s, v| s.update(*v))
+        self.fold(Mean::default(), |s, v| s.update(*v))
     }
 
     pub fn reduce_mean_axis(&self, axis: impl Into<Axis>) -> Tensor {
-        self.fold_axis_into(axis, Mean::default(), |s, v| s.update(*v))
+        self.fold_axis(axis, Mean::default(), |s, v| s.update(*v))
     }
 
     pub fn reduce_std(&self) -> Tensor {
-        self.fold_into(Std::default(), |s, v| s.update(*v))
+        self.fold(Std::default(), |s, v| s.update(*v))
     }
     
     pub fn reduce_std_axis(&self, axis: impl Into<Axis>) -> Tensor {
-        self.fold_axis_into(axis, Std::default(), |s, v| s.update(*v))
+        self.fold_axis(axis, Std::default(), |s, v| s.update(*v))
     }
     
     pub fn reduce_var(&self) -> Tensor {

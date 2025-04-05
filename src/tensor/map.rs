@@ -3,6 +3,24 @@ use std::ptr;
 use super::{Axis, Shape, Tensor, TensorData, Type};
 
 impl<T: Type> Tensor<T> {
+    pub fn init<F>(shape: impl Into<Shape>, f: F) -> Self
+    where
+        F: FnMut() -> T
+    {
+        let shape = shape.into();
+
+        Self::from_data(init(&shape, f), shape)
+    }
+
+    pub fn init_indexed<F>(shape: impl Into<Shape>, f: F) -> Self
+    where
+        F: FnMut(&[usize]) -> T
+    {
+        let shape = shape.into();
+
+        Self::from_data(init_indexed(&shape, f), shape)
+    }
+
     pub fn map<U, F>(&self, f: F) -> Tensor<U>
     where
         U: Type,
@@ -11,11 +29,8 @@ impl<T: Type> Tensor<T> {
         map(self, f).into_tensor(self.shape())
     }
 
-    // slice versions
-
-    /// map_row is a map over a fixed-column tensor, such as a tensor of
-    /// [f32; 2] pairs
-    /// 
+    /// map_row is like map, but it iterates over the row, using
+    /// each row as its argument and returning a new fixed-size row
     pub fn map_row<const N: usize, U: Type + Clone>(
         &self, 
         f: impl FnMut(&[T]) -> [U; N]
@@ -29,10 +44,8 @@ impl<T: Type> Tensor<T> {
         map_row(self, f).into_tensor(shape)
     }
 
-    // slice versions
-
-    /// map_expand returns new columns
-    /// 
+    /// map_expand is like map, but returns a fixed-size slice that
+    /// expands to fill columns in the new tensor.
     pub fn map_expand<const N: usize, U: Type + Clone>(
         &self, 
         f: impl FnMut(&T) -> [U; N]
@@ -42,7 +55,7 @@ impl<T: Type> Tensor<T> {
         map_expand(self, f).into_tensor(shape)
     }
 
-    pub fn map2<U: Type, F, V: Type + 'static>(
+    pub fn map2<U: Type, F, V>(
         &self, 
         rhs: &Tensor<U>,
         f: F
@@ -100,24 +113,6 @@ impl<T: Type> Tensor<T> {
         fold_axis(self, axis, init, f)
     }
 
-    pub fn fold_into<S, F, V>(&self, init: S, f: F) -> Tensor<V>
-    where
-        S: Clone + FoldState<Out=V>,
-        F: FnMut(S, &T) -> S,
-        V: Type,
-    {
-        fold(self, init, f)
-    }
-
-    pub fn fold_axis_into<S, F, V>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<V>
-    where
-        S: Clone + FoldState<Out=V>,
-        F: FnMut(S, &T) -> S,
-        V: Type,
-    {
-        fold_axis(self, axis, init, f)
-    }
-
     pub fn fold_row<const N: usize, S, F, V>(&self, axis: impl Into<Axis>, init: S, f: F) -> Tensor<V>
     where
         S: Clone + FoldState<Out=[V; N]>,
@@ -126,9 +121,31 @@ impl<T: Type> Tensor<T> {
     {
         fold_row(&self, axis, init, f)
     }
+
+    pub fn normalize<S, S1, F, G, H, V>(
+        &self, 
+        axis: impl Into<Axis>, 
+        init: S, 
+        accum: F, 
+        complete: G,
+        norm: H,
+    ) -> Tensor<V>
+    where
+        S: Clone,
+        F: FnMut(S, &T) -> S,
+        G: FnMut(S) -> S1,
+        H: FnMut(&S1, &T) -> V,
+        V: Type,
+    {
+        normalize(&self, axis, init, accum, complete, norm)
+    }
 }
 
 impl<T: Type + Clone> Tensor<T> {
+    pub fn fill(shape: impl Into<Shape>, value: T) -> Self {
+        Self::init(shape, || value.clone())
+    }
+
     pub fn reduce(&self, f: impl FnMut(T, T) -> T) -> Tensor<T> {
         let shape = if self.shape().rank() > 1 {
             self.shape().clone().rremove(0)
@@ -141,28 +158,6 @@ impl<T: Type + Clone> Tensor<T> {
 
     pub fn reduce_axis(&self, axis: impl Into<Axis>, f: impl FnMut(T, T) -> T) -> Tensor<T> {
         reduce_axis(self, axis, f)
-    }
-
-    pub fn init<F>(shape: impl Into<Shape>, f: F) -> Self
-    where
-        F: FnMut() -> T
-    {
-        let shape = shape.into();
-
-        Self::from_data(init(&shape, f), shape)
-    }
-
-    pub fn init_indexed<F>(shape: impl Into<Shape>, f: F) -> Self
-    where
-        F: FnMut(&[usize]) -> T
-    {
-        let shape = shape.into();
-
-        Self::from_data(init_indexed(&shape, f), shape)
-    }
-
-    pub fn fill(shape: impl Into<Shape>, value: T) -> Self {
-        Self::init(shape, || value.clone())
     }
 }
 
@@ -539,3 +534,51 @@ where
     }
 }
 
+
+pub(super) fn normalize<T, V, S, S1, F, G, H>(
+    tensor: &Tensor<T>,
+    axis: impl Into<Axis>,
+    init: S,
+    mut accum: F,
+    mut complete: G,
+    mut norm: H,
+) -> Tensor<V> 
+where
+    T: Type,
+    S: Clone,
+    F: FnMut(S, &T) -> S,
+    G: FnMut(S) -> S1,
+    H: FnMut(&S1, &T) -> V,
+    V: Type,
+{
+    let axis = axis.into();
+
+    let (o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
+    // not axis.reduce, but normalize
+    unsafe {
+        TensorData::<V>::unsafe_init(o_shape.size(), |o| {
+            let a = tensor.as_slice();
+
+            for n in 0..batch {
+                for i in 0..inner {
+                    let mut state = init.clone();
+
+                    for k in 0..a_len {
+                        let v = &a[(n * a_len + k) * inner + i];
+
+                        state = (accum)(state, v);
+                    }
+
+                    let state = (complete)(state);
+
+                    for k in 0..a_len {
+                        let v = &a[(n * a_len + k) * inner + i];
+
+                        o.add((n * inner + i) * a_len + k)
+                            .write((norm)(&state, v));
+                    }
+                }
+            }
+        }).into_tensor(o_shape)
+    }
+}

@@ -1,5 +1,14 @@
 use crate::tensor::{Type, Tensor, TensorData};
 
+impl<D: Type + Clone> Tensor<D> {
+    pub fn tile(
+        &self, 
+        multiples: impl Into<Tensor<usize>>, 
+    ) -> Tensor<D> {
+        tile(self, multiples)
+    }
+}
+
 pub fn tile<D>(tensor: impl Into<Tensor<D>>, multiples: impl Into<Tensor<usize>>) -> Tensor<D>
 where
     D: Type + Clone
@@ -46,15 +55,6 @@ where
                 &mut offset
             )
         }).into_tensor(o_shape)
-    }
-}
-
-impl<D: Type + Clone> Tensor<D> {
-    pub fn tile(
-        &self, 
-        multiples: impl Into<Tensor<usize>>, 
-    ) -> Tensor<D> {
-        tile(self, multiples)
     }
 }
 

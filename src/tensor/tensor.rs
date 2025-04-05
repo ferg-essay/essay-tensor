@@ -2,15 +2,15 @@ use core::fmt;
 use std::{any::type_name, ops::Deref, slice, sync::Arc};
 
 use super::{
-    data::TensorData, slice::TensorSlice, Shape
+    data::TensorData, slice::TensorSlice, Axis, Shape
 };
 
 pub struct Tensor<T: Type=f32> {
-    shape: Shape,
-    offset: usize,
-    size: usize,
+    pub shape: Shape,
+    pub offset: usize,
+    pub size: usize,
 
-    data: Arc<TensorData<T>>,
+    pub(crate) data: Arc<TensorData<T>>,
 }
 
 impl<T: Type> Tensor<T> {
@@ -71,42 +71,6 @@ impl<T: Type> Tensor<T> {
     #[inline]
     pub fn shape(&self) -> &Shape {
         &self.shape
-    }
-
-    #[inline]
-    pub fn rank(&self) -> usize {
-        self.shape.rank()
-    }
-
-    #[inline]
-    pub fn dim(&self, i: usize) -> usize {
-        self.shape.dim(i)
-    }
-
-    #[inline]
-    pub fn rdim(&self, i: usize) -> usize {
-        self.shape.rdim(i)
-    }
-
-    #[inline]
-    pub fn cols(&self) -> usize {
-        self.shape.cols()
-    }
-
-    #[inline]
-    pub fn rows(&self) -> usize {
-        self.shape.rows()
-    }
-
-    #[must_use]
-    pub fn reshape(self, shape: impl Into<Shape>) -> Tensor<T> {
-        let shape = shape.into();
-
-        assert_eq!(shape.size(), self.size(), "shape size must match {:?} new={:?}", 
-            self.shape().as_vec(), shape.as_vec()
-        );
-
-        Self { shape, ..self }
     }
 
     #[inline]
@@ -794,24 +758,27 @@ tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
 
 pub trait Type: 'static {}
 
-//trait Dtype : Copy {}
 impl Type for bool {}
 
 impl Type for u8 {}
 impl Type for u16 {}
 impl Type for u32 {}
 impl Type for u64 {}
+impl Type for u128 {}
 impl Type for usize {}
 
 impl Type for i8 {}
 impl Type for i16 {}
 impl Type for i32 {}
 impl Type for i64 {}
+impl Type for i128 {}
 impl Type for isize {}
 
 impl Type for f32 {}
 
 impl Type for String {}
+
+impl<T: Type> Type for Option<T> {} 
 
 macro_rules! dtype_tuple {
     ($($id:ident),*) => {
@@ -1329,6 +1296,29 @@ mod test {
         let vec : Vec<u32> = ten!([[1, 2], [3, 4]]).iter().map(|v| *v).collect();
         let vec2 : Vec<u32> = vec!(1, 2, 3, 4);
         assert!(vec.iter().zip(vec2.iter()).all(|(x, y)| x == y));
+    }
+
+    #[test]
+    fn test_flatten() {
+        assert_eq!(tf32!([[1., 2.], [3., 4.]]).flatten(), tf32!([1., 2., 3., 4.]));
+    }
+    #[test]
+    fn test_reshape() {
+        assert_eq!(
+            tf32!([[1., 2.], [3., 4.]]).reshape([4]),
+            tf32!([1., 2., 3., 4.])
+        );
+    }
+    #[test]
+    fn test_squeeze() {
+        assert_eq!(tf32!([[1.]]).squeeze(), tf32!(1.));
+        assert_eq!(tf32!([[1., 2.]]).squeeze(), tf32!([1., 2.]));
+        assert_eq!(tf32!([[[1.], [2.]]]).squeeze(), tf32!([1., 2.]));
+    }
+    
+    #[test]
+    fn test_squeeze_axis() {
+        assert_eq!(tf32!([[[1.], [2.]]]).squeeze_axis(-1), tf32!([[1., 2.]]));
     }
 
     #[test]
