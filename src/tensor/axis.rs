@@ -42,40 +42,74 @@ impl Axis {
                 (Shape::from([1]), 1, shape.size(), 1)
             }
             Some(axis) => {
-                axis_reduce(shape, axis)
+                let rank = shape.rank();
+                let axis = ((axis + rank as isize) % rank as isize) as usize;
+                assert!(axis < rank);
+            
+                if rank == 1 {
+                    return (Shape::scalar(), 1, shape.size(), 1)
+                }
+            
+                let mut vec = Vec::<usize>::new();
+            
+                let mut outer = 1;
+                for i in 0..axis {
+                    let dim = shape.dim(i);
+                    vec.push(dim);
+                    outer *= dim;
+                }
+                
+                let mut inner = 1;
+                for i in axis + 1..rank {
+                    let dim = shape.dim(i);
+                    vec.push(dim);
+                    inner *= dim;
+                }
+            
+                (Shape::from(vec), outer, shape.dim(axis), inner)
             }
         }
 
     }
 
-}
+    pub fn reduce_row(&self, shape: &Shape) -> (Shape, usize, usize, usize) {
+        match self.axis {
+            None => {
+                (Shape::from([1]), 1, shape.size() / shape.cols(), 1)
+            }
+            Some(axis) => {
+                let rank = shape.rank();
+                let axis = ((axis + rank as isize) % rank as isize) as usize;
+                assert!(axis < rank);
+            
+                if rank == 1 {
+                    return (Shape::scalar(), 1, shape.size(), 1)
+                }
 
-fn axis_reduce(shape: &Shape, axis: isize) -> (Shape, usize, usize, usize) {
-    let rank = shape.rank();
-    let axis = ((axis + rank as isize) % rank as isize) as usize;
-    assert!(axis < rank);
+                assert!(axis + 1 < rank);
+            
+                let mut vec = Vec::<usize>::new();
+            
+                let mut outer = 1;
+                for i in 0..axis {
+                    let dim = shape.dim(i);
+                    vec.push(dim);
+                    outer *= dim;
+                }
+                
+                let mut inner = 1;
+                for i in axis + 1..rank - 1 {
+                    let dim = shape.dim(i);
+                    vec.push(dim);
+                    inner *= dim;
+                }
+                println!("Shape {} {:?}", axis, vec);
+            
+                (Shape::from(vec), outer, shape.dim(axis), inner)
+            }
+        }
 
-    if rank == 1 {
-        return (Shape::scalar(), 1, shape.size(), 1)
     }
-
-    let mut vec = Vec::<usize>::new();
-
-    let mut outer = 1;
-    for i in 0..axis {
-        let dim = shape.dim(i);
-        vec.push(dim);
-        outer *= dim;
-    }
-    
-    let mut inner = 1;
-    for i in axis + 1..rank {
-        let dim = shape.dim(i);
-        vec.push(dim);
-        inner *= dim;
-    }
-
-    (Shape::from(vec), outer, shape.dim(axis), inner)
 }
 
 impl From<Option<isize>> for Axis {

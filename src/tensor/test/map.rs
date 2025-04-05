@@ -164,14 +164,10 @@ fn fold_axis() {
         |s, v| s + v
     );
     
-    assert_eq!(t2, ten![
-        [1003, 1023, 1043, 1063],
-        [1203, 1223, 1243, 1263],
-        [1603, 1623, 1643, 1663],
-    ]);
+    assert_eq!(t2, ten![4596]);
 
-    assert_eq!(t2.shape(), &[3, 4].into());
-    assert_eq!(t2.size(), 12);
+    assert_eq!(t2.shape(), &[1].into());
+    assert_eq!(t2.size(), 1);
 
     let t2 = t1.fold_axis(
         Axis::axis(-1), 
@@ -238,19 +234,32 @@ fn fold_axis() {
 #[test]
 fn fold_row_i32() {
     let t1 = ten![
-        [[1, 2], [11, 12], [21, 22], [31, 32]],
-        [[101, 102], [111, 112], [121, 122], [131, 132]],
-        [[301, 302], [311, 312], [321, 322], [331, 332]],
+        [[1, 2], [11, 12]],
     ];
-    let t2 = t1.fold(1000, |s, v| s + v);
 
-    assert_eq!(t2.shape(), &[3, 4].into());
-    assert_eq!(t2.size(), 12);
-    assert_eq!(t2, ten![
-        [1003, 1023, 1043, 1063],
-        [1203, 1223, 1243, 1263],
-        [1603, 1623, 1643, 1663],
-    ]);
+    let t2 = t1.fold_row(None, 0, |s, v| {
+        assert_eq!(v.len(), 2);
+        s + 1000 * v[0] + v[1]
+    });
+
+    assert_eq!(t2, ten![12014]);
+    assert_eq!(t2.shape(), &[1].into());
+    assert_eq!(t2.size(), 1);
+
+    let t1 = ten![
+        [[1, 2], [10, 20], [100, 200]],
+        [[3, 4], [30, 40], [300, 400]],
+        [[5, 6], [50, 60], [500, 600]],
+    ];
+
+    let t2 = t1.fold_row(-2, 0, |s, v| {
+        assert_eq!(v.len(), 2);
+        s + 1000 * v[0] + v[1]
+    });
+
+    assert_eq!(t2, ten![111222, 333444, 555666]);
+    assert_eq!(t2.shape(), &[3].into());
+    assert_eq!(t2.size(), 3);
 }
 
 #[test]
