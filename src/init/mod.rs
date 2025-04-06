@@ -1,29 +1,25 @@
-mod one_hot;
-mod arange;
+//mod one_hot;
 mod diag;
 mod eye;
 mod fill;
-mod geomspace;
+// mod geomspace;
 mod initializer;
-mod linspace;
-mod logspace;
 mod meshgrid;
 mod ones;
 mod random_normal;
 mod random_uniform;
 mod tri;
+mod vector;
 mod zeros;
 
 pub use initializer::Initializer;
 
 pub use fill::fill;
 
-pub use arange::arange;
-
 pub use diag::diagflat;
 
 use num_traits::{One, Zero};
-pub use one_hot::one_hot;
+//pub use one_hot::one_hot;
 
 pub use eye::{
     eye, identity,
@@ -41,12 +37,12 @@ pub use random_normal::{
     random_normal, random_normal_initializer, NormalOpt
 };
 
-pub use linspace::linspace;
-pub use logspace::{
-    logspace, logspace_opt
-};
-pub use geomspace::{
+pub use vector::{
+    arange,
+    linspace,
+    logspace, logspace_opt,
     geomspace,
+    one_hot,
 };
 
 pub use tri::{

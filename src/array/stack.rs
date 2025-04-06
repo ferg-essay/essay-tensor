@@ -1,4 +1,4 @@
-use crate::tensor::{Axis, Shape, Type, IntoTensorList, Tensor, TensorData};
+use crate::tensor::{Axis, Shape, Type, IntoTensorList, Tensor, unsafe_init};
 
 pub fn concatenate<T>(x: impl IntoTensorList<T>) -> Tensor<T>
 where
@@ -196,7 +196,7 @@ pub(crate) fn concat_axis<T: Type + Clone>(
     let shape = shape_inner.insert(axis, axis_len);
 
     unsafe {
-        TensorData::<T>::unsafe_init(o_len, |o| {
+        unsafe_init::<T>(o_len, shape, |o| {
             let j_stride = n_inner * axis_len;
             let mut t = 0;
 
@@ -218,7 +218,7 @@ pub(crate) fn concat_axis<T: Type + Clone>(
                 t += n_axis * n_inner;
             }
 
-        }).into_tensor(shape)
+        })
     }
 }
 
@@ -281,8 +281,10 @@ where
 
     let o_len = x.iter().map(|t| t.size()).sum();
 
+    let shape = x[0].shape().clone().insert(axis, x.len());
+
     unsafe {
-        TensorData::<T>::unsafe_init(o_len, |o| {
+        unsafe_init::<T>(o_len, shape, |o| {
             for (j, x) in x.iter().enumerate() {
                 assert_eq!(x_len, x.size());
 
@@ -295,7 +297,7 @@ where
                     }
                 }
             }
-        }).into_tensor(x[0].shape().clone().insert(axis, x.len()))
+        })
     }
 }
 

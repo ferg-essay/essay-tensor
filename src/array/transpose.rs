@@ -1,4 +1,4 @@
-use crate::tensor::{Type, Tensor, TensorData};
+use crate::tensor::{Type, Tensor, unsafe_init};
 
 pub fn transpose<T: Type + Clone>(tensor: impl Into<Tensor<T>>) -> Tensor<T> {
     let tensor: Tensor<T> = tensor.into();
@@ -17,7 +17,7 @@ pub fn transpose<T: Type + Clone>(tensor: impl Into<Tensor<T>>) -> Tensor<T> {
     }
 
     unsafe {
-        TensorData::<T>::unsafe_init(size, |o| {
+        unsafe_init::<T>(size, shape, |o| {
             let x = tensor.as_slice();
 
             for n in 0..batch {
@@ -28,7 +28,7 @@ pub fn transpose<T: Type + Clone>(tensor: impl Into<Tensor<T>>) -> Tensor<T> {
                     }
                 }
             }
-        }).into_tensor(shape)
+        })
     }
 }
 

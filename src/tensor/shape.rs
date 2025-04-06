@@ -13,7 +13,19 @@ impl Shape {
 
     pub fn scalar() -> Self {
         let mut dims = [0; Self::MAX_RANK];
-        dims[0] = 1;
+        dims[0] = 0;
+
+        Self {
+            dims,
+            rank: 0,
+        }
+    }
+
+    pub fn vector(len: usize) -> Self {
+        assert!(len > 0, "Shape requires a non-zero size");
+
+        let mut dims = [0; Self::MAX_RANK];
+        dims[0] = len as u32;
 
         Self {
             dims,
@@ -253,7 +265,7 @@ impl Shape {
     pub fn expand_dims(&self, axis: isize) -> Self {
         let mut vec = self.as_vec();
 
-        let index = if axis >= 0  { axis } else { vec.len() as isize + axis + 1 } as usize;
+        let index = if axis >= 0 { axis } else { vec.len() as isize + axis + 1 } as usize;
         assert!(index <= vec.len(), "expand_dims axis is invalid {} in {:?}", axis, self.as_vec());
 
         vec.insert(index, 1);

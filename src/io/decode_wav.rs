@@ -117,11 +117,11 @@ impl<'a> Cursor<'a> {
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
-    use crate::{io::{read_file, decode_wav::decode_wav}, tensor};
+    use crate::io::{read_file, decode_wav::decode_wav};
 
     #[test]
     fn test_wav() {
-        let data = read_file("../../assets/audio/book-24/237-0001.wav").unwrap();
+        let data = read_file("../assets/audio/book-24/237-0001.wav").unwrap();
 
         let (audio, rate) = decode_wav(&data);
         assert_eq!(audio.shape(), &Shape::from([118080, 1]));

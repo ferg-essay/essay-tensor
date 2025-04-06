@@ -1,4 +1,4 @@
-use crate::tensor::{Axis, Type, Tensor, TensorData};
+use crate::tensor::{Axis, Type, Tensor, unsafe_init};
 
 impl<D: Type + Clone> Tensor<D> {
     #[inline]
@@ -98,8 +98,17 @@ fn split_by_axis<T: Type + Clone>(
             continue;
         }
 
+        let mut shape = Vec::<usize>::new();
+        for i in 0..axis {
+            shape.push(tensor.shape().dim(i))
+        }
+        shape.push(cut - prev);
+        for i in axis + 1..tensor.shape().rank() {
+            shape.push(tensor.shape().dim(i))
+        }
+
         let data = unsafe {
-            TensorData::<T>::unsafe_init(n_outer * n_inner * (cut - prev), |o| {
+            unsafe_init::<T>(n_outer * n_inner * (cut - prev), shape, |o| {
                 for j in 0..n_outer {
                     for k in prev..cut {
                         for i in 0..n_inner {
@@ -113,16 +122,7 @@ fn split_by_axis<T: Type + Clone>(
             })
         };
 
-        let mut shape = Vec::<usize>::new();
-        for i in 0..axis {
-            shape.push(tensor.shape().dim(i))
-        }
-        shape.push(cut - prev);
-        for i in axis + 1..tensor.shape().rank() {
-            shape.push(tensor.shape().dim(i))
-        }
-
-        slices.push(data.into_tensor(shape));
+        slices.push(data);
 
         prev = cut;
     }

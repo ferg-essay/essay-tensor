@@ -1,4 +1,4 @@
-use crate::tensor::{Shape, Tensor, TensorData};
+use crate::tensor::{Shape, Tensor, unsafe_init};
 
 use super::linspace;
 
@@ -73,7 +73,7 @@ fn build_meshgrid_axis(x: &Tensor, shape: &Shape, k_s: usize) -> Tensor {
         let n = size / len;
         assert!(n % k_s == 0);
 
-        TensorData::<f32>::unsafe_init(size, |o| {
+        unsafe_init::<f32>(size, shape, |o| {
             let x = x.as_slice();
 
             let i_n = k_s;
@@ -91,7 +91,7 @@ fn build_meshgrid_axis(x: &Tensor, shape: &Shape, k_s: usize) -> Tensor {
                     }
                 }
             }
-        }).into_tensor(shape)
+        })
     }
 }
 
@@ -143,7 +143,7 @@ mesh_array!(3, 0, 1, 2);
 
 #[cfg(test)]
 mod test {
-    use crate::{init::{linspace, meshgrid}, tf32};
+    use crate::{init::{linspace, meshgrid}, ten, tf32};
 
     use super::meshgrid_ij;
 
@@ -151,7 +151,7 @@ mod test {
     fn meshgrid_1d() {
         let [x] = meshgrid([&linspace(0., 3., 4)]);
 
-        assert_eq!(x, tf32!([0., 1., 2., 3.]));
+        assert_eq!(x, ten![0., 1., 2., 3.]);
     }
 
     #[test]

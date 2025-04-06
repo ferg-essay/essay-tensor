@@ -1,8 +1,8 @@
 use core::fmt;
-use std::{any::type_name, ops::Deref, slice, sync::Arc};
+use std::{any::type_name, ops::Deref, ptr, slice, sync::Arc};
 
 use super::{
-    data::TensorData, slice::TensorSlice, Axis, Shape
+    data::TensorData, unsafe_init, Shape
 };
 
 pub struct Tensor<T: Type=f32> {
@@ -10,38 +10,16 @@ pub struct Tensor<T: Type=f32> {
     pub offset: usize,
     pub size: usize,
 
-    pub(crate) data: Arc<TensorData<T>>,
+    pub(super) data: Arc<TensorData<T>>,
 }
 
 impl<T: Type> Tensor<T> {
-    pub fn empty() -> Self {
-        Self {
-            shape: Shape::from([0]),
-            offset: 0,
-            size: 0,
-
-            data: Arc::new(TensorData::from_vec(vec![])),
-        }
-    }
-
     pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
-        Self {
-            shape: shape.into(),
-            offset: 0,
-            size: vec.len(),
-
-            data: Arc::new(TensorData::from_vec(vec)),
-        }
+        TensorData::from_boxed_slice(vec.into_boxed_slice(), shape.into())
     }
     
-    pub fn from_box(data: Box<[T]>, shape: impl Into<Shape>) -> Self {
-        Self {
-            shape: shape.into(),
-            offset: 0,
-            size: data.len(),
-
-            data: Arc::new(TensorData::from_boxed_slice(data)),
-        }
+    pub fn from_box(slice: Box<[T]>, shape: impl Into<Shape>) -> Self {
+        TensorData::from_boxed_slice(slice, shape)
     }
 
     pub(super) fn from_data(data: TensorData<T>, shape: impl Into<Shape>) -> Self {
@@ -75,16 +53,32 @@ impl<T: Type> Tensor<T> {
 
     #[inline]
     pub fn get(&self, offset: usize) -> Option<&T> {
-        self.data.get(self.offset + offset)
+        unsafe {
+            if offset < self.size {
+                let count = offset + self.offset;
+
+                self.as_ptr().add(count).as_ref()
+            } else {
+                None
+            }
+        }
     }
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.data.as_sub_slice(self.offset, self.size)
+        let count = self.offset;
+        let len = self.size;
+
+        unsafe {
+            ptr::slice_from_raw_parts(self.as_ptr().add(count), len)
+                .as_ref()
+                .unwrap()
+        }
     }
 
     // Returns a possibly-wrapped pointer at the offset to support
     // broadcast
+    // todo: remove because without a length, it's meaningless?
     #[inline]
     pub fn as_wrap_slice(&self, offset: usize) -> &[T] {
         let offset = if offset < self.size {
@@ -93,7 +87,14 @@ impl<T: Type> Tensor<T> {
             offset % self.size
         };
 
-        self.data.as_sub_slice(self.offset + offset, self.size - offset)
+        let count = self.offset + offset;
+        let len = self.size - offset;
+
+        unsafe {
+            ptr::slice_from_raw_parts(self.as_ptr().add(count), len)
+                .as_ref()
+                .unwrap()
+        }
     }
 
     // Returns a possibly-wrapped pointer at the offset to support
@@ -106,7 +107,14 @@ impl<T: Type> Tensor<T> {
             offset % self.size
         };
 
-        self.data.as_sub_slice(self.offset + offset, len)
+        let count = self.offset + offset;
+        assert!(count + len <= self.size);
+
+        unsafe {
+            ptr::slice_from_raw_parts(self.as_ptr().add(count), len)
+                .as_ref()
+                .unwrap()
+        }
     }
 
     #[inline]
@@ -179,14 +187,13 @@ impl<T: Type> Tensor<T> {
 impl<T: Type + Clone> Tensor<T> {
     pub fn from_slice(data: impl AsRef<[T]>) -> Self {
         let data = data.as_ref();
-        assert!(data.len() > 0);
 
-        Self {
-            shape: Shape::from(data.len()),
-            offset: 0,
-            size: data.len(),
-
-            data: Arc::new(TensorData::from_slice(data)),
+        unsafe {
+            unsafe_init::<T>(data.len(), data.len(), |o| {
+                for (i, value) in data.iter().enumerate() {
+                    o.add(i).write(value.clone());
+                }
+            })
         }
     }
 
@@ -225,12 +232,6 @@ impl<T: Type + Clone> Tensor<T> {
             .collect();
 
         Tensor::from_vec(data, shape)
-    }
-}
-
-impl<T: Type + Clone> Tensor<T> {
-    pub fn slice<S: TensorSlice>(&self, index: S) -> Tensor<T> {
-        S::slice(index, &self)
     }
 }
 
@@ -373,327 +374,6 @@ fn fmt_tensor_rec<T: Type + fmt::Debug>(
 
             write!(f, "]")
         },
-    }
-}
-
-impl<T: Type> From<&Tensor<T>> for Tensor<T> {
-    fn from(value: &Tensor<T>) -> Self {
-        value.clone()
-    }
-}
-
-impl<T: Type> From<T> for Tensor<T> {
-    fn from(value: T) -> Self {
-        Tensor::from_vec(vec![value], Shape::scalar())
-    }
-}
-
-// vec conversions
-
-impl<T: Type> From<Vec<T>> for Tensor<T> {
-    fn from(value: Vec<T>) -> Self {
-        let len = value.len();
-
-        Tensor::<T>::from_vec(value, Shape::from(len))
-    }
-}
-
-impl<T: Type + Clone> From<&Vec<T>> for Tensor<T> {
-    fn from(value: &Vec<T>) -> Self {
-        let data = value.clone();
-        let len = data.len();
-
-        Tensor::from_vec(data, len)
-    }
-}
-
-impl<T: Type, const N: usize> From<Vec<[T; N]>> for Tensor<T> {
-    fn from(value: Vec<[T; N]>) -> Self {
-        let len = value.len();
-
-        let data = TensorData::<T>::from_vec_rows(value);
-        
-        Tensor::from_data(data, [len, N])
-    }
-}
-
-impl<T: Type + Clone, const N: usize> From<&Vec<[T; N]>> for Tensor<T> {
-    fn from(value: &Vec<[T; N]>) -> Self {
-        let len = value.len();
-
-        let data: Vec<T> = value.iter()
-            .flat_map(|row| row.iter().map(|v| v.clone()))
-            .collect();
-
-        Tensor::from_vec(data, [len, N])
-    }
-}
-
-impl<T: Type + Clone> From<&Vec<Vec<T>>> for Tensor<T> {
-    fn from(value: &Vec<Vec<T>>) -> Self {
-        let len_1 = value[0].len();
-
-        let data = value.iter().flat_map(|v1| {
-            assert_eq!(len_1, v1.len());
-
-            v1.iter().map(|v2| v2.clone())
-        }).collect();
-
-        Tensor::from_vec(data, [value.len(), len_1])
-    }
-}
-
-impl<T: Type + Clone, const N: usize> From<&Vec<Vec<[T; N]>>> for Tensor<T> {
-    fn from(value: &Vec<Vec<[T; N]>>) -> Self {
-        let len_1 = value[0].len();
-
-        let data = value.iter().flat_map(|v1| {
-            assert_eq!(len_1, v1.len());
-
-            v1.iter().flat_map(|v2| {
-                v2.iter().map(|v3| v3.clone())
-            })
-        }).collect();
-
-        Tensor::from_vec(data, [value.len(), len_1, N])
-    }
-}
-
-impl<T: Clone + Type> From<&Vec<Vec<Vec<T>>>> for Tensor<T> {
-    fn from(value: &Vec<Vec<Vec<T>>>) -> Self {
-        let mut data = Vec::new();
-
-        let len_1 = value[0].len();
-        let len_2 = value[0][0].len();
-
-        for v1 in value {
-            assert_eq!(len_1, v1.len());
-
-            for v2 in v1 {
-                assert_eq!(len_2, v2.len());
-
-                for v3 in v2 {
-                    data.push(v3.clone());
-                }
-            }
-        }
-
-        Tensor::from_vec(data, [value.len(), len_1, len_2])
-    }
-}
-
-impl<T: Clone + Type> From<&Vec<Vec<Vec<Vec<T>>>>> for Tensor<T> {
-    fn from(value: &Vec<Vec<Vec<Vec<T>>>>) -> Self {
-        let mut data = Vec::new();
-
-        let len_1 = value[0].len();
-        let len_2 = value[0][0].len();
-        let len_3 = value[0][0][0].len();
-
-        for v1 in value {
-            assert_eq!(len_1, v1.len());
-
-            for v2 in v1 {
-                assert_eq!(len_2, v2.len());
-
-                for v3 in v2 {
-                    assert_eq!(len_3, v3.len());
-
-                    for v4 in v3 {
-                        data.push(v4.clone());
-                    }
-                }
-            }
-        }
-
-        Tensor::from_vec(data, [value.len(), len_1, len_2, len_3])
-    }
-}
-
-impl<T: Clone + Type> From<&Vec<Vec<Vec<Vec<Vec<T>>>>>> for Tensor<T> {
-    fn from(value: &Vec<Vec<Vec<Vec<Vec<T>>>>>) -> Self {
-        let len_1 = value[0].len();
-        let len_2 = value[0][0].len();
-        let len_3 = value[0][0][0].len();
-        let len_4 = value[0][0][0][0].len();
-
-        let data: Vec<T> = value.iter().flat_map(|v1| {
-            assert_eq!(len_1, v1.len());
-
-            v1.iter().flat_map(|v2| {
-                assert_eq!(len_2, v2.len());
-
-                v2.iter().flat_map(|v3| {
-                    assert_eq!(len_3, v3.len());
-
-                    v3.iter().flat_map(|v4| {
-                        assert_eq!(len_4, v4.len());
-
-                        v4.iter().map(|v5| v5.clone())
-                    })
-                })
-            })
-        }).collect();
-
-        Tensor::from_vec(data, [value.len(), len_1, len_2, len_3, len_4])
-    }
-}
-
-// array conversions
-
-// can't generalize from Dtype because internal array's can't match such
-// as [[1., 2.]], where T=f32 not T=[f32; 2]
-impl<T: Clone + Type + 'static> From<&[T]> for Tensor<T> {
-    fn from(value: &[T]) -> Self {
-        let len = value.len();
-
-        let data = Vec::from(value);
-
-        Tensor::from_vec(data, [len])
-    }
-}
-
-impl<T: Type + 'static, const N: usize> From<[T; N]> for Tensor<T> {
-    fn from(value: [T; N]) -> Self {
-        let vec = Vec::<T>::from(value);
-        let len = vec.len();
-
-        Tensor::from_vec(vec, Shape::from(len))
-    }
-}
-
-impl<T: Clone + Type, const N: usize> From<&[[T; N]]> for Tensor<T> {
-    fn from(value: &[[T; N]]) -> Self {
-        let len = value.len();
-
-        let data: Vec<T> = value.iter()
-            .flat_map(|row| row.iter().map(|v| v.clone()))
-            .collect();
-
-        Tensor::from_vec(data, [len, N])
-    }
-}
-
-impl From<&str> for Tensor<String> {
-    fn from(value: &str) -> Self {
-        Tensor::from_vec(vec![value.to_string()], Shape::scalar())
-    }
-}
-
-impl From<Vec<&str>> for Tensor<String> {
-    fn from(value: Vec<&str>) -> Self {
-        let len = value.len();
-
-        let vec = value.iter().map(|s| s.to_string()).collect();
-
-        Tensor::<String>::from_vec(vec, Shape::from(len))
-    }
-}
-
-impl<const N:usize> From<[&str; N]> for Tensor<String> {
-    fn from(value: [&str; N]) -> Self {
-        let vec : Vec<String> = value.iter().map(|s| s.to_string()).collect();
-        let len = vec.len();
-
-        Tensor::from_vec(vec, Shape::from(len))
-    }
-}
-
-impl<T, const N: usize, const M: usize> From<[[T; N]; M]> for Tensor<T>
-where
-    T: Type,
-{
-    fn from(value: [[T; N]; M]) -> Self {
-        let data: Vec<T> = value.into_iter()
-            .flatten()
-            .collect();
-
-        Tensor::from_vec(data, [M, N])
-    }
-}
-
-impl<T, const N: usize, const M: usize, const L: usize>
-    From<[[[T; N]; M]; L]> for Tensor<T>
-where
-    T: Type
-{
-    fn from(value: [[[T; N]; M]; L]) -> Self {
-        let data: Vec<T> = value.into_iter()
-            .flatten()
-            .flatten()
-            .collect();
-
-        Tensor::from_vec(data, [L, M, N])
-    }
-}
-
-impl<T, const N: usize, const M: usize, const L: usize, const K: usize>
-    From<[[[[T; N]; M]; L]; K]> for Tensor<T>
-where
-    T: Type
-{
-    fn from(value: [[[[T; N]; M]; L]; K]) -> Self {
-        let data: Vec<T> = value.into_iter()
-            .flatten()
-            .flatten()
-            .flatten()
-            .collect();
-
-        Tensor::from_vec(data, [K, L, M, N])
-    }
-}
-
-impl<T: Type> FromIterator<T> for Tensor<T> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let vec : Vec<T> = Vec::from_iter(iter);
-        let len = vec.len();
-
-        Tensor::from_vec(vec, len)
-    }
-}
-
-impl<'a, T: Type + Clone> FromIterator<&'a T> for Tensor<T> {
-    fn from_iter<I: IntoIterator<Item = &'a T>>(iter: I) -> Self {
-        let vec : Vec<T> = iter.into_iter().map(|v| v.clone()).collect();
-        let len = vec.len();
-
-        Tensor::from_vec(vec, len)
-    }
-}
-
-impl<T: Type + Copy + 'static> From<&Vec<Tensor<T>>> for Tensor<T> {
-    fn from(values: &Vec<Tensor<T>>) -> Self {
-        Tensor::<T>::from(values.as_slice())
-    }
-}
-
-impl<T: Type + Copy + 'static> From<&[Tensor<T>]> for Tensor<T> {
-    fn from(values: &[Tensor<T>]) -> Self {
-        let n = values.len();
-        assert!(n > 0);
-
-        let sublen = values[0].size();
-
-        let shape = values[0].shape();
-
-        for value in values {
-            assert_eq!(sublen, value.size(), "tensor length must match");
-            assert_eq!(shape, value.shape(), "tensor shapes must match");
-        }
-
-        let data : Vec<T> = values.iter().flat_map(|tensor|
-            tensor.as_slice().iter().map(|v| v.clone())
-        ).collect();
-
-        Tensor::from_vec(data, shape.push(n)) 
-    }
-}
-
-impl<T: Type + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<T> {
-    fn from(values: [Tensor<T>; N]) -> Self {
-        let vec = Vec::from(values);
-
-        Tensor::from(&vec)
     }
 }
 
@@ -1051,7 +731,7 @@ mod test {
 
     #[test]
     fn tensor_init_indexed() {
-        let t0 = Tensor::init_indexed([4], |idx| idx[0]);
+        let t0 = Tensor::init_rindexed([4], |idx| idx[0]);
 
         assert_eq!(t0.size(), 4);
         assert_eq!(t0.cols(), 4);
@@ -1059,7 +739,7 @@ mod test {
         assert_eq!(t0.shape().as_vec(), &[4]);
         assert_eq!(t0, ten![0, 1, 2, 3]);
 
-        let t0 = Tensor::init_indexed([3, 2], |idx| idx[0]);
+        let t0 = Tensor::init_rindexed([3, 2], |idx| idx[0]);
 
         assert_eq!(t0.size(), 6);
         assert_eq!(t0.cols(), 2);
@@ -1067,7 +747,7 @@ mod test {
         assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0, ten![[0, 1], [0, 1], [0, 1]]);
 
-        let t0 = Tensor::init_indexed([3, 2], |idx| idx[1]);
+        let t0 = Tensor::init_rindexed([3, 2], |idx| idx[1]);
 
         assert_eq!(t0.size(), 6);
         assert_eq!(t0.cols(), 2);
@@ -1075,7 +755,7 @@ mod test {
         assert_eq!(t0.shape().as_vec(), &[3, 2]);
         assert_eq!(t0, ten![[0, 0], [1, 1], [2, 2]]);
 
-        let t0 = Tensor::init_indexed([3, 2], |idx| 
+        let t0 = Tensor::init_rindexed([3, 2], |idx| 
             if idx[1] == idx[0] { 1 } else { 0 }
         );
 

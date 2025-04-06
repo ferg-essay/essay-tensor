@@ -26,24 +26,6 @@ pub struct RandomUniform {
     max: f32,
     seed: Option<u64>,
 }
-/*
-impl InitKernel<f32> for RandomUniform {
-    type State = Rand32;
-
-    fn init(&self, _shape: &Shape) -> Self::State {
-        match self.seed {
-            Some(seed) => Rand32(seed),
-            None => Rand32::new(),
-        }
-    }
-
-    fn f(&self, state: &mut Self::State) -> f32 {
-        let rng = state.next_uniform();
-
-        self.min + (self.max - self.min) * rng as f32
-    }
-}
-    */
 
 impl Default for RandomUniform {
     fn default() -> Self {

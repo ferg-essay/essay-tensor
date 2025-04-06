@@ -64,22 +64,22 @@ mod test {
     #[test]
     fn test_one() {
         let t = uniform_b([1]).seed(100).go();
-        assert_eq!(t, ten!([0.9268179]));
+        assert_eq!(t, ten![0.9268179]);
     }
 
     #[test]
     fn test_vector() {
         let t = uniform_b([3]).seed(100).go();
-        assert_eq!(t, ten!([0.9268179, 0.55682373, 0.57285655]));
+        assert_eq!(t, ten![0.9268179, 0.55682373, 0.57285655]);
     }
 
     #[test]
     fn test_matrix() {
-        let t = uniform_b([3, 2]).seed(100).go();
-        assert_eq!(t, ten!([
+        let t = uniform_b([2, 3]).seed(100).go();
+        assert_eq!(t, ten![
             [0.9268179, 0.55682373, 0.57285655],
             [0.68730843, 0.8088945, 0.3300841]
-        ]));
+        ]);
     }
 }
 

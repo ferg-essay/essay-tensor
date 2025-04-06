@@ -1,3 +1,4 @@
+mod from;
 mod map;
 // mod math;
 mod axis;
@@ -12,7 +13,7 @@ mod test;
 
 pub use axis::Axis;
 
-pub(crate) use data::TensorData;
+pub(crate) use data::unsafe_init;
 
 pub use map::FoldState;
 

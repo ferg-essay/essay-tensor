@@ -1,24 +1,20 @@
 use std::ptr;
 
-use super::{Axis, Shape, Tensor, TensorData, Type};
+use super::{unsafe_init, Axis, Shape, Tensor, Type};
 
 impl<T: Type> Tensor<T> {
     pub fn init<F>(shape: impl Into<Shape>, f: F) -> Self
     where
         F: FnMut() -> T
     {
-        let shape = shape.into();
-
-        Self::from_data(init(&shape, f), shape)
+        init(shape.into(), f)
     }
 
-    pub fn init_indexed<F>(shape: impl Into<Shape>, f: F) -> Self
+    pub fn init_rindexed<F>(shape: impl Into<Shape>, f: F) -> Self
     where
         F: FnMut(&[usize]) -> T
     {
-        let shape = shape.into();
-
-        Self::from_data(init_indexed(&shape, f), shape)
+        init_indexed(shape.into(), f)
     }
 
     #[inline]
@@ -27,7 +23,7 @@ impl<T: Type> Tensor<T> {
         U: Type,
         F: FnMut(&T) -> U
     {
-        map(self, f).into_tensor(self.shape())
+        map(self.shape().clone(), self, f)
     }
 
     /// map_row is like map, but it iterates over the row, using
@@ -42,7 +38,7 @@ impl<T: Type> Tensor<T> {
             self.shape().clone().with_cols(N)
         };
 
-        map_row(self, f).into_tensor(shape)
+        map_row(shape, self, f)
     }
 
     /// map_expand is like map, but returns a fixed-size slice that
@@ -53,7 +49,7 @@ impl<T: Type> Tensor<T> {
     ) -> Tensor<U> {
         let shape = self.shape().clone().rinsert(0, N);
 
-        map_expand(self, f).into_tensor(shape)
+        map_expand(shape, self, f)
     }
 
     #[inline]
@@ -68,7 +64,7 @@ impl<T: Type> Tensor<T> {
     {
         let shape = self.shape().broadcast_to(rhs.shape());
 
-        map2(&self, rhs, f).into_tensor(shape)
+        map2(shape, &self, rhs, f)
     }
 
     pub fn map2_row<const N: usize, U, F, V>(
@@ -112,7 +108,7 @@ impl<T: Type> Tensor<T> {
     {
         let shape = self.shape().broadcast_to(b.shape()).broadcast_to(c.shape());
 
-        map3(&self, b, c, f).into_tensor(shape)
+        map3(shape, &self, b, c, f)
     }
 
     pub fn fold<S, F, V>(&self, init: S, f: F) -> Tensor<V>
@@ -173,7 +169,7 @@ impl<T: Type + Clone> Tensor<T> {
             Shape::from([1])
         };
 
-        reduce(self, f).into_tensor(shape)
+        reduce(shape, self, f)
     }
 
     pub fn reduce_axis(&self, axis: impl Into<Axis>, f: impl FnMut(T, T) -> T) -> Tensor<T> {
@@ -181,7 +177,7 @@ impl<T: Type + Clone> Tensor<T> {
     }
 }
 
-fn init<F, V>(shape: impl Into<Shape>, mut f: F) -> TensorData<V>
+fn init<F, V>(shape: impl Into<Shape>, mut f: F) -> Tensor<V>
 where
     V: Type,
     F: FnMut() -> V,
@@ -190,15 +186,15 @@ where
     let size = shape.size();
 
     unsafe {
-        TensorData::<V>::unsafe_init(size, |o| {
+        unsafe_init::<V>(size, shape, |o| {
             for i in 0..size {
                 o.add(i).write( (f)());
             }
-        }).into()
+        })
     }
 }
 
-fn init_indexed<F, V>(shape: impl Into<Shape>, mut f: F) -> TensorData<V>
+fn init_indexed<F, V>(shape: impl Into<Shape>, mut f: F) -> Tensor<V>
 where
     F: FnMut(&[usize]) -> V,
     V: Type
@@ -207,7 +203,7 @@ where
     let size = shape.size();
 
     unsafe {
-        TensorData::<V>::unsafe_init(size, |o| {
+        unsafe_init::<V>(size, shape.clone(), |o| {
             let mut vec = Vec::<usize>::new();
             vec.resize(shape.rank(), 0);
             let index = vec.as_mut_slice();
@@ -217,18 +213,19 @@ where
 
                 shape.next_index(index);
             }
-        }).into()
+        })
     }
 }
 
 fn map<U: Type, V: Type>(
+    shape: Shape,
     a: &Tensor<U>,
     mut f: impl FnMut(&U) -> V
-) -> TensorData::<V> {
+) -> Tensor::<V> {
     let len = a.size();
     
     unsafe {
-        TensorData::<V>::unsafe_init(len, |o| {
+        unsafe_init::<V>(len, shape, |o| {
             let a = a.as_slice();
         
             for i in 0..len {
@@ -239,14 +236,15 @@ fn map<U: Type, V: Type>(
 }
 
 fn map_row<const N: usize, U: Type, V: Type + Clone>(
+    shape: Shape,
     a: &Tensor<U>, 
     mut f: impl FnMut(&[U]) -> [V; N]
-) -> TensorData<V> {
+) -> Tensor<V> {
     let a_cols = a.cols();
     let len = a.size() / a_cols;
 
     unsafe {
-        TensorData::<V>::unsafe_init(N * len, |o| {
+        unsafe_init::<V>(N * len, shape, |o| {
             let a = a.as_ptr();
 
             for i in 0..len {
@@ -265,13 +263,14 @@ fn map_row<const N: usize, U: Type, V: Type + Clone>(
 }
 
 fn map_expand<const N: usize, U: Type, V: Type>(
+    shape: Shape,
     a: &Tensor<U>, 
     mut f: impl FnMut(&U) -> [V; N]
-) -> TensorData<V> {
+) -> Tensor<V> {
     let len = a.size();
 
     unsafe {
-        TensorData::<V>::unsafe_init(N * len, |o| {
+        unsafe_init::<V>(N * len, shape, |o| {
             let a = a.as_slice();
 
             for i in 0..len {
@@ -286,10 +285,11 @@ fn map_expand<const N: usize, U: Type, V: Type>(
 }
 
 fn map2<T, U, V, F>(
+    shape: Shape,
     a: &Tensor<T>,
     b: &Tensor<U>,
     mut f: F
-) -> TensorData<V>
+) -> Tensor<V>
 where
     T: Type,
     U: Type,
@@ -306,7 +306,7 @@ where
     assert!(batch * inner == size, "broadcast mismatch a.len={} b.len={}", a_len, b_len);
     
     unsafe {
-        TensorData::<V>::unsafe_init(size, |o| {
+        unsafe_init::<V>(size, shape, |o| {
             for n in 0..batch {
                 let offset = n * inner;
 
@@ -322,12 +322,13 @@ where
 }
 
 pub(super) fn _map2_row<const L: usize , const M: usize, const N: usize, T, U, V, F>(
+    shape: Shape,
     a: &Tensor<T>,
     a_cols: usize,
     b: &Tensor<U>,
     b_cols: usize,
     mut f: F
-) -> TensorData<V>
+) -> Tensor<V>
 where
     T: Type,
     U: Type,
@@ -346,7 +347,7 @@ where
     assert!(batch * inner == size, "broadcast mismatch a.size={} b.size={}", a_size, b_size);
     
     unsafe {
-        TensorData::<V>::unsafe_init(size, |o| {
+        unsafe_init::<V>(size, shape, |o| {
             for n in 0..batch {
                 let offset = n * inner;
 
@@ -366,11 +367,12 @@ where
 }
 
 fn map3<T, U, V, W, F>(
+    shape: Shape,
     a: &Tensor<T>,
     b: &Tensor<U>,
     c: &Tensor<V>,
     mut f: F
-) -> TensorData<W>
+) -> Tensor<W>
 where
     T: Type,
     U: Type,
@@ -389,7 +391,7 @@ where
     assert!(batch * inner == size, "broadcast mismatch a.len={} b.len={} c.len={}", a_len, b_len, c_len);
     
     unsafe {
-        TensorData::<W>::unsafe_init(size, |o| {
+        unsafe_init::<W>(size, shape, |o| {
             for n in 0..batch {
                 let offset = n * inner;
 
@@ -426,7 +428,7 @@ where
         value = (f)(value, &a[i]);
     }
 
-    TensorData::<V>::from_vec(vec![value.into_result()]).into_tensor(Shape::scalar())
+    Tensor::from(value.into_result())
 }
 
 pub(super) fn fold_axis<T, V, S, F>(
@@ -446,7 +448,7 @@ where
     let (o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
 
     unsafe {
-        TensorData::<V>::unsafe_init(o_shape.size(), |o| {
+        unsafe_init::<V>(o_shape.size(), o_shape, |o| {
             let a = tensor.as_slice();
 
             for n in 0..batch {
@@ -462,7 +464,7 @@ where
                     o.add(n * inner + i).write(state.into_result());
                 }
             }
-        }).into_tensor(o_shape)
+        })
     }
 }
 
@@ -484,7 +486,7 @@ where
     let cols = tensor.cols();
 
     unsafe {
-        TensorData::<V>::unsafe_init(o_shape.size(), |o| {
+        unsafe_init::<V>(o_shape.size(), o_shape, |o| {
             for b in 0..batch {
                 for j in 0..inner {
                     let mut state = init.clone();
@@ -503,7 +505,7 @@ where
                     }
                 }
             }
-        }).into_tensor(o_shape)
+        })
     }
 }
 
@@ -530,9 +532,10 @@ impl<const N: usize, T: Type> FoldState for [T; N] {
 }
 
 pub(super) fn reduce<T, F>(
+    shape: Shape,
     tensor: &Tensor<T>,
     mut f: F,
-) -> TensorData<T> 
+) -> Tensor<T> 
 where
     T: Type + Clone,
     F: FnMut(T, T) -> T,
@@ -542,7 +545,7 @@ where
     assert!(cols * len == tensor.size());
     
     unsafe {
-        TensorData::<T>::unsafe_init(len, |o| {
+        unsafe_init::<T>(len, shape, |o| {
             let a = tensor.as_slice();
 
             for j in 0..len {
@@ -574,7 +577,7 @@ where
     let (o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
 
     unsafe {
-        TensorData::<T>::unsafe_init(o_shape.size(), |o| {
+        unsafe_init::<T>(o_shape.size(), o_shape, |o| {
             let a = tensor.as_slice();
 
             for n in 0..batch {
@@ -590,7 +593,7 @@ where
                     o.add(n * inner + i).write(state);
                 }
             }
-        }).into_tensor(o_shape)
+        })
     }
 }
 
@@ -616,7 +619,7 @@ where
     let (o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
     // not axis.reduce, but normalize
     unsafe {
-        TensorData::<V>::unsafe_init(o_shape.size(), |o| {
+        unsafe_init::<V>(o_shape.size(), o_shape, |o| {
             let a = tensor.as_slice();
 
             for n in 0..batch {
@@ -639,7 +642,7 @@ where
                     }
                 }
             }
-        }).into_tensor(o_shape)
+        })
     }
 }
 

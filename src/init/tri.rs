@@ -1,7 +1,11 @@
-use crate::tensor::{TensorData, Tensor};
+use crate::tensor::{unsafe_init, Tensor};
 
 
 pub fn tri(n: usize) -> Tensor {
+    Tensor::init_rindexed([n, n], |idx| {
+        if idx[0] <= idx[1] { 1. } else { 0. }
+    })
+    /*
     let size = n * n;
 
     unsafe {
@@ -14,6 +18,7 @@ pub fn tri(n: usize) -> Tensor {
             }
         }).into_tensor([n, n])
     }
+    */
 }
 
 impl Tensor {
@@ -35,9 +40,10 @@ pub fn tril(tensor: impl Into<Tensor>) -> Tensor {
     assert!(tensor.rank() >= 2);
 
     let size = tensor.shape().size();
+    let shape = tensor.shape().clone();
 
     unsafe {
-        TensorData::<f32>::unsafe_init(size, |o| {
+        unsafe_init::<f32>(size, shape, |o| {
             let x = tensor.as_slice();
 
             let rows = tensor.rows();
@@ -54,7 +60,7 @@ pub fn tril(tensor: impl Into<Tensor>) -> Tensor {
                     }
                 }
             }
-        }).into_tensor(tensor.shape())
+        })
     }
 }
 
@@ -69,10 +75,11 @@ pub fn triu(tensor: impl Into<Tensor>) -> Tensor {
 
     assert!(tensor.rank() >= 2);
 
+    let shape = tensor.shape().clone();
     let size = tensor.shape().size();
 
     unsafe {
-        TensorData::<f32>::unsafe_init(size, |o| {
+        unsafe_init::<f32>(size, shape, |o| {
             let x = tensor.as_slice();
 
             let rows = tensor.rows();
@@ -89,25 +96,28 @@ pub fn triu(tensor: impl Into<Tensor>) -> Tensor {
                     }
                 }
             }
-        }).into_tensor(tensor.shape())
+        })
     }
 }
 #[cfg(test)]
 mod test {
     use tri::{tril, triu};
 
-    use crate::{init::{tri}, tf32};
+    use crate::{init::tri, ten, tf32};
 
     #[test]
     fn test_tri() {
-        assert_eq!(tri(1), tf32!([[1.]]));
-        assert_eq!(tri(2), tf32!([[1., 0.], [1., 1.]]));
-        assert_eq!(tri(4), tf32!([
+        assert_eq!(tri(1), ten![[1.]]);
+        assert_eq!(tri(2), ten![
+            [1., 0.],
+            [1., 1.]
+        ]);
+        assert_eq!(tri(4), ten![
             [1., 0., 0., 0.],
             [1., 1., 0., 0.],
             [1., 1., 1., 0.],
             [1., 1., 1., 1.],
-        ]));
+        ]);
     }
 
     #[test]

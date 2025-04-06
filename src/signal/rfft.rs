@@ -3,7 +3,7 @@ use std::{cmp, f32::consts::PI};
 use essay_opt::derive_opt;
 use rustfft::{FftPlanner, num_complex::Complex};
 
-use crate::tensor::{Tensor, TensorData};
+use crate::tensor::{Tensor, unsafe_init};
 
 pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
     let tensor = tensor.into();
@@ -26,7 +26,9 @@ pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
     };
 
     unsafe {
-        TensorData::<f32>::unsafe_init(batch * len_out, |o| {
+        let shape = tensor.shape().clone().with_cols(len_out);
+
+        unsafe_init::<f32>(batch * len_out, shape, |o| {
             for n in 0..batch {
                 let x = tensor.as_wrap_slice(n * len);
 
@@ -47,14 +49,14 @@ pub fn rfft_norm(tensor: impl Into<Tensor>, opt: impl FftOpt) -> Tensor {
                     o.add(offset + i).write(0.);
                 }
             }
-        }).into_tensor(tensor.shape().clone().with_cols(len_out))
+        })
     }
 }
 
 fn hann_window(len: usize) -> Tensor {
     let step : f32 = PI / len as f32;
     
-    Tensor::init_indexed([len], |idx| {
+    Tensor::init_rindexed([len], |idx| {
         let tmp = (step * idx[0] as f32).sin();
         tmp * tmp
     })

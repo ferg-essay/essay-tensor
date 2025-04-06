@@ -1,7 +1,7 @@
 use std::cmp;
 
 use crate::{
-    linalg::blas::sgemm, tensor::{Tensor, TensorData}
+    linalg::blas::sgemm, tensor::{Tensor, unsafe_init}
 };
 
 use super::matmul::Transpose;
@@ -33,8 +33,10 @@ fn matvec_t_f32(
     let (o_cols, o_rows) = transpose.o_size(a, x);
     let o_size = o_cols * o_rows;
 
+
+    let shape = x.shape().clone().with_cols(o_cols);
     unsafe {
-        TensorData::<f32>::unsafe_init(o_size * batch, |o| {
+        unsafe_init::<f32>(o_size * batch, shape, |o| {
             for n in 0..batch {
                 let a_ptr = a.as_wrap_ptr(n * a_size);
                 let x_ptr = x.as_wrap_ptr(n * x_size);
@@ -42,7 +44,7 @@ fn matvec_t_f32(
 
                 transpose.sgemm(a, x, o_cols, o_rows, a_ptr, x_ptr, o_ptr);
             }
-        }).into_tensor(x.shape().clone().with_cols(o_cols))
+        })
     }
 }
 

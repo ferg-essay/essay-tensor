@@ -2,6 +2,11 @@ use crate::tensor::Tensor;
 
 use super::Type;
 
+impl<T: Type + Clone> Tensor<T> {
+    pub fn slice<S: TensorSlice>(&self, index: S) -> Tensor<T> {
+        S::slice(index, &self)
+    }
+}
 
 pub trait TensorSlice {
     fn slice<T: Type>(self, tensor: &Tensor<T>) -> Tensor<T>;

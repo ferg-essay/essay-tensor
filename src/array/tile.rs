@@ -1,4 +1,4 @@
-use crate::tensor::{Type, Tensor, TensorData};
+use crate::tensor::{Type, Tensor, unsafe_init};
 
 impl<D: Type + Clone> Tensor<D> {
     pub fn tile(
@@ -9,9 +9,9 @@ impl<D: Type + Clone> Tensor<D> {
     }
 }
 
-pub fn tile<D>(tensor: impl Into<Tensor<D>>, multiples: impl Into<Tensor<usize>>) -> Tensor<D>
+pub fn tile<T>(tensor: impl Into<Tensor<T>>, multiples: impl Into<Tensor<usize>>) -> Tensor<T>
 where
-    D: Type + Clone
+    T: Type + Clone
 {
     let tensor = tensor.into();
 
@@ -42,7 +42,7 @@ where
     let o_shape = o_shape_r;
 
     unsafe {
-        TensorData::<D>::unsafe_init(n_outer * n_inner, |o| {
+        unsafe_init::<T>(n_outer * n_inner, o_shape, |o| {
             let mut offset = 0;
             tile_rec(
                 o,
@@ -54,7 +54,7 @@ where
                 o_rank - 1, 
                 &mut offset
             )
-        }).into_tensor(o_shape)
+        })
     }
 }
 

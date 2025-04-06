@@ -1,4 +1,4 @@
-use crate::{linalg::blas::sgemm, tensor::{Tensor, TensorData}};
+use crate::{linalg::blas::sgemm, tensor::{Tensor, unsafe_init}};
 
 #[derive(Clone, Debug)]
 pub enum Transpose {
@@ -57,7 +57,7 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
     let shape = b.shape().clone().with_cols(m).with_rows(n);
 
     unsafe {
-        TensorData::<f32>::unsafe_init(o_size * batch_len, |o| {
+        unsafe_init::<f32>(o_size * batch_len, shape, |o| {
             for batch in 0..batch_len {
                 let a_ptr = a.as_ptr().add(a_size * batch);
                 let b_ptr = b.as_ptr().add(b_size * batch);
@@ -65,7 +65,7 @@ pub fn matmul_t<T: TransposeMatmul>(a: &Tensor, b: &Tensor, transpose: T) -> Ten
         
                 transpose.sgemm(a, b, a_ptr, b_ptr, c_ptr);
             }
-        }).into_tensor(shape)
+        })
     }
 }
 
