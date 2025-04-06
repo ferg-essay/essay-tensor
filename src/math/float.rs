@@ -1,203 +1,88 @@
-use num_traits::Float;
+use num_traits::{Float, MulAdd};
 
 use crate::tensor::{Tensor, Type};
 
+macro_rules! map {
+    ($id: ident) => {
+        #[inline]
+        pub fn $id(&self) -> Tensor<T> {
+            self.map(|a| a.$id())
+        }
+    }
+}
+
+macro_rules! map2 {
+    ($id: ident) => {
+        #[inline]
+        pub fn $id(&self, b: &Tensor<T>) -> Tensor<T> {
+            self.map2(b, |a, b| a.$id(b.clone()))
+        }
+    }
+}
 
 impl<T: Type + Float + Clone> Tensor<T> {
-    #[inline]
-    pub fn floor(&self) -> Tensor<T> {
-        self.map(|v| v.floor())
-    }
-
-    #[inline]
-    pub fn ceil(&self) -> Tensor<T> {
-        self.map(|v| v.ceil())
-    }
-
-    #[inline]
-    pub fn round(&self) -> Tensor<T> {
-        self.map(|v| v.round())
-    }
-
-    #[inline]
-    pub fn trunc(&self) -> Tensor<T> {
-        self.map(|v| v.trunc())
-    }
-
-    #[inline]
-    pub fn fract(&self) -> Tensor<T> {
-        self.map(|v| v.fract())
-    }
-
-    #[inline]
-    pub fn signum(&self) -> Tensor<T> {
-        self.map(|v| v.signum())
-    }
-
-    #[inline]
-    pub fn recip(&self) -> Tensor<T> {
-        self.map(|v| v.recip())
-    }
+    map!(floor);
+    map!(ceil);
+    map!(round);
+    map!(trunc);
+    map!(fract);
+    map!(signum);
+    map!(recip);
 
     #[inline]
     pub fn powi(&self, rhs: impl Into<Tensor<i32>>) -> Tensor<T> {
         self.map2(&rhs.into(), |a, b| a.powi(*b))
     }
 
-    #[inline]
-    pub fn powf(&self, rhs: impl Into<Tensor<T>>) -> Tensor<T> {
-        self.map2(&rhs.into(), |a, b| a.powf(*b))
-    }
+    map2!(powf);
 
-    #[inline]
-    pub fn mul_add(&self, b: &Tensor<T>, c: &Tensor<T>) -> Tensor<T> {
-        self.map3(b, c, |a, b, c| a.mul_add(b.clone(), c.clone()))
-    }
-
-    #[inline]
-    pub fn sqrt(&self) -> Tensor<T> {
-        self.map(|a| a.sqrt())
-    }
-
-    #[inline]
-    pub fn exp(&self) -> Tensor<T> {
-        self.map(|a| a.exp())
-    }
-
-    #[inline]
-    pub fn exp2(&self) -> Tensor<T> {
-        self.map(|a| a.exp2())
-    }
-
-    #[inline]
-    pub fn ln(&self) -> Tensor<T> {
-        self.map(|a| a.ln())
-    }
-
-    #[inline]
-    pub fn log(&self, base: impl Into<Tensor<T>>) -> Tensor<T> {
-        self.map2(&base.into(), |a, b| a.log(*b))
-    }
-
-    #[inline]
-    pub fn log2(&self) -> Tensor<T> {
-        self.map(|a| a.log2())
-    }
-
-    #[inline]
-    pub fn log10(&self) -> Tensor<T> {
-        self.map(|a| a.log10())
-    }
-
-    #[inline]
-    pub fn to_degrees(&self) -> Tensor<T> {
-        self.map(|a| a.to_degrees())
-    }
-
-    #[inline]
-    pub fn to_radians(&self) -> Tensor<T> {
-        self.map(|a| a.to_radians())
-    }
-
-    #[inline]
-    pub fn cbrt(&self) -> Tensor<T> {
-        self.map(|a| a.cbrt())
-    }
-
-    #[inline]
-    pub fn hypot(&self, b: &Tensor<T>) -> Tensor<T> {
-        self.map2(b, |a, b| a.hypot(b.clone()))
-    }
-
-    #[inline]
-    pub fn sin(&self) -> Tensor<T> {
-        self.map(|a| a.sin())
-    }
-
-    #[inline]
-    pub fn asin(&self) -> Tensor<T> {
-        self.map(|a| a.asin())
-    }
-
-    #[inline]
-    pub fn sinh(&self) -> Tensor<T> {
-        self.map(|a| a.sinh())
-    }
-
-    #[inline]
-    pub fn asinh(&self) -> Tensor<T> {
-        self.map(|a| a.asinh())
-    }
-
-    #[inline]
-    pub fn cos(&self) -> Tensor<T> {
-        self.map(|a| a.cos())
-    }
-
-    #[inline]
-    pub fn acos(&self) -> Tensor<T> {
-        self.map(|a| a.acos())
-    }
-
-    #[inline]
-    pub fn cosh(&self) -> Tensor<T> {
-        self.map(|a| a.cos())
-    }
-
-    #[inline]
-    pub fn acosh(&self) -> Tensor<T> {
-        self.map(|a| a.acosh())
-    }
+    map!(sqrt);
+    map!(exp);
+    map!(exp2);
+    map!(ln);
+    map2!(log);
+    map!(log2);
+    map!(log10);
+    map!(to_degrees);
+    map!(to_radians);
+    map!(cbrt);
+    map2!(hypot);
+    map!(sin);
+    map!(asin);
+    map!(sinh);
+    map!(asinh);
+    map!(cos);
+    map!(acos);
+    map!(cosh);
+    map!(acosh);
 
     #[inline]
     pub fn sin_cos(&self) -> Tensor<(T, T)> {
         self.map(|a| a.sin_cos())
     }
 
-    #[inline]
-    pub fn tan(&self) -> Tensor<T> {
-        self.map(|a| a.tan())
-    }
+    map!(tan);
+    map!(atan);
+    map!(tanh);
+    map!(atanh);
+    map2!(atan2);
+    map!(exp_m1);
+    map!(ln_1p);
+    map2!(copysign);
+}
 
-    #[inline]
-    pub fn atan(&self) -> Tensor<T> {
-        self.map(|a| a.atan())
-    }
+impl<T: Type + MulAdd<Output=T> + Clone> MulAdd<&Tensor<T>, &Tensor<T>> for Tensor<T> {
+    type Output = Tensor<T>;
 
-    #[inline]
-    pub fn atan2(&self, b: &Tensor<T>) -> Tensor<T> {
-        self.map2(b, |a, b| a.atan2(b.clone()))
-    }
-
-    #[inline]
-    pub fn tanh(&self) -> Tensor<T> {
-        self.map(|a| a.tanh())
-    }
-
-    #[inline]
-    pub fn atanh(&self) -> Tensor<T> {
-        self.map(|a| a.atanh())
-    }
-
-    #[inline]
-    pub fn exp_m1(&self) -> Tensor<T> {
-        self.map(|a| a.exp_m1())
-    }
-
-    #[inline]
-    pub fn ln_1p(&self) -> Tensor<T> {
-        self.map(|a| a.ln_1p())
-    }
-
-    #[inline]
-    pub fn copysign(&self, sign: &Tensor<T>) -> Tensor<T> {
-        self.map2(sign, |a, b| a.copysign(b.clone()))
+    fn mul_add(self, b: &Tensor<T>, c: &Tensor<T>) -> Self::Output {
+        self.map3(b, c, |a, b, c| a.clone().mul_add(b.clone(), c.clone()))
     }
 }
 
 #[cfg(test)]
 mod test {
     use std::f32::consts::PI;
+    use num_traits::MulAdd;
 
     use crate::ten;
 

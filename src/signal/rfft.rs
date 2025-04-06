@@ -60,19 +60,6 @@ fn hann_window(len: usize) -> Tensor {
         let tmp = (step * idx[0] as f32).sin();
         tmp * tmp
     })
-    /*
-    unsafe {
-        TensorData::<f32>::unsafe_init(len, |o| {
-            let step : f32 = PI / len as f32;
-
-            for i in 0..len {
-                let tmp = (step * i as f32).sin();
-
-                o.add(i).write(tmp * tmp);
-            }
-        }).into_tensor([len])
-    }
-    */
 }
 
 #[derive_opt(FftOpt)]

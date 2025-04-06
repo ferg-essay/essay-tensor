@@ -1,6 +1,8 @@
 use core::fmt;
 use std::{any::type_name, ops::Deref, ptr, slice, sync::Arc};
 
+use num_complex::Complex;
+
 use super::{
     data::TensorData, unsafe_init, Shape
 };
@@ -407,6 +409,7 @@ tensor_types!(f32 f64);
 tensor_types!(String);
 
 impl<T: Type> Type for Option<T> {} 
+impl<T: Type> Type for Complex<T> {} 
 
 macro_rules! tensor_tuple {
     ($($id:ident),*) => {
