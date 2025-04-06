@@ -14,6 +14,11 @@ pub struct Tensor<T: Type=f32> {
 }
 
 impl<T: Type> Tensor<T> {
+    pub fn from_scalar(value: T) -> Self {
+        let vec = vec![value];
+        TensorData::from_boxed_slice(vec.into_boxed_slice(), Shape::scalar())
+    }
+    
     pub fn from_vec(vec: Vec<T>, shape: impl Into<Shape>) -> Self {
         TensorData::from_boxed_slice(vec.into_boxed_slice(), shape.into())
     }
