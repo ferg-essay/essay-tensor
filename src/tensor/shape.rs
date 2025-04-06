@@ -12,8 +12,7 @@ impl Shape {
     pub const MAX_RANK: usize = 6;
 
     pub fn scalar() -> Self {
-        let mut dims = [0; Self::MAX_RANK];
-        dims[0] = 0;
+        let dims = [0; Self::MAX_RANK];
 
         Self {
             dims,
@@ -35,7 +34,7 @@ impl Shape {
 
     #[inline]
     pub fn size(&self) -> usize {
-        (self.dims[0..self.rank as usize].iter().product::<u32>() as usize).max(1)
+        self.dims[0..self.rank as usize].iter().product::<u32>() as usize
     }
 
     #[inline]

@@ -1,6 +1,6 @@
 use core::slice;
 use std::{
-    alloc::{self, Layout}, mem, num::NonZeroUsize, ptr::NonNull
+    alloc::{self, Layout}, mem, ptr::NonNull
 };
 
 use crate::tensor::Tensor;
@@ -9,19 +9,18 @@ use super::{Shape, Type};
 
 pub(super) struct TensorData<T: Type> {
     data: NonNull<T>,
-    len: NonZeroUsize,
+    len: usize,
 }
 
 impl<T: Type> TensorData<T> {
     #[inline]
-    fn new(len: NonZeroUsize, data: NonNull<T>, shape: Shape) -> Tensor<T> {
+    fn new(len: usize, data: NonNull<T>, shape: Shape) -> Tensor<T> {
         Tensor::new(Self { len, data }, shape)
     }
 
     #[inline]
     pub(super) fn from_boxed_slice(slice: Box<[T]>, shape: impl Into<Shape>) -> Tensor<T> {
-        let len = NonZeroUsize::new(slice.len())
-            .expect("TensorData requires a non-empty slice");
+        let len = slice.len();
 
         let shape = shape.into();
 
@@ -38,7 +37,7 @@ impl<T: Type> TensorData<T> {
         slice: Box<[[T; N]]>,
         shape: impl Into<Shape>
     ) -> Tensor<T> {
-        let len = NonZeroUsize::new(slice.len() * N).unwrap();
+        let len = slice.len() * N;
         let shape = shape.into();
 
         unsafe {
@@ -52,7 +51,7 @@ impl<T: Type> TensorData<T> {
     /// Returns the flattened length of the tensor's data.
     #[inline]
     pub(super) fn len(&self) -> usize {
-        self.len.get()
+        self.len
     }
 
     #[inline(always)]
@@ -64,7 +63,7 @@ impl<T: Type> TensorData<T> {
 impl<T: Type> Drop for TensorData<T> {
     fn drop(&mut self) {
         unsafe {
-            let len = self.len.get();
+            let len = self.len;
             let slice = slice::from_raw_parts_mut(self.data.as_ptr(), len); 
             drop(Box::from_raw(slice));
         }
@@ -86,12 +85,9 @@ pub unsafe fn unsafe_init<T: Type>(
     mut init: impl FnMut(*mut T)
 ) -> Tensor<T>
 {
-    let len = NonZeroUsize::new(len)
-        .expect("unsafe_init must have a non-zero length");
-
     let shape = shape.into();
 
-    let layout = Layout::array::<T>(len.get()).unwrap();
+    let layout = Layout::array::<T>(len).unwrap();
     let data = NonNull::<T>::new_unchecked(alloc::alloc(layout).cast::<T>());
 
     (init)(data.cast::<T>().as_mut());

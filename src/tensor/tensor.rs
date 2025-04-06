@@ -486,7 +486,7 @@ into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
 
 #[cfg(test)]
 mod test {
-    use crate::{init::fill, ten, tensor::Shape, tf32};
+    use crate::{init::fill, ten, tensor::Shape, test::T, tf32};
 
     use super::Tensor;
 
@@ -624,8 +624,20 @@ mod test {
         let t0 : Tensor = 0.25.into();
 
         assert_eq!(t0.size(), 1);
+        assert_eq!(t0.rank(), 0);
         assert_eq!(t0.shape(), &Shape::scalar());
         assert_eq!(t0.get(0), Some(&0.25));
+    }
+
+    #[test]
+    fn tensor_empty() {
+        let empty: [i32; 0] = [];
+        let t = Tensor::from(empty);
+        assert_eq!(t.size(), 0);
+        assert_eq!(t.rank(), 1);
+        assert_eq!(t.cols(), 0);
+        assert_eq!(t.as_slice(), &[]);
+        assert_eq!(t.shape().as_vec(), &[0]);
     }
 
     #[test]
@@ -634,6 +646,15 @@ mod test {
         assert_eq!(t.size(), 1);
         assert_eq!(t[0], 10.5);
         assert_eq!(t.as_slice(), &[10.5]);
+        assert_eq!(t.shape(), &Shape::scalar());
+    }
+
+    #[test]
+    fn tensor_scalar_type() {
+        let t = Tensor::from(T(10));
+        assert_eq!(t.size(), 1);
+        assert_eq!(t[0], T(10));
+        assert_eq!(t.as_slice(), &[T(10)]);
         assert_eq!(t.shape(), &Shape::scalar());
     }
 
@@ -655,8 +676,20 @@ mod test {
     fn tensor_from_vec() {
         let t0 = Tensor::from(vec![10, 11, 12]);
         assert_eq!(t0.size(), 3);
+        assert_eq!(t0.rank(), 1);
+        assert_eq!(t0.cols(), 3);
         assert_eq!(t0.shape().as_vec(), &[3]);
         assert_eq!(t0.as_slice(), &[10, 11, 12]);
+    }
+
+    #[test]
+    fn tensor_from_vec_type() {
+        let t0 = Tensor::from(vec![T(10), T(11), T(12)]);
+        assert_eq!(t0.size(), 3);
+        assert_eq!(t0.rank(), 1);
+        assert_eq!(t0.cols(), 3);
+        assert_eq!(t0.shape().as_vec(), &[3]);
+        assert_eq!(t0.as_slice(), &[T(10), T(11), T(12)]);
     }
 
     #[test]
@@ -722,6 +755,17 @@ mod test {
     }
 
     #[test]
+    fn tensor_init_type() {
+        let t0 = Tensor::init([4], || T(4));
+
+        assert_eq!(t0.size(), 4);
+        assert_eq!(t0.cols(), 4);
+        assert_eq!(t0.rows(), 0);
+        assert_eq!(t0.shape().as_vec(), &[4]);
+        assert_eq!(t0, ten![T(4), T(4), T(4), T(4)]);
+    }
+
+    #[test]
     fn tensor_init_count() {
         let mut count = 0;
         let t0 = Tensor::init([4], || {
@@ -762,48 +806,54 @@ mod test {
 
         let t0 = Tensor::init_rindexed([3, 2], |idx| idx[0]);
 
+        assert_eq!(t0, ten![[0, 1], [0, 1], [0, 1]]);
         assert_eq!(t0.size(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
         assert_eq!(t0.shape().as_vec(), &[3, 2]);
-        assert_eq!(t0, ten![[0, 1], [0, 1], [0, 1]]);
 
         let t0 = Tensor::init_rindexed([3, 2], |idx| idx[1]);
 
+        assert_eq!(t0, ten![[0, 0], [1, 1], [2, 2]]);
         assert_eq!(t0.size(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
         assert_eq!(t0.shape().as_vec(), &[3, 2]);
-        assert_eq!(t0, ten![[0, 0], [1, 1], [2, 2]]);
 
         let t0 = Tensor::init_rindexed([3, 2], |idx| 
             if idx[1] == idx[0] { 1 } else { 0 }
         );
 
+        assert_eq!(t0, ten![[1, 0], [0, 1], [0, 0]]);
         assert_eq!(t0.size(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
         assert_eq!(t0.shape().as_vec(), &[3, 2]);
-        assert_eq!(t0, ten![[1, 0], [0, 1], [0, 0]]);
+    }
+
+    #[test]
+    fn tensor_init_indexed_type() {
+        let t0 = Tensor::init_rindexed([4], |idx| T(idx[0]));
+        assert_eq!(t0, ten![T(0), T(1), T(2), T(3)]);
     }
 
     #[test]
     fn tensor_fill() {
         let t0 = Tensor::fill([4], 0);
 
+        assert_eq!(t0, ten!([0, 0, 0, 0]));
         assert_eq!(t0.size(), 4);
         assert_eq!(t0.cols(), 4);
         assert_eq!(t0.rows(), 0);
         assert_eq!(t0.shape().as_vec(), &[4]);
-        assert_eq!(t0, ten!([0, 0, 0, 0]));
 
         let t0 = fill([3, 2], 0);
 
+        assert_eq!(t0, ten![[0, 0], [0, 0], [0, 0]]);
         assert_eq!(t0.size(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
         assert_eq!(t0.shape().as_vec(), &[3, 2]);
-        assert_eq!(t0, ten![[0, 0], [0, 0], [0, 0]]);
     }
 
     #[test]
