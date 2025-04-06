@@ -167,6 +167,27 @@ fn unsafe_init_drop_matrix() {
     assert_eq!(Messages::take(), vec!["Dead(10)", "Dead(11)", "Dead(20)", "Dead(31)"]);
 }
 
+/// Tensor::clone does not copy the data
+#[test]
+fn clone_drop() {
+    Messages::clear();
+
+    {
+        let ten = ten![Dead(0x10), Dead(0x20)];
+        vec![ten.clone(), ten.clone(), ten.clone()];
+    }
+
+    assert_eq!(Messages::take(), vec!["Dead(10)", "Dead(20)"]);
+
+    {
+        // check that compiler isn't eliminating clones or drops
+        let vec = vec![Dead(0x10), Dead(0x20)];
+        vec![vec.clone(), vec.clone(), vec.clone()];
+    }
+
+    assert_eq!(Messages::take(), vec!["Dead(10)", "Dead(20)", "Dead(10)", "Dead(20)", "Dead(10)", "Dead(20)",  "Dead(10)", "Dead(20)"]);
+}
+
 // older tests
 
 #[test]
