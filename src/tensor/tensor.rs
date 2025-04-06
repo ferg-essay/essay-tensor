@@ -22,13 +22,13 @@ impl<T: Type> Tensor<T> {
         TensorData::from_boxed_slice(slice, shape)
     }
 
-    pub(super) fn from_data(data: TensorData<T>, shape: impl Into<Shape>) -> Self {
+    pub(super) fn new(data: TensorData<T>, shape: impl Into<Shape>) -> Self {
         let shape = shape.into();
 
         assert_eq!(shape.size(), data.len());
 
         Self {
-            shape: shape.into(),
+            shape,
             offset: 0,
             size: data.len(),
 
@@ -327,7 +327,12 @@ fn fmt_tensor_rec<T: Type + fmt::Debug>(
     offset: usize
 ) -> fmt::Result {
     match rank {
-        0 => write!(f, "{:?}", tensor[offset]),
+        0 => {
+            match tensor.get(offset) {
+                Some(v) => { write!(f, "{:?}", v) },
+                None => { write!(f, "None") }
+            }
+        }
         1 => {
             write!(f, "[")?;
 
@@ -363,7 +368,8 @@ fn fmt_tensor_rec<T: Type + fmt::Debug>(
             let shape = tensor.shape();
             let rank = shape.rank();
             // TODO:
-            let stride : usize = shape.sublen(rank - n + 1, rank);
+            //let stride : usize = shape.sublen(rank - n + 1, rank);
+            let stride : usize = shape.rsublen(0, rank - 1);
             for j in 0..shape.rdim(n - 1) {
                 if j > 0 {
                     write!(f, ",\n\n  ")?;
@@ -472,7 +478,7 @@ into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
 
 #[cfg(test)]
 mod test {
-    use crate::{tensor::Shape, ten, tf32};
+    use crate::{init::fill, ten, tensor::Shape, tf32};
 
     use super::Tensor;
 
@@ -580,22 +586,29 @@ mod test {
     #[test]
     fn debug_vector_from_macro() {
         let t = ten![1.];
-        assert_eq!(format!("{:?}", t), "Tensor<f32> {[1.0], shape: [1]}");
+        assert_eq!(format!("{:?}", t), "Tensor<f64> {[1.0], shape: [1]}");
 
         let t = ten![1.];
-        assert_eq!(format!("{:?}", t), "Tensor<f32> {[1.0], shape: [1]}");
+        assert_eq!(format!("{:?}", t), "Tensor<f64> {[1.0], shape: [1]}");
 
         let t = ten![1., 2.];
-        assert_eq!(format!("{:?}", t), "Tensor<f32> {[1.0 2.0], shape: [2]}");
+        assert_eq!(format!("{:?}", t), "Tensor<f64> {[1.0 2.0], shape: [2]}");
 
-        let t = ten![[1., 2., 3.], [3., 4., 5.]];
+        let t = ten![[1.0f32, 2., 3.], [3., 4., 5.]];
         assert_eq!(format!("{:?}", t), "Tensor<f32> {\n[[1.0 2.0 3.0],\n [3.0 4.0 5.0]], shape: [2, 3]}");
 
         let t = ten![
-            [[1., 2.], [3., 4.]],
+            [[1.0f32, 2.], [3., 4.]],
             [[11., 12.], [13., 14.]]
         ];
         assert_eq!(format!("{:?}", t), "Tensor<f32> {\n[[[1.0 2.0],\n [3.0 4.0]],\n\n  [[11.0 12.0],\n [13.0 14.0]]], shape: [2, 2, 2]}");
+
+        let t = ten![
+            [[1., 2.], [3., 4.]],
+            [[11., 12.], [13., 14.]],
+            [[21., 22.], [23., 24.]]
+        ];
+        assert_eq!(format!("{:?}", t), "Tensor<f64> {\n[[[1.0 2.0],\n [3.0 4.0]],\n\n  [[11.0 12.0],\n [13.0 14.0]],\n\n  [[21.0 22.0],\n [23.0 24.0]]], shape: [3, 2, 2]}");
     }
 
     #[test]
@@ -776,13 +789,13 @@ mod test {
         assert_eq!(t0.shape().as_vec(), &[4]);
         assert_eq!(t0, ten!([0, 0, 0, 0]));
 
-        let t0 = Tensor::fill([3, 2], 0.);
+        let t0 = fill([3, 2], 0);
 
         assert_eq!(t0.size(), 6);
         assert_eq!(t0.cols(), 2);
         assert_eq!(t0.rows(), 3);
         assert_eq!(t0.shape().as_vec(), &[3, 2]);
-        assert_eq!(t0, ten!([[0., 0.], [0., 0.], [0., 0.]]));
+        assert_eq!(t0, ten![[0, 0], [0, 0], [0, 0]]);
     }
 
     #[test]

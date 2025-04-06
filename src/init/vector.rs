@@ -242,7 +242,7 @@ mod test {
     use crate::init::{geomspace, logspace, logspace_opt};
     use crate::init::vector::one_hot;
     use crate::prelude::*;
-    use crate::{init::linspace, ten, tf32};
+    use crate::{init::linspace, ten};
 
     #[test]
     fn linspace_0_4_5() {

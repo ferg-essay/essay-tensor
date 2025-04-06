@@ -15,7 +15,7 @@ pub(super) struct TensorData<T: Type> {
 impl<T: Type> TensorData<T> {
     #[inline]
     fn new(len: NonZeroUsize, data: NonNull<T>, shape: Shape) -> Tensor<T> {
-        Tensor::from_data(Self { len, data }, shape)
+        Tensor::new(Self { len, data }, shape)
     }
 
     #[inline]

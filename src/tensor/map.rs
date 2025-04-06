@@ -7,14 +7,14 @@ impl<T: Type> Tensor<T> {
     where
         F: FnMut() -> T
     {
-        init(shape.into(), f)
+        init(shape, f)
     }
 
     pub fn init_rindexed<F>(shape: impl Into<Shape>, f: F) -> Self
     where
         F: FnMut(&[usize]) -> T
     {
-        init_indexed(shape.into(), f)
+        init_rindexed(shape, f)
     }
 
     #[inline]
@@ -158,10 +158,6 @@ impl<T: Type> Tensor<T> {
 }
 
 impl<T: Type + Clone> Tensor<T> {
-    pub fn fill(shape: impl Into<Shape>, value: T) -> Self {
-        Self::init(shape, || value.clone())
-    }
-
     pub fn reduce(&self, f: impl FnMut(T, T) -> T) -> Tensor<T> {
         let shape = if self.shape().rank() > 1 {
             self.shape().clone().rremove(0)
@@ -177,10 +173,10 @@ impl<T: Type + Clone> Tensor<T> {
     }
 }
 
-fn init<F, V>(shape: impl Into<Shape>, mut f: F) -> Tensor<V>
-where
-    V: Type,
-    F: FnMut() -> V,
+pub fn init<V: Type>(
+    shape: impl Into<Shape>, 
+    mut f: impl FnMut() -> V
+) -> Tensor<V>
 {
     let shape = shape.into();
     let size = shape.size();
@@ -194,10 +190,10 @@ where
     }
 }
 
-fn init_indexed<F, V>(shape: impl Into<Shape>, mut f: F) -> Tensor<V>
-where
-    F: FnMut(&[usize]) -> V,
-    V: Type
+pub fn init_rindexed<V: Type>(
+    shape: impl Into<Shape>, 
+    mut f: impl FnMut(&[usize]) -> V,
+) -> Tensor<V>
 {
     let shape = shape.into();
     let size = shape.size();

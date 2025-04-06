@@ -35,7 +35,7 @@ impl Shape {
 
     #[inline]
     pub fn size(&self) -> usize {
-        self.dims[0..self.rank as usize].iter().product::<u32>() as usize
+        (self.dims[0..self.rank as usize].iter().product::<u32>() as usize).max(1)
     }
 
     #[inline]
@@ -251,6 +251,12 @@ impl Shape {
     #[inline]
     pub fn sublen(&self, start: usize, end: usize) -> usize
     {
+        self.rsublen(self.rev(start), self.rev(end))
+    }
+
+    #[inline]
+    pub fn rsublen(&self, start: usize, end: usize) -> usize
+    {
         let mut size = 1;
 
         for i in start..end {
@@ -258,6 +264,10 @@ impl Shape {
         }
 
         size as usize
+    }
+
+    fn rev(&self, value: usize) -> usize {
+        self.rank as usize - 1 - value
     }
 
     #[inline]
@@ -421,13 +431,14 @@ impl From<&[usize]> for Shape {
     fn from(value: &[usize]) -> Self {
         let mut dims = [0; Self::MAX_RANK];
 
-        for (i, v) in value.iter().rev().enumerate() {
-            dims[i] = *v as u32;
+        for (i, dim) in value.iter().rev().enumerate() {
+            assert!(*dim > 0);
+            dims[i] = *dim as u32;
         }
 
         Shape {
             dims,
-            rank: value.len().max(1),
+            rank: value.len(),
         }
     }
 }
@@ -436,13 +447,14 @@ impl<const N: usize> From<[usize; N]> for Shape {
     fn from(value: [usize; N]) -> Self {
         let mut dims = [0; Self::MAX_RANK];
 
-        for (i, v) in value.iter().rev().enumerate() {
-            dims[i] = *v as u32;
+        for (i, dim) in value.iter().rev().enumerate() {
+            assert!(*dim > 0);
+            dims[i] = *dim as u32;
         }
 
         Shape {
             dims,
-            rank: value.len().max(1),
+            rank: value.len(),
         }
     }
 }
@@ -452,12 +464,13 @@ impl From<Vec<usize>> for Shape {
         let mut dims = [0; Self::MAX_RANK];
 
         for (i, v) in value.iter().rev().enumerate() {
+            assert!(*v > 0);
             dims[i] = *v as u32;
         }
 
         Shape {
             dims,
-            rank: value.len().max(1),
+            rank: value.len(),
         }
     }
 }

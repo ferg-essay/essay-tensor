@@ -9,7 +9,7 @@ impl<T: Type> Index<usize> for Tensor<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
-        assert!(index < self.size());
+        assert!(index < self.size(), "tensor[{}] is larger than size={}", index, self.size);
 
         unsafe {
             self.as_ptr().add(index).as_ref().unwrap()
