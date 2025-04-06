@@ -117,7 +117,7 @@ impl<T: Type> Index<(usize, usize, usize, usize, usize)> for Tensor<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::tf32;
 
     #[test]
     fn index_rank_2() {

@@ -215,7 +215,8 @@ impl From<(f32, f32)> for Uniform {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::tensor::Tensor;
+    use crate::{ten, tf32};
     use crate::init::{random_normal, random_uniform, Normal, Uniform};
 
     #[test]

@@ -97,7 +97,7 @@ unsafe fn tile_rec<D: Type + Clone>(
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::tile};
+    use crate::{array::tile, ten, tf32};
     
     #[test]
     fn test_tile() {

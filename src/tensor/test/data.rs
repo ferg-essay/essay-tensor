@@ -1,9 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    prelude::*,
-    tensor::{data::TensorData, unsafe_init, Type},
-    test::{Dead, Messages},
+    ten, tensor::{data::TensorData, unsafe_init, Shape, Tensor, Type}, test::{Dead, Messages}
 };
 
 #[test]

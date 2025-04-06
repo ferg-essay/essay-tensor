@@ -241,7 +241,7 @@ impl Tensor {
 mod test {
     use crate::init::{geomspace, logspace, logspace_opt};
     use crate::init::vector::one_hot;
-    use crate::prelude::*;
+    use crate::tensor::Tensor;
     use crate::{init::linspace, ten};
 
     #[test]

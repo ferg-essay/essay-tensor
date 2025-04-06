@@ -173,8 +173,8 @@ pub enum Sections {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
-    
+    use crate::tf32;
+
     #[test]
     fn test_split() {
         assert_eq!(

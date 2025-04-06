@@ -46,7 +46,7 @@ impl<D: Type + Clone> Tensor<D> {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, array::transpose};
+    use crate::{array::transpose, tf32};
     
     #[test]
     fn test_transpose() {

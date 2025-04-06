@@ -73,7 +73,7 @@ impl From<usize> for HistArgs {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, stats::histogram};
+    use crate::{stats::histogram, tf32};
 
     #[test]
     fn histogram_default() {

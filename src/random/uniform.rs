@@ -59,7 +59,7 @@ impl UniformBuilder {
 #[cfg(test)]
 mod test {
     use super::uniform_b;
-    use crate::prelude::*;
+    use crate::ten;
 
     #[test]
     fn test_one() {

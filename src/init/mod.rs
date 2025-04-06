@@ -1,10 +1,6 @@
 mod matrix;
-mod initializer;
-//mod meshgrid;
 mod random;
 mod vector;
-
-pub use initializer::Initializer;
 
 use num_traits::{One, Zero};
 
@@ -13,10 +9,6 @@ pub use matrix::{
     meshgrid, meshgrid_ij, Meshgrid, mgrid,
     tri,
 };
-
-//pub use meshgrid::{
-//    meshgrid, meshgrid_ij, Meshgrid, mgrid,
-//};
 
 pub use random::{
     random_normal, Normal,
@@ -68,8 +60,9 @@ impl<T: Type + Clone> Tensor<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
     use crate::init::{fill, ones, zeros};
+    use crate::ten;
+    use crate::tensor::Tensor;
     use crate::test::{C, O, Z};
 
     #[test]

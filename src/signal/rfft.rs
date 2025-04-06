@@ -83,7 +83,7 @@ pub struct FftArg {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, signal::rfft_norm};
+    use crate::{signal::rfft_norm, tf32};
     use super::FftOpt;
 
     #[test]

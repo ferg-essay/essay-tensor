@@ -44,7 +44,7 @@ impl TensorSlice for (usize, usize) {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::tf32;
 
     #[test]
     fn slice_usize() {

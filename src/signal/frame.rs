@@ -27,7 +27,7 @@ pub fn frame(x: impl Into<Tensor>, len: usize, step: usize) -> Tensor {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, signal::frame};
+    use crate::{signal::frame, tf32};
 
     #[test]
     fn test_frame_2_2() {

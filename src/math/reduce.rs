@@ -73,26 +73,6 @@ impl<T: Type + ops::Mul<Output=T> + Clone> Tensor<T> {
     }
 }
 
-/*
-impl<T: Type + Ord + Clone> Tensor<T> {
-    pub fn reduce_min(&self) -> Tensor<T> {
-        self.reduce(|s, v| s.min(v))
-    }
-
-    pub fn reduce_min_axis(&self, axis: impl Into<Axis>) -> Tensor<T> {
-        self.reduce_axis(axis, |s, v| s.min(v))
-    }
-
-    pub fn reduce_max(&self) -> Tensor<T> {
-        self.reduce(|s, v| s.max(v))
-    }
-
-    pub fn reduce_max_axis(&self, axis: impl Into<Axis>) -> Tensor<T> {
-        self.reduce_axis(axis, |s, v| s.max(v))
-    }
-}
-    */
-
 #[derive(Clone, Debug)]
 struct Hypot<T: Float>(T);
 
@@ -234,7 +214,7 @@ impl FoldState for Var {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::{ten, tensor::Axis, tf32};
 
     #[test]
     fn reduce_axis() {

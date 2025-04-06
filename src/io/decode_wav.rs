@@ -116,8 +116,7 @@ impl<'a> Cursor<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
-    use crate::io::{read_file, decode_wav::decode_wav};
+    use crate::{io::{decode_wav::decode_wav, read_file}, ten, tensor::Shape};
 
     #[test]
     fn test_wav() {

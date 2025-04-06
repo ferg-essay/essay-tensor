@@ -1,6 +1,4 @@
-use crate::prelude::Shape;
-
-
+use crate::tensor::Shape;
 
 #[derive(Default)]
 pub struct Axis {

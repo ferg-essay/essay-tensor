@@ -339,7 +339,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{array::{concatenate, concatenate_axis, dstack, hstack, stack, stack_axis, vstack}, prelude::*};
+    use crate::{array::{concatenate, concatenate_axis, dstack, hstack, stack, stack_axis, vstack}, tensor::Axis, tf32};
     
     #[test]
     fn test_concat() {

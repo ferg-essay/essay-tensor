@@ -87,7 +87,7 @@ impl From<usize> for Hist2Args {
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, stats::histogram2d};
+    use crate::{stats::histogram2d, tf32};
 
     #[test]
     fn histogram2d_bins_2() {
