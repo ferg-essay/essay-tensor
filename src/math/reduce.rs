@@ -214,7 +214,30 @@ impl FoldState for Var {
 
 #[cfg(test)]
 mod test {
-    use crate::{ten, tensor::Axis, tf32};
+    use crate::{ten, tensor::{scalar, Axis}, test::C};
+
+    #[test]
+    fn reduce() {
+        assert_eq!(
+            ten![1, 2, 3, 4].reduce(|s, v| s + v), 
+            ten![10]
+        );
+
+        assert_eq!(
+            ten![[1, 2], [3, 4]].reduce(|s, v| s + v), 
+            ten![10]
+        );
+
+        assert_eq!(
+            ten![C(1), C(2), C(3), C(4)].reduce(|s, v| C(s.0 + v.0)), 
+            ten![C(10)]
+        );
+
+        assert_eq!(
+            ten![[C(1), C(2)], [C(3), C(4)]].reduce(|s, v| C(s.0 + v.0)), 
+            ten![C(10)]
+        );
+    }
 
     #[test]
     fn reduce_axis() {
@@ -234,55 +257,55 @@ mod test {
 
     #[test]
     fn reduce_sum_n() {
-        assert_eq!(tf32!([1.]).reduce_sum(), tf32!(1.));
-        assert_eq!(tf32!([1., 10.]).reduce_sum(), tf32!(11.));
-        assert_eq!(tf32!([10., 1.]).reduce_sum(), tf32!(11.));
+        assert_eq!(ten![1.].reduce_sum(), ten!(1.));
+        assert_eq!(ten![1., 10.].reduce_sum(), ten!(11.));
+        assert_eq!(ten![10., 1.].reduce_sum(), ten!(11.));
     }
 
     #[test]
     fn reduce_sum_1xn() {
-        assert_eq!(tf32!([[1.]]).reduce_sum(), tf32!([1.]));
-        assert_eq!(tf32!([[1., 10.]]).reduce_sum(), tf32!([11.]));
-        assert_eq!(tf32!([[10., 1.]]).reduce_sum(), tf32!([11.]));
+        assert_eq!(ten![[1.]].reduce_sum(), ten![1.]);
+        assert_eq!(ten![[1., 10.]].reduce_sum(), ten![11.]);
+        assert_eq!(ten![[10., 1.]].reduce_sum(), ten![11.]);
     }
 
     #[test]
     fn reduce_sum_2xn() {
-        assert_eq!(tf32!([[1.], [2.]]).reduce_sum(), tf32!([1., 2.]));
-        assert_eq!(tf32!([[1., 10.], [2., 20.]]).reduce_sum(), tf32!([11., 22.]));
-        assert_eq!(tf32!([[20., 2.], [10., 1.]]).reduce_sum(), tf32!([22., 11.]));
+        assert_eq!(ten![[1.], [2.]].reduce_sum(), ten![1., 2.]);
+        assert_eq!(ten![[1., 10.], [2., 20.]].reduce_sum(), ten![11., 22.]);
+        assert_eq!(ten![[20., 2.], [10., 1.]].reduce_sum(), ten![22., 11.]);
     }
 
     #[test]
     fn reduce_sum_2x1xn() {
-        assert_eq!(tf32!([[[1.]], [[2.]]]).reduce_sum(), tf32!([[1.], [2.]]));
-        assert_eq!(tf32!([[[1., 10.]], [[2., 20.]]]).reduce_sum(), tf32!([[11.], [22.]]));
-        assert_eq!(tf32!([[[20., 2.]], [[10., 1.]]]).reduce_sum(), tf32!([[22.], [11.]]));
+        assert_eq!(ten![[[1.]], [[2.]]].reduce_sum(), ten![[1.], [2.]]);
+        assert_eq!(ten![[[1., 10.]], [[2., 20.]]].reduce_sum(), ten![[11.], [22.]]);
+        assert_eq!(ten![[[20., 2.]], [[10., 1.]]].reduce_sum(), ten![[22.], [11.]]);
     }
 
     #[test]
     fn reduce_sum_1xn_axis_none() {
-        assert_eq!(tf32!([[1.]]).reduce_sum_axis(None), tf32!(1.));
-        assert_eq!(tf32!([[1., 10.]]).reduce_sum_axis(None), tf32!(11.));
-        assert_eq!(tf32!([[10., 1.]]).reduce_sum_axis(None), tf32!(11.));
+        assert_eq!(ten![[1.]].reduce_sum_axis(None), ten!(1.));
+        assert_eq!(ten![[1., 10.]].reduce_sum_axis(None), ten!(11.));
+        assert_eq!(ten![[10., 1.]].reduce_sum_axis(None), ten!(11.));
     }
 
     #[test]
     fn reduce_sum_2xn_axis_none() {
-        assert_eq!(tf32!([[1.], [2.]]).reduce_sum_axis(None), tf32!(3.));
-        assert_eq!(tf32!([[1., 10.], [100., 1000.]]).reduce_sum_axis(None), tf32!(1111.));
+        assert_eq!(ten![[1.], [2.]].reduce_sum_axis(None), ten!(3.));
+        assert_eq!(ten![[1., 10.], [100., 1000.]].reduce_sum_axis(None), ten!(1111.));
     }
 
     #[test]
     fn reduce_sum_2x1x1xn_axis_none() {
-        assert_eq!(tf32!([[[[1.]]], [[[2.]]]]).reduce_sum_axis(None), tf32!(3.));
-        assert_eq!(tf32!([[[[1., 10.]]], [[[100., 1000.]]]]).reduce_sum_axis(None), tf32!(1111.));
+        assert_eq!(ten![[[[1.]]], [[[2.]]]].reduce_sum_axis(None), ten!(3.));
+        assert_eq!(ten![[[[1., 10.]]], [[[100., 1000.]]]].reduce_sum_axis(None), ten!(1111.));
     }
 
     #[test]
     fn reduce_sum_2xn_axis_0() {
-        assert_eq!(tf32!([[1.], [2.]]).reduce_sum_axis(0), tf32!([3.]));
-        assert_eq!(tf32!([[1., 10.], [100., 1000.]]).reduce_sum_axis(0), tf32!([101., 1010.]));
+        assert_eq!(ten![[1.], [2.]].reduce_sum_axis(0), ten![3.]);
+        assert_eq!(ten![[1., 10.], [100., 1000.]].reduce_sum_axis(0), ten![101., 1010.]);
     }
 
     #[test]
@@ -297,65 +320,65 @@ mod test {
     
     #[test]
     fn reduce_hypot() {
-        assert_eq!(tf32!([3., 4.]).reduce_hypot(), tf32!([5.]));
-        assert_eq!(tf32!([2., 2., 2., 2.]).reduce_hypot(), tf32!([4.]));
+        assert_eq!(ten![3., 4.].reduce_hypot(), ten![5.]);
+        assert_eq!(ten![2., 2., 2., 2.].reduce_hypot(), ten![4.]);
     }
     
     #[test]
     fn reduce_mean() {
-        assert_eq!(tf32!([1.]).reduce_mean(), tf32!([1.]));
-        assert_eq!(tf32!([1., 3.]).reduce_mean(), tf32!([2.]));
+        assert_eq!(ten![1.].reduce_mean(), scalar(1.));
+        assert_eq!(ten![1., 3.].reduce_mean(), scalar(2.));
         // Axis::None behavior is to treat the tensor as flat
-        assert_eq!(tf32!([[1., 3.], [4., 0.]]).reduce_mean(), tf32!([2.]));
+        assert_eq!(ten![[1., 3.], [4., 0.]].reduce_mean(), scalar(2.));
     }
 
     #[test]
     fn reduce_mean_axis() {
-        assert_eq!(tf32!([1.]).reduce_mean_axis(None), tf32!(1.));
-        assert_eq!(tf32!([1., 3.]).reduce_mean_axis(None), tf32!(2.));
-        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean_axis(None), tf32!([3.5]));
-        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean_axis(None), tf32!([3.5]));
+        assert_eq!(ten![1.].reduce_mean_axis(None), scalar(1.));
+        assert_eq!(ten![1., 3.].reduce_mean_axis(None), scalar(2.));
+        assert_eq!(ten![[1., 3.], [4., 6.]].reduce_mean_axis(None), ten![3.5]);
+        assert_eq!(ten![[[1., 3.]], [[4., 6.]]].reduce_mean_axis(None), ten![3.5]);
 
-        assert_eq!(tf32!([1.]).reduce_mean_axis(Axis::axis(-1)), tf32!(1.));
-        assert_eq!(tf32!([1., 3.]).reduce_mean_axis(-1), tf32!(2.));
-        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean_axis(-1), tf32!([2., 5.]));
-        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean_axis(-1), tf32!([[2.], [5.]]));
+        assert_eq!(ten![1.].reduce_mean_axis(Axis::axis(-1)), scalar(1.));
+        assert_eq!(ten![1., 3.].reduce_mean_axis(-1), scalar(2.));
+        assert_eq!(ten![[1., 3.], [4., 6.]].reduce_mean_axis(-1), ten![2., 5.]);
+        assert_eq!(ten![[[1., 3.]], [[4., 6.]]].reduce_mean_axis(-1), ten![[2.], [5.]]);
 
-        assert_eq!(tf32!([1.]).reduce_mean_axis(0), tf32!(1.));
-        assert_eq!(tf32!([1., 3.]).reduce_mean_axis(0), tf32!(2.));
-        assert_eq!(tf32!([[1., 3.], [4., 6.]]).reduce_mean_axis(0), tf32!([2.5, 4.5]));
-        assert_eq!(tf32!([[[1., 3.]], [[4., 6.]]]).reduce_mean_axis(0), tf32!([[2.5, 4.5]]));
+        assert_eq!(ten![1.].reduce_mean_axis(0), ten!(1.));
+        assert_eq!(ten![1., 3.].reduce_mean_axis(0), ten!(2.));
+        assert_eq!(ten![[1., 3.], [4., 6.]].reduce_mean_axis(0), ten![2.5, 4.5]);
+        assert_eq!(ten![[[1., 3.]], [[4., 6.]]].reduce_mean_axis(0), ten![[2.5, 4.5]]);
     }
 
     #[test]
     fn reduce_std() {
-        assert_eq!(tf32!([1.]).reduce_std(), tf32!(0.));
-        assert_eq!(tf32!([1., 1.]).reduce_std(), tf32!(0.));
-        assert_eq!(tf32!([2., 2., 2., 2.]).reduce_std(), tf32!(0.));
+        assert_eq!(ten!([1.]).reduce_std(), ten!(0.));
+        assert_eq!(ten!([1., 1.]).reduce_std(), ten!(0.));
+        assert_eq!(ten!([2., 2., 2., 2.]).reduce_std(), ten!(0.));
 
-        assert_eq!(tf32!([1., 3., 2., 2.]).reduce_std(), tf32!(0.70710677));
-        assert_eq!(tf32!([[1., 3.], [2., 2.]]).reduce_std(), tf32!(0.70710677));
-        assert_eq!(tf32!([[1., 3.], [2., 2.]]).reduce_std_axis(None), tf32!(0.70710677));
-        assert_eq!(tf32!([[1., 3.], [2., 2.]]).reduce_std_axis(-1), tf32!([1.0, 0.0]));
-        assert_eq!(tf32!([[1., 3.], [2., 2.]]).reduce_std_axis(0), tf32!([0.5, 0.5]));
+        assert_eq!(ten!([1., 3., 2., 2.]).reduce_std(), ten!(0.70710677));
+        assert_eq!(ten!([[1., 3.], [2., 2.]]).reduce_std(), ten!(0.70710677));
+        assert_eq!(ten!([[1., 3.], [2., 2.]]).reduce_std_axis(None), ten!(0.70710677));
+        assert_eq!(ten!([[1., 3.], [2., 2.]]).reduce_std_axis(-1), ten!([1.0, 0.0]));
+        assert_eq!(ten!([[1., 3.], [2., 2.]]).reduce_std_axis(0), ten!([0.5, 0.5]));
 
-        assert_eq!(tf32!([1., 3.]).reduce_std(), tf32!(1.));
-        assert_eq!(tf32!([1., 3., 3.]).reduce_std(), tf32!(0.94280905));
-        assert_eq!(tf32!([1., 3., 1., 3.]).reduce_std(), tf32!(1.));
-        assert_eq!(tf32!([1., 3., 4., 0.]).reduce_std(), tf32!(1.5811388));
-        assert_eq!(tf32!([1., 3., 4., 0., 2.]).reduce_std(), tf32!(1.4142135));
+        assert_eq!(ten!([1., 3.]).reduce_std(), ten!(1.));
+        assert_eq!(ten!([1., 3., 3.]).reduce_std(), ten!(0.94280905));
+        assert_eq!(ten!([1., 3., 1., 3.]).reduce_std(), ten!(1.));
+        assert_eq!(ten!([1., 3., 4., 0.]).reduce_std(), ten!(1.5811388));
+        assert_eq!(ten!([1., 3., 4., 0., 2.]).reduce_std(), ten!(1.4142135));
     }
 
     #[test]
     fn reduce_var() {
-        assert_eq!(tf32!([1.]).reduce_variance(), tf32!(0.));
-        assert_eq!(tf32!([1., 1.]).reduce_variance(), tf32!(0.));
-        assert_eq!(tf32!([2., 2., 2., 2.]).reduce_variance(), tf32!(0.));
+        assert_eq!(ten!([1.]).reduce_variance(), ten!(0.));
+        assert_eq!(ten!([1., 1.]).reduce_variance(), ten!(0.));
+        assert_eq!(ten!([2., 2., 2., 2.]).reduce_variance(), ten!(0.));
 
-        assert_eq!(tf32!([1., 3.]).reduce_variance(), tf32!(1.));
-        assert_eq!(tf32!([1., 3., 1., 3.]).reduce_variance(), tf32!(1.));
-        assert_eq!(tf32!([1., 3., 3.]).reduce_variance(), tf32!(0.8888889));
-        assert_eq!(tf32!([1., 3., 4., 0.]).reduce_variance(), tf32!(2.5));
-        assert_eq!(tf32!([1., 3., 4., 0., 2.]).reduce_variance(), tf32!(2.0));
+        assert_eq!(ten!([1., 3.]).reduce_variance(), ten!(1.));
+        assert_eq!(ten!([1., 3., 1., 3.]).reduce_variance(), ten!(1.));
+        assert_eq!(ten!([1., 3., 3.]).reduce_variance(), ten!(0.8888889));
+        assert_eq!(ten!([1., 3., 4., 0.]).reduce_variance(), ten!(2.5));
+        assert_eq!(ten!([1., 3., 4., 0., 2.]).reduce_variance(), ten!(2.0));
     }
 }

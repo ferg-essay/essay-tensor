@@ -216,7 +216,7 @@ impl From<(f32, f32)> for Uniform {
 #[cfg(test)]
 mod test {
     use crate::tensor::Tensor;
-    use crate::{ten, tf32};
+    use crate::ten;
     use crate::init::{random_normal, random_uniform, Normal, Uniform};
 
     #[test]
@@ -244,7 +244,7 @@ mod test {
         
         assert_eq!(
             random_normal([3, 2, 2], Normal::seed(100)), 
-            tf32!([
+            ten!([
                 [[-0.41531694, 1.4542247], [0.21783249, -0.17405495]],
                 [[-0.6294868, -1.3442261], [-0.37828407, 1.3928399]],
                 [[-0.17792797, -0.11458359], [0.2934363, -0.8526999]],

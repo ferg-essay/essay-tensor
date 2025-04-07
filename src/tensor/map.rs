@@ -1,5 +1,7 @@
 use std::ptr;
 
+use crate::tensor::scalar;
+
 use super::{unsafe_init, Axis, Shape, Tensor, Type};
 
 impl<T: Type> Tensor<T> {
@@ -159,13 +161,7 @@ impl<T: Type> Tensor<T> {
 
 impl<T: Type + Clone> Tensor<T> {
     pub fn reduce(&self, f: impl FnMut(T, T) -> T) -> Tensor<T> {
-        let shape = if self.shape().rank() > 1 {
-            self.shape().clone().rremove(0)
-        } else {
-            Shape::from([1])
-        };
-
-        reduce(shape, self, f)
+        reduce(self, f)
     }
 
     pub fn reduce_axis(&self, axis: impl Into<Axis>, f: impl FnMut(T, T) -> T) -> Tensor<T> {
@@ -528,7 +524,6 @@ impl<const N: usize, T: Type> FoldState for [T; N] {
 }
 
 pub(super) fn reduce<T, F>(
-    shape: Shape,
     tensor: &Tensor<T>,
     mut f: F,
 ) -> Tensor<T> 
@@ -536,27 +531,15 @@ where
     T: Type + Clone,
     F: FnMut(T, T) -> T,
 {
-    let cols = tensor.cols();
-    let len = tensor.size() / cols;
-    assert!(cols * len == tensor.size());
-    
-    unsafe {
-        unsafe_init::<T>(len, shape, |o| {
-            let a = tensor.as_slice();
+    let a = tensor.as_slice();
 
-            for j in 0..len {
-                let offset = j * cols;
+    let mut value = a[0].clone();
 
-                let mut value = a[offset].clone();
-
-                for i in 1..cols {
-                    value = (f)(value, a[offset + i].clone());
-                }
-
-                o.add(j).write(value.into());
-            }
-        })
+    for i in 1..tensor.size() {
+        value = (f)(value, a[i].clone());
     }
+
+    scalar(value)
 }
 
 pub(super) fn reduce_axis<T, F>(
@@ -644,35 +627,106 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::ten;
+    use crate::{ten, tensor::{scalar, Tensor}, test::{C, T, T2, T3, T4}};
+
+    use super::FoldState;
+
+    #[test]
+    fn init() {
+        let mut count = 10;
+        let v = Tensor::init([3, 2], || {
+            let v = T(count);
+            count += 1;
+            v
+        });
+    
+        assert_eq!(v, ten![[T(10), T(11)], [T(12), T(13)], [T(14), T(15)]]);
+        assert_eq!(v.shape(), &[3, 2].into());
+
+        let v = Tensor::init_rindexed([3, 2], |idx| {
+            T(100 * idx[1] + idx[0])
+        });
+    
+        assert_eq!(v, ten![[T(0), T(1)], [T(100), T(101)], [T(200), T(201)]]);
+        assert_eq!(v.shape(), &[3, 2].into());
+    }
+
+    #[test]
+    fn map() {
+        let a = ten![[T(1), T(20)], [T(3), T(40)], [T(5), T(60)]];
+    
+        let c = a.map(|a| T2(100 + a.0));
+    
+        assert_eq!(c, ten![[T2(101), T2(120)], [T2(103), T2(140)], [T2(105), T2(160)]]);
+        assert_eq!(c.shape(), &[3, 2].into());
+    }
 
     #[test]
     fn map2() {
-        let a = ten![[1, 20], [3, 40], [5, 60]];
-        let b = ten![[100, 2000], [300, 4000], [500, 6000]];
+        let a = ten![[T(1), T(20)], [T(3), T(40)], [T(5), T(60)]];
+        let b = ten![[T2(100), T2(2000)], [T2(300), T2(4000)], [T2(500), T2(6000)]];
     
-        let c = a.map2(&b, |a, b| a + b);
+        let c = a.map2(&b, |a, b| T3(a.0 + b.0));
     
-        assert_eq!(c, ten![[101, 2020], [303, 4040], [505, 6060]]);
+        assert_eq!(c, ten![[T3(101), T3(2020)], [T3(303), T3(4040)], [T3(505), T3(6060)]]);
     
         assert_eq!(c.shape(), &[3, 2].into());
-        assert_eq!(c.size(), 6);
-        assert_eq!(c.offset(), 0);
     }
 
     #[test]
     fn map3() {
-        let a = ten![[1, 20], [3, 40], [5, 60]];
-        let b = ten![[100, 2000], [300, 4000], [500, 6000]];
-        let c = ten![[10000, 200000], [30000, 400000], [50000, 600000]];
+        let a = ten![[T(1), T(20)], [T(3), T(40)], [T(5), T(60)]];
+        let b = ten![[T2(100), T2(2000)], [T2(300), T2(4000)], [T2(500), T2(6000)]];
+        let c = ten![[T3(10000), T3(200000)], [T3(30000), T3(400000)], [T3(50000), T3(600000)]];
     
-        let d = a.map3(&b, &c, |a, b, c| a + b + c);
+        let d = a.map3(&b, &c, |a, b, c| T4(a.0 + b.0 + c.0));
     
-        assert_eq!(d, ten![[10101, 202020], [30303, 404040], [50505, 606060]]);
+        assert_eq!(d, ten![[T4(10101), T4(202020)], [T4(30303), T4(404040)], [T4(50505), T4(606060)]]);
     
         assert_eq!(d.shape(), &[3, 2].into());
-        assert_eq!(d.size(), 6);
-        assert_eq!(d.offset(), 0);
     }
 
+    #[test]
+    fn reduce() {
+        let a = ten![[C(1), C(200)], [C(3), C(400)], [C(5), C(600)]];
+        let v = a.reduce(|a, b| C(a.0 + b.0));
+        assert_eq!(v, scalar(C(1209)));
+
+        let a = ten![[C(1), C(200)], [C(3), C(400)], [C(5), C(600)]];
+        let v = a.reduce_axis(None, |a, b| C(a.0 + b.0));
+        assert_eq!(v, scalar(C(1209)));
+
+        let v = a.reduce_axis(-1, |a, b| C(a.0 + b.0));
+        assert_eq!(v, ten![C(201), C(403), C(605)]);
+
+        let v = a.reduce_axis(0, |a, b| C(a.0 + b.0));
+        assert_eq!(v, ten![C(9), C(1200)]);
+    }
+
+    #[test]
+    fn fold() {
+        let a = ten![[T(1), T(200)], [T(3), T(400)], [T(5), T(600)]];
+        let v = a.fold(S(10000), |s, v| S(s.0 + v.0));
+        assert_eq!(v, scalar(T2(11209)));
+
+        let v = a.fold_axis(None, S(10000), |s, v| S(s.0 + v.0));
+        assert_eq!(v, scalar(T2(11209)));
+
+        let v = a.fold_axis(-1, S(10000), |s, v| S(s.0 + v.0));
+        assert_eq!(v, ten![T2(10201), T2(10403), T2(10605)]);
+
+        let v = a.fold_axis(0, S(10000), |s, v| S(s.0 + v.0));
+        assert_eq!(v, ten![T2(10009), T2(11200)]);
+    }
+
+    #[derive(Clone, Debug)]
+    struct S(usize);
+
+    impl FoldState for S {
+        type Out = T2;
+    
+        fn into_result(self) -> Self::Out {
+            T2(self.0)
+        }
+    }
 }

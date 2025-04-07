@@ -431,7 +431,6 @@ impl From<&[usize]> for Shape {
         let mut dims = [0; Self::MAX_RANK];
 
         for (i, dim) in value.iter().rev().enumerate() {
-            assert!(*dim > 0);
             dims[i] = *dim as u32;
         }
 
@@ -447,7 +446,6 @@ impl<const N: usize> From<[usize; N]> for Shape {
         let mut dims = [0; Self::MAX_RANK];
 
         for (i, dim) in value.iter().rev().enumerate() {
-            assert!(*dim > 0);
             dims[i] = *dim as u32;
         }
 
@@ -559,11 +557,11 @@ mod test {
     #[test]
     fn shape_from_slice() {
         let shape = Shape::from([]);
-        assert_eq!(shape.rank(), 1);
-        assert_eq!(shape.size(), 0);
+        assert_eq!(shape.rank(), 0);
+        assert_eq!(shape.size(), 1);
         assert_eq!(shape.cols(), 0);
         assert_eq!(shape.rows(), 0);
-        assert_eq!(shape.as_vec(), vec![0]);
+        assert_eq!(shape.as_vec(), vec![]);
 
         let shape = Shape::from([4]);
         assert_eq!(shape.rank(), 1);
@@ -588,7 +586,7 @@ mod test {
     }
     #[test]
     fn shape_debug() {
-        assert_eq!(format!("{:?}", Shape::from([])), "Shape { dims: [0, 0, 0, 0, 0, 0], rank: 1 }");
+        assert_eq!(format!("{:?}", Shape::from([])), "Shape { dims: [0, 0, 0, 0, 0, 0], rank: 0 }");
         assert_eq!(format!("{:?}", Shape::from([4])), "Shape { dims: [4, 0, 0, 0, 0, 0], rank: 1 }");
         assert_eq!(format!("{:?}", Shape::from([4, 2])), "Shape { dims: [2, 4, 0, 0, 0, 0], rank: 2 }");
     }

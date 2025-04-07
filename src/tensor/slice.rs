@@ -44,11 +44,11 @@ impl TensorSlice for (usize, usize) {
 
 #[cfg(test)]
 mod test {
-    use crate::tf32;
+    use crate::ten;
 
     #[test]
     fn slice_usize() {
-        let t = tf32!([[1., 2.], [3., 4.], [5., 6.]]);
+        let t = ten![[1., 2.], [3., 4.], [5., 6.]];
         assert_eq!(t.shape().as_vec(), &[3, 2]);
 
         let t1 = t.slice(0);
@@ -66,7 +66,7 @@ mod test {
 
     #[test]
     fn slice_usize_rank1() {
-        let t = tf32!([1., 2., 3., 4.]);
+        let t = ten!([1., 2., 3., 4.]);
 
         let t1 = t.slice(0);
         assert_eq!(t1.shape().as_vec(), &[]);
@@ -91,7 +91,7 @@ mod test {
 
     #[test]
     fn slice_usize_usize() {
-        let t = tf32!([
+        let t = ten!([
             [[1., 2.], [3., 4.], [5., 6.]],
             [[10., 20.], [30., 40.], [50., 60.]],
         ]);
@@ -108,13 +108,13 @@ mod test {
 
     #[test]
     fn slice_with_broadcast() {
-        let t = tf32!([1., 2., 3., 4.]);
+        let t = ten!([1., 2., 3., 4.]);
         assert_eq!(t.shape().as_vec(), &[4]);
 
         let t1 = t.slice(1);
         assert_eq!(t1.shape().as_vec(), &[]);
         assert_eq!(t1.as_slice(), &[2.]);
 
-        assert_eq!(&t1 + tf32!([[1.], [2.]]), tf32!([[3.], [4.]]));
+        assert_eq!(&t1 + ten!([[1.], [2.]]), ten!([[3.], [4.]]));
     }
 }

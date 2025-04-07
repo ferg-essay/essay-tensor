@@ -87,15 +87,15 @@ impl From<usize> for Hist2Args {
 
 #[cfg(test)]
 mod test {
-    use crate::{stats::histogram2d, tf32};
+    use crate::{stats::histogram2d, ten};
 
     #[test]
     fn histogram2d_bins_2() {
         assert_eq!(
-            histogram2d(tf32!([[0., 0.], [1., 0.], [1., 1.], [0.51, 0.49]]), 2), (
-                tf32!([[1., 2.], [0., 1.]]),
-                tf32!([0., 0.5, 1.]),
-                tf32!([0., 0.5, 1.]),
+            histogram2d(ten!([[0., 0.], [1., 0.], [1., 1.], [0.51, 0.49]]), 2), (
+                ten!([[1., 2.], [0., 1.]]),
+                ten!([0., 0.5, 1.]),
+                ten!([0., 0.5, 1.]),
             )
         );
     }

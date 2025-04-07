@@ -20,5 +20,5 @@ pub use map::FoldState;
 pub use shape::Shape;
 
 pub use tensor::{
-    Type, Tensor, IntoTensorList,
+    Type, Tensor, IntoTensorList, scalar,
 };

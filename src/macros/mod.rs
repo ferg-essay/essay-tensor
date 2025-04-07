@@ -10,9 +10,9 @@ macro_rules! ten {
         $crate::tensor::Tensor::from([$($x),*])
     };
 }
-
+/*
 #[macro_export]
-macro_rules! tf32 {
+macro_rules! ten {
     ([ $([ $([ $( $x:expr),* $(,)?]),* $(,)?]),* $(,)?]) => {
         $crate::tensor::Tensor::<f32>::from([$([$([$($x),*]),*]),*])
     };
@@ -29,3 +29,4 @@ macro_rules! tf32 {
         $crate::Tensor::<f32>::empty()
     };
 }
+    */

@@ -37,7 +37,7 @@ impl Axis {
     pub fn reduce(&self, shape: &Shape) -> (Shape, usize, usize, usize) {
         match self.axis {
             None => {
-                (Shape::from([1]), 1, shape.size(), 1)
+                (Shape::scalar(), 1, shape.size(), 1)
             }
             Some(axis) => {
                 let rank = shape.rank();

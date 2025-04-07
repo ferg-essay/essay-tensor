@@ -117,11 +117,11 @@ impl<T: Type> Index<(usize, usize, usize, usize, usize)> for Tensor<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::tf32;
+    use crate::ten;
 
     #[test]
     fn index_rank_2() {
-        let t = tf32!([[1., 2.], [3., 4.], [5., 6.]]);
+        let t = ten![[1., 2.], [3., 4.], [5., 6.]];
         assert_eq!(t.shape().as_vec(), &[3, 2]);
 
         assert_eq!(t[0], 1.);
@@ -138,7 +138,7 @@ mod test {
 
     #[test]
     fn index_rank_1() {
-        let t = tf32!([1., 2., 3., 4.]);
+        let t = ten![1., 2., 3., 4.];
         assert_eq!(t.shape().as_vec(), &[4]);
 
         assert_eq!(t[0], 1.);
@@ -149,7 +149,7 @@ mod test {
 
     #[test]
     fn index_rank_1_slice() {
-        let t = tf32!([1., 2., 3., 4.]);
+        let t = ten![1., 2., 3., 4.];
         assert_eq!(t.shape().as_vec(), &[4]);
 
         assert_eq!(t.slice(0)[0], 1.);

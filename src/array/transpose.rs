@@ -46,18 +46,18 @@ impl<D: Type + Clone> Tensor<D> {
 
 #[cfg(test)]
 mod test {
-    use crate::{array::transpose, tf32};
+    use crate::{array::transpose, ten};
     
     #[test]
     fn test_transpose() {
         assert_eq!(
-            transpose(&tf32!([1., 2.])),
-            tf32!([[1.], [2.]]),
+            transpose(&ten!([1., 2.])),
+            ten!([[1.], [2.]]),
         );
 
         assert_eq!(
-            transpose(&tf32!([[1., 2.], [3., 4.], [5., 6.]])),
-            tf32!([[1., 3., 5.], [2., 4., 6.]]),
+            transpose(&ten!([[1., 2.], [3., 4.], [5., 6.]])),
+            ten!([[1., 3., 5.], [2., 4., 6.]]),
         );
     }
 }

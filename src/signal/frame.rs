@@ -27,20 +27,20 @@ pub fn frame(x: impl Into<Tensor>, len: usize, step: usize) -> Tensor {
 
 #[cfg(test)]
 mod test {
-    use crate::{signal::frame, tf32};
+    use crate::{signal::frame, ten};
 
     #[test]
     fn test_frame_2_2() {
-        let x = tf32!([1., 2., 3., 4., 5., 6.]);
-        assert_eq!(frame(&x, 2, 2), tf32!([[1., 2.], [3., 4.], [5., 6.]]));
+        let x = ten!([1., 2., 3., 4., 5., 6.]);
+        assert_eq!(frame(&x, 2, 2), ten!([[1., 2.], [3., 4.], [5., 6.]]));
 
-        let x = tf32!([1., 2., 3., 4., 5., 6.]);
-        assert_eq!(frame(&x, 3, 3), tf32!([[1., 2., 3.], [4., 5., 6.]]));
+        let x = ten!([1., 2., 3., 4., 5., 6.]);
+        assert_eq!(frame(&x, 3, 3), ten!([[1., 2., 3.], [4., 5., 6.]]));
     }
 
     #[test]
     fn test_frame_3_2() {
-        let x = tf32!([1., 2., 3., 4., 5., 6.]);
-        assert_eq!(frame(&x, 3, 2), tf32!([[1., 2., 3.], [3., 4., 5.]]));
+        let x = ten!([1., 2., 3., 4., 5., 6.]);
+        assert_eq!(frame(&x, 3, 2), ten!([[1., 2., 3.], [3., 4., 5.]]));
     }
 }
