@@ -250,7 +250,15 @@ impl Shape {
     #[inline]
     pub fn sublen(&self, start: usize, end: usize) -> usize
     {
-        self.rsublen(self.rev(start), self.rev(end))
+        let mut size = 1;
+
+        let (start, end) = (self.rank - end, self.rank - start);
+
+        for i in start..end {
+            size *= self.dims[i];
+        }
+
+        size as usize
     }
 
     #[inline]

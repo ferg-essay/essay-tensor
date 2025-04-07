@@ -10,8 +10,8 @@ pub fn transpose<T: Type + Clone>(tensor: impl Into<Tensor<T>>) -> Tensor<T> {
     let batch = size / n_inner;
 
     let mut shape = tensor.shape().clone();
-    if shape.rank() == 1 && cols > 1 {
-        shape = shape.insert(0, 1);
+    if shape.rank() == 1 {
+        shape = shape.rinsert(0, 1);
     } else {
         shape = shape.with_cols(rows).with_rows(cols);
     }
@@ -51,13 +51,13 @@ mod test {
     #[test]
     fn test_transpose() {
         assert_eq!(
-            transpose(&ten!([1., 2.])),
-            ten!([[1.], [2.]]),
+            transpose(&ten![1., 2.]),
+            ten![[1.], [2.]],
         );
 
         assert_eq!(
-            transpose(&ten!([[1., 2.], [3., 4.], [5., 6.]])),
-            ten!([[1., 3., 5.], [2., 4., 6.]]),
+            transpose(&ten![[1., 2.], [3., 4.], [5., 6.]]),
+            ten![[1., 3., 5.], [2., 4., 6.]],
         );
     }
 }

@@ -44,6 +44,7 @@ fn split_axis<T: Type + Clone>(
     match section {
         Sections::SplitEqual(n) => {
             let step = len / n;
+            assert!(step > 0);
             let mut i = 0;
             while i < len {
                 i += step;
@@ -178,52 +179,52 @@ mod test {
     #[test]
     fn test_split() {
         assert_eq!(
-            ten!([[1., 2.], [3., 4.]]).split(2), 
-            vec![ten!([[1., 2.]]), ten!([[3., 4.]])],
+            ten![[1., 2.], [3., 4.]].split(2), 
+            vec![ten![[1., 2.]], ten![[3., 4.]]],
         );
 
         assert_eq!(
-            ten!([1., 2., 3., 4.]).split([1, 3]), 
-            vec![ten!([1.]), ten!([2., 3.]), ten!([4.])],
+            ten![1., 2., 3., 4.].split([1, 3]), 
+            vec![ten![1.], ten![2., 3.], ten![4.]],
         );
     }
     
     #[test]
     fn test_split_axis() {
         assert_eq!(
-            ten!([[1., 2.], [3., 4.]]).split_axis(1, 2), 
-            vec![ten!([[1.], [3.]]), ten!([[2.], [4.]])],
+            ten![[1., 2.], [3., 4.]].split_axis(1, 2), 
+            vec![ten![[1.], [3.]], ten![[2.], [4.]]],
         );
     }
     
     #[test]
     fn test_vsplit() {
         assert_eq!(
-            ten!([[1., 2.], [3., 4.]]).vsplit(2), 
-            vec![ten!([[1., 2.]]), ten!([[3., 4.]])],
+            ten![[1., 2.], [3., 4.]].vsplit(2), 
+            vec![ten![[1., 2.]], ten![[3., 4.]]],
         );
 
         assert_eq!(
-            ten!([1., 2., 3., 4.]).vsplit([1, 3]), 
-            vec![ten!([1.]), ten!([2., 3.]), ten!([4.])],
+            ten![1., 2., 3., 4.].vsplit([1, 3]), 
+            vec![ten![1.], ten![2., 3.], ten![4.]],
         );
     }
     
     #[test]
     fn test_hsplit() {
         assert_eq!(
-            ten!([[1., 2.], [3., 4.]]).hsplit(2), 
-            vec![ten!([[1.], [3.]]), ten!([[2.], [4.]])],
+            ten![[1., 2.], [3., 4.]].hsplit(2), 
+            vec![ten![[1.], [3.]], ten![[2.], [4.]]],
         );
     }
     
     #[test]
     fn test_dsplit() {
         assert_eq!(
-            ten!([[[1., 2.], [3., 4.]], [[5., 6.], [7., 8.]]]).dsplit(2), 
+            ten![[[1., 2.], [3., 4.]], [[5., 6.], [7., 8.]]].dsplit(2), 
             vec![
-                ten!([[[1.], [3.]], [[5.], [7.]]]),
-                ten!([[[2.], [4.]], [[6.], [8.]]])
+                ten![[[1.], [3.]], [[5.], [7.]]],
+                ten![[[2.], [4.]], [[6.], [8.]]]
             ],
         );
     }
