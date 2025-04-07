@@ -371,12 +371,11 @@ fn fmt_tensor_rec<T: Type + fmt::Debug>(
             write!(f, "[")?;
 
             let shape = tensor.shape();
-            let rank = shape.rank();
 
-            let stride : usize = shape.rsublen(0, rank - 1);
+            let stride : usize = shape.rsublen(0, n - 1);
             for j in 0..shape.rdim(n - 1) {
                 if j > 0 {
-                    write!(f, ",\n\n  ")?;
+                    write!(f, ",\n\n ")?;
                 }
 
                 fmt_tensor_rec::<T>(tensor, f, n - 1, offset + j * stride)?;

@@ -1,4 +1,4 @@
-use crate::tensor::Shape;
+use crate::{ten, tensor::Shape};
 
 
 #[test]
@@ -33,7 +33,7 @@ fn shape_from_slice() {
 }
 #[test]
 fn shape_debug() {
-    assert_eq!(format!("{:?}", Shape::from([])), "Shape { dims: [0, 0, 0, 0, 0, 0], rank: 1 }");
+    assert_eq!(format!("{:?}", Shape::from([])), "Shape { dims: [0, 0, 0, 0, 0, 0], rank: 0 }");
     assert_eq!(format!("{:?}", Shape::from([4])), "Shape { dims: [4, 0, 0, 0, 0, 0], rank: 1 }");
     assert_eq!(format!("{:?}", Shape::from([4, 2])), "Shape { dims: [2, 4, 0, 0, 0, 0], rank: 2 }");
 }
@@ -88,4 +88,28 @@ fn shape_rremove() {
     assert_eq!(Shape::from([1, 2, 3]).rremove(0).as_vec(), vec![1, 2]);
     assert_eq!(Shape::from([1, 2, 3]).rremove(1).as_vec(), vec![1, 3]);
     assert_eq!(Shape::from([1, 2, 3]).rremove(2).as_vec(), vec![2, 3]);
+}
+
+#[test]
+fn test_flatten() {
+    assert_eq!(ten!([[1., 2.], [3., 4.]]).flatten(), ten!([1., 2., 3., 4.]));
+}
+#[test]
+fn test_reshape() {
+    assert_eq!(
+        ten!([[1., 2.], [3., 4.]]).reshape([4]),
+        ten!([1., 2., 3., 4.])
+    );
+}
+
+#[test]
+fn test_squeeze() {
+    assert_eq!(ten!([[1.]]).squeeze(), ten!(1.));
+    assert_eq!(ten!([[1., 2.]]).squeeze(), ten!([1., 2.]));
+    assert_eq!(ten!([[[1.], [2.]]]).squeeze(), ten!([1., 2.]));
+}
+
+#[test]
+fn test_squeeze_axis() {
+    assert_eq!(ten!([[[1.], [2.]]]).squeeze_axis(-1), ten!([[1., 2.]]));
 }

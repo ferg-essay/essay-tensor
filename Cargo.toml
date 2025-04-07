@@ -28,6 +28,9 @@ members = [
     "crates/*",
 ]
 
+[features]
+naive=[]
+
 #[workspace.dependencies]
 #essay-tensor 
 

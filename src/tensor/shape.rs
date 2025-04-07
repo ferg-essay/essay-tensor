@@ -273,10 +273,6 @@ impl Shape {
         size as usize
     }
 
-    fn rev(&self, value: usize) -> usize {
-        self.rank as usize - 1 - value
-    }
-
     #[inline]
     #[must_use]
     pub fn expand_dims(&self, axis: isize) -> Self {
@@ -507,7 +503,7 @@ impl<T: Type> Tensor<T> {
     }
 }
 
-impl<T: Type + Clone> Tensor<T> {
+impl<T: Type> Tensor<T> {
     #[inline]
     #[must_use]
     pub fn reshape(self, shape: impl Into<Shape>) -> Tensor<T> {

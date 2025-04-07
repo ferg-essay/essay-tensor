@@ -1,4 +1,144 @@
-use crate::{ten, tensor::{Axis, Type}};
+use crate::{init::fill, ten, tensor::{Axis, Tensor, Type}, test::T};
+
+#[test]
+fn tensor_init_zero() {
+    let t0 = Tensor::init([4], || 0.);
+
+    assert_eq!(t0.size(), 4);
+    assert_eq!(t0.cols(), 4);
+    assert_eq!(t0.rows(), 0);
+    assert_eq!(t0.shape().as_vec(), &[4]);
+    assert_eq!(t0, ten!([0., 0., 0., 0.]));
+
+    let t0 = Tensor::init([3, 2], || 0.);
+
+    assert_eq!(t0.size(), 6);
+    assert_eq!(t0.cols(), 2);
+    assert_eq!(t0.rows(), 3);
+    assert_eq!(t0.shape().as_vec(), &[3, 2]);
+    assert_eq!(t0, ten!([[0., 0.], [0., 0.], [0., 0.]]));
+}
+
+#[test]
+fn tensor_init_type() {
+    let t0 = Tensor::init([4], || T(4));
+
+    assert_eq!(t0.size(), 4);
+    assert_eq!(t0.cols(), 4);
+    assert_eq!(t0.rows(), 0);
+    assert_eq!(t0.shape().as_vec(), &[4]);
+    assert_eq!(t0, ten![T(4), T(4), T(4), T(4)]);
+}
+
+#[test]
+fn tensor_init_count() {
+    let mut count = 0;
+    let t0 = Tensor::init([4], || {
+        let value = count;
+        count += 1;
+        value
+    });
+
+    assert_eq!(t0.size(), 4);
+    assert_eq!(t0.cols(), 4);
+    assert_eq!(t0.rows(), 0);
+    assert_eq!(t0.shape().as_vec(), &[4]);
+    assert_eq!(t0, ten!([0, 1, 2, 3]));
+
+    let mut count = 0;
+    let t0 = Tensor::init([3, 2], || {
+        let value = count;
+        count += 1;
+        value
+    });
+
+    assert_eq!(t0.size(), 6);
+    assert_eq!(t0.cols(), 2);
+    assert_eq!(t0.rows(), 3);
+    assert_eq!(t0.shape().as_vec(), &[3, 2]);
+    assert_eq!(t0, ten!([[0, 1], [2, 3], [4, 5]]));
+}
+
+#[test]
+fn tensor_init_indexed() {
+    let t0 = Tensor::init_rindexed([4], |idx| idx[0]);
+
+    assert_eq!(t0.size(), 4);
+    assert_eq!(t0.cols(), 4);
+    assert_eq!(t0.rows(), 0);
+    assert_eq!(t0.shape().as_vec(), &[4]);
+    assert_eq!(t0, ten![0, 1, 2, 3]);
+
+    let t0 = Tensor::init_rindexed([3, 2], |idx| idx[0]);
+
+    assert_eq!(t0, ten![[0, 1], [0, 1], [0, 1]]);
+    assert_eq!(t0.size(), 6);
+    assert_eq!(t0.cols(), 2);
+    assert_eq!(t0.rows(), 3);
+    assert_eq!(t0.shape().as_vec(), &[3, 2]);
+
+    let t0 = Tensor::init_rindexed([3, 2], |idx| idx[1]);
+
+    assert_eq!(t0, ten![[0, 0], [1, 1], [2, 2]]);
+    assert_eq!(t0.size(), 6);
+    assert_eq!(t0.cols(), 2);
+    assert_eq!(t0.rows(), 3);
+    assert_eq!(t0.shape().as_vec(), &[3, 2]);
+
+    let t0 = Tensor::init_rindexed([3, 2], |idx| 
+        if idx[1] == idx[0] { 1 } else { 0 }
+    );
+
+    assert_eq!(t0, ten![[1, 0], [0, 1], [0, 0]]);
+    assert_eq!(t0.size(), 6);
+    assert_eq!(t0.cols(), 2);
+    assert_eq!(t0.rows(), 3);
+    assert_eq!(t0.shape().as_vec(), &[3, 2]);
+}
+
+#[test]
+fn tensor_init_indexed_type() {
+    let t0 = Tensor::init_rindexed([4], |idx| T(idx[0]));
+    assert_eq!(t0, ten![T(0), T(1), T(2), T(3)]);
+}
+
+#[test]
+fn tensor_fill() {
+    let t0 = Tensor::fill([4], 0);
+
+    assert_eq!(t0, ten!([0, 0, 0, 0]));
+    assert_eq!(t0.size(), 4);
+    assert_eq!(t0.cols(), 4);
+    assert_eq!(t0.rows(), 0);
+    assert_eq!(t0.shape().as_vec(), &[4]);
+
+    let t0 = fill([3, 2], 0);
+
+    assert_eq!(t0, ten![[0, 0], [0, 0], [0, 0]]);
+    assert_eq!(t0.size(), 6);
+    assert_eq!(t0.cols(), 2);
+    assert_eq!(t0.rows(), 3);
+    assert_eq!(t0.shape().as_vec(), &[3, 2]);
+}
+
+#[test]
+fn tensor_zeros() {
+    let t0 = Tensor::zeros([4]);
+
+    assert_eq!(t0.size(), 4);
+    assert_eq!(t0.cols(), 4);
+    assert_eq!(t0.rows(), 0);
+    assert_eq!(t0.shape().as_vec(), &[4]);
+    assert_eq!(t0, ten!([0, 0, 0, 0]));
+
+    let t0 = Tensor::zeros([3, 2]);
+
+    assert_eq!(t0.size(), 6);
+    assert_eq!(t0.cols(), 2);
+    assert_eq!(t0.rows(), 3);
+    assert_eq!(t0.shape().as_vec(), &[3, 2]);
+    assert_eq!(t0, ten!([[0., 0.], [0., 0.], [0., 0.]]));
+}
 
 #[test]
 fn map_i32() {
@@ -303,6 +443,58 @@ fn reduce_with_clone() {
 
     let ten = ten.reduce(|s, t| ValueClone::from(s.value + t.value));
     assert_eq!(ten, ten![ValueClone::from(3), ValueClone::from(7)]);
+}
+
+#[test]
+fn tensor_map_i32() {
+    let t1 = ten!([1, 2, 3, 4]);
+    let t2 = t1.map(|v| 2 * v);
+
+    assert_eq!(t1.shape(), t2.shape());
+    assert_eq!(t1.offset(), t2.offset());
+    assert_eq!(t1.size(), t2.size());
+    assert_eq!(t2, ten!([2, 4, 6, 8]));
+}
+
+#[test]
+fn tensor_map_i32_to_f32() {
+    let t1 = ten!([1, 2, 3, 4]);
+    let t2 = t1.map(|v| 2. * *v as f32);
+
+    assert_eq!(t1.shape(), t2.shape());
+    assert_eq!(t1.offset(), t2.offset());
+    assert_eq!(t1.size(), t2.size());
+    assert_eq!(t2, Tensor::from([2., 4., 6., 8.]));
+}
+
+#[test]
+fn tensor_fold_i32() {
+    let t1 = ten!([1, 2, 3, 4]);
+    let t2 = t1.fold(0, |s, v| s + v);
+
+    assert_eq!(t2.shape().as_vec(), &[1]);
+    assert_eq!(t2.offset(), 0);
+    assert_eq!(t2.size(), 1);
+    assert_eq!(t2, ten!([10]));
+}
+
+#[test]
+fn tensor_reduce() {
+    let t1 = ten![1, 2, 3, 4];
+    let t2 = t1.reduce(|s, v| s + v);
+    assert_eq!(t2, ten![10]);
+
+    assert_eq!(t2.shape().as_vec(), &[1]);
+    assert_eq!(t2.offset(), 0);
+    assert_eq!(t2.size(), 1);
+
+    let t1 = ten![[1, 2], [3, 4]];
+    let t2 = t1.reduce(|s, v| s + v);
+    assert_eq!(t2, ten![3, 7]);
+
+    assert_eq!(t2.shape().as_vec(), &[2]);
+    assert_eq!(t2.offset(), 0);
+    assert_eq!(t2.size(), 2);
 }
 
 #[derive(Clone, Debug, PartialEq)]
