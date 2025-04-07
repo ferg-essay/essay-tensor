@@ -91,11 +91,7 @@ pub fn linspace(start: impl Into<Tensor>, end: impl Into<Tensor>, len: usize) ->
     let batch = cmp::max(1, start.size());
     let size = batch * len;
 
-    let o_shape = if start.size() == 1 {
-        Shape::from([len])
-    } else {
-        start.shape().clone().insert(0, len)
-    };
+    let o_shape = start.shape().clone().insert(0, len);
 
     unsafe {
         unsafe_init::<f32>(size, o_shape, |o| {
@@ -150,7 +146,7 @@ pub fn logspace_opt(
     let batch = cmp::max(1, start.size());
     let size = batch * len;
 
-    let o_shape = start.shape().clone().with_cols(len);
+    let o_shape = start.shape().clone().insert(0, len);
 
     unsafe {
         unsafe_init::<f32>(size, o_shape, |o| {
