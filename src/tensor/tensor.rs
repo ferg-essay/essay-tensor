@@ -73,11 +73,10 @@ impl<T: Type> Tensor<T> {
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        let count = self.offset;
         let len = self.size;
 
         unsafe {
-            ptr::slice_from_raw_parts(self.as_ptr().add(count), len)
+            ptr::slice_from_raw_parts(self.as_ptr(), len)
                 .as_ref()
                 .unwrap()
         }
@@ -88,14 +87,13 @@ impl<T: Type> Tensor<T> {
     // todo: remove because without a length, it's meaningless?
     #[inline]
     pub fn as_wrap_slice(&self, offset: usize) -> &[T] {
-        let offset = if offset < self.size {
+        let count = if offset < self.size {
             offset
         } else {
             offset % self.size
         };
 
-        let count = self.offset + offset;
-        let len = self.size - offset;
+        let len = self.size - count;
 
         unsafe {
             ptr::slice_from_raw_parts(self.as_ptr().add(count), len)
@@ -163,8 +161,8 @@ impl<T: Type> Tensor<T> {
     pub fn subslice(&self, offset: usize, len: usize) -> Self {
         let dim_0 = self.dim(0);
 
-        assert!(offset <= dim_0);
-        assert!(offset + len <= dim_0);
+        // assert!(offset <= dim_0);
+        assert!(offset + len <= dim_0, "subslice end={} with shape={:?}", offset + len, self.shape().as_vec());
 
         let size : usize = self.shape().as_vec()[1..].iter().product();
 

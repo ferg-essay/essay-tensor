@@ -220,22 +220,22 @@ mod test {
     fn reduce() {
         assert_eq!(
             ten![1, 2, 3, 4].reduce(|s, v| s + v), 
-            ten![10]
+            scalar(10)
         );
 
         assert_eq!(
             ten![[1, 2], [3, 4]].reduce(|s, v| s + v), 
-            ten![10]
+            scalar(10)
         );
 
         assert_eq!(
             ten![C(1), C(2), C(3), C(4)].reduce(|s, v| C(s.0 + v.0)), 
-            ten![C(10)]
+            scalar(C(10))
         );
 
         assert_eq!(
             ten![[C(1), C(2)], [C(3), C(4)]].reduce(|s, v| C(s.0 + v.0)), 
-            ten![C(10)]
+            scalar(C(10))
         );
     }
 
@@ -243,7 +243,7 @@ mod test {
     fn reduce_axis() {
         assert_eq!(
             ten![[1, 2], [3, 4]].reduce_axis(None, |s, v| s + v), 
-            ten![10]
+            scalar(10)
         );
         assert_eq!(
             ten![[1, 2], [3, 4]].reduce_axis(1, |s, v| s + v), 
@@ -257,49 +257,49 @@ mod test {
 
     #[test]
     fn reduce_sum_n() {
-        assert_eq!(ten![1.].reduce_sum(), ten!(1.));
-        assert_eq!(ten![1., 10.].reduce_sum(), ten!(11.));
-        assert_eq!(ten![10., 1.].reduce_sum(), ten!(11.));
+        assert_eq!(ten![1.].reduce_sum(), scalar(1.));
+        assert_eq!(ten![1., 10.].reduce_sum(), scalar(11.));
+        assert_eq!(ten![10., 1.].reduce_sum(), scalar(11.));
     }
 
     #[test]
     fn reduce_sum_1xn() {
-        assert_eq!(ten![[1.]].reduce_sum(), ten![1.]);
-        assert_eq!(ten![[1., 10.]].reduce_sum(), ten![11.]);
-        assert_eq!(ten![[10., 1.]].reduce_sum(), ten![11.]);
+        assert_eq!(ten![[1.]].reduce_sum(), scalar(1.));
+        assert_eq!(ten![[1., 10.]].reduce_sum(), scalar(11.));
+        assert_eq!(ten![[10., 1.]].reduce_sum(), scalar(11.));
     }
 
     #[test]
     fn reduce_sum_2xn() {
-        assert_eq!(ten![[1.], [2.]].reduce_sum(), ten![1., 2.]);
-        assert_eq!(ten![[1., 10.], [2., 20.]].reduce_sum(), ten![11., 22.]);
-        assert_eq!(ten![[20., 2.], [10., 1.]].reduce_sum(), ten![22., 11.]);
+        assert_eq!(ten![[1.], [2.]].reduce_sum_axis(-1), ten![1., 2.]);
+        assert_eq!(ten![[1., 10.], [2., 20.]].reduce_sum_axis(-1), ten![11., 22.]);
+        assert_eq!(ten![[20., 2.], [10., 1.]].reduce_sum_axis(-1), ten![22., 11.]);
     }
 
     #[test]
     fn reduce_sum_2x1xn() {
-        assert_eq!(ten![[[1.]], [[2.]]].reduce_sum(), ten![[1.], [2.]]);
-        assert_eq!(ten![[[1., 10.]], [[2., 20.]]].reduce_sum(), ten![[11.], [22.]]);
-        assert_eq!(ten![[[20., 2.]], [[10., 1.]]].reduce_sum(), ten![[22.], [11.]]);
+        assert_eq!(ten![[[1.]], [[2.]]].reduce_sum_axis(-1), ten![[1.], [2.]]);
+        assert_eq!(ten![[[1., 10.]], [[2., 20.]]].reduce_sum_axis(-1), ten![[11.], [22.]]);
+        assert_eq!(ten![[[20., 2.]], [[10., 1.]]].reduce_sum_axis(-1), ten![[22.], [11.]]);
     }
 
     #[test]
     fn reduce_sum_1xn_axis_none() {
-        assert_eq!(ten![[1.]].reduce_sum_axis(None), ten!(1.));
-        assert_eq!(ten![[1., 10.]].reduce_sum_axis(None), ten!(11.));
-        assert_eq!(ten![[10., 1.]].reduce_sum_axis(None), ten!(11.));
+        assert_eq!(ten![[1.]].reduce_sum_axis(None), scalar(1.));
+        assert_eq!(ten![[1., 10.]].reduce_sum_axis(None), scalar(11.));
+        assert_eq!(ten![[10., 1.]].reduce_sum_axis(None), scalar(11.));
     }
 
     #[test]
     fn reduce_sum_2xn_axis_none() {
-        assert_eq!(ten![[1.], [2.]].reduce_sum_axis(None), ten!(3.));
-        assert_eq!(ten![[1., 10.], [100., 1000.]].reduce_sum_axis(None), ten!(1111.));
+        assert_eq!(ten![[1.], [2.]].reduce_sum_axis(None), scalar(3.));
+        assert_eq!(ten![[1., 10.], [100., 1000.]].reduce_sum_axis(None), scalar(1111.));
     }
 
     #[test]
     fn reduce_sum_2x1x1xn_axis_none() {
-        assert_eq!(ten![[[[1.]]], [[[2.]]]].reduce_sum_axis(None), ten!(3.));
-        assert_eq!(ten![[[[1., 10.]]], [[[100., 1000.]]]].reduce_sum_axis(None), ten!(1111.));
+        assert_eq!(ten![[[[1.]]], [[[2.]]]].reduce_sum_axis(None), scalar(3.));
+        assert_eq!(ten![[[[1., 10.]]], [[[100., 1000.]]]].reduce_sum_axis(None), scalar(1111.));
     }
 
     #[test]
@@ -310,18 +310,18 @@ mod test {
 
     #[test]
     fn reduce_max() {
-        assert_eq!(ten![1., 3., 2.].reduce_max(), ten![3.]);
+        assert_eq!(ten![1., 3., 2.].reduce_max(), scalar(3.));
     }
 
     #[test]
     fn reduce_min() {
-        assert_eq!(ten!([1., 3., 2.]).reduce_min(), ten![1.]);
+        assert_eq!(ten!([1., 3., 2.]).reduce_min(), scalar(1.));
     }
     
     #[test]
     fn reduce_hypot() {
-        assert_eq!(ten![3., 4.].reduce_hypot(), ten![5.]);
-        assert_eq!(ten![2., 2., 2., 2.].reduce_hypot(), ten![4.]);
+        assert_eq!(ten![3., 4.].reduce_hypot(), scalar(5.));
+        assert_eq!(ten![2., 2., 2., 2.].reduce_hypot(), scalar(4.));
     }
     
     #[test]
@@ -336,8 +336,8 @@ mod test {
     fn reduce_mean_axis() {
         assert_eq!(ten![1.].reduce_mean_axis(None), scalar(1.));
         assert_eq!(ten![1., 3.].reduce_mean_axis(None), scalar(2.));
-        assert_eq!(ten![[1., 3.], [4., 6.]].reduce_mean_axis(None), ten![3.5]);
-        assert_eq!(ten![[[1., 3.]], [[4., 6.]]].reduce_mean_axis(None), ten![3.5]);
+        assert_eq!(ten![[1., 3.], [4., 6.]].reduce_mean_axis(None), scalar(3.5));
+        assert_eq!(ten![[[1., 3.]], [[4., 6.]]].reduce_mean_axis(None), scalar(3.5));
 
         assert_eq!(ten![1.].reduce_mean_axis(Axis::axis(-1)), scalar(1.));
         assert_eq!(ten![1., 3.].reduce_mean_axis(-1), scalar(2.));
@@ -352,33 +352,33 @@ mod test {
 
     #[test]
     fn reduce_std() {
-        assert_eq!(ten!([1.]).reduce_std(), ten!(0.));
-        assert_eq!(ten!([1., 1.]).reduce_std(), ten!(0.));
-        assert_eq!(ten!([2., 2., 2., 2.]).reduce_std(), ten!(0.));
+        assert_eq!(ten![1.].reduce_std(), scalar(0.));
+        assert_eq!(ten![1., 1.].reduce_std(), scalar(0.));
+        assert_eq!(ten![2., 2., 2., 2.].reduce_std(), scalar(0.));
 
-        assert_eq!(ten!([1., 3., 2., 2.]).reduce_std(), ten!(0.70710677));
-        assert_eq!(ten!([[1., 3.], [2., 2.]]).reduce_std(), ten!(0.70710677));
-        assert_eq!(ten!([[1., 3.], [2., 2.]]).reduce_std_axis(None), ten!(0.70710677));
-        assert_eq!(ten!([[1., 3.], [2., 2.]]).reduce_std_axis(-1), ten!([1.0, 0.0]));
-        assert_eq!(ten!([[1., 3.], [2., 2.]]).reduce_std_axis(0), ten!([0.5, 0.5]));
+        assert_eq!(ten![1., 3., 2., 2.].reduce_std(), scalar(0.70710677));
+        assert_eq!(ten![[1., 3.], [2., 2.]].reduce_std(), scalar(0.70710677));
+        assert_eq!(ten![[1., 3.], [2., 2.]].reduce_std_axis(None), scalar(0.70710677));
+        assert_eq!(ten![[1., 3.], [2., 2.]].reduce_std_axis(-1), ten![1.0, 0.0]);
+        assert_eq!(ten![[1., 3.], [2., 2.]].reduce_std_axis(0), ten![0.5, 0.5]);
 
-        assert_eq!(ten!([1., 3.]).reduce_std(), ten!(1.));
-        assert_eq!(ten!([1., 3., 3.]).reduce_std(), ten!(0.94280905));
-        assert_eq!(ten!([1., 3., 1., 3.]).reduce_std(), ten!(1.));
-        assert_eq!(ten!([1., 3., 4., 0.]).reduce_std(), ten!(1.5811388));
-        assert_eq!(ten!([1., 3., 4., 0., 2.]).reduce_std(), ten!(1.4142135));
+        assert_eq!(ten![1., 3.].reduce_std(), scalar(1.));
+        assert_eq!(ten![1., 3., 3.].reduce_std(), scalar(0.94280905));
+        assert_eq!(ten![1., 3., 1., 3.].reduce_std(), scalar(1.));
+        assert_eq!(ten![1., 3., 4., 0.].reduce_std(), scalar(1.5811388));
+        assert_eq!(ten![1., 3., 4., 0., 2.].reduce_std(), scalar(1.4142135));
     }
 
     #[test]
     fn reduce_var() {
-        assert_eq!(ten!([1.]).reduce_variance(), ten!(0.));
-        assert_eq!(ten!([1., 1.]).reduce_variance(), ten!(0.));
-        assert_eq!(ten!([2., 2., 2., 2.]).reduce_variance(), ten!(0.));
+        assert_eq!(ten!([1.]).reduce_variance(), scalar(0.));
+        assert_eq!(ten!([1., 1.]).reduce_variance(), scalar(0.));
+        assert_eq!(ten!([2., 2., 2., 2.]).reduce_variance(), scalar(0.));
 
-        assert_eq!(ten!([1., 3.]).reduce_variance(), ten!(1.));
-        assert_eq!(ten!([1., 3., 1., 3.]).reduce_variance(), ten!(1.));
-        assert_eq!(ten!([1., 3., 3.]).reduce_variance(), ten!(0.8888889));
-        assert_eq!(ten!([1., 3., 4., 0.]).reduce_variance(), ten!(2.5));
-        assert_eq!(ten!([1., 3., 4., 0., 2.]).reduce_variance(), ten!(2.0));
+        assert_eq!(ten!([1., 3.]).reduce_variance(), scalar(1.));
+        assert_eq!(ten!([1., 3., 1., 3.]).reduce_variance(), scalar(1.));
+        assert_eq!(ten!([1., 3., 3.]).reduce_variance(), scalar(0.8888889));
+        assert_eq!(ten!([1., 3., 4., 0.]).reduce_variance(), scalar(2.5));
+        assert_eq!(ten!([1., 3., 4., 0., 2.]).reduce_variance(), scalar(2.0));
     }
 }

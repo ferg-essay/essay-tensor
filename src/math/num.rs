@@ -257,23 +257,23 @@ tensor_ops2!(
 mod test {
     use std::ops;
 
-    use crate::{ten, tensor::Type};
+    use crate::{ten, tensor::{scalar, Type}};
 
     #[test]
     fn abs() {
         assert_eq!(ten!(-1.).abs(), ten!(1.));
-        assert_eq!(ten!([1., -2., 3.]).abs(), ten!([1., 2., 3.]));
+        assert_eq!(ten![1., -2., 3.].abs(), ten![1., 2., 3.]);
         assert_eq!(
-            ten!([[1., -2.], [-3., 4.]]).abs(), 
-            ten!([[1., 2.], [3., 4.]]),
+            ten![[1., -2.], [-3., 4.]].abs(), 
+            ten![[1., 2.], [3., 4.]],
         );
         assert_ne!(
-            ten!([[-1., 2.], [3., -4.]]).abs(), 
-            ten!([1., 2., 3., 4.]),
+            ten![[-1., 2.], [3., -4.]].abs(), 
+            ten![1., 2., 3., 4.],
         );
         assert_eq!(
-            ten!([[1., 2.], [-3., 4.]]).subslice(1, 1).abs(), 
-            ten!([[3., 4.]]),
+            ten![[1., 2.], [-3., 4.]].subslice(1, 1).abs(), 
+            ten![[3., 4.]],
         );
     }
 
@@ -292,36 +292,36 @@ mod test {
     #[test]
     fn neg() {
         assert_eq!(ten!(1.).neg(), ten!(-1.));
-        assert_eq!(ten!([1., 2., 3.]).neg(), ten!([-1., -2., -3.]));
+        assert_eq!(ten![1., 2., 3.].neg(), ten![-1., -2., -3.]);
         assert_eq!(
-            ten!([[1., 2.], [3., 4.]]).neg(), 
-            ten!([[-1., -2.], [-3., -4.]]),
+            ten![[1., 2.], [3., 4.]].neg(), 
+            ten![[-1., -2.], [-3., -4.]],
         );
         assert_ne!(
-            ten!([[1., 2.], [3., 4.]]).neg(), 
-            ten!([-1., -2., -3., -4.]),
+            ten![[1., 2.], [3., 4.]].neg(), 
+            ten![-1., -2., -3., -4.],
         );
         assert_eq!(
-            ten!([[1., 2.], [3., 4.]]).subslice(1, 1).neg(), 
-            ten!([[-3., -4.]]),
+            ten![[1., 2.], [3., 4.]].subslice(1, 1).neg(), 
+            ten![[-3., -4.]],
         );
     }
 
     #[test]
     fn neg_i32() {
         assert_eq!(ten![1].neg(), ten![-1]);
-        assert_eq!(ten!(1, 2, 3).neg(), ten!([-1, -2, -3]));
+        assert_eq!(ten!(1, 2, 3).neg(), ten![-1, -2, -3]);
         assert_eq!(
-            ten!([[1, 2], [3, 4]]).neg(), 
-            ten!([[-1, -2], [-3, -4]]),
+            ten![[1, 2], [3, 4]].neg(), 
+            ten![[-1, -2], [-3, -4]],
         );
         assert_ne!(
-            ten!([[1, 2], [3, 4]]).neg(), 
-            ten!([-1, -2, -3, -4]),
+            ten![[1, 2], [3, 4]].neg(), 
+            ten![-1, -2, -3, -4],
         );
         assert_eq!(
-            ten!([[1, 2], [3, 4]]).subslice(1, 1).neg(), 
-            ten!([[-3, -4]]),
+            ten![[1, 2], [3, 4]].subslice(1, 1).neg(), 
+            ten![[-3, -4]],
         );
     }
 
@@ -407,20 +407,20 @@ mod test {
     #[test]
     fn add_f32_broadcast() {
         assert_eq!(
-            ten!(2.) + ten!([1., 2., 3.]), 
-            ten!([3., 4., 5.])
+            scalar(2.) + ten![1., 2., 3.], 
+            ten![3., 4., 5.]
         );
         assert_eq!(
-            ten!([1., 2., 3.]) + ten!(2.), 
-            ten!([3., 4., 5.])
+            ten![1., 2., 3.] + scalar(2.), 
+            ten![3., 4., 5.]
         );
         assert_eq!(
-            ten!([3., 2., 1.]) + ten!([1., 2., 3.]), 
-            ten!([4., 4., 4.])
+            ten![3., 2., 1.] + ten![1., 2., 3.], 
+            ten![4., 4., 4.]
         );
         assert_eq!(
-            ten!([[1., 2.], [3., 4.]]) + ten!([10., 20.]), 
-            ten!([[11., 22.], [13., 24.]]),
+            ten![[1., 2.], [3., 4.]] + ten![10., 20.], 
+            ten![[11., 22.], [13., 24.]],
         );
     }
 
