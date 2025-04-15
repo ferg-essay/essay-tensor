@@ -597,8 +597,11 @@ where
 
     let (o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
     // not axis.reduce, but normalize
+
+    let shape = tensor.shape().clone();
+    
     unsafe {
-        unsafe_init::<V>(o_shape.size(), o_shape, |o| {
+        unsafe_init::<V>(shape.size(), shape, |o| {
             let a = tensor.as_slice();
 
             for n in 0..batch {

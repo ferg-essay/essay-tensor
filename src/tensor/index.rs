@@ -1,3 +1,4 @@
+use core::fmt;
 use std::ops::Index;
 
 use crate::tensor::Tensor;
@@ -17,7 +18,7 @@ impl<T: Type> Index<usize> for Tensor<T> {
     }
 }
 
-impl<T: Type> Index<(usize, usize)> for Tensor<T> {
+impl<T: Type + fmt::Debug> Index<(usize, usize)> for Tensor<T> {
     type Output = T;
 
     fn index(&self, index: (usize, usize)) -> &Self::Output {
@@ -25,8 +26,8 @@ impl<T: Type> Index<(usize, usize)> for Tensor<T> {
         let len = shape.rank();
 
         assert!(len > 1);
-        assert!(index.0 < shape.rdim(1));
-        assert!(index.1 < shape.rdim(0));
+        assert!(index.0 < shape.rdim(1), "Index={:?} is invalid for {:?}", index, self);
+        assert!(index.1 < shape.rdim(0), "Index={:?} is invalid for {:?}", index, self);
 
         let offset = index.1 + shape.rdim(0) * index.0;
 

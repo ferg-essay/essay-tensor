@@ -13,6 +13,18 @@ impl<T: Type> From<T> for Tensor<T> {
     }
 }
 
+impl<T: Type> From<Option<T>> for Tensor<T> {
+    fn from(value: Option<T>) -> Self {
+        match value {
+            Some(value) => Tensor::from_vec(vec![value], Shape::scalar()),
+            None => {
+                let v: [T; 0] = [];
+                Tensor::from_vec(Vec::from(v), [0])
+            }
+        }
+    }
+}
+
 // vec conversions
 
 impl<T: Type> From<Vec<T>> for Tensor<T> {

@@ -1,8 +1,9 @@
+use core::fmt;
 use std::cmp;
 
 use super::{Axis, Tensor, Type};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Shape {
     dims: [u32; Shape::MAX_RANK],
     rank: usize,
@@ -98,6 +99,11 @@ impl Shape {
         let i = (i + self.rank() as isize) as usize % self.rank();
         
         self.dim(i)
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.dim(0)
     }
 
     #[inline]
@@ -412,6 +418,12 @@ impl Shape {
     }
 }
 
+impl fmt::Debug for Shape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Shape{:?}", self.as_vec())
+    }
+}
+
 impl From<&Shape> for Shape {
     fn from(value: &Shape) -> Self {
         value.clone()
@@ -480,6 +492,11 @@ impl<T: Type> Tensor<T> {
     #[inline]
     pub fn rank(&self) -> usize {
         self.shape.rank()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.shape.len()
     }
 
     #[inline]
