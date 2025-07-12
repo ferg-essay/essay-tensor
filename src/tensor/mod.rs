@@ -15,10 +15,12 @@ pub use axis::Axis;
 
 pub(crate) use data::unsafe_init;
 
+pub use from::IntoTensorList;
+
 pub use map::FoldState;
 
 pub use shape::Shape;
 
 pub use tensor::{
-    Type, Tensor, IntoTensorList, scalar,
+    Type, Tensor, scalar,
 };

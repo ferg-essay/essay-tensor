@@ -425,62 +425,6 @@ pub fn scalar<T: Type>(value: T) -> Tensor<T> {
     Tensor::from(value)
 }
 
-pub trait IntoTensorList<T: Type> {
-    fn into_list(self, vec: &mut Vec<Tensor<T>>);
-}
-
-impl<T: Type> IntoTensorList<T> for Vec<Tensor<T>> {
-    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
-        let mut this = self;
-
-        vec.append(&mut this)
-    }
-}
-
-impl<T: Type> IntoTensorList<T> for &[Tensor<T>] {
-    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
-        let mut vec2 = Vec::from(self);
-        vec.append(&mut vec2);
-    }
-}
-
-impl<T: Type, const N: usize> IntoTensorList<T> for [Tensor<T>; N] {
-    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
-        let mut vec2 = Vec::from(self);
-        vec.append(&mut vec2);
-    }
-}
-
-macro_rules! into_tensor_list {
-    ($($id:ident),*) => {
-        #[allow(non_snake_case)]
-        impl<D: Type, $($id),*> IntoTensorList<D> for ($($id,)*) 
-        where $(
-            $id: Into<Tensor<D>>
-        ),*
-        {
-            fn into_list(self, vec: &mut Vec<Tensor<D>>) {
-                let ($($id,)*) = self;
-
-                $(
-                    vec.push($id.into())
-                );*
-            }
-        }
-    }
-}
-
-into_tensor_list!(P0);
-into_tensor_list!(P0, P1);
-into_tensor_list!(P0, P1, P2);
-into_tensor_list!(P0, P1, P2, P3);
-into_tensor_list!(P0, P1, P2, P3, P4);
-into_tensor_list!(P0, P1, P2, P3, P4, P5);
-into_tensor_list!(P0, P1, P2, P3, P4, P5, P6);
-into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7);
-into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8);
-into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);
-
 #[cfg(test)]
 mod test {
     use crate::{ten, test::{C, T}};

@@ -333,3 +333,133 @@ impl<T: Type + Copy + 'static, const N: usize> From<[Tensor<T>; N]> for Tensor<T
         Tensor::from(&vec)
     }
 }
+
+pub trait IntoTensorList<T: Type> {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>);
+}
+
+impl<T: Type> IntoTensorList<T> for Vec<Tensor<T>> {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        let mut this = self;
+
+        vec.append(&mut this)
+    }
+}
+
+impl<T: Type> IntoTensorList<T> for Vec<&Tensor<T>> {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for tensor in self {
+            vec.push(tensor.clone());
+        }
+    }
+}
+
+impl<T: Type> IntoTensorList<T> for &[Tensor<T>] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for tensor in self {
+            vec.push(tensor.clone());
+        }
+    }
+}
+
+impl<T: Type> IntoTensorList<T> for &[&Tensor<T>] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for tensor in self {
+            vec.push((*tensor).clone());
+        }
+    }
+}
+
+impl<T: Type, const N: usize> IntoTensorList<T> for [Tensor<T>; N] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for tensor in self {
+            vec.push(tensor);
+        }
+    }
+}
+
+impl<T: Type, const N: usize> IntoTensorList<T> for [&Tensor<T>; N] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for tensor in self {
+            vec.push(tensor.clone());
+        }
+    }
+}
+
+impl<T: Type> IntoTensorList<T> for Vec<Vec<T>> {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for item in self {
+            vec.push(Tensor::from(item));
+        }
+    }
+}
+
+impl<T: Type + Clone> IntoTensorList<T> for Vec<&Vec<T>> {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for item in self {
+            vec.push(Tensor::<T>::from(item));
+        }
+    }
+}
+
+impl<T: Type + Clone> IntoTensorList<T> for &[Vec<T>] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for item in self {
+            vec.push(Tensor::<T>::from(item));
+        }
+    }
+}
+
+impl<T: Type + Clone> IntoTensorList<T> for &[&Vec<T>] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for item in self {
+            vec.push(Tensor::<T>::from(*item));
+        }
+    }
+}
+
+impl<T: Type, const N: usize> IntoTensorList<T> for [Vec<T>; N] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for item in self {
+            vec.push(Tensor::<T>::from(item));
+        }
+    }
+}
+
+impl<T: Type + Clone, const N: usize> IntoTensorList<T> for [&Vec<T>; N] {
+    fn into_list(self, vec: &mut Vec<Tensor<T>>) {
+        for item in self {
+            vec.push(Tensor::<T>::from(item));
+        }
+    }
+}
+
+macro_rules! into_tensor_list {
+    ($($id:ident),*) => {
+        #[allow(non_snake_case)]
+        impl<D: Type, $($id),*> IntoTensorList<D> for ($($id,)*) 
+        where $(
+            $id: Into<Tensor<D>>
+        ),*
+        {
+            fn into_list(self, vec: &mut Vec<Tensor<D>>) {
+                let ($($id,)*) = self;
+
+                $(
+                    vec.push($id.into())
+                );*
+            }
+        }
+    }
+}
+
+into_tensor_list!(P0);
+into_tensor_list!(P0, P1);
+into_tensor_list!(P0, P1, P2);
+into_tensor_list!(P0, P1, P2, P3);
+into_tensor_list!(P0, P1, P2, P3, P4);
+into_tensor_list!(P0, P1, P2, P3, P4, P5);
+into_tensor_list!(P0, P1, P2, P3, P4, P5, P6);
+into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7);
+into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8);
+into_tensor_list!(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9);

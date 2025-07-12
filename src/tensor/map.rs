@@ -595,7 +595,7 @@ where
 {
     let axis = axis.into();
 
-    let (o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
+    let (_o_shape, batch, a_len, inner) = axis.reduce(tensor.shape());
     // not axis.reduce, but normalize
 
     let shape = tensor.shape().clone();
